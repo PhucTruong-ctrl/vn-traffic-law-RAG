@@ -1,0 +1,14 @@
+{
+  "sessions": [
+    {
+      "sessionId": "ses_12da7eb91ffeSoAQxLGbNh7h26",
+      "startedAt": "2026-06-16T21:30:48.345Z",
+      "lastActiveAt": "2026-06-16T21:43:08.688Z",
+      "agent": "architect-planner",
+      "sessionKind": "primary",
+      "baseAgent": "architect-planner",
+      "directivePrompt": "help me create the jira project by giving me the name, key, status etc etc to create it then you will continue setup the rest for me",
+      "replayDirectivePending": false
+    }
+  ]
+}

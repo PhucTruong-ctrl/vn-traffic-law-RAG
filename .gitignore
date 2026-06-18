@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Environment
+.env
+.env.local
+
+# Data
+backend/data/pdfs/
+backend/data/corpus/
+backend/data/chroma_db/
+backend/data/*.db
+backend/data/*.pkl
+backend/data/openai_usage.json
+backend/data/gold_set.*
+!backend/data/gold_set.frozen.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+certs/
