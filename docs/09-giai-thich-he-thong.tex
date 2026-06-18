@@ -237,9 +237,6 @@ Hệ thống kết hợp kiến trúc truy xuất thông tin lai (hybrid retriev
 
 
 
-Hệ thống RAG hỗ trợ tra cứu pháp luật giao thông Việt Nam là một giải pháp công nghệ được xây dựng trên nền tảng trí tuệ nhân tạo và xử lý ngôn ngữ tự nhiên, nhằm giải quyết bài toán tra cứu văn bản quy phạm pháp luật giao thông đường bộ. Hệ thống giải quyết bốn hạn chế cốt lõi của phương pháp tra cứu truyền thống: người dùng phải đọc thủ công các tệp PDF dài hàng chục đến hàng trăm trang, các mô hình ngôn ngữ lớn phổ dụng như ChatGPT thường bịa đặt thông tin (hallucination) về số tiền phạt và điều khoản không tồn tại, văn bản pháp luật thay đổi liên tục khiến người dân không nắm được bản mới nhất, và ngôn ngữ pháp lý phức tạp gây khó hiểu cho người không chuyên.
-
-Hệ thống kết hợp kiến trúc truy xuất thông tin lai (hybrid retrieval) giữa tìm kiếm ngữ nghĩa bằng vector embedding và tìm kiếm từ khóa truyền thống BM25, đồng thời áp dụng quy trình xác minh trích dẫn nghiêm ngặt trước khi trả kết quả cho người dùng. Mỗi câu trả lời đều kèm trích dẫn có cấu trúc đến từng văn bản, Điều, Khoản, Điểm, cùng trạng thái hiệu lực cụ thể. Hệ thống vận hành trên kiến trúc đa tầng với FastAPI làm khung API, LangGraph làm bộ điều phối trạng thái cho luồng xử lý tự động, ChromaDB làm cơ sở dữ liệu vector, và Google Gemini 2.5 Flash làm mô hình ngôn ngữ chính.
 
 
 
