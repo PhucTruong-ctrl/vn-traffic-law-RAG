@@ -51,11 +51,11 @@
     {
       "sessionId": "ses_12813f5c6ffe6G8nD1ZoLrzldm",
       "startedAt": "2026-06-17T23:30:31.169Z",
-      "lastActiveAt": "2026-06-18T00:06:20.372Z",
+      "lastActiveAt": "2026-06-18T00:15:13.611Z",
       "agent": "hive-master",
       "sessionKind": "primary",
       "baseAgent": "hive-master",
-      "directivePrompt": "setup git ignore for those aux lof log lot out toc file hive folder then commit everything.",
+      "directivePrompt": "fix all",
       "replayDirectivePending": false
     },
     {
@@ -76,6 +76,16 @@
       "sessionKind": "subagent",
       "baseAgent": "hygienic-reviewer",
       "directivePrompt": "Review the file `docs/09-giai-thich-he-thong.tex` for writing quality, slop patterns, and structural issues. This is a Vietnamese academic thesis chapter about a RAG system for Vietnamese traffic law.\n\n## Previous reviewer (hygienic) found these issues which have been partially fixed:\n- Colon artifacts from dash replacement — FIXED\n- Major redundancies (e5 prefix, BM25 rebuild, worker concurrency, chunk definition, web disclaimer) — FIXED\n- Informal language (7 instances) — FIXED\n- Meta-commentary — FIXED\n- \"có thể\" overuse in agent paragraph — FIXED\n- Double intro before enumerated list — FIXED\n- Sentence rhythm (identical structures) — FIXED\n- \"dựa trên\" -> \"theo\" simplifications — FIXED\n\n## REMAINING areas to investigate:\n1. **Passive voice** — 60+ instances reported but NOT fixed yet. Flag the worst paragraphs (3+ passives per paragraph)\n2. **Re-examine** — Did the earlier fixes produce any artifacts or broken LaTeX? Check compilation.\n3. **Argument structure** — Does the chapter flow logically? Any gaps in the narrative?\n4. **Concrete specificity** — Any remaining vague sentences that should be concrete?\n5. **Academic tone** — Any remaining informal phrases?\n6. **Verbs** — Could any \"được\" passives be replaced with active verbs?\n7. **Paragraph density** — Can any paragraphs be tightened without losing meaning?\n8. **Example quality** — Are examples effective and specific?\n9. **Structure** — Is chapter/section ordering optimal?\n10. **$rightarrow$ replacement** — Were any arrow replacements wrong? Check for remaining $\\rightarrow$ patterns.\n\n## Your task:\n- Read the FULL file\n- Challenge assumptions from the first review if needed\n- Identify issues the first reviewer missed\n- Focus on content quality, not just line-level prose\n- Return specific line numbers and suggested fixes\n- Verdict: OKAY or REJECT\n\nRead the file first, then provide your structured review.",
+      "replayDirectivePending": false
+    },
+    {
+      "sessionId": "ses_127f11becffekjS9ZcZKM51b3b",
+      "startedAt": "2026-06-18T00:08:35.159Z",
+      "lastActiveAt": "2026-06-18T00:08:35.239Z",
+      "agent": "reviewer-critical",
+      "sessionKind": "subagent",
+      "baseAgent": "hygienic-reviewer",
+      "directivePrompt": "FINAL CRITICAL REVIEW of `docs/09-giai-thich-he-thong.tex`\n\n## Context\nThis is a Vietnamese academic thesis chapter about a RAG system for Vietnamese traffic law. It has undergone:\n- 3 rounds of review (hygienic, second-opinion, now critical)\n- Stop-slop fixes (no em dashes, no arrow icons, filler words removed)\n- Passive voice reduction\n- Redundancy elimination\n- Math formulas restored (BM25, RRF, min-max)\n- API table restored\n- Unicode/LaTeX fixes\n- Compilation verified (38 pages, compiles clean)\n\n## Your Task\nRead the FULL file and provide a CRITICAL review focusing on:\n\n1. **Architecture/Security** - Any security concerns with the system design?\n2. **Technical Accuracy** - Are the formulas, algorithms, and technical claims correct?\n3. **Completeness** - Is any critical section missing or too brief?\n4. **Academic Quality** - Does it meet thesis standards?\n5. **Remaining Slop** - Any leftover filler, passive voice, or informal language?\n6. **LaTeX Quality** - Any formatting issues, missing references, or broken commands?\n7. **Cross-references** - Do chapter/section references point correctly?\n8. **Figures/Tables** - Are they properly formatted and referenced?\n\n## Previous Issues Fixed\n- Em dashes replaced with colons\n- Arrow icons replaced with ->\n- Filler words removed\n- Passive voice reduced\n- Redundancies eliminated\n- Math formulas restored\n- Unicode issues fixed\n\n## What to Check\n- Read the ENTIRE file\n- Flag anything that would fail a thesis defense\n- Be specific about line numbers and exact issues\n- Verdict: OKAY or REJECT with detailed fix instructions\n\nReturn a structured review with specific issues, line numbers, and suggested fixes.",
       "replayDirectivePending": false
     }
   ]

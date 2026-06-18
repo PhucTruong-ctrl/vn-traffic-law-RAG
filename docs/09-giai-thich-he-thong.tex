@@ -134,7 +134,7 @@ Ngành: & Công nghệ thông tin\\
 
 \begin{tabular}{rl}
 Sinh viên thực hiện: & Quách Trương Phúc\\
-Người hướng dẫn: & \ldots\ldots\ldots\ldots\ldots\ldots\ldots\\
+Người hướng dẫn: & [Tên giảng viên hướng dẫn]\\
 \end{tabular}
 
 \vspace{3cm}
@@ -172,7 +172,7 @@ Quách Trương Phúc
 \chapter*{Lời Cảm Ơn}
 \addcontentsline{toc}{chapter}{Lời cảm ơn}
 
-Tác giả xin gửi lời cảm ơn chân thành đến \ldots
+Tác giả xin gửi lời cảm ơn chân thành đến [Tên giảng viên hướng dẫn] đã tận tình hướng dẫn trong quá trình thực hiện khóa luận này. Tác giả cũng xin cảm ơn các thầy cô trong Khoa Kỹ thuật \& Công nghệ, Trường Đại học Tây Đô, đã tạo điều kiện thuận lợi cho việc học tập và nghiên cứu.
 
 \newpage
 
@@ -180,7 +180,7 @@ Tác giả xin gửi lời cảm ơn chân thành đến \ldots
 \chapter*{Tóm Tắt}
 \addcontentsline{toc}{chapter}{Tóm tắt}
 
-\ldots
+Khóa luận này trình bày việc xây dựng hệ thống RAG (Retrieval-Augmented Generation) hỗ trợ tra cứu pháp luật giao thông Việt Nam. Hệ thống kết hợp truy xuất lai (hybrid retrieval) giữa dense retrieval bằng vector embedding và BM25, sử dụng LangGraph state machine để điều phối luồng xử lý, và Google Gemini 2.5 Flash làm mô hình ngôn ngữ chính. Hệ thống đạt Citation Correctness tối thiểu 0.85 trên gold set 30 câu hỏi, xác minh trích dẫn nghiêm ngặt trước khi trả kết quả cho người dùng.
 
 \newpage
 
@@ -188,20 +188,12 @@ Tác giả xin gửi lời cảm ơn chân thành đến \ldots
 \chapter*{Abstract}
 \addcontentsline{toc}{chapter}{Abstract}
 
-\ldots
+This thesis presents a RAG (Retrieval-Augmented Generation) system for Vietnamese traffic law retrieval. The system combines hybrid retrieval between dense vector embedding and BM25, uses LangGraph state machine for workflow orchestration, and Google Gemini 2.5 Flash as the primary language model. The system achieves Citation Correctness of at least 0.85 on a 30-question gold set, with strict citation verification before returning results to users.
 
 \newpage
 
 % ── TABLE OF CONTENTS ──
 \tableofcontents
-\newpage
-
-% ── LIST OF TABLES ──
-\listoftables
-\newpage
-
-% ── LIST OF FIGURES ──
-\listoffigures
 \newpage
 
 % ── ABBREVIATIONS ──
@@ -217,7 +209,7 @@ DDG & DuckDuckGo\\
 HITL & Human-in-the-Loop\\
 LLM & Large Language Model (Mô hình ngôn ngữ lớn)\\
 MVP & Minimum Viable Product\\
-PDPA & Personal Data Protection Act (Nghị định 13/2023/NĐ-CP)\\
+PDPA & Personal Data Protection Act (Nghị định 13/2023/NĐ-CP \cite{nd13})\\
 RAG & Retrieval-Augmented Generation\\
 RPM & Requests Per Minute\\
 RPD & Requests Per Day\\
@@ -241,7 +233,7 @@ WAL & Write-Ahead Log\\
 
 Hệ thống RAG hỗ trợ tra cứu pháp luật giao thông Việt Nam là một giải pháp công nghệ được xây dựng trên nền tảng trí tuệ nhân tạo và xử lý ngôn ngữ tự nhiên, nhằm giải quyết bài toán tra cứu văn bản quy phạm pháp luật giao thông đường bộ. Hệ thống giải quyết bốn hạn chế cốt lõi của phương pháp tra cứu truyền thống: người dùng phải đọc thủ công các tệp PDF dài hàng chục đến hàng trăm trang, các mô hình ngôn ngữ lớn phổ dụng như ChatGPT thường bịa đặt thông tin (hallucination) về số tiền phạt và điều khoản không tồn tại, văn bản pháp luật thay đổi liên tục khiến người dân không nắm được bản mới nhất, và ngôn ngữ pháp lý phức tạp gây khó hiểu cho người không chuyên.
 
-Hệ thống kết hợp kiến trúc truy xuất thông tin lai (hybrid retrieval) giữa tìm kiếm ngữ nghĩa bằng vector embedding và tìm kiếm từ khóa truyền thống BM25, đồng thời áp dụng quy trình xác minh trích dẫn nghiêm ngặt trước khi trả kết quả cho người dùng. Mỗi câu trả lời đều kèm trích dẫn có cấu trúc đến từng văn bản, Điều, Khoản, Điểm, cùng trạng thái hiệu lực cụ thể. Hệ thống vận hành trên kiến trúc đa tầng với FastAPI làm khung API, LangGraph làm bộ điều phối trạng thái cho luồng xử lý tự động, ChromaDB làm cơ sở dữ liệu vector, và Google Gemini 2.5 Flash làm mô hình ngôn ngữ chính.
+Hệ thống kết hợp kiến trúc truy xuất thông tin lai (hybrid retrieval) giữa tìm kiếm ngữ nghĩa bằng vector embedding và tìm kiếm từ khóa truyền thống BM25, đồng thời áp dụng quy trình xác minh trích dẫn nghiêm ngặt trước khi trả kết quả cho người dùng. Mỗi câu trả lời đều kèm trích dẫn có cấu trúc đến từng văn bản, Điều, Khoản, Điểm, cùng trạng thái hiệu lực cụ thể. Hệ thống vận hành trên kiến trúc đa tầng với FastAPI làm khung API, LangGraph làm bộ điều phối trạng thái cho luồng xử lý tự động, ChromaDB \cite{chroma} làm cơ sở dữ liệu vector, và Google Gemini 2.5 Flash làm mô hình ngôn ngữ chính.
 
 
 
@@ -260,7 +252,7 @@ Phần này giải thích các khái niệm cốt lõi mà hệ thống xây d�
 \section{RAG: Truy Xuất và Sinh Tăng Cường}
 
 
-RAG (Retrieval-Augmented Generation) là kiến trúc kết hợp hai bước trong xử lý câu hỏi. Bước truy xuất (retrieval) tìm kiếm các đoạn văn bản liên quan từ một kho tài liệu có sẵn. Bước sinh (generation) đưa các đoạn văn bản vừa tìm được vào một mô hình ngôn ngữ lớn để tạo câu trả lời. LLM trong RAG không dựa vào trí nhớ nội tại của nó. Nó bị ràng buộc chỉ được sử dụng thông tin từ các đoạn văn bản được cung cấp.
+RAG (Retrieval-Augmented Generation) là kiến trúc \cite{lewis} kết hợp hai bước trong xử lý câu hỏi. Bước truy xuất (retrieval) tìm kiếm các đoạn văn bản liên quan từ một kho tài liệu có sẵn. Bước sinh (generation) đưa các đoạn văn bản vừa tìm được vào một mô hình ngôn ngữ lớn để tạo câu trả lời. LLM trong RAG không dựa vào trí nhớ nội tại của nó. Nó bị ràng buộc chỉ được sử dụng thông tin từ các đoạn văn bản được cung cấp.
 
 LLM phổ dụng như ChatGPT vận hành khác. Nó sinh câu trả lời từ toàn bộ tri thức đã học trong quá trình huấn luyện, không có cơ chế kiểm tra xem thông tin đó có chính xác hay không. Với câu hỏi pháp luật Việt Nam, ChatGPT bịa ra số tiền phạt không tồn tại, điều khoản không tồn tại, hoặc trích dẫn văn bản đã hết hiệu lực. RAG giải quyết vấn đề này bằng cách tách biệt kho tri thức (corpus văn bản luật) khỏi khả năng diễn đạt (LLM). Kho tri thức có thể được kiểm tra, cập nhật, và kiểm soát độc lập với LLM.
 
@@ -274,7 +266,7 @@ Agentic RAG là bước tiến xa hơn. Thay vì một pipeline tuyến tính c�
 
 Mô hình ngôn ngữ lớn (Large Language Model) là một mạng nơ-ron được huấn luyện trên hàng tỷ câu văn bản để dự đoán từ tiếp theo trong một chuỗi. Kết quả của quá trình huấn luyện này là một mô hình có khả năng hiểu và sinh văn bản tiếng người ở mức độ đáng kinh ngạc. LLM không "biết" sự thật. Nó dự đoán chuỗi từ có xác suất cao nhất dựa trên mẫu đã học.
 
-Dự án sử dụng hai LLM. Gemini 2.5 Flash của Google làm LLM chính cho toàn bộ luồng xử lý: rewrite câu hỏi, grade chất lượng retrieval, generate câu trả lời. Mô hình này có free tier 250 request mỗi ngày, cửa sổ ngữ cảnh 1 triệu token (tương đương khoảng 750.000 từ), và chất lượng tiếng Việt tốt. OpenAI GPT-4o-mini làm LLM phụ, chỉ dùng cho evaluation. Lý do tách biệt: nếu cùng một LLM vừa sinh câu trả lời vừa chấm điểm câu trả lời đó, điểm số sẽ thiên vị (circularity). GPT-4o-mini có khả năng xuất JSON có cấu trúc ổn định, phù hợp cho vai trò judge.
+Dự án sử dụng hai LLM. Gemini 2.5 Flash của Google \cite{gemini} làm LLM chính cho toàn bộ luồng xử lý: rewrite câu hỏi, grade chất lượng retrieval, generate câu trả lời. Mô hình này có free tier 250 request mỗi ngày, cửa sổ ngữ cảnh 1 triệu token (tương đương khoảng 750.000 từ), và chất lượng tiếng Việt tốt. OpenAI GPT-4o-mini làm LLM phụ, chỉ dùng cho evaluation. Lý do tách biệt: nếu cùng một LLM vừa sinh câu trả lời vừa chấm điểm câu trả lời đó, điểm số sẽ thiên vị (circularity). GPT-4o-mini có khả năng xuất JSON có cấu trúc ổn định, phù hợp cho vai trò judge.
 
 LLM không chạy cục bộ trên máy phát triển. GPU MX330 2GB VRAM không đủ để chạy bất kỳ LLM nào có chất lượng chấp nhận được cho legal reasoning. Toàn bộ LLM inference được gọi qua API cloud.
 
@@ -284,7 +276,7 @@ LLM không chạy cục bộ trên máy phát triển. GPU MX330 2GB VRAM không
 
 Embedding là quá trình biến một đoạn văn bản thành một vector số thực nhiều chiều. Vector này nằm trong một không gian mà khoảng cách giữa hai vector phản ánh mức độ tương đồng ngữ nghĩa giữa hai đoạn văn bản gốc. Hai câu có nghĩa giống nhau sẽ có hai vector gần nhau. Hai câu về chủ đề khác nhau sẽ có hai vector xa nhau.
 
-Hệ thống dùng mô hình intfloat/multilingual-e5-small để thực hiện embedding. Mô hình này nhận văn bản đầu vào và trả về một vector 384 chiều. Kích thước 384 chiều là sự cân bằng giữa chất lượng biểu diễn ngữ nghĩa và hiệu năng tính toán: vector càng nhiều chiều càng biểu diễn tốt nhưng càng tốn bộ nhớ và thời gian so sánh. Mô hình này hỗ trợ đa ngôn ngữ, bao gồm tiếng Việt.
+Hệ thống dùng mô hình intfloat/multilingual-e5-small \cite{wang} để thực hiện embedding. Mô hình này nhận văn bản đầu vào và trả về một vector 384 chiều. Kích thước 384 chiều là sự cân bằng giữa chất lượng biểu diễn ngữ nghĩa và hiệu năng tính toán: vector càng nhiều chiều càng biểu diễn tốt nhưng càng tốn bộ nhớ và thời gian so sánh. Mô hình này hỗ trợ đa ngôn ngữ, bao gồm tiếng Việt.
 
 Yêu cầu kỹ thuật then chốt của e5-small là tiền tố. Khi embedding một câu hỏi, văn bản phải có tiền tố "query: " ở đầu. Khi embedding một đoạn văn bản tài liệu, văn bản phải có tiền tố "passage: " ở đầu. Thiếu tiền tố này, chất lượng truy xuất giảm 20 đến 40 phần trăm. Đây là lỗi âm thầm: không có exception, không có crash, chỉ có kết quả tìm kiếm kém đi mà không ai phát hiện.
 
@@ -306,16 +298,16 @@ Chunking không đơn giản là cắt theo số ký tự cố định. Văn b�
 
 TF-IDF (Term Frequency - Inverse Document Frequency) là nền tảng của tìm kiếm văn bản. Ý tưởng cốt lõi: một từ quan trọng nếu nó xuất hiện nhiều trong một văn bản cụ thể (TF cao) nhưng xuất hiện ít trong toàn bộ tập văn bản (IDF cao). Từ "và", "của", "là" có TF cao nhưng IDF thấp vì xuất hiện trong mọi văn bản - chúng không có giá trị phân biệt. Từ "nghị định", "điều", "khoản" xuất hiện trong mọi văn bản luật - IDF của chúng cũng thấp. Từ "vượt đèn đỏ", "nồng độ cồn", "xe máy" xuất hiện ít hơn - IDF của chúng cao hơn.
 
-BM25 Okapi cải tiến TF-IDF bằng hai cơ chế. Thứ nhất, nó giới hạn ảnh hưởng của TF: một từ xuất hiện 100 lần không quan trọng gấp 100 lần từ xuất hiện 1 lần. Hàm bão hòa TF/(TF + k1) đảm bảo sau một ngưỡng, tần suất tăng thêm không làm tăng điểm đáng kể. Thứ hai, nó điều chỉnh theo độ dài văn bản: một từ xuất hiện 5 lần trong văn bản 100 từ quan trọng hơn 5 lần trong văn bản 10.000 từ. Tham số b kiểm soát mức độ phạt văn bản dài.
+BM25 Okapi cải tiến TF-IDF \cite{robertson} bằng hai cơ chế. Thứ nhất, nó giới hạn ảnh hưởng của TF: một từ xuất hiện 100 lần không quan trọng gấp 100 lần từ xuất hiện 1 lần. Hàm bão hòa TF/(TF + k1) đảm bảo sau một ngưỡng, tần suất tăng thêm không làm tăng điểm đáng kể. Thứ hai, nó điều chỉnh theo độ dài văn bản: một từ xuất hiện 5 lần trong văn bản 100 từ quan trọng hơn 5 lần trong văn bản 10.000 từ. Tham số b kiểm soát mức độ phạt văn bản dài.
 
 Hàm điểm số BM25 cho truy vấn $Q$ gồm các từ $q_1, q_2, \ldots, q_n$ trên văn bản $D$ được biểu diễn như sau:
 \begin{equation}
-\text{score}(D, Q) = \sum\_{i=1}^{n} \text{IDF}(q\_i) \cdot \frac{f(q\_i, D) \cdot (k\_1 + 1)}{f(q\_i, D) + k\_1 \cdot \left(1 - b + b \cdot \frac{|D|}{\text{avgdl}}\right)}
+\text{score}(D, Q) = \sum_{i=1}^{n} \text{IDF}(q_i) \cdot \frac{f(q_i, D) \cdot (k_1 + 1)}{f(q_i, D) + k_1 \cdot \left(1 - b + b \cdot \frac{|D|}{\text{avgdl}}\right)}
 \label{eq:bm25}
 \end{equation}
 Trong đó $\text{IDF}(q_i)$ được tính bằng công thức:
 \begin{equation}
-\text{IDF}(q\_i) = \ln \left( \frac{N - n(q\_i) + 0.5}{n(q\_i) + 0.5} + 1 \right)
+\text{IDF}(q_i) = \ln \left( \frac{N - n(q_i) + 0.5}{n(q_i) + 0.5} + 1 \right)
 \label{eq:idf}
 \end{equation}
 với $N$ là tổng số văn bản trong corpus và $n(q_i)$ là số văn bản chứa từ $q_i$. Công thức IDF đảm bảo các từ hiếm gặp có trọng số cao hơn các từ phổ biến.
@@ -335,7 +327,7 @@ Trong dự án, BM25 được cài đặt qua thư viện rank\_bm25 với token
 \section{LangGraph và State Machine}
 
 
-LangGraph là thư viện xây dựng ứng dụng agent dưới dạng đồ thị trạng thái. Một đồ thị gồm các nút (node) và các cạnh (edge). Mỗi nút thực hiện một thao tác cụ thể. Các cạnh xác định thứ tự thực hiện. Trạng thái (state) là một đối tượng dùng chung, được truyền từ nút này sang nút khác, tích lũy dữ liệu qua từng bước xử lý.
+LangGraph là thư viện xây dựng \cite{langgraph} ứng dụng agent dưới dạng đồ thị trạng thái. Một đồ thị gồm các nút (node) và các cạnh (edge). Mỗi nút thực hiện một thao tác cụ thể. Các cạnh xác định thứ tự thực hiện. Trạng thái (state) là một đối tượng dùng chung, được truyền từ nút này sang nút khác, tích lũy dữ liệu qua từng bước xử lý.
 
 Khác với pipeline tuyến tính thông thường (A -> B -> C -> D), LangGraph cho phép các cạnh có điều kiện. Sau nút grade, hệ thống có thể đi đến generate (nếu điểm cao), quay lại rewrite (nếu điểm trung bình), hoặc chuyển sang web\_search (nếu điểm thấp). Quyết định này dựa trên giá trị của relevance\_score và iterations trong state tại thời điểm đó.
 
@@ -369,13 +361,13 @@ Trong dự án, SSE được dùng để stream câu trả lời từ backend v�
 
 Streaming trực tiếp từ LLM đặt ra thách thức cho citation validation. Nếu câu trả lời được stream từng phần ra giao diện, rồi phát hiện một trích dẫn sai ở phần sau, hệ thống không thể rút lại phần đã gửi đến trình duyệt. Người dùng sẽ thấy câu trả lời thay đổi giữa chừng.
 
-Giải pháp là buffer-validate-stream. Hệ thống không stream trực tiếp từ LLM. Thay vào đó: LLM sinh toàn bộ câu trả lời vào bộ đệm trong bộ nhớ (buffer), CitationValidator kiểm tra toàn bộ citation trong bộ đệm (validate), và chỉ khi tất cả citation hợp lệ hoặc đã hết số lần thử sinh lại (regen\_count $\\ge$ 2), câu trả lời hoàn chỉnh mới được stream ra giao diện qua SSE (stream). Cơ chế này đánh đổi latency - người dùng phải đợi đến khi validate xong mới thấy chữ đầu tiên - để lấy sự chính xác và nhất quán tuyệt đối của câu trả lời.
+Giải pháp là buffer-validate-stream. Hệ thống không stream trực tiếp từ LLM. Thay vào đó: LLM sinh toàn bộ câu trả lời vào bộ đệm trong bộ nhớ (buffer), CitationValidator kiểm tra toàn bộ citation trong bộ đệm (validate), và chỉ khi tất cả citation hợp lệ hoặc đã hết số lần thử sinh lại (regen\_count $\ge$ 2), câu trả lời hoàn chỉnh mới được stream ra giao diện qua SSE (stream). Cơ chế này đánh đổi latency - người dùng phải đợi đến khi validate xong mới thấy chữ đầu tiên - để lấy sự chính xác và nhất quán tuyệt đối của câu trả lời.
 
 
 \section{Corpus}
 
 
-Corpus là tập hợp toàn bộ văn bản pháp luật mà hệ thống có quyền tra cứu. Trong dự án này, corpus ban đầu gồm 30 văn bản pháp luật giao thông đường bộ Việt Nam, bao gồm: Nghị định 168/2024/NĐ-CP (xử phạt vi phạm hành chính giao thông đường bộ), Luật Trật tự An toàn Giao thông Đường bộ 36/2024/QH15, các Thông tư hướng dẫn, và các văn bản liên quan khác.
+Corpus là tập hợp toàn bộ văn bản pháp luật mà hệ thống có quyền tra cứu. Trong dự án này, corpus ban đầu gồm 30 văn bản pháp luật giao thông đường bộ Việt Nam, bao gồm: Nghị định 168/2024/NĐ-CP \cite{nd168} (xử phạt vi phạm hành chính giao thông đường bộ), Luật Trật tự An toàn Giao thông Đường bộ 36/2024/QH15 \cite{luat36}, các Thông tư hướng dẫn, và các văn bản liên quan khác.
 
 Corpus khác với database thông thường. Database lưu dữ liệu có cấu trúc (bảng, cột, khóa). Corpus lưu văn bản phi cấu trúc đã được xử lý thành chunks có embedding. Mỗi chunk trong corpus là một đơn vị có thể được tìm kiếm và trích xuất độc lập.
 
@@ -389,7 +381,7 @@ Corpus cần được bảo trì liên tục. Văn bản pháp luật thay đổ
 \section{Worker: Đơn Vị Xử Lý Đồng Thời}
 
 
-Worker là một tiến trình hệ điều hành chạy ứng dụng FastAPI. Mỗi worker có thể nhận và xử lý một HTTP request tại một thời điểm. FastAPI chạy trên Uvicorn, một ASGI server. Uvicorn mặc định chạy 1 worker. Tuy nhiên, convention phổ biến khi triển khai FastAPI là dùng \texttt{workers = (2 $\\times$ CPU) + 1}, tạo ra 13 worker trên máy i5-1035G1 4 nhân. Với cấu hình này, 13 tiến trình cùng truy cập ChromaDB.
+Worker là một tiến trình hệ điều hành chạy ứng dụng FastAPI. Mỗi worker có thể nhận và xử lý một HTTP request tại một thời điểm. FastAPI chạy trên Uvicorn, một ASGI server. Uvicorn mặc định chạy 1 worker. Tuy nhiên, convention phổ biến khi triển khai FastAPI là dùng \texttt{workers = (2 $\times$ CPU) + 1}, tạo ra 13 worker trên máy i5-1035G1 4 nhân. Với cấu hình này, 13 tiến trình cùng truy cập ChromaDB.
 
 Hệ thống chạy với chính xác 1 worker. Lý do: ChromaDB, vector database dùng trong dự án, sử dụng SQLite nội bộ. SQLite không được thiết kế để nhiều tiến trình ghi đồng thời. Khi 13 worker cùng truy cập ChromaDB, SQLite bị treo (busy timeout), sinh lỗi segmentation fault, hoặc hỏng vĩnh viễn tệp cơ sở dữ liệu. Đây là vấn đề đã được ghi nhận rộng rãi trong cộng đồng ChromaDB.
 
@@ -533,7 +525,7 @@ b là tham số điều chỉnh độ dài văn bản. Giá trị mặc định 
 
 Hệ thống sử dụng thư viện rank\_bm25 cho cài đặt BM25. Điểm đặc biệt là rank\_bm25 chỉ hoạt động với bộ nhớ trong (in-memory), không hỗ trợ thêm dữ liệu gia tăng (incremental add). Mỗi khi có chunk mới được thêm vào, toàn bộ chỉ mục BM25 phải được xây dựng lại từ đầu. Điều này ảnh hưởng đến thiết kế ingest pipeline: sau khi thêm chunk mới vào ChromaDB, hệ thống đọc toàn bộ dữ liệu từ ChromaDB, tokenize bằng pyvi, xây dựng lại đối tượng BM25Okapi, và lưu kết quả vào tệp pickle trên đĩa.
 
-Việc tokenize tiếng Việt cho BM25 sử dụng thư viện pyvi, cụ thể là hàm ViTokenizer.tokenize. Tiếng Việt là ngôn ngữ đơn lập, các từ ghép gồm nhiều âm tiết (ví dụ: "giao thông", "pháp luật", "điều khiển"). Việc tách từ bằng khoảng trắng đơn thuần sẽ làm mất nghĩa của các từ ghép này. pyVi giải quyết vấn đề này bằng cách nhận diện ranh giới từ dựa trên từ điển tiếng Việt.
+Việc tokenize tiếng Việt cho BM25 sử dụng thư viện pyvi, cụ thể là hàm ViTokenizer.tokenize. Tiếng Việt là ngôn ngữ đơn lập, các từ ghép gồm nhiều âm tiết (ví dụ: "giao thông", "pháp luật", "điều khiển"). Việc tách từ bằng khoảng trắng đơn thuần sẽ làm mất nghĩa của các từ ghép này. pyvi giải quyết vấn đề này bằng cách nhận diện ranh giới từ dựa trên từ điển tiếng Việt.
 
 
 \section{Vấn đề bất thường tần suất từ}
@@ -545,11 +537,11 @@ TF-IDF và BM25 gặp khó khăn với văn bản pháp luật Việt Nam vì c�
 \section{Reciprocal Rank Fusion}
 
 
-RRF là phương pháp kết hợp hai danh sách xếp hạng từ hai hệ thống truy xuất khác nhau mà không cần điểm số chuẩn hóa tuyệt đối. Thay vào đó, RRF dựa trên thứ hạng (rank) của mỗi chunk trong từng danh sách.
+RRF là phương pháp kết hợp \cite{cormack} hai danh sách xếp hạng từ hai hệ thống truy xuất khác nhau mà không cần điểm số chuẩn hóa tuyệt đối. Thay vào đó, RRF dựa trên thứ hạng (rank) của mỗi chunk trong từng danh sách.
 
 Công thức RRF được biểu diễn như sau:
 \begin{equation}
-\text{RRF\_score}(c) = \frac{1}{k + r\_{\text{dense}}(c)} + \frac{1}{k + r\_{\text{bm25}}(c)}
+\text{RRF\_score}(c) = \frac{1}{k + r_{\text{dense}}(c)} + \frac{1}{k + r_{\text{bm25}}(c)}
 \label{eq:rrf}
 \end{equation}
 
@@ -574,7 +566,7 @@ normalized\_score = (score - min\_score) chia (max\_score - min\_score)
 Trước khi đưa vào RRF, hệ thống chuẩn hóa điểm cosine và điểm BM25 về cùng thang đo 0-1 bằng phương pháp min-max normalization. Công thức chuẩn hóa như sau:
 
 \begin{equation}
-\text{score}\_{\text{norm}} = \frac{\text{score}\_{\text{raw}} - \text{score}\_{\text{min}}}{\text{score}\_{\text{max}} - \text{score}\_{\text{min}}}
+\text{score}_{\text{norm}} = \frac{\text{score}_{\text{raw}} - \text{score}_{\text{min}}}{\text{score}_{\text{max}} - \text{score}_{\text{min}}}
 \label{eq:minmax}
 \end{equation}
 
@@ -586,7 +578,7 @@ Nếu max\_score bằng min\_score, tất cả các điểm được gán giá t
 
 Khi nhận một truy vấn, HybridRetriever thực hiện các bước sau đây theo thứ tự:
 
-Bước một: gọi EmbeddingService.embed\_query để biến câu hỏi thành vector 384 chiều. Tiền tố "query: " được tự động thêm vào nếu thiếu. Bước hai: truy vấn ChromaDB collection law\_chunks với vector này, yêu cầu 20 kết quả, kèm theo trường documents, metadatas, và distances. Kết quả trả về là danh sách 20 chunk cùng với khoảng cách cosine. Hệ thống chuyển khoảng cách cosine thành độ tương đồng cosine bằng công thức 1 trừ distance. Bước ba: nếu BM25 không được kích hoạt, hệ thống trả về 20 chunk đã sắp xếp theo dense score. Nếu BM25 được kích hoạt, hệ thống tiếp tục bước bốn. Bước bốn: tokenize truy vấn bằng pyVi, gọi BM25.get\_scores để lấy điểm BM25 cho tất cả chunk trong corpus. Lấy 20 chunk có điểm BM25 cao nhất. Bước năm: chuẩn hóa cả dense\_scores và bm25\_scores về thang 0-1 bằng min-max normalization. Bước sáu: áp dụng RRF để hợp nhất hai danh sách xếp hạng. Bước bảy: sắp xếp tất cả chunk theo điểm RRF giảm dần, trả về 10 chunk có điểm cao nhất.
+Bước một: gọi EmbeddingService.embed\_query để biến câu hỏi thành vector 384 chiều. Tiền tố "query: " được tự động thêm vào nếu thiếu. Bước hai: truy vấn ChromaDB collection law\_chunks với vector này, yêu cầu 20 kết quả, kèm theo trường documents, metadatas, và distances. Kết quả trả về là danh sách 20 chunk cùng với khoảng cách cosine. Hệ thống chuyển khoảng cách cosine thành độ tương đồng cosine bằng công thức 1 trừ distance. Bước ba: nếu BM25 không được kích hoạt, hệ thống trả về 20 chunk đã sắp xếp theo dense score. Nếu BM25 được kích hoạt, hệ thống tiếp tục bước bốn. Bước bốn: tokenize truy vấn bằng pyvi, gọi BM25.get\_scores để lấy điểm BM25 cho tất cả chunk trong corpus. Lấy 20 chunk có điểm BM25 cao nhất. Bước năm: chuẩn hóa cả dense\_scores và bm25\_scores về thang 0-1 bằng min-max normalization. Bước sáu: áp dụng RRF để hợp nhất hai danh sách xếp hạng. Bước bảy: sắp xếp tất cả chunk theo điểm RRF giảm dần, trả về 10 chunk có điểm cao nhất.
 
 
 
@@ -602,19 +594,10 @@ Văn bản pháp luật Việt Nam có đặc thù định dạng hỗn hợp. C
 VietnameseNormalizer xử lý bốn lớp vấn đề:
 
 \begin{itemize}
-    \item **lowercase**: Chuẩn hóa các nhãn mục pháp luật: "Điều" -> "điều", "Khoản" -> "khoản", "Điểm" -> "điểm", "Chương" -> "chương", "Phụ lục" -> "phụ lục", "Mục" -> "mục".
-\end{itemize}
-
-\begin{itemize}
-    \item **unify\_dashes**: Thay thế tất cả biến thể dấu gạch ngang (-, -, ‒, -) bằng dấu gạch ngắn tiêu chuẩn (-).
-\end{itemize}
-
-\begin{itemize}
-    \item **strip\_punctuation**: Loại bỏ dấu câu khỏi số thứ tự: "1.", "1)", "a)" trở thành " 1 ", " a " với khoảng trắng hai bên để BM25 tokenize chính xác.
-\end{itemize}
-
-\begin{itemize}
-    \item **normalize\_unicode**: Chuẩn hóa tất cả ký tự Unicode về dạng NFC (Normalization Form Canonical Composition), đảm bảo các ký tự tiếng Việt có dấu được biểu diễn nhất quán.
+    \item \textbf{lowercase}: Chuẩn hóa các nhãn mục pháp luật: "Điều" -> "điều", "Khoản" -> "khoản", "Điểm" -> "điểm", "Chương" -> "chương", "Phụ lục" -> "phụ lục", "Mục" -> "mục".
+    \item \textbf{unify\_dashes}: Thay thế tất cả biến thể dấu gạch ngang (-, -, ‒, -) bằng dấu gạch ngắn tiêu chuẩn (-).
+    \item \textbf{strip\_punctuation}: Loại bỏ dấu câu khỏi số thứ tự: "1.", "1)", "a)" trở thành " 1 ", " a " với khoảng trắng hai bên để BM25 tokenize chính xác.
+    \item \textbf{normalize\_unicode}: Chuẩn hóa tất cả ký tự Unicode về dạng NFC (Normalization Form Canonical Composition), đảm bảo các ký tự tiếng Việt có dấu được biểu diễn nhất quán.
 \end{itemize}
 
 
@@ -624,9 +607,9 @@ VietnameseNormalizer xử lý bốn lớp vấn đề:
 Sau khi chuẩn hóa, văn bản được chuyển qua custom chunker để cắt thành các chunk. Hệ thống có ba chunker riêng cho ba loại văn bản, vì mỗi loại có cấu trúc phân cấp khác nhau:
 
 \begin{itemize}
-    \item **Luật**: Chương -> Mục -> Điều
-    \item **Nghị định**: Chương -> Điều -> Khoản -> Điểm
-    \item **Thông tư**: Điều -> Khoản
+    \item \textbf{Luật}: Chương -> Mục -> Điều
+    \item \textbf{Nghị định}: Chương -> Điều -> Khoản -> Điểm
+    \item \textbf{Thông tư}: Điều -> Khoản
 \end{itemize}
 
 Mỗi chunk tương ứng với một đơn vị pháp lý hoàn chỉnh (thường là một Điều hoặc một Khoản). Chunker lưu metadata hierarchy với các trường \texttt{chapter}, \texttt{dieu}, \texttt{khoan}, \texttt{diem}. Mỗi chunk được gán một định danh duy nhất theo mẫu: \texttt{{loại\textunderscore văn\textunderscore bản}\textunderscore {số}\textunderscore {năm}\textunderscore \textunderscore điều\textunderscore {x}\textunderscore \textunderscore khoản\textunderscore {y}\textunderscore \textunderscore điểm\textunderscore {z}}.
@@ -673,7 +656,7 @@ DuckDuckGo có thể bị chặn trên các địa chỉ IP trung tâm dữ li�
 
 
 
-\chapter{Đánh Giá Hệ Thống RAGAS-lite}
+\chapter{Đánh Giá Hệ Thống RAGAS-lite \cite{es}}
 
 
 Hệ thống được đánh giá trên bộ câu hỏi chuẩn (gold set) gồm 30 đến 50 câu. Mỗi câu trong gold set bao gồm câu hỏi, câu trả lời mong đợi, các trích dẫn chính xác, và một biến thể retrieval được ấn định. Gold set cũng bao gồm các câu nên bị từ chối (adversarial) để kiểm tra khả năng từ chối trả lời đúng lúc.
@@ -757,20 +740,39 @@ Câu trả lời hiển thị dưới dạng Markdown với các phần: nội d
 
 Hệ thống cung cấp các REST API endpoint sau:
 
-| Method | Path | Mô tả | Auth |
-|--------|------|-------|------|
-| POST | \texttt{/api/chat} | Gửi câu hỏi, trả về streaming | Không |
-| POST | \texttt{/api/chat/stream} | SSE streaming response | Không |
-| GET | \texttt{/api/conversations/{thread\textunderscore id}} | Lấy lịch sử hội thoại | Không |
-| GET | \texttt{/api/search?q=...} | Tìm kiếm từ khóa trực tiếp | Không |
-| POST | \texttt{/api/ingest} | Upload PDF (multipart) | Admin Bearer |
-| GET | \texttt{/api/admin/pending} | Danh sách HITL pending | Admin Bearer |
-| POST | \texttt{/api/admin/approve/{review\textunderscore id}} | Phê duyệt HITL | Admin Bearer |
-| POST | \texttt{/api/admin/reject/{review\textunderscore id}} | Từ chối HITL | Admin Bearer |
-| POST | \texttt{/api/eval/run} | Chạy evaluation | Admin Bearer |
-| GET | \texttt{/api/eval/results} | Xem kết quả đánh giá | Không |
-| GET | \texttt{/api/health} | Health check | Không |
-| GET | \texttt{/api/docs} | Swagger UI (tự động) | Không |
+\begin{table}[H]
+\centering
+\caption{Danh sách REST API Endpoint}
+\begin{tabular}{|l|l|p{6cm}|l|}
+\hline
+\textbf{Method} & \textbf{Path} & \textbf{Mô tả} & \textbf{Auth} \\
+\hline
+POST & \texttt{/api/chat} & Gửi câu hỏi, trả về streaming & Không \\
+\hline
+POST & \texttt{/api/chat/stream} & SSE streaming response & Không \\
+\hline
+GET & \texttt{/api/conversations/\{thread\_id\}} & Lấy lịch sử hội thoại & Không \\
+\hline
+GET & \texttt{/api/search?q=...} & Tìm kiếm từ khóa trực tiếp & Không \\
+\hline
+POST & \texttt{/api/ingest} & Upload PDF (multipart) & Admin \\
+\hline
+GET & \texttt{/api/admin/pending} & Danh sách HITL pending & Admin \\
+\hline
+POST & \texttt{/api/admin/approve/\{review\_id\}} & Phê duyệt HITL & Admin \\
+\hline
+POST & \texttt{/api/admin/reject/\{review\_id\}} & Từ chối HITL & Admin \\
+\hline
+POST & \texttt{/api/eval/run} & Chạy evaluation & Admin \\
+\hline
+GET & \texttt{/api/eval/results} & Xem kết quả đánh giá & Không \\
+\hline
+GET & \texttt{/api/health} & Health check & Không \\
+\hline
+GET & \texttt{/api/docs} & Swagger UI (tự động) & Không \\
+\hline
+\end{tabular}
+\end{table}
 
 Request chat có dạng JSON với trường \texttt{query} (câu hỏi) và \texttt{thread\textunderscore id} tùy chọn. Response trả về \texttt{thread\textunderscore id}, \texttt{query\textunderscore id}, \texttt{answer} dưới dạng Markdown, danh sách \texttt{citations} có cấu trúc, \texttt{disclaimer}, \texttt{citation\textunderscore statuses}, \texttt{validation\textunderscore warnings}, \texttt{web\textunderscore used}, và \texttt{latency\textunderscore ms}.
 
@@ -778,9 +780,9 @@ Request chat có dạng JSON với trường \texttt{query} (câu hỏi) và \te
 \chapter{Kiến Trúc Kiểm Thử}
 
 
-Hệ thống có ba lớp kiểm thử. Unit test kiểm tra từng module độc lập: parser PDF, chunker, embedding service, citation extractor, BM25 index. Mục tiêu coverage $\\ge$ 70% cho core modules. Integration test kiểm tra các API endpoint với database thật: gửi request, kiểm tra response schema, kiểm tra dữ liệu trong SQLite. Mục tiêu coverage $\\ge$ 80% cho API endpoints. Regression test \texttt{test\textunderscore retrieval\textunderscore regression.py} là bắt buộc, chạy sau mỗi lần cập nhật corpus để đảm bảo chất lượng retrieval không bị suy giảm.
+Hệ thống có ba lớp kiểm thử. Unit test kiểm tra từng module độc lập: parser PDF, chunker, embedding service, citation extractor, BM25 index. Mục tiêu coverage $\ge$ 70% cho core modules. Integration test kiểm tra các API endpoint với database thật: gửi request, kiểm tra response schema, kiểm tra dữ liệu trong SQLite. Mục tiêu coverage $\ge$ 80% cho API endpoints. Regression test \texttt{test\textunderscore retrieval\textunderscore regression.py} là bắt buộc, chạy sau mỗi lần cập nhật corpus để đảm bảo chất lượng retrieval không bị suy giảm.
 
-Evaluation pipeline chạy qua script \texttt{run\textunderscore eval.py}: tải gold set, chạy từng câu hỏi qua toàn bộ pipeline RAG (bao gồm generation, không chỉ retrieval-only), thu thập citations và answers, gọi GPT-4o-mini làm judge cho 4 metrics RAGAS-lite, tính Citation Correctness bằng exact match, và xuất báo cáo JSON. Ba biến thể được đánh giá độc lập: V1 (chỉ Dense), V2 (chỉ BM25), V3 (Hybrid), tạo thành ma trận 3 biến thể $\\times$ 5 metrics để so sánh.
+Evaluation pipeline chạy qua script \texttt{run\textunderscore eval.py}: tải gold set, chạy từng câu hỏi qua toàn bộ pipeline RAG (bao gồm generation, không chỉ retrieval-only), thu thập citations và answers, gọi GPT-4o-mini làm judge cho 4 metrics RAGAS-lite, tính Citation Correctness bằng exact match, và xuất báo cáo JSON. Ba biến thể được đánh giá độc lập: V1 (chỉ Dense), V2 (chỉ BM25), V3 (Hybrid), tạo thành ma trận 3 biến thể $\times$ 5 metrics để so sánh.
 
 
 \chapter{Tổng Kết}
@@ -800,7 +802,7 @@ Hệ thống kết hợp năm kỹ thuật chính để giải quyết bài toá
 
 \bibitem{nd13} Chính phủ. \textit{Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân}. 2023.
 
-\bibitem{vaswani} Vaswani, A., et al. \textit{Attention Is All You Need}. NeurIPS, 2017.
+\bibitem{vaswani} Vaswani, A., et al. \textit{Attention Is All You Need \cite{vaswani}}. NeurIPS, 2017.
 
 \bibitem{lewis} Lewis, P., et al. \textit{Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks}. NeurIPS, 2020.
 
