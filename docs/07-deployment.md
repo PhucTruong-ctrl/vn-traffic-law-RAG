@@ -15,9 +15,25 @@
 
 ---
 
-## 7.2. Docker Compose
+## 7.2. Local Development Environment (Cap nhat 17/06)
 
-### 7.2.1. docker-compose.yml (Development) — POST-REVIEW D4, C5
+> **Tooling**: pyenv (Python 3.11.15) + uv (package manager) + Docker Compose.
+
+```bash
+# Activate Python environment
+pyenv local vnlaw-env          # Python 3.11.15
+uv sync                        # Install all dependencies
+
+# Start backend (single worker — ChromaDB requirement)
+uv run uvicorn app.main:app --reload --workers 1 --port 8000
+
+# Start frontend (separate terminal)
+cd frontend && npm run dev
+```
+
+## 7.3. Docker Compose
+
+### 7.9.1. docker-compose.yml (Development) — POST-REVIEW D4, C5
 
 > **D4 + C5 fix**: `version: '3.9'` đã obsolete. Cũng xóa duplicate `services:` key (YAML syntax error).
 
@@ -80,7 +96,7 @@ volumes:
   sqlite_data:
 ```
 
-### 7.2.2. Backend Dockerfile (POST-REVIEW D5)
+### 7.3.2. Backend Dockerfile (POST-REVIEW D5)
 
 > **D5 fix**: Multi-stage build để giảm image size. Bỏ COPY data (mount volume thay vì bundle).
 
@@ -131,7 +147,7 @@ HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
-### 7.2.3. Frontend Dockerfile
+### 7.3.3. Frontend Dockerfile
 
 ```dockerfile
 # frontend/Dockerfile
@@ -256,7 +272,7 @@ curl -X GET http://localhost:8000/api/admin/pending \
     -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 
-### 7.2.2. Rate Limiting (POST-REVIEW B10)
+### 7.3.2. Rate Limiting (POST-REVIEW B10)
 
 > **B10 fix**: NFR-03 "60 req/min/IP" mâu thuẫn với Gemini 10 RPM. Pick 6 req/min/IP để aligned với quota.
 
@@ -317,7 +333,7 @@ server {
 - Gemini 10 RPM → buffer 4 req/min (admin/internal calls + headroom)
 - 250 RPD/IP cho /api/chat (đủ cho demo)
 
-### 7.2.3. Web Search Fallback Strategy (POST-REVIEW — DDG + SerpAPI)
+### 7.3.3. Web Search Fallback Strategy (POST-REVIEW — DDG + SerpAPI)
 
 ```python
 # app/services/web_search.py — FR-04 fallback
@@ -408,7 +424,7 @@ SERPAPI_KEY=...             # Get from https://serpapi.com/ (free 100 queries/mo
 
 > **Tại sao Oracle Free Tier**: VPS 4 CPU + 24GB RAM, MIỄN PHÍ VĨNH VIỄN, ở nhiều region (Tokyo, Seoul, Singapore gần VN).
 
-### 7.3.1. Tạo VPS
+### 7.9.1. Tạo VPS
 
 ```bash
 # 1. Đăng ký tài khoản Oracle Cloud
@@ -493,11 +509,11 @@ sudo certbot --nginx -d vnlaw.example.com
 
 ---
 
-## 7.4. CI/CD với GitHub Actions (POST-REVIEW C11)
+## 7.5. CI/CD với GitHub Actions (POST-REVIEW C11)
 
 > **C11 fix**: Một CI workflow duy nhất, dùng local ChromaDB (persistent file), không cần Docker service. Bỏ test_smoke.py / test_pdfs/ references không tồn tại.
 
-### 7.4.1. Single CI Workflow
+### 7.9.1. Single CI Workflow
 
 ```yaml
 # .github/workflows/ci.yml — POST-REVIEW C11
@@ -603,7 +619,7 @@ jobs:
 
 ## 7.5. Monitoring (Minimal)
 
-### 7.5.1. Health Check (POST-REVIEW D3)
+### 7.9.1. Health Check (POST-REVIEW D3)
 
 > **D3 fix**: `datetime.utcnow()` deprecated trong Python 3.12+. Dùng `datetime.now(UTC)`.
 
@@ -662,7 +678,7 @@ def setup_logger(name: str):
 
 ## 7.6. Backup & Recovery
 
-### 7.6.1. Backup Strategy (POST-REVIEW D6)
+### 7.9.1. Backup Strategy (POST-REVIEW D6)
 
 > **D6 fix**: KHÔNG backup `.env` plaintext — chứa API keys. Dùng `gpg` encrypt hoặc bỏ qua.
 

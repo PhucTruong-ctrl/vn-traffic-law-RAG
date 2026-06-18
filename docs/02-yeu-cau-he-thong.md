@@ -168,15 +168,17 @@ graph TB
 
 ## 2.5. Yêu cầu phi chức năng (Non-Functional Requirements)
 
-### NFR-01: Hiệu năng (Performance) — POST-REVIEW C9
+### NFR-01: Hieu nang (Performance) — POST-REVIEW C9 + Machine Update (17/06)
 
-| Metric | Tiêu chí |
+> **Machine constraint (17/06)**: i5-1035G1 (4C/8T, boost 3.6GHz) — embedding cham hon ~1.5x so voi i5-10400 design goc. Embedding time relaxed accordingly.
+
+| Metric | Tieu chi |
 |--------|---------|
-| Latency P50 (response time) | ≤ 12 giây |
-| Latency P95 | ≤ **20 giây** (relaxed từ 15s, math 4 LLM calls × ~3s + retrieval ~2s) |
-| Throughput | ≥ 4 queries/phút (single user) |
-| Embedding time | ≤ 1 giây/query (cache sau lần đầu) |
-| Retrieval time | ≤ 2 giây/query |
+| Latency P50 (response time) | ≤ 12 giay |
+| Latency P95 | ≤ **20 giay** (relaxed tu 15s, math 4 LLM calls × ~3s + retrieval ~2s) |
+| Throughput | ≥ 2 queries/phut (single user, single worker) |
+| Embedding time | ≤ 1.5 giay/query (relaxed: i5-1035G1 CPU-only, cache sau lan dau) |
+| Retrieval time | ≤ 2 giay/query |
 
 ### NFR-02: Khả dụng (Availability)
 

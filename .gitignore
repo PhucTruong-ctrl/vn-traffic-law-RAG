@@ -1,35 +1,24 @@
+# LaTeX auxiliary files
+*.aux
+*.lof
+*.log
+*.lot
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# Hive session folder
+.hive/
+
 # Python
 __pycache__/
 *.pyc
-*.egg-info/
-dist/
-build/
-.venv/
-venv/
+*.pyo
+.pytest_cache/
 
-# Environment
-.env
-.env.local
-
-# Data
-backend/data/pdfs/
-backend/data/corpus/
-backend/data/chroma_db/
-backend/data/*.db
-backend/data/*.pkl
-backend/data/openai_usage.json
-backend/data/gold_set.*
-!backend/data/gold_set.frozen.json
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
+# OS files
 .DS_Store
 Thumbs.db
-
-# Docker
-certs/
+texput.pdf

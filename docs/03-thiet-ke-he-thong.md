@@ -118,9 +118,11 @@ backend/app/
     └── text.py             # Text utilities
 ```
 
-### 3.3.2. Concurrency & Thread Safety (POST-REVIEW C1)
+### 3.3.2. Concurrency & Thread Safety (POST-REVIEW C1 + Machine Update)
 
 > **CRITICAL FIX (C1)**: ChromaDB `PersistentClient` + FastAPI multi-worker = demo hang/corruption. Reference: chroma-core/chroma#7040, #1584, #2325.
+> 
+> **Machine note (17/06)**: i5-1035G1 (4C/8T) — single worker la toi uu cho CPU nay. Khong can multi-worker vi LLM calls la remote API, khong phai CPU-bound.
 
 **Vấn đề**:
 - ChromaDB uses SQLite internally with 1000s busy_timeout, no WAL by default
@@ -759,6 +761,7 @@ class EmbeddingService:
     def __init__(self):
         # M5 fix: force CPU — MX330 2GB VRAM may OOM with CUDA
         # sentence-transformers auto-detects CUDA, but MX330 is too weak
+        # Machine (17/06): i5-1035G1 4C/8T — embedding on CPU ~300-500ms/passage
         self.model = SentenceTransformer(
             self.MODEL_NAME,
             device="cpu"  # M5 fix: explicit CPU, avoid OOM on MX330
@@ -1151,7 +1154,7 @@ vnlaw-agentic-rag/
 │       ├── ci.yml                  # Lint + test
 │       └── deploy.yml              # Build + deploy
 ├── backend/
-│   ├── pyproject.toml              # Poetry
+│   ├── pyproject.toml              # uv / PEP 621
 │   ├── Dockerfile
 │   ├── poetry.lock
 │   ├── app/

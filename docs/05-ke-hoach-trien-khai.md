@@ -55,8 +55,10 @@
 - [x] Docker Compose hoạt động
 
 **Rủi ro tuần 1**:
-- ⚠️ Không cài được Poetry → dùng `pip install` + `venv` thay thế
-- ⚠️ Không crawl được PDF → tải thủ công từ thuvienphapluat.vn
+- Dung **uv** thay Poetry (da co san, nhanh hon)
+- Dung **pyenv** pin Python 3.11.15 (tranh system Python 3.14 qua moi)
+- ⚠️ CPU i5-1035G1 yeu hon design goc (i5-10400): embedding cham hon ~1.5x, chap nhan duoc
+- ⚠️ Khong crawl duoc PDF → tai thu cong tu thuvienphapluat.vn
 
 ---
 
@@ -267,9 +269,9 @@ expected_pattern = r"Tỷ lệ % lỗi cuối cùng phải do CSGT"
 
 ---
 
-## 5.3. Sử dụng AI Agent (Claude Code / OpenCode) — Hướng dẫn chi tiết
+## 5.3. Su dung AI Agent (OpenCode / Hive) — Huong dan chi tiet (Cap nhat 17/06)
 
-> **Mục tiêu**: Tăng tốc code, không phải thay thế tư duy.
+> **Muc tieu**: Tang toc code, khong phai thay the tu duy. Dung **OpenCode + Hive** (Architect Planner + Worker + Reviewer) de quan ly toan bo vong doi phat trien.
 
 ### 5.3.1. Khi nào DÙNG AI Agent (✅)
 
@@ -292,18 +294,17 @@ expected_pattern = r"Tỷ lệ % lỗi cuối cùng phải do CSGT"
 | Quyết định kiến trúc | Phải hiểu trade-off |
 | Đánh giá kết quả ablation | Phải có tư duy phản biện |
 
-### 5.3.3. Workflow đề xuất với AI Agent
+### 5.3.3. Workflow de xuat voi AI Agent (Hive)
 
 ```bash
-# 1. Khởi tạo session
-cd backend
-opencode .   # hoặc claude-code
+# 1. Architect (Planner) tao plan tu design docs
+# 2. Swarm (Orchestrator) dispatch worker cho moi task
+# 3. Worker (Forager) implement code trong isolated worktree
+# 4. Reviewer kiem tra code truoc khi merge
+# 5. Moi task commit + merge doc lap
 
-# 2. Mỗi task lớn, tạo 1 session mới
-# Tránh context window quá dài
-
-# 3. Luôn paste context cụ thể
-# Ví dụ: file path, line range, expected output
+# Tao task moi tu Jira Epic:
+hive_task_create --name "task-name" --feature "phase-1-setup"
 ```
 
 **Template prompt hiệu quả**:
@@ -330,17 +331,25 @@ Trả về:
 
 ---
 
-## 5.4. Daily Standup
+## 5.4. Project Management (Jira)
 
-Mỗi tối, ghi vào `docs/daily-log.md`:
-```markdown
-## T2 (16/6/2026)
-- ✅ Done: Setup repo, init FastAPI
-- 🚧 In progress: Đọc xong design docs
-- ❌ Blocked: -
-- 📅 Tomorrow: Setup frontend
-- 💡 Learn: Hiểu thêm về LangGraph state machine
-```
+> **Cap nhat (17/06)**: Chuyen tu `docs/daily-log.md` sang **Jira** de quan ly task chuyen nghiep hon.
+
+**Jira Board**: https://quachtruongphuc2004.atlassian.net/jira/software/projects/VLAW/boards/4/backlog
+
+**Epic mapping**:
+
+| Epic | Phase | Timeline |
+|------|-------|----------|
+| VLAW-1 | Phase 1 - Project Setup, Chunker & 5 Baseline Documents | Week 1 (16-22/06) |
+| VLAW-2 | Phase 2 - Core RAG Pipeline (Hybrid Retrieval) | Week 2 (23-29/06) |
+| VLAW-3 | Phase 3 - Agentic Core & LLM Integration | Week 3 (30/6-6/7) |
+| VLAW-4 | Phase 4 - Web Fallback & Basic Frontend | Week 4 (7-13/7) |
+| VLAW-5 | Phase 5 - Frontend Complete & Corpus Expansion | Week 5 (14-20/7) |
+| VLAW-6 | Phase 6 - Evaluation & Optimization | Week 6 (21-27/7) |
+| VLAW-7 | Phase 7 - Deploy, Report & Defense | Week 7 (28/7-3/8) |
+
+**Workflow**: Moi task duoc tao duoi Epic tuong ung. Update status (To Do -> In Progress -> Done) khi tien do thay doi. Moi task co Acceptance Criteria ro rang de verify completion.
 
 ---
 
@@ -372,7 +381,7 @@ Một task được coi là hoàn thành khi:
 - [ ] Không có lỗi syntax/lint (`ruff check` pass)
 - [ ] Type hints đầy đủ (`mypy` không warning)
 - [ ] Đã update README nếu cần
-- [ ] Đã ghi daily log
+- [ ] Da update Jira ticket status (To Do -> In Progress -> Done)
 
 Một giai đoạn hoàn thành khi:
 - [ ] Tất cả milestone checklist pass
@@ -383,21 +392,24 @@ Một giai đoạn hoàn thành khi:
 
 ---
 
-## 5.7. Tiến độ hiện tại (Real-time) — POST-REVIEW
+## 5.7. Tien do hien tai (Real-time) — POST-REVIEW + Environment Update
 
-> **Ghi chú (A7)**: Phase 1 (Design) mới chỉ done paper. Code chưa bắt đầu.
+> **Cap nhat (17/06)**: Environment da san sang code. Jira board da setup voi 7 Epics. Design docs da cap nhat hardware specs + tooling.
 
-| Task | Trạng thái | % Done |
-|------|------------|--------|
-| Phase 1: Design (paper) | ✅ Done | 100% |
-| Phase 2: Setup + Chunker | ⏳ Pending (Tuần 1) | 0% |
-| Phase 3: Core RAG (V1, V2, V3) | ⏳ Pending (Tuần 2) | 0% |
-| Phase 4: Agentic + Eval pipeline | ⏳ Pending (Tuần 3) | 0% |
-| Phase 5: Web Fallback + UI cơ bản | ⏳ Pending (Tuần 4) | 0% |
-| Phase 6: Frontend + Corpus 30 VB | ⏳ Pending (Tuần 5) | 0% |
-| Phase 7: Evaluation (5 metrics × 3 variants) | ⏳ Pending (Tuần 6) | 0% |
-| Phase 8: Báo cáo + Slide + Bảo vệ | ⏳ Pending (Tuần 7) | 0% |
+| Task | Trang thai | % Done | Jira |
+|------|------------|--------|------|
+| Phase 1: Design (paper) | Done | 100% | - |
+| Environment setup (pyenv + uv + virtualenv) | Done | 100% | VLAW-1 |
+| Jira board setup (7 Epics) | Done | 100% | VLAW-1..7 |
+| Phase 2: Setup + Chunker | Pending (Tuan 1) | 0% | VLAW-1 |
+| Phase 3: Core RAG (V1, V2, V3) | Pending (Tuan 2) | 0% | VLAW-2 |
+| Phase 4: Agentic + Eval pipeline | Pending (Tuan 3) | 0% | VLAW-3 |
+| Phase 5: Web Fallback + UI co ban | Pending (Tuan 4) | 0% | VLAW-4 |
+| Phase 6: Frontend + Corpus 30 VB | Pending (Tuan 5) | 0% | VLAW-5 |
+| Phase 7: Evaluation (5 metrics x 3 variants) | Pending (Tuan 6) | 0% | VLAW-6 |
+| Phase 8: Bao cao + Slide + Bao ve | Pending (Tuan 7) | 0% | VLAW-7 |
 
-> **A7 fix**: HITL removed from scope. Báo cáo dành riêng 1 tuần.
+> **A7 fix**: HITL removed from scope. Bao cao danh rieng 1 tuan.
+> **Environment**: Python 3.11.15 (pyenv), uv 0.11, Node v26, Docker 29, i5-1035G1 19GB RAM
 
-**Cập nhật cuối**: 16/06/2026
+**Cap nhat cuoi**: 17/06/2026

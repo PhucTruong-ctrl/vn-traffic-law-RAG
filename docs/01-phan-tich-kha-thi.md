@@ -33,10 +33,20 @@ Xây dựng **hệ thống RAG** (Retrieval-Augmented Generation có Agent) hỗ
 
 | Linh kiện | Thông số | Đánh giá |
 |-----------|----------|----------|
-| CPU | Intel Core i5-10400 (6C/12T, 2.9GHz) | ✅ Đủ cho FastAPI async, embedding inference |
-| RAM | 20GB DDR4 | ✅ Đủ cho embedding model (1GB), ChromaDB, app |
-| GPU | NVIDIA MX330 (2GB VRAM) | ⚠️ Yếu — chỉ dùng cho embedding inference, không train |
-| Disk | SSD 256GB+ | ✅ Đủ cho 30 văn bản + vector DB |
+| CPU | Intel Core i5-1035G1 (4C/8T, 1.0GHz base / 3.6GHz boost) |Đủ với single-worker + CPU-only embedding |
+| RAM | 19GB DDR4 |
+| GPU | NVIDIA MX330 (2GB VRAM, CC 6.1) | ⚠️ Yếu — force `device="cpu"` cho embedding inference; đã drop reranker (V4) |
+| Disk | NVMe 473GB (185GB free) |
+
+### 1.2.1b. Môi trường phát triển (Development Environment)
+
+| Công cụ | Phiên bản | Ghi chú |
+|---------|-----------|---------|
+| **Python** | 3.11.15 (pyenv) | Quản lý qua `pyenv` + virtualenv `vnlaw-env`; không dùng system Python 3.14 |
+| **Package manager** | uv 0.11.21 | Thay Poetry (nhanh hơn, drop-in thay pip) |
+| **Node.js** | v26.2.0 + npm 11.16 | Exceeds yêu cầu Node 20+ |
+| **Docker** | 29.5.2 + Compose 5.1.4 | Ready cho development + deployment |
+| **Shell** | fish | pyenv config qua `set -Ux` + `fish_add_path` |
 
 ### 1.2.2. Chiến lược xử lý phần cứng yếu
 
@@ -111,6 +121,7 @@ Xem chi tiết: [04-tech-stack-llm-research.md](04-tech-stack-llm-research.md)
 | 7 (28/7-3/8) | Deploy + Báo cáo | Docker + Deploy + Viết báo cáo + Slide | **BẢO VỆ** |
 
 **Đánh giá**: ✅ Khả thi với điều kiện:
+
 - Dùng AI Agent (Claude Code / OpenCode) tăng tốc code boilerplate
 - Tập trung vào chất lượng, không làm tính năng thừa
 - Dùng Gemini Free tier + Ollama chỉ khi cần test local
@@ -137,6 +148,7 @@ Xem chi tiết: [04-tech-stack-llm-research.md](04-tech-stack-llm-research.md)
 > **Hệ thống KHẢ THI** về mặt kỹ thuật, vận hành, tài chính và lịch trình.
 >
 > **Điều kiện tiên quyết**:
+>
 > 1. Sử dụng **Gemini 2.5 Flash** làm LLM chính (Free tier, 250 RPD)
 > 2. Sử dụng **OpenAI GPT-4o-mini** cho evaluation (~$5-10)
 > 3. Tập trung vào **citation chính xác** làm điểm nhấn

@@ -34,8 +34,8 @@
 
 | Thành phần | Công nghệ |
 |------------|-----------|
-| Backend | Python 3.11 + FastAPI |
-| | LangGraph (state machine) |
+| Backend | Python 3.11.15 (pyenv) + FastAPI |
+| | LangGraph (state machine) + uv (package manager) |
 | RAG | LangChain + Hybrid Retrieval (Dense + BM25 + RRF) |
 | Vector DB | ChromaDB (local, không cần Docker) |
 | Embedding | `intfloat/multilingual-e5-small` (384d) |
@@ -49,23 +49,32 @@
 
 ## 🏃 Quick Start (sau khi code xong)
 
+> **Cap nhat 17/06**: Dung **uv** thay Poetry; dung **pyenv** de pin Python 3.11.15.
+
 ```bash
 git clone <repo>
 cd vnlaw-agentic-rag
-cp .env.example .env  # thêm API keys + ADMIN_TOKEN
+
+# Python environment
+pyenv local vnlaw-env          # Python 3.11.15
+cp .env.example .env           # them API keys + ADMIN_TOKEN
 
 # Backend
-cd backend && poetry install
-python scripts/crawl_pdfs.py  # Crawl 30 văn bản vào data/pdfs/
-python scripts/ingest_corpus.py  # Parse + embed + index
-uvicorn app.main:app --reload
+cd backend && uv sync
+python scripts/crawl_pdfs.py   # Crawl 30 van ban vao data/pdfs/
+python scripts/ingest_corpus.py # Parse + embed + index
+uv run uvicorn app.main:app --reload --workers 1
 
 # Frontend
 cd frontend && npm install
 npm run dev
 ```
 
-> **Note (D8 fix)**: Tuần 1 chỉ ship 5 văn bản, scale lên 30 trong Tuần 5. Quick Start trên dùng để development cuối cùng.
+> **Note**: `--workers 1` bat buoc de tranh ChromaDB concurrency corruption. Xem [03-thiet-ke-he-thong.md](docs/03-thiet-ke-he-thong.md#332-concurrency--thread-safety-post-review-c1).
+
+> **Note (D8 fix)**: Tuan 1 chi ship 5 van ban, scale len 30 trong Tuan 5. Quick Start tren dung de development cuoi cung.
+>
+> **Environment (17/06)**: i5-1035G1 19GB RAM, MX330 2GB, Python 3.11.15 (pyenv), uv, Node v26, Docker 29.
 
 ## 📊 Tài liệu tham khảo chính
 
@@ -75,6 +84,12 @@ npm run dev
 2. **Viblo - RAG Pháp luật Giao thông** — viblo.asia/p/xay-dung-he-thong-agentic-rag-phap-luat-giao-thong
    - Tham khảo: LangGraph state machine, Hybrid Retrieval, HITL, RAGAS-lite
 
+## 📋 Project Management
+
+**Jira Board**: https://quachtruongphuc2004.atlassian.net/jira/software/projects/VLAW/boards/4/backlog
+
+7 Epics mapped to 7 implementation weeks (VLAW-1 through VLAW-7).
+
 ## 📝 License
 
-MIT License — Open source cho mục đích học thuật.
+MIT License — Open source cho muc dich hoc thuat.

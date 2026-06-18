@@ -428,14 +428,19 @@ llm_circuit = LLMCircuitBreaker()
 
 ## 4.6. Setup môi trường
 
-### 4.6.1. Yêu cầu phần mềm
+### 4.6.1. Yeu cau phan mem (Cap nhat 17/06/2026)
+
+> **Da thay doi**: Chuyen tu Poetry sang **uv** (nhanh hon, da co san tren may). Dung **pyenv** de pin Python 3.11.15.
 
 ```bash
-# Python 3.11+
-python --version
+# Python 3.11 (qua pyenv)
+pyenv install 3.11.15
+pyenv virtualenv 3.11.15 vnlaw-env
+pyenv local vnlaw-env
+python --version   # Python 3.11.15
 
-# Poetry
-curl -sSL https://install.python-poetry.org | python3 -
+# uv (package manager)
+uv --version       # >= 0.11
 
 # Node 20+
 node --version
@@ -445,21 +450,25 @@ npm --version
 docker --version
 docker compose version
 
-# Ollama (optional - nếu muốn test local)
+# Ollama (optional - neu muon test local)
 curl -fsSL https://ollama.com/install.sh | sh
 ```
 
-### 4.6.2. Setup Backend
+### 4.6.2. Setup Backend (Cap nhat: uv + pyenv)
 
 ```bash
+# Dam bao pyenv virtualenv dang active
+pyenv local vnlaw-env
+python --version   # Python 3.11.15
+
 cd backend
-poetry install
+uv pip install -r requirements.txt  # hoac uv sync neu co pyproject.toml
 cp .env.example .env
-# Sửa .env: thêm GEMINI_API_KEY, OPENAI_API_KEY
+# Sua .env: them GEMINI_API_KEY, OPENAI_API_KEY, ADMIN_TOKEN
 
 # Test
-poetry run pytest tests/test_smoke.py -v
-poetry run uvicorn app.main:app --reload --port 8000
+uv run pytest tests/test_smoke.py -v
+uv run uvicorn app.main:app --reload --port 8000 --workers 1
 ```
 
 ### 4.6.3. Setup Frontend
@@ -476,43 +485,52 @@ npm run dev
 
 ---
 
-## 4.7. Dependencies chính (pyproject.toml)
+## 4.7. Dependencies chinh (pyproject.toml / requirements.txt)
+
+> **Cap nhat**: Su dung **uv** thay Poetry. Cau hinh duoi day dung `pyproject.toml` (PEP 621) hoac `requirements.txt`.
 
 ```toml
-[tool.poetry.dependencies]
-python = "^3.11"
-fastapi = "^0.115"
-uvicorn = {extras = ["standard"], version = "^0.32"}
-langgraph = "^0.2"
-langchain = "^0.3"
-langchain-google-genai = "^2.0"
-langchain-openai = "^0.2"
-langchain-chroma = "^0.1"
-chromadb = "^0.5"
-sentence-transformers = "^3.0"
-rank-bm25 = "^0.2"
-pyvi = "^0.1"
-duckduckgo-search = "^6.3"
-sqlalchemy = "^2.0"
-pydantic = "^2.0"
-pydantic-settings = "^2.0"
-httpx = "^0.27"
-pymupdf = "^1.24"
-pdfplumber = "^0.11"
-python-multipart = "^0.0.20"
+[project]
+name = "vnlaw-agentic-rag"
+version = "0.1.0"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "langgraph>=0.2",
+    "langchain>=0.3",
+    "langchain-google-genai>=2.0",
+    "langchain-openai>=0.2",
+    "langchain-chroma>=0.1",
+    "chromadb>=0.5",
+    "sentence-transformers>=3.0",
+    "rank-bm25>=0.2",
+    "pyvi>=0.1",
+    "duckduckgo-search>=6.3",
+    "sqlalchemy>=2.0",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "httpx>=0.27",
+    "pymupdf>=1.24",
+    "pdfplumber>=0.11",
+    "python-multipart>=0.0.20",
+]
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.0"
-pytest-asyncio = "^0.24"
-pytest-cov = "^6.0"
-ruff = "^0.7"
-black = "^24.0"
-mypy = "^1.13"
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "ruff>=0.7",
+    "mypy>=1.13",
+]
 
-[tool.poetry.scripts]
-dev = "uvicorn app.main:app --reload"
-test = "pytest"
-eval = "python scripts/run_eval.py"
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
 ```
 
 ---
