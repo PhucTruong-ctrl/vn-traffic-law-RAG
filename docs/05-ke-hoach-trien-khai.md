@@ -44,7 +44,7 @@
 | T5 (19/6) | Hello World FastAPI | `app/main.py` với 1 endpoint `/health` | API trả 200 |
 | T5 (19/6) | Docker Compose | docker-compose.yml cho backend + frontend | `docker compose up` chạy |
 | T6 (20/6) | Crawl PDFs | Tải 5 văn bản đầu: NĐ 168/2024, Luật 36/2024, 3 Thông tư | `data/pdfs/*.pdf` |
-| T7 (21/6) | Parse + chunk | Test PyMuPDF + custom chunker + VietnameseNormalizer | `data/corpus/*.json` |
+| T7 (21/6) | Parse + chunk | Test Docling + CDM + SmartChunker (UDEF) + VietnameseNormalizer | `data/corpus/*.json` |
 | CN (22/6) | Gold set (H4 fix) | Tạo 15 câu manual + freeze file, trước khi code retriever | `data/gold_set.frozen.json` |
 
 **Milestone tuần 1** ✅:

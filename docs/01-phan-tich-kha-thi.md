@@ -133,7 +133,7 @@ Xem chi tiết: [04-tech-stack-llm-research.md](04-tech-stack-llm-research.md)
 | # | Rủi ro | Xác suất | Tác động | Giải pháp |
 |---|--------|----------|----------|-----------|
 | R1 | LLM hallucinate số tiền phạt | Cao | **Rất cao** | Prompt "Legal Reasoning" chặt, bắt buộc trích dẫn, có validation layer |
-| R2 | Parse PDF giữ hierarchy lỗi | Cao | Cao | Custom chunker theo Điều/Khoản/Điểm, test với 3 loại VB (Luật, NĐ, TT) |
+| R2 | Parse PDF giữ hierarchy lỗi (đã có UDEF mitigate) | Cao | Cao | Custom chunker theo Điều/Khoản/Điểm, test với 3 loại VB (Luật, NĐ, TT) |
 | R3 | Gemini Free rate-limit | Trung bình | Trung bình | Implement retry with backoff, fallback OpenAI |
 | R4 | Gold set test ít (25-50 câu) | Trung bình | Trung bình | Sinh câu hỏi từ LLM + manual verify, ≥ 30 câu |
 | R5 | Không kịp deadline 3/8 | Trung bình | Cao | MVP tuần 3, mở rộng dần, dùng Claude Code |
