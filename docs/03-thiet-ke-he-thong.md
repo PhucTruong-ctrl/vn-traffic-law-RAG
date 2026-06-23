@@ -26,17 +26,24 @@ graph TB
         UI["Next.js 14<br/>TypeScript + Tailwind<br/>+ Zustand + SSE"]
     end
 
+    subgraph ET ["📄 EXTRACTION TIER (UDEF Engine)"]
+        DOCLING["Docling Adapter<br/>(PDF parsing, OCR,<br/>Table recognition)"]
+        CDM["Canonical Document Model<br/>(Structured document)"]
+        RULE["Rule Engine<br/>(Locate -> Extract -><br/>Normalize -> Validate)"]
+        PLUGIN["Plugin System<br/>(Domain-specific rules)"]
+    end
+
     subgraph BT ["⚙️ BUSINESS TIER (Backend - FastAPI)"]
         API["API Layer<br/>(Routers)"]
         AGENT["Agent Layer<br/>(LangGraph)"]
-        SVC["Service Layer<br/>(Embedding, Retrieval,<br/>LLM, Web, Citation)"]
+        SVC["Service Layer<br/>(Extraction, SmartChunker,<br/>Embedding, Retrieval,<br/>LLM, Web, Citation)"]
         MODEL["Domain Models<br/>(Pydantic)"]
     end
 
     subgraph DT ["💾 DATA TIER"]
         CHROMA["ChromaDB<br/>(Vector Store)"]
         SQLITE["SQLite<br/>(State, History, Eval)"]
-        FILES["File System<br/>(PDFs, BM25 index,<br/>Embedding cache)"]
+        FILES["File System<br/>(PDFs, BM25 index,<br/>CDM JSON, Embedding cache)"]
         EXT["External APIs<br/>(Gemini, OpenAI, DDG)"]
     end
 
@@ -48,11 +55,18 @@ graph TB
     SVC --> SQLITE
     SVC --> FILES
     SVC --> EXT
+    FILES --> DOCLING
+    DOCLING --> CDM
+    CDM --> RULE
+    RULE --> PLUGIN
+    RULE --> SVC
 
     style PT fill:#E3F2FD
+    style ET fill:#E8F5E9
     style BT fill:#FFF3E0
     style DT fill:#F3E5F5
     style AGENT fill:#FF6B6B,color:#fff
+    style RULE fill:#4CAF50,color:#fff
 ```
 
 ### 3.2.2. Lý do chọn kiến trúc này
@@ -86,12 +100,14 @@ backend/app/
 │   ├── state.py            # AgentState TypedDict
 │   └── nodes/
 │       ├── rewrite.py      # Query rewrite
-│       ├── retrieve.py     # Hybrid retrieval
+│       ├── retrieve.py     # Hybrid retrieval (metadata-aware)
 │       ├── grade.py        # Document grading (LLM relevance score)
 │       ├── generate.py     # Answer generation (JSON mode enforced)
 │       ├── web_search.py   # Web fallback (DDG + SerpAPI fallback)
 │       └── validate.py     # Citation validation + disclaimer + status
 ├── services/               # Service Layer
+│   ├── extraction.py       # ⭐ NEW: ExtractionService (wraps UDEF)
+│   ├── chunker.py          # ⭐ NEW: SmartChunker (chunk by CDM)
 │   ├── embedding.py        # EmbeddingService (HuggingFace)
 │   ├── llm.py              # LLMService (Gemini + OpenAI)
 │   ├── retrieval.py        # HybridRetrieval (Dense + BM25 + RRF)
@@ -99,17 +115,28 @@ backend/app/
 │   ├── citation.py         # CitationValidator
 │   ├── evaluation.py       # RAGAS-lite
 │   └── prompts.py          # PromptLoader
+├── extraction/             # ⭐ NEW: UDEF Extraction Engine
+│   ├── __init__.py
+│   ├── cdm/                # Canonical Document Model
+│   │   ├── models.py       # CDM data models (Pydantic)
+│   │   ├── docling_mapper.py
+│   │   └── text_utils.py
+│   ├── rule_engine/        # Extraction pipeline
+│   │   ├── pipeline.py     # ExtractionPipeline
+│   │   ├── models.py       # RuleSpec, Evidence
+│   │   ├── runtime.py
+│   │   ├── registries.py
+│   │   └── plugins/
+│   ├── adapters/
+│   │   └── docling_adapter.py
+│   └── core/
+│       ├── config.py
+│       └── document_routing.py
 ├── db/                     # Data Access Layer
 │   ├── vector_store.py     # ChromaDB wrapper
 │   ├── sql_store.py        # SQLAlchemy + SQLite
 │   └── bm25_index.py       # BM25 index manager
-├── parsers/                # Document Processing
-│   ├── pdf_parser.py       # PyMuPDF wrapper
-│   ├── law_chunker.py      # Custom chunker for PLVN
-│   └── cleaners/
-│       ├── clean_luat.py
-│       ├── clean_nghi_dinh.py
-│       └── clean_thong_tu.py
+├── parsers/                # Legacy parsers (deprecated, kept for reference)
 ├── models/                 # Pydantic schemas
 │   ├── schemas.py          # Request/Response models
 │   └── enums.py            # Intent, DocType, Status
@@ -656,7 +683,138 @@ class EvalRun(Base):
 
 ---
 
-## 3.6. Thiết kế Retrieval (Hybrid) — POST-REVIEW B1, B2, B5, H6
+## 3.6. Thiết kế Extraction Pipeline (UDEF Integration)
+
+### 3.6.1. Tổng quan
+
+Tầng trích xuất sử dụng UDEF Extraction Engine làm nền tảng xử lý tài liệu
+đầu vào. Thay vì parse PDF thô và chunk mù (blind 512-token window), hệ
+thống dùng Docling để phân tích cấu trúc tài liệu, ánh xạ vào Canonical
+Document Model (CDM), sau đó chunk theo đơn vị logic (Điều/Khoản/Điểm).
+
+```
+PDF Input
+   │
+   ▼
+┌─────────────────────────────────────┐
+│  Docling Adapter                    │
+│  - Parse PDF + OCR (nếu scan)       │
+│  - Nhận diện bảng biểu, heading     │
+│  - Trả về DoclingDocument           │
+└─────────────────────────────────────┘
+   │
+   ▼
+┌─────────────────────────────────────┐
+│  Docling -> CDM Mapper              │
+│  - Map sections, tables, text vào   │
+│    CanonicalDocument (Pydantic)     │
+│  - Gán source_reference (page, line)│
+└─────────────────────────────────────┘
+   │
+   ▼
+┌─────────────────────────────────────┐
+│  Rule Engine                        │
+│  - Locate: tìm vị trí thông tin     │
+│  - Extract: trích xuất giá trị      │
+│  - Normalize: chuẩn hóa dữ liệu     │
+│  - Validate: kiểm tra hợp lệ        │
+└─────────────────────────────────────┘
+   │
+   ▼
+┌─────────────────────────────────────┐
+│  SmartChunker                       │
+│  - Chunk theo Điều/Khoản/Điểm      │
+│  - Gán metadata: doc_id, hierarchy  │
+│  - Gán provenance: page, line       │
+└─────────────────────────────────────┘
+   │
+   ▼
+┌─────────────────────────────────────┐
+│  Embedding + ChromaDB + BM25        │
+└─────────────────────────────────────┘
+```
+
+### 3.6.2. ExtractionService
+
+Service wrapper cho UDEF engine, cung cấp interface đơn giản cho
+ingest pipeline:
+
+```python
+class ExtractionService:
+    """Wrap UDEF extraction engine for VLAW pipeline."""
+
+    def __init__(self, docling: DoclingAdapter):
+        self.docling = docling
+
+    def parse_pdf(self, pdf_path: Path) -> CanonicalDocument:
+        """Parse PDF with Docling and map to CDM."""
+        docling_result = self.docling.convert(pdf_path)
+        return docling_to_cdm(docling_result)
+
+    def extract_fields(self, cdm: CanonicalDocument,
+                       rulespec: RuleSpec) -> dict:
+        """Run Rule Engine extraction on CDM."""
+        pipeline = ExtractionPipeline()
+        report = pipeline.extract(cdm, rulespec)
+        return {
+            "fields": report.fields,
+            "warnings": report.warnings,
+            "errors": report.errors,
+        }
+```
+
+### 3.6.3. SmartChunker
+
+Chunk CDM thành các đơn vị logic thay vì cửa sổ token cố định:
+
+| Thuộc tính | Blind Chunk (cũ) | Smart Chunk (mới) |
+|------------|------------------|-------------------|
+| Đơn vị cắt | N tokens (512) | Điều/Khoản/Điểm |
+| Metadata | document_id | doc_id, dieu, khoan, diem, chuong |
+| Provenance | Không | page, line_number, section_id |
+| Chất lượng | Cắt ngang giữa Điều | Giữ nguyên đơn vị pháp lý |
+
+```python
+class SmartChunker:
+    """Chunk documents by logical units."""
+
+    def chunk_by_articles(self, cdm: CanonicalDocument,
+                          doc_meta: dict) -> list[dict]:
+        chunks = []
+        for section in cdm.sections:
+            if self._is_article_heading(section):
+                chunks.append({
+                    "id": f"{doc_meta['doc_id']}/dieu-{article_num}",
+                    "text": self._collect_article_text(section, cdm.sections),
+                    "metadata": {
+                        "doc_id": doc_meta["doc_id"],
+                        "loai_van_ban": doc_meta["loai_van_ban"],
+                        "dieu": article_num,
+                        "chuong": self._extract_chapter(section, cdm.sections),
+                        "provenance": {
+                            "page": section.source_refs[0].page_number,
+                            "section_id": section.section_id,
+                        },
+                    },
+                })
+        return chunks
+```
+
+### 3.6.4. Ingest Pipeline
+
+Script `ingest_corpus.py` thực hiện pipeline đầy đủ:
+
+1. Parse PDF bằng Docling -> CDM
+2. Chạy Rule Engine để trích xuất metadata (số hiệu, loại, ngày ban hành)
+3. Smart chunk theo Điều/Khoản
+4. Embed chunk bằng multilingual-e5-small
+5. Lưu vào ChromaDB (append mode)
+6. Tái xây dựng chỉ mục BM25 (full rebuild do rank_bm25 không hỗ trợ incremental)
+7. Lưu CDM JSON vào `data/corpus/` cho truy vết
+
+---
+
+## 3.7. Thiết kế Retrieval (Hybrid) — POST-REVIEW B1, B2, B5, H6
 
 ### Vietnamese Text Normalization (H6 fix)
 
@@ -740,7 +898,7 @@ flowchart LR
     style RRF fill:#90CAF9
 ```
 
-### 3.6.2. E5 Prefix Contract (B1 fix — CRITICAL)
+### 3.7.1. E5 Prefix Contract (B1 fix — CRITICAL)
 
 > **multilingual-e5-small** yêu cầu prefix nghiêm ngặt:
 > - **Query**: `"query: " + text` (khi encode câu hỏi)
@@ -782,7 +940,7 @@ class EmbeddingService:
         return self.model.encode(prefixed, normalize_embeddings=True).tolist()
 ```
 
-### 3.6.3. Reciprocal Rank Fusion (RRF) — POST-REVIEW B2 fix
+### 3.7.2. Reciprocal Rank Fusion (RRF) — POST-REVIEW B2 fix
 
 ```python
 # Công thức RRF gốc (Cormack et al., 2009). k=60 là constant.
@@ -801,7 +959,7 @@ def normalize_scores(scores: list[float]) -> list[float]:
 
 > **B2 fix quan trọng**: Bỏ hẳn additive `apply_intent_boost()`. Boost bằng cách rerank (đẩy chunk có metadata khớp lên top) thay vì cộng score trực tiếp vào RRF.
 
-### 3.6.4. Hybrid Retrieval (B2 + B4 fix)
+### 3.7.3. Hybrid Retrieval (B2 + B4 fix)
 
 ```python
 # services/retrieval.py
@@ -886,7 +1044,7 @@ class HybridRetriever:
         return [item["chunk"] for item in sorted_chunks[:top_k]]
 ```
 
-### 3.6.5. Ingest Pipeline (POST-REVIEW B4)
+### 3.7.4. Ingest Pipeline (POST-REVIEW B4)
 
 ```python
 # scripts/ingest_corpus.py
@@ -923,9 +1081,9 @@ def ingest_new_documents(pdf_paths: list[str], doc_type: str):
 
 ---
 
-## 3.7. Thiết kế Prompts
+## 3.8. Thiết kế Prompts
 
-### 3.7.1. Citation Extraction Pipeline (POST-REVIEW C3 — CRITICAL)
+### 3.8.1. Citation Extraction Pipeline (POST-REVIEW C3 — CRITICAL)
 
 > **C3 fix (CRITICAL)**: Citation Correctness metric needs `generated_citations` as list[dict], nhưng Legal Reasoning Prompt returns free text. Không có parser → headline metric = 0% always.
 
@@ -1014,7 +1172,7 @@ class CitationExtractor:
         return self._normalize_doc_id(full_text)
 ```
 
-### 3.7.2. Legal Reasoning Prompt (JSON mode enforced) — POST-REVIEW C3, M1
+### 3.8.2. Legal Reasoning Prompt (JSON mode enforced) — POST-REVIEW C3, M1
 
 > **C3 + M1 fix**: Generator MUST output JSON with structured `answer` + `citations` fields. B11 JSON mode applies here too.
 
@@ -1053,7 +1211,7 @@ Nhiệm vụ: Trả lời câu hỏi dựa trên CONTEXT được cung cấp.
 # TRẢ LỜI
 ```
 
-### 3.7.2. RAGAS-lite Prompts (4 metrics)
+### 3.8.3. RAGAS-lite Prompts (4 metrics)
 
 ```text
 # Faithfulness
@@ -1088,9 +1246,9 @@ Recall: ?
 
 ---
 
-## 3.8. Thiết kế giao diện (UI/UX)
+## 3.9. Thiết kế giao diện (UI/UX)
 
-### 3.8.1. Trang chính (Chat)
+### 3.9.1. Trang chính (Chat)
 
 ```mermaid
 graph TB
@@ -1110,7 +1268,7 @@ graph TB
     style C3 fill:#FFF9C4
 ```
 
-### 3.8.2. Trang Admin (HITL)
+### 3.9.2. Trang Admin (HITL)
 
 ```mermaid
 graph TB
@@ -1131,7 +1289,7 @@ graph TB
     style Z3 fill:#FF6B6B,color:#fff
 ```
 
-### 3.8.3. Component chính
+### 3.9.3. Component chính
 
 - `ChatWindow.tsx` — Khung chat với streaming
 - `MessageBubble.tsx` — Tin nhắn user/assistant
@@ -1141,7 +1299,7 @@ graph TB
 
 ---
 
-## 3.9. Cấu trúc thư mục dự án
+## 3.10. Cấu trúc thư mục dự án
 
 ```
 vnlaw-agentic-rag/
@@ -1208,9 +1366,9 @@ vnlaw-agentic-rag/
 
 ---
 
-## 3.10. API Design
+## 3.11. API Design
 
-### 3.10.1. REST API Endpoints
+### 3.11.1. REST API Endpoints
 
 | Method | Path | Mô tả | Auth |
 |--------|------|-------|------|
@@ -1227,7 +1385,7 @@ vnlaw-agentic-rag/
 | GET | `/api/health` | Health check | - |
 | GET | `/api/docs` | Swagger UI (auto) | - |
 
-### 3.10.2. Request/Response Schema (Ví dụ)
+### 3.11.2. Request/Response Schema (Ví dụ)
 
 ```python
 # POST /api/chat — POST-REVIEW N5 (remove intent/confidence, add disclaimer/statuses)
@@ -1267,7 +1425,7 @@ class ChatResponse(BaseModel):
 
 ---
 
-## 3.11. Tóm tắt thiết kế
+## 3.12. Tóm tắt thiết kế
 
 | Thành phần | Quyết định thiết kế | Lý do |
 |------------|---------------------|-------|
