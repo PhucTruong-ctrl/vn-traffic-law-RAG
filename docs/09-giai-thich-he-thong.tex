@@ -218,6 +218,8 @@ SDLC & Software Development Life Cycle\\
 SSE & Server-Sent Events\\
 TPM & Tokens Per Minute\\
 WAL & Write-Ahead Log\\
+CDM & Canonical Document Model\\
+UDEF & Unstructured Data Extraction Framework\\
 \end{tabular}
 
 \newpage
@@ -233,7 +235,7 @@ WAL & Write-Ahead Log\\
 
 Hệ thống RAG hỗ trợ tra cứu pháp luật giao thông Việt Nam là một giải pháp công nghệ được xây dựng trên nền tảng trí tuệ nhân tạo và xử lý ngôn ngữ tự nhiên, nhằm giải quyết bài toán tra cứu văn bản quy phạm pháp luật giao thông đường bộ. Hệ thống giải quyết bốn hạn chế cốt lõi của phương pháp tra cứu truyền thống: người dùng phải đọc thủ công các tệp PDF dài hàng chục đến hàng trăm trang, các mô hình ngôn ngữ lớn phổ dụng như ChatGPT thường bịa đặt thông tin (hallucination) về số tiền phạt và điều khoản không tồn tại, văn bản pháp luật thay đổi liên tục khiến người dân không nắm được bản mới nhất, và ngôn ngữ pháp lý phức tạp gây khó hiểu cho người không chuyên.
 
-Hệ thống kết hợp kiến trúc truy xuất thông tin lai (hybrid retrieval) giữa tìm kiếm ngữ nghĩa bằng vector embedding và tìm kiếm từ khóa truyền thống BM25, đồng thời áp dụng quy trình xác minh trích dẫn nghiêm ngặt trước khi trả kết quả cho người dùng. Mỗi câu trả lời đều kèm trích dẫn có cấu trúc đến từng văn bản, Điều, Khoản, Điểm, cùng trạng thái hiệu lực cụ thể. Hệ thống vận hành trên kiến trúc đa tầng với FastAPI làm khung API, LangGraph làm bộ điều phối trạng thái cho luồng xử lý tự động, ChromaDB \cite{chroma} làm cơ sở dữ liệu vector, và Google Gemini 2.5 Flash làm mô hình ngôn ngữ chính.
+Hệ thống kết hợp kiến trúc truy xuất thông tin lai (hybrid retrieval) giữa tìm kiếm ngữ nghĩa bằng vector embedding và tìm kiếm từ khóa truyền thống BM25, đồng thời áp dụng quy trình xác minh trích dẫn nghiêm ngặt trước khi trả kết quả cho người dùng. Mỗi câu trả lời đều kèm trích dẫn có cấu trúc đến từng văn bản, Điều, Khoản, Điểm, cùng trạng thái hiệu lực cụ thể. Hệ thống vận hành trên kiến trúc bốn tầng: tầng trích xuất dùng UDEF với Docling và Rule Engine để xử lý tài liệu pháp luật đầu vào thành dữ liệu có cấu trúc, tầng nghiệp vụ chạy FastAPI và LangGraph để điều phối luồng xử lý, tầng dữ liệu gồm ChromaDB \cite{chroma} cho vector search, và Google Gemini 2.5 Flash làm mô hình ngôn ngữ chính.
 
 
 
@@ -368,7 +370,7 @@ Corpus là tập hợp toàn bộ văn bản pháp luật mà hệ thống có q
 
 Corpus khác với database thông thường. Database lưu dữ liệu có cấu trúc (bảng, cột, khóa). Corpus lưu văn bản phi cấu trúc đã được xử lý thành chunks có embedding. Mỗi chunk trong corpus là một đơn vị có thể được tìm kiếm và trích xuất độc lập.
 
-Corpus được xây dựng qua ingest pipeline. PDF được tải về từ các nguồn công khai (thuvienphapluat.vn, phapdien.moj.gov.vn), parse bằng PyMuPDF, chunk bằng custom chunker, embed bằng multilingual-e5-small, và lưu vào ChromaDB. BM25 index được xây dựng từ toàn bộ văn bản đã chunk. Kết quả là corpus có thể được truy vấn bằng cả hai phương pháp dense và sparse.
+Corpus được xây dựng qua ingest pipeline. PDF được tải về từ các nguồn công khai (thuvienphapluat.vn, phapdien.moj.gov.vn), parse bằng Docling thành CDM, chunk bằng SmartChunker, embed bằng multilingual-e5-small, và lưu vào ChromaDB. BM25 index được xây dựng từ toàn bộ văn bản đã chunk. Kết quả là corpus có thể được truy vấn bằng cả hai phương pháp dense và sparse.
 
 Chất lượng corpus quyết định chất lượng toàn bộ hệ thống. Nếu PDF parse sai, chunk bị cắt lệch, hoặc embedding bị thiếu prefix, câu trả lời sẽ sai bất kể LLM có tốt đến đâu. Nguyên tắc của dự án: corpus quality hơn quantity. 30 văn bản sạch, được parse chính xác, tốt hơn 100 văn bản parse lỗi.
 
@@ -408,7 +410,7 @@ Gold set được đóng băng bằng hash SHA-256 để đảm bảo không b�
 \chapter{Kiến Trúc Hệ Thống}
 
 
-Hệ thống được tổ chức theo mô hình ba tầng (three-tier architecture). Frontend sử dụng Next.js 14 với TypeScript và Tailwind CSS để dựng giao diện trò chuyện, hỗ trợ streaming câu trả lời qua giao thức SSE. Tầng nghiệp vụ chạy trên FastAPI, chứa bộ điều phối LangGraph, tầng service và các mô hình dữ liệu Pydantic. Tầng dữ liệu bao gồm ChromaDB cho lưu trữ vector, SQLite cho lưu trữ trạng thái và lịch sử hội thoại, và hệ thống tệp cho các tệp PDF gốc, chỉ mục BM25 và bộ nhớ đệm embedding.
+Hệ thống được tổ chức theo mô hình bốn tầng. Tầng trích xuất sử dụng Docling để parse PDF thành Canonical Document Model, Rule Engine để trích xuất metadata, và SmartChunker để chunk theo Điều/Khoản/Điểm. Frontend sử dụng Next.js 14 với TypeScript và Tailwind CSS để dựng giao diện trò chuyện, hỗ trợ streaming câu trả lời qua giao thức SSE. Tầng nghiệp vụ chạy trên FastAPI, chứa bộ điều phối LangGraph, tầng service và các mô hình dữ liệu Pydantic. Tầng dữ liệu bao gồm ChromaDB cho lưu trữ vector, SQLite cho lưu trữ trạng thái và lịch sử hội thoại, và hệ thống tệp cho các tệp PDF gốc, chỉ mục BM25 và bộ nhớ đệm embedding.
 
 Kiến trúc client-server tập trung được chọn thay vì microservices vì hệ thống có quy mô nhỏ, một người quản lý được. API được thiết kế stateless, trạng thái hội thoại lưu trong SQLite thay vì trong bộ nhớ, giúp dễ dàng mở rộng và kiểm thử. Tầng agent sử dụng LangGraph với trạng thái có chủ đích, cho phép truy vết toàn bộ quá trình xử lý.
 
@@ -558,7 +560,7 @@ Ví dụ: chunk A đứng hạng 1 trong dense và hạng 5 trong BM25. Điểm 
 
 Trước khi đưa vào RRF, hệ thống chuẩn hóa điểm cosine và điểm BM25 về cùng thang đo 0-1 bằng phương pháp min-max normalization. Công thức chuẩn hóa như sau:
 
-normalized\_score = (score - min\_score) chia (max\_score - min\_score)
+
 
 Trước khi đưa vào RRF, hệ thống chuẩn hóa điểm cosine và điểm BM25 về cùng thang đo 0-1 bằng phương pháp min-max normalization. Công thức chuẩn hóa như sau:
 
@@ -601,7 +603,7 @@ VietnameseNormalizer xử lý bốn lớp vấn đề:
 \section{Phân mảnh văn bản (Custom Chunker)}
 
 
-Sau khi chuẩn hóa, văn bản được chuyển qua custom chunker để cắt thành các chunk. Hệ thống có ba chunker riêng cho ba loại văn bản, vì mỗi loại có cấu trúc phân cấp khác nhau:
+Sau khi chuẩn hóa, văn bản được chuyển qua SmartChunker để cắt thành các chunk. SmartChunker hoạt động trên CDM (Canonical Document Model) do Docling tạo ra, duyệt qua các DocumentSection để nhận diện ranh giới pháp lý và thu thập nội dung theo đơn vị logic. Cấu trúc phân cấp của ba loại văn bản được xử lý tự động dựa trên CDM:
 
 \begin{itemize}
     \item \textbf{Luật}: Chương -> Mục -> Điều
@@ -611,6 +613,62 @@ Sau khi chuẩn hóa, văn bản được chuyển qua custom chunker để cắ
 
 Mỗi chunk tương ứng với một đơn vị pháp lý hoàn chỉnh (thường là một Điều hoặc một Khoản). Chunker lưu metadata hierarchy với các trường \texttt{chapter}, \texttt{dieu}, \texttt{khoan}, \texttt{diem}. Mỗi chunk được gán một định danh duy nhất theo mẫu: \texttt{{loại\textunderscore văn\textunderscore bản}\textunderscore {số}\textunderscore {năm}\textunderscore \textunderscore điều\textunderscore {x}\textunderscore \textunderscore khoản\textunderscore {y}\textunderscore \textunderscore điểm\textunderscore {z}}.
 
+
+
+
+\chapter{Extraction Pipeline với UDEF}
+
+
+Tầng trích xuất là thành phần mới được tích hợp vào hệ thống, sử dụng UDEF (Unstructured Data Extraction Framework) làm nền tảng xử lý tài liệu đầu vào. Thay vì parse PDF thô và chunk mù theo cửa sổ token cố định như phương pháp RAG truyền thống, hệ thống dùng Docling để phân tích cấu trúc tài liệu, ánh xạ vào Canonical Document Model (CDM), và chunk theo đơn vị logic pháp lý (Điều, Khoản, Điểm).
+
+
+\section{Docling Adapter và CDM}
+
+Docling là thư viện chuyển đổi tài liệu do IBM Research phát triển, hỗ trợ đa định dạng: PDF văn bản, PDF scan qua OCR, ảnh và bảng tính. Docling phân tích bố cục trang, nhận diện bảng biểu, tiêu đề, đoạn văn bản và hình ảnh, trả về cấu trúc phân cấp của tài liệu.
+
+DoclingAdapter nhận đường dẫn tệp PDF, cấu hình pipeline (OCR engine, table structure), chạy chuyển đổi và trả về DoclingDocument. Sau đó, DoclingToCDMMapper ánh xạ kết quả vào CanonicalDocument: trích xuất DocumentSection (đoạn văn bản), DocumentTable (bảng biểu), và DocumentKeyValue (cặp khóa-giá trị). Mỗi phần tử trong CDM đều mang SourceReference ghi lại số trang, tọa độ khung bao (bbox) làm dấu vết nguồn cho provenance tracking.
+
+
+\section{Rule Engine}
+
+Rule Engine là phần lõi của UDEF, thực hiện trích xuất dựa trên tệp cấu hình khai báo (RuleSpec JSON). Mỗi trường cần trích xuất trải qua bốn bước:
+
+\begin{itemize}
+    \item \textbf{Locate}: Xác định vị trí thông tin trong CDM. Các chiến lược: keyword\_match (tìm từ khóa), section\_context (theo tiêu đề mục), table\_column (theo cột bảng), visual\_template (theo mẫu trực quan), và plugin\_locate (dùng plugin tùy chỉnh).
+    \item \textbf{Extract}: Trích xuất giá trị. Các phương pháp: regex\_capture (biểu thức chính quy), section\_text (toàn bộ nội dung mục), cell\_lookup (ô bảng), row\_extract (hàng bảng), và plugin\_extract.
+    \item \textbf{Normalize}: Chuẩn hóa giá trị: string\_clean (làm sạch chuỗi), number\_parse (phân tích số), scale (hệ số), unit\_normalize (đơn vị), enum\_map (ánh xạ liệt kê). Mỗi bước chuẩn hóa đều ghi lại trace để truy vết.
+    \item \textbf{Validate}: Kiểm tra tính hợp lệ: required (bắt buộc), pattern (khớp mẫu), min/max (khoảng số), min\_length/max\_length (độ dài chuỗi), enum (giá trị liệt kê).
+\end{itemize}
+
+Sau bốn bước, ValidatorPlugin chạy kiểm tra chéo giữa các trường và tạo ExtractionReport chứa kết quả từng trường, lỗi/cảnh báo và tóm tắt kiểm tra.
+
+
+\section{SmartChunker}
+
+SmartChunker thay thế ba custom chunker cũ bằng một chunker duy nhất hoạt động trên CDM. Thay vì dùng biểu thức chính quy để nhận diện ranh giới Điều/Khoản trong văn bản thô, SmartChunker duyệt DocumentSection trong CDM, nhận diện tiêu đề "Điều X" và thu thập nội dung đến Điều hoặc Chương tiếp theo.
+
+Mỗi chunk mang metadata giàu từ Rule Engine: định danh tài liệu, loại văn bản, ngày ban hành, ngày hiệu lực, cùng dấu vết nguồn (trang, dòng) từ CDM. Các chunk được embed và lưu vào ChromaDB với metadata đầy đủ, hỗ trợ truy xuất và trích dẫn chính xác.
+
+Bảng so sánh Blind Chunking (cũ) và Smart Chunking (mới):
+
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Tiêu chí} & \textbf{Blind Chunk (cũ)} & \textbf{Smart Chunk (mới)} \\
+\hline
+Đơn vị cắt & Cửa sổ token cố định (512) & Điều/Khoản/Điểm theo CDM \\
+\hline
+Metadata & document\_id cơ bản & doc\_id, dieu, khoan, diem, chuong \\
+\hline
+Provenance & Không & Trang, dòng, section\_id \\
+\hline
+Chất lượng & Có thể cắt ngang Điều & Giữ nguyên đơn vị pháp lý \\
+\hline
+\end{tabular}
+
+
+\section{Plugin System và Mở Rộng}
+
+Hệ thống plugin của UDEF cho phép mở rộng sang lĩnh vực pháp luật mới mà không sửa đổi phần lõi. Nhà phát triển viết EvidenceLocatorPlugin (tùy chỉnh cách tìm vị trí thông tin), ExtractorPlugin (tùy chỉnh cách trích xuất) hoặc ValidatorPlugin (kiểm tra chéo sau trích xuất), đăng ký qua PluginRegistry, và khai báo trong RuleSpec. Thiết kế này giúp mở rộng hệ thống sang lĩnh vực mới (thuế, đất đai, hình sự) mà không cần can thiệp vào code xử lý tài liệu.
 
 
 \chapter{LLM Integration}
@@ -799,7 +857,7 @@ Hệ thống kết hợp năm kỹ thuật chính để giải quyết bài toá
 
 \bibitem{nd13} Chính phủ. \textit{Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân}. 2023.
 
-\bibitem{vaswani} Vaswani, A., et al. \textit{Attention Is All You Need \cite{vaswani}}. NeurIPS, 2017.
+\bibitem{vaswani} Vaswani, A., et al. \textit{Attention Is All You Need}. NeurIPS, 2017.
 
 \bibitem{lewis} Lewis, P., et al. \textit{Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks}. NeurIPS, 2020.
 
