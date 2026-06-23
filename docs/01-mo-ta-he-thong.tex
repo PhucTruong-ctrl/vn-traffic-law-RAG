@@ -1,0 +1,142 @@
+% !TEX program = pdflatex
+\documentclass[a4paper,12pt]{extreport}
+\usepackage[T5]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{mathptmx}
+\usepackage[vietnamese]{babel}
+\usepackage[left=3.5cm,right=2cm,top=2cm,bottom=2cm]{geometry}
+\usepackage{setspace}\setstretch{1.2}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx,float}
+\usepackage{listings}
+\usepackage[hidelinks]{hyperref}
+
+\begin{document}
+
+\chapter*{BÀI MÔ TẢ HỆ THỐNG CHATBOT AI TÍCH HỢP TRÍCH XUẤT TÀI LIỆU}
+
+Hệ thống là giải pháp kết hợp giữa trích xuất tài liệu tự động và chatbot
+trí tuệ nhân tạo, cho phép người dùng đặt câu hỏi về nội dung tài liệu và
+nhận câu trả lời chính xác kèm trích dẫn nguồn. Hệ thống gồm ba tầng:
+tầng trích xuất xử lý tài liệu đầu vào thành dữ liệu có cấu trúc, tầng
+lưu trữ và truy xuất quản lý dữ liệu đã trích xuất, và tầng chatbot trả
+lời câu hỏi bằng mô hình ngôn ngữ lớn. Kiến trúc này cho phép hệ thống
+áp dụng cho nhiều lĩnh vực: từ tra cứu pháp luật giao thông, quản lý nhà
+trọ, đến xử lý chứng từ tài chính và hồ sơ nghiệp vụ.
+
+
+\section*{Tầng trích xuất tài liệu}
+
+Tầng trích xuất tiếp nhận tài liệu đầu vào ở nhiều định dạng: PDF, ảnh
+scan, bảng tính. Hệ thống sử dụng Docling để phân tích cấu trúc tài liệu,
+nhận diện bảng biểu, hình ảnh và luồng văn bản. Kết quả phân tích được
+ánh xạ vào mô hình tài liệu chuẩn (Canonical Document Model, CDM) với
+cấu trúc phân cấp: tài liệu chứa các phần, mỗi phần chứa các đoạn văn
+bản, bảng biểu và hình ảnh kèm thông tin vị trí trang và dòng.
+
+Sau khi có CDM, tầng xử lý quy tắc (Rule Engine) thực hiện trích xuất
+các trường thông tin quan trọng dựa trên tệp cấu hình theo lĩnh vực. Quy
+trình gồm bốn bước: xác định vị trí thông tin trong tài liệu (locate),
+trích xuất giá trị (extract), chuẩn hóa dữ liệu (normalize) và kiểm tra
+tính hợp lệ (validate). Mỗi giá trị trích xuất đều kèm dấu vết nguồn
+(provenance) ghi lại trang và dòng trong tài liệu gốc, phục vụ kiểm toán
+và đối chiếu sau này.
+
+Hệ thống hỗ trợ kiến trúc plugin cho phép mở rộng sang lĩnh vực mới mà
+không cần sửa đổi phần lõi. Nhà phát triển chỉ cần viết plugin và tệp
+cấu hình quy tắc cho lĩnh vực đó; phần xử lý tài liệu, nhận diện chữ
+viết, phân tích bảng biểu và kiểm tra dữ liệu do hệ thống đảm nhiệm.
+
+
+\section*{Tầng lưu trữ và truy xuất}
+
+Dữ liệu sau trích xuất được tổ chức thành các đoạn văn bản (chunk) theo
+cấu trúc logic của tài liệu gốc. Mỗi chunk mang metadata giàu: định danh
+tài liệu, vị trí trong cấu trúc phân cấp, và dấu vết nguồn. Các chunk
+được nhúng thành vector 384 chiều bằng mô hình
+intfloat/multilingual-e5-small và lưu vào cơ sở dữ liệu vector ChromaDB.
+
+Hệ thống sử dụng truy xuất lai (hybrid retrieval) kết hợp hai phương
+pháp: tìm kiếm ngữ nghĩa bằng vector embedding (dense retrieval) và tìm
+kiếm từ khóa BM25 Okapi (sparse retrieval). Kết quả từ hai phương pháp
+được hợp nhất bằng thuật toán Reciprocal Rank Fusion (RRF). Metadata từ
+tầng trích xuất cho phép lọc chính xác theo lĩnh vực, loại tài liệu,
+hoặc khoảng thời gian.
+
+
+\section*{Tầng chatbot trả lời câu hỏi}
+
+Khi người dùng gửi câu hỏi, tầng chatbot kích hoạt chuỗi xử lý trạng
+thái sử dụng LangGraph. Quy trình gồm các bước:
+
+\begin{itemize}
+    \item Viết lại câu hỏi để tối ưu truy xuất.
+    \item Truy xuất lai trên ChromaDB và BM25 để lấy các chunk liên quan.
+    \item Chấm điểm chất lượng kết quả truy xuất bằng mô hình ngôn ngữ.
+    \item Nếu điểm thấp, viết lại câu hỏi và truy xuất lại hoặc chuyển
+          sang tìm kiếm web dự phòng.
+    \item Sinh câu trả lời dựa trên ngữ cảnh các chunk đã truy xuất.
+    \item Kiểm tra từng trích dẫn trong câu trả lời có khớp với nguồn
+          thực tế hay không.
+    \item Stream câu trả lời đã kiểm duyệt về giao diện qua SSE.
+\end{itemize}
+
+Mô hình ngôn ngữ chính là Google Gemini 2.5 Flash với free tier 250
+request mỗi ngày. Khi vượt định mức hoặc gặp lỗi, hệ thống tự động
+chuyển sang OpenAI GPT-4o-mini. Mô hình phụ này cũng đóng vai trò giám
+khảo độc lập trong quy trình đánh giá chất lượng, tránh thiên vị do cùng
+một mô hình vừa sinh câu trả lời vừa chấm điểm.
+
+Câu trả lời trả về dưới dạng Markdown kèm danh sách trích dẫn có cấu
+trúc: tên văn bản, số Điều, Khoản, Điểm, trạng thái hiệu lực và dấu vết
+nguồn (trang, dòng). Mọi câu trả lời đều kèm điều khoản miễn trừ trách
+nhiệm pháp lý.
+
+
+\section*{Vai trò người dùng}
+
+\subsection*{Người dùng cuối}
+
+Người dùng cuối tương tác với hệ thống qua giao diện trò chuyện. Họ nhập
+câu hỏi bằng ngôn ngữ tự nhiên và nhận câu trả lời ngắn gọn kèm trích
+dẫn. Hệ thống phục vụ nhiều đối tượng: người tham gia giao thông tra cứu
+mức phạt, sinh viên luật tìm điều khoản, chủ nhà trọ tra cứu hợp đồng
+thuê, nhân viên tín dụng kiểm tra lịch trả nợ.
+
+\subsection*{Nhà quản trị và phát triển}
+
+Nhà quản trị chịu trách nhiệm cập nhật cơ sở dữ liệu tài liệu và theo
+dõi hiệu năng hệ thống. Họ nạp tài liệu mới qua API được xác thực bằng
+Bearer Token; quy trình tự động thực hiện trích xuất, nhúng vector và tái
+xây dựng chỉ mục BM25 mà không làm gián đoạn luồng tra cứu. Nhà phát
+triển mở rộng hệ thống sang lĩnh vực mới bằng cách viết plugin và tệp
+cấu hình quy tắc, không cần can thiệp vào phần lõi xử lý.
+
+
+\section*{Kiến trúc hệ thống}
+
+Hệ thống vận hành trên kiến trúc đa tầng:
+
+\begin{itemize}
+    \item FastAPI làm khung API cho cả tầng trích xuất và chatbot.
+    \item LangGraph làm bộ điều phối trạng thái cho luồng xử lý chatbot.
+    \item ChromaDB làm cơ sở dữ liệu vector cho truy xuất ngữ nghĩa.
+    \item SQLite cho lưu trữ trạng thái hội thoại và lịch sử.
+    \item Hệ thống tệp cho tài liệu PDF gốc và chỉ mục BM25.
+    \item Công cụ dòng lệnh cho quy trình nạp dữ liệu hàng loạt.
+\end{itemize}
+
+Hệ thống chạy trên một worker duy nhất do ChromaDB dùng SQLite nội bộ,
+không hỗ trợ nhiều tiến trình ghi đồng thời. Toàn bộ mô hình ngôn ngữ và
+nhúng vector chạy qua API cloud; card đồ họa MX330 2GB VRAM trên máy
+phát triển không đủ để chạy inference cục bộ.
+
+
+\section*{Bảo mật}
+
+Hệ thống tuân thủ Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân:
+không lưu trữ thông tin nhận dạng ngoài mã định danh phiên, chính sách
+lưu trữ tối đa 30 ngày, xác thực API bằng Bearer Token, giới hạn tốc độ
+6 request mỗi phút mỗi địa chỉ IP.
+
+\end{document}
