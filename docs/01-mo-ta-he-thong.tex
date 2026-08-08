@@ -1,142 +1,384 @@
-% !TEX program = pdflatex
-\documentclass[a4paper,12pt]{extreport}
+\documentclass[12pt,a4paper]{article}
+
 \usepackage[T5]{fontenc}
 \usepackage[utf8]{inputenc}
-\usepackage{mathptmx}
 \usepackage[vietnamese]{babel}
-\usepackage[left=3.5cm,right=2cm,top=2cm,bottom=2cm]{geometry}
-\usepackage{setspace}\setstretch{1.2}
-\usepackage{amsmath,amssymb}
-\usepackage{graphicx,float}
-\usepackage{listings}
-\usepackage[hidelinks]{hyperref}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{fancyhdr}
+
+\geometry{
+  top=2.2cm,
+  bottom=2.2cm,
+  left=2.7cm,
+  right=2.2cm
+}
+
+\setstretch{1.18}
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{0.15em}
+\setlength{\emergencystretch}{3em}
+\urlstyle{same}
+\setlist[itemize]{leftmargin=1.0cm,itemsep=0.2em,topsep=0.25em}
+\setlist[enumerate]{leftmargin=1.0cm,itemsep=0.2em,topsep=0.25em}
+
+\titleformat{\section}
+  {\bfseries\large}
+  {}
+  {0pt}
+  {}
+
+\titleformat{\subsection}
+  {\bfseries\normalsize}
+  {}
+  {0pt}
+  {}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  urlcolor=blue,
+  pdftitle={Mo ta he thong RAG phap luat giao thong Viet Nam},
+  pdfauthor={Quach Truong Phuc}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
 
 \begin{document}
 
-\chapter*{BÀI MÔ TẢ HỆ THỐNG CHATBOT AI TÍCH HỢP TRÍCH XUẤT TÀI LIỆU}
+\begin{center}
+  {\bfseries\Large
+  XÂY DỰNG HỆ THỐNG RAG NHẬN BIẾT CẤU TRÚC\\
+  VÀ THỜI GIAN HIỆU LỰC ĐỂ HỖ TRỢ TRA CỨU\\
+  PHÁP LUẬT GIAO THÔNG VIỆT NAM\\
+  VỚI TRÍCH DẪN CÓ THỂ KIỂM CHỨNG}
+\end{center}
 
-Hệ thống là giải pháp kết hợp giữa trích xuất tài liệu tự động và chatbot
-trí tuệ nhân tạo, cho phép người dùng đặt câu hỏi về nội dung tài liệu và
-nhận câu trả lời chính xác kèm trích dẫn nguồn. Hệ thống gồm ba tầng:
-tầng trích xuất xử lý tài liệu đầu vào thành dữ liệu có cấu trúc, tầng
-lưu trữ và truy xuất quản lý dữ liệu đã trích xuất, và tầng chatbot trả
-lời câu hỏi bằng mô hình ngôn ngữ lớn. Kiến trúc này cho phép hệ thống
-áp dụng cho nhiều lĩnh vực: từ tra cứu pháp luật giao thông, quản lý nhà
-trọ, đến xử lý chứng từ tài chính và hồ sơ nghiệp vụ.
+\vspace{0.6em}
 
+\noindent
+\textbf{Tên tiếng Anh:}
+\emph{A Structure-Aware and Temporal RAG System for Vietnamese Traffic Law Question Answering with Verifiable Citations}
 
-\section*{Tầng trích xuất tài liệu}
+\section{Bối cảnh và bài toán}
 
-Tầng trích xuất tiếp nhận tài liệu đầu vào ở nhiều định dạng: PDF, ảnh
-scan, bảng tính. Hệ thống sử dụng Docling để phân tích cấu trúc tài liệu,
-nhận diện bảng biểu, hình ảnh và luồng văn bản. Kết quả phân tích được
-ánh xạ vào mô hình tài liệu chuẩn (Canonical Document Model, CDM) với
-cấu trúc phân cấp: tài liệu chứa các phần, mỗi phần chứa các đoạn văn
-bản, bảng biểu và hình ảnh kèm thông tin vị trí trang và dòng.
+Người dân khi tra cứu pháp luật giao thông đường bộ Việt Nam thường phải đọc nhiều văn bản dài, tự đối chiếu giữa Luật, Nghị định, Thông tư và các văn bản sửa đổi hoặc thay thế. Một câu hỏi tưởng như đơn giản, chẳng hạn mức xử phạt đối với một hành vi, có thể có đáp án khác nhau tùy loại phương tiện, điều kiện áp dụng và thời điểm xảy ra hành vi. Câu trả lời đúng cho một hành vi năm 2023 chưa chắc đúng cho hành vi tương tự năm 2026.
 
-Sau khi có CDM, tầng xử lý quy tắc (Rule Engine) thực hiện trích xuất
-các trường thông tin quan trọng dựa trên tệp cấu hình theo lĩnh vực. Quy
-trình gồm bốn bước: xác định vị trí thông tin trong tài liệu (locate),
-trích xuất giá trị (extract), chuẩn hóa dữ liệu (normalize) và kiểm tra
-tính hợp lệ (validate). Mỗi giá trị trích xuất đều kèm dấu vết nguồn
-(provenance) ghi lại trang và dòng trong tài liệu gốc, phục vụ kiểm toán
-và đối chiếu sau này.
-
-Hệ thống hỗ trợ kiến trúc plugin cho phép mở rộng sang lĩnh vực mới mà
-không cần sửa đổi phần lõi. Nhà phát triển chỉ cần viết plugin và tệp
-cấu hình quy tắc cho lĩnh vực đó; phần xử lý tài liệu, nhận diện chữ
-viết, phân tích bảng biểu và kiểm tra dữ liệu do hệ thống đảm nhiệm.
-
-
-\section*{Tầng lưu trữ và truy xuất}
-
-Dữ liệu sau trích xuất được tổ chức thành các đoạn văn bản (chunk) theo
-cấu trúc logic của tài liệu gốc. Mỗi chunk mang metadata giàu: định danh
-tài liệu, vị trí trong cấu trúc phân cấp, và dấu vết nguồn. Các chunk
-được nhúng thành vector 384 chiều bằng mô hình
-intfloat/multilingual-e5-small và lưu vào cơ sở dữ liệu vector ChromaDB.
-
-Hệ thống sử dụng truy xuất lai (hybrid retrieval) kết hợp hai phương
-pháp: tìm kiếm ngữ nghĩa bằng vector embedding (dense retrieval) và tìm
-kiếm từ khóa BM25 Okapi (sparse retrieval). Kết quả từ hai phương pháp
-được hợp nhất bằng thuật toán Reciprocal Rank Fusion (RRF). Metadata từ
-tầng trích xuất cho phép lọc chính xác theo lĩnh vực, loại tài liệu,
-hoặc khoảng thời gian.
-
-
-\section*{Tầng chatbot trả lời câu hỏi}
-
-Khi người dùng gửi câu hỏi, tầng chatbot kích hoạt chuỗi xử lý trạng
-thái sử dụng LangGraph. Quy trình gồm các bước:
+Các chatbot dựa trên mô hình ngôn ngữ lớn có thể trả lời nhanh nhưng vẫn tồn tại nguy cơ tạo sai mức phạt, ghép nội dung từ nhiều phiên bản hoặc đưa ra Điều, Khoản, Điểm không tồn tại. Cách tiếp cận RAG thông thường theo chuỗi PDF - chunk - vector database - LLM cũng chưa giải quyết đầy đủ các đặc điểm quan trọng của dữ liệu pháp luật:
 
 \begin{itemize}
-    \item Viết lại câu hỏi để tối ưu truy xuất.
-    \item Truy xuất lai trên ChromaDB và BM25 để lấy các chunk liên quan.
-    \item Chấm điểm chất lượng kết quả truy xuất bằng mô hình ngôn ngữ.
-    \item Nếu điểm thấp, viết lại câu hỏi và truy xuất lại hoặc chuyển
-          sang tìm kiếm web dự phòng.
-    \item Sinh câu trả lời dựa trên ngữ cảnh các chunk đã truy xuất.
-    \item Kiểm tra từng trích dẫn trong câu trả lời có khớp với nguồn
-          thực tế hay không.
-    \item Stream câu trả lời đã kiểm duyệt về giao diện qua SSE.
+  \item cấu trúc phân cấp Chương, Mục, Điều, Khoản và Điểm với nhãn Điểm tiếng Việt a) b) c) d) đ) e), trong đó ranh giới pháp lý phải trùng ranh giới trích dẫn;
+  \item hiệu lực theo thời gian: một quy định chỉ đúng trong khoảng [\texttt{effective\_from}, \texttt{effective\_to}), văn bản có thể bị sửa đổi, thay thế hoặc bãi bỏ từng phần;
+  \item quan hệ tham chiếu giữa các quy định: Điều, Khoản, Điểm dẫn chiếu lẫn nhau, quy định xử phạt thường gắn kèm quy định trừ điểm giấy phép lái xe;
+  \item trích dẫn ảo giác: mô hình có thể tạo citation không tồn tại hoặc ghép nội dung đúng với \texttt{provision\_id} sai;
+  \item bỏ sót retrieval theo định danh chính xác: vector search thuần túy có thể bỏ sót số hiệu văn bản, số Điều, số Khoản hoặc nhãn Điểm có tính quyết định;
+  \item câu hỏi đa bằng chứng: một câu hỏi có thể yêu cầu vừa mức phạt vừa số điểm trừ, hệ thống không được trả lời một nửa dễ của câu hỏi.
 \end{itemize}
 
-Mô hình ngôn ngữ chính là Google Gemini 2.5 Flash với free tier 250
-request mỗi ngày. Khi vượt định mức hoặc gặp lỗi, hệ thống tự động
-chuyển sang OpenAI GPT-4o-mini. Mô hình phụ này cũng đóng vai trò giám
-khảo độc lập trong quy trình đánh giá chất lượng, tránh thiên vị do cùng
-một mô hình vừa sinh câu trả lời vừa chấm điểm.
+Đề tài xây dựng một hệ thống RAG chuyên biệt cho pháp luật giao thông đường bộ Việt Nam. Hệ thống không chỉ tìm đoạn văn có nội dung gần với câu hỏi mà còn phải xác định đúng đơn vị pháp lý, đúng phiên bản văn bản tại thời điểm được hỏi, mở rộng đúng các quy định liên quan và kiểm chứng từng trích dẫn trước khi trả kết quả.
 
-Câu trả lời trả về dưới dạng Markdown kèm danh sách trích dẫn có cấu
-trúc: tên văn bản, số Điều, Khoản, Điểm, trạng thái hiệu lực và dấu vết
-nguồn (trang, dòng). Mọi câu trả lời đều kèm điều khoản miễn trừ trách
-nhiệm pháp lý.
+\section{Mục tiêu hệ thống}
 
-
-\section*{Vai trò người dùng}
-
-\subsection*{Người dùng cuối}
-
-Người dùng cuối tương tác với hệ thống qua giao diện trò chuyện. Họ nhập
-câu hỏi bằng ngôn ngữ tự nhiên và nhận câu trả lời ngắn gọn kèm trích
-dẫn. Hệ thống phục vụ nhiều đối tượng: người tham gia giao thông tra cứu
-mức phạt, sinh viên luật tìm điều khoản, chủ nhà trọ tra cứu hợp đồng
-thuê, nhân viên tín dụng kiểm tra lịch trả nợ.
-
-\subsection*{Nhà quản trị và phát triển}
-
-Nhà quản trị chịu trách nhiệm cập nhật cơ sở dữ liệu tài liệu và theo
-dõi hiệu năng hệ thống. Họ nạp tài liệu mới qua API được xác thực bằng
-Bearer Token; quy trình tự động thực hiện trích xuất, nhúng vector và tái
-xây dựng chỉ mục BM25 mà không làm gián đoạn luồng tra cứu. Nhà phát
-triển mở rộng hệ thống sang lĩnh vực mới bằng cách viết plugin và tệp
-cấu hình quy tắc, không cần can thiệp vào phần lõi xử lý.
-
-
-\section*{Kiến trúc hệ thống}
-
-Hệ thống vận hành trên kiến trúc đa tầng:
+Hệ thống hướng đến các mục tiêu sau:
 
 \begin{itemize}
-    \item FastAPI làm khung API cho cả tầng trích xuất và chatbot.
-    \item LangGraph làm bộ điều phối trạng thái cho luồng xử lý chatbot.
-    \item ChromaDB làm cơ sở dữ liệu vector cho truy xuất ngữ nghĩa.
-    \item SQLite cho lưu trữ trạng thái hội thoại và lịch sử.
-    \item Hệ thống tệp cho tài liệu PDF gốc và chỉ mục BM25.
-    \item Công cụ dòng lệnh cho quy trình nạp dữ liệu hàng loạt.
+  \item Xây dựng Parser Router định tuyến tài liệu qua Docling hoặc MinerU theo đặc tính tài liệu và quality gate, cùng Canonical Document IR parser-neutral do dự án sở hữu.
+  \item Xây dựng Legal Structure Extractor nhận diện Chương, Mục, Điều, Khoản, Điểm, hỗ trợ nhãn Điểm tiếng Việt (kể cả đ) và giữ lại các Điểm ngắn hợp lệ.
+  \item Mô hình hóa quan hệ tham chiếu giữa các quy định bằng ProvisionReference, DocumentRelation và LegalEffectEvent lưu trong PostgreSQL, không dùng Neo4j.
+  \item Biểu diễn văn bản và điều khoản bằng LegalDocument và LegalProvision với định danh ổn định, tách \texttt{source\_text} và \texttt{retrieval\_text}, kèm khoảng hiệu lực.
+  \item Kết hợp exact legal lookup, dense retrieval và sparse BM25 trong Qdrant bằng RRF, kèm reranking và mở rộng ngữ cảnh pháp lý theo quan hệ.
+  \item Xây dựng evidence plan và Evidence Completeness Gate để không trả lời nửa vời cho câu hỏi đa bằng chứng.
+  \item Hỗ trợ câu hỏi về quy định hiện hành, quy định trong quá khứ và so sánh hai giai đoạn.
+  \item Sinh câu trả lời có cấu trúc cấp claim bằng Gemini 3.5 Flash, trong đó mỗi claim phải gắn với định danh điều khoản thuộc context đã truy xuất.
+  \item Kiểm chứng câu trả lời bằng sáu tầng verification với bất biến Returned Invalid Citation Rate bằng 0.
+  \item Từ chối trả lời khi corpus không đủ bằng chứng hoặc trích dẫn không thể được xác minh, thay vì tìm web tự do.
+  \item Thiết lập observability bằng Langfuse và đối chiếu với baseline RAGFlow bên ngoài.
+  \item Đánh giá hệ thống bằng gold set chuẩn và bốn suite thí nghiệm A-D.
 \end{itemize}
 
-Hệ thống chạy trên một worker duy nhất do ChromaDB dùng SQLite nội bộ,
-không hỗ trợ nhiều tiến trình ghi đồng thời. Toàn bộ mô hình ngôn ngữ và
-nhúng vector chạy qua API cloud; card đồ họa MX330 2GB VRAM trên máy
-phát triển không đủ để chạy inference cục bộ.
+Hệ thống phục vụ tra cứu và hỗ trợ tìm căn cứ, không thay thế tư vấn của luật sư hoặc kết luận của cơ quan có thẩm quyền.
 
+\section{Phạm vi}
 
-\section*{Bảo mật}
+Phạm vi khóa luận tập trung vào pháp luật giao thông đường bộ Việt Nam với khoảng 20 đến 30 văn bản chính thống, trong đó có văn bản hiện hành, văn bản lịch sử và ít nhất 5 chuỗi sửa đổi, thay thế hoặc bãi bỏ.
 
-Hệ thống tuân thủ Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân:
-không lưu trữ thông tin nhận dạng ngoài mã định danh phiên, chính sách
-lưu trữ tối đa 30 ngày, xác thực API bằng Bearer Token, giới hạn tốc độ
-6 request mỗi phút mỗi địa chỉ IP.
+Các chức năng bắt buộc gồm:
+
+\begin{itemize}
+  \item nạp và xử lý PDF qua Parser Router với Docling chính và MinerU phụ/fallback;
+  \item chuẩn hóa sang Canonical Document IR và trích xuất cấu trúc pháp lý;
+  \item giải quyết quan hệ tham chiếu chéo và quan hệ hiệu lực;
+  \item review dữ liệu trước khi index;
+  \item truy xuất đa tầng exact lookup, dense, sparse với RRF và reranking;
+  \item lọc theo thời gian hiệu lực;
+  \item hỏi đáp hiện hành, lịch sử và so sánh;
+  \item kiểm tra tính đầy đủ bằng chứng trước khi sinh câu trả lời;
+  \item kiểm chứng trích dẫn sáu tầng;
+  \item từ chối trả lời khi thiếu căn cứ;
+  \item giao diện chat, tìm kiếm và xem đoạn nguồn;
+  \item bộ đánh giá 200 câu và báo cáo các suite thí nghiệm A-D.
+\end{itemize}
+
+Đề tài không triển khai open web search để tạo câu trả lời, autonomous multi-agent, toàn bộ hệ thống pháp luật Việt Nam, knowledge graph hoặc Neo4j, fine-tuning mô hình, ứng dụng di động, voice chatbot, microservices hoặc RAGFlow làm nền tảng chính. RAGFlow chỉ được dùng làm baseline so sánh bên ngoài, chạy trong môi trường benchmark riêng.
+
+\section{Kiến trúc tổng thể}
+
+Hệ thống được chia thành hai pipeline độc lập, được điều phối bởi LangGraph như một controlled workflow có các nhánh xác định trước, không phải agent tự trị. Mọi tầng quan trọng phát trace về Langfuse; observability nằm ngoài đường tới hạn tính đúng đắn.
+
+\subsection{Pipeline xử lý tài liệu ngoại tuyến}
+
+\begin{center}
+\small
+Nguồn văn bản chính thống
+$\rightarrow$ Source Registry và Corpus Manifest
+$\rightarrow$ Ingestion Queue (Redis + Dramatiq)
+$\rightarrow$ Parser Router (Docling | MinerU)
+$\rightarrow$ Canonical Document IR
+$\rightarrow$ Legal Structure Extractor
+$\rightarrow$ Legal Reference Resolver
+$\rightarrow$ Temporal and Amendment Resolver
+$\rightarrow$ Quality Gates
+$\rightarrow$ Human Review
+$\rightarrow$ PostgreSQL
+$\rightarrow$ Embedding and Sparse Indexing
+$\rightarrow$ Qdrant
+\end{center}
+
+Parser Router đọc trực tiếp tài liệu nguồn bằng Docling (parser chính) hoặc MinerU (parser phụ, fallback và challenger), quyết định theo đặc tính tài liệu và kết quả quality gate. Đầu ra parser được chuẩn hóa sang Canonical Document IR do dự án sở hữu, sau đó Legal Structure Extractor trích xuất phân cấp pháp luật, các resolver xác định quan hệ tham chiếu và khoảng hiệu lực. Chỉ dữ liệu qua quality gate và được reviewer chấp nhận mới được lưu vào PostgreSQL và index vào Qdrant.
+
+Ingestion chạy hoàn toàn nền qua Redis và Dramatiq với các actor ngắn, rời rạc và idempotent; API upload trả 202 Accepted kèm ingestion job ID, không parse PDF đồng bộ trong request handler. PDF nguồn và artifact được lưu trong MinIO, PostgreSQL giữ object key và metadata.
+
+\subsection{Pipeline hỏi đáp trực tuyến}
+
+\begin{center}
+\small
+Câu hỏi người dùng
+$\rightarrow$ Query Understanding
+$\rightarrow$ Temporal Resolution
+$\rightarrow$ Query Expansion
+$\rightarrow$ Parallel Multi-Recall (exact | dense | sparse)
+$\rightarrow$ RRF Fusion
+$\rightarrow$ Reranking
+$\rightarrow$ Legal Context Expansion
+$\rightarrow$ Evidence Completeness Gate
+$\rightarrow$ Context Builder
+$\rightarrow$ Structured Generator
+$\rightarrow$ Verification (L1-L6)
+$\rightarrow$ Verified Answer hoặc Abstention
+\end{center}
+
+Query Understanding trích xuất intent, ngày áp dụng, loại phương tiện, định danh văn bản và evidence plan. Query expansion luôn giữ câu hỏi gốc của người dùng; HyDE chỉ bật có điều kiện và không có vòng rewrite không giới hạn. Truy xuất gồm ba kênh song song: exact legal lookup, dense semantic và sparse BM25, được hợp nhất bằng RRF, rerank rồi mở rộng ngữ cảnh pháp lý theo quan hệ quanh các seed provision mạnh. Evidence Completeness Gate kiểm tra mọi loại bằng chứng cần thiết đã có; nếu thiếu, hệ thống chạy targeted retrieval hoặc mở rộng theo quan hệ trước khi sinh câu trả lời. Kết quả được kiểm chứng sáu tầng và chỉ trả ra khi hợp lệ; nếu không, hệ thống từ chối với lý do chuẩn.
+
+\section{Trích xuất và mô hình dữ liệu pháp lý}
+
+Phương án thiết kế đầu tiên dựa trên UDEF làm tầng xử lý tài liệu. Phiên bản v2 loại bỏ hoàn toàn phụ thuộc này và thay bằng ba thành phần do dự án sở hữu: Parser Router đọc trực tiếp tài liệu, Canonical Document IR làm biểu diễn trung gian parser-neutral và Legal Structure Extractor chịu toàn bộ việc nhận diện cấu trúc. Thay đổi này giảm tầng chuyển đổi trung gian và kiểm soát trực tiếp việc nhận diện phân cấp pháp luật Việt Nam.
+
+Canonical Document IR gồm ParsedDocument chứa ParsedPage, mỗi trang chứa DocumentElement. Mỗi element mang element\_id, element\_type, text, page\_number, bbox, reading\_order, parent\_element\_id, table\_html, source\_parser, parser\_version, parser\_confidence và raw\_reference. Tầng IR cô lập phân tích pháp lý khỏi định dạng đầu ra của Docling/MinerU; thay hoặc nâng cấp parser chỉ cần một adapter mới.
+
+Legal Structure Extractor là parser pháp lý riêng của dự án, nhận diện Chương, Mục, Điều, Khoản, Điểm, Phụ lục, bảng pháp lý, điều khoản chuyển tiếp và đánh số văn bản pháp luật Việt Nam kèm biến thể do OCR. Bắt buộc hỗ trợ nhãn Điểm tiếng Việt a) b) c) d) đ) e) theo bảng chữ cái 29 ký tự, không dùng giả định [a-z]; khi OCR không phân biệt được d) và đ), extractor gắn cờ ambiguity và định tuyến review. Điểm pháp lý ngắn nhưng hợp lệ vẫn được giữ (short-Point retention). Provision ID giữ nguyên ký tự tiếng Việt để tránh va chạm, ví dụ Điểm đ) ứng diem-đ khác với Điểm d) ứng diem-d.
+
+Mỗi đơn vị pháp lý được biểu diễn bằng LegalProvision với provision\_id ổn định và tái tạo được theo quy tắc xác định trước, ví dụ \texttt{nd-168-2024\_\_dieu-7\_\_khoan-4\_\_diem-b}. Mô hình phân biệt \texttt{source\_text} (nội dung pháp lý gốc, bất biến, không bao giờ bị biến đổi) và \texttt{retrieval\_text} (có thể kế thừa ngữ cảnh cha như câu mở đầu của Khoản hoặc tiêu đề Điều để phục vụ retrieval). Trích dẫn vẫn trỏ tới provision thực tế. Ngoài ra còn có khoảng hiệu lực, trang nguồn, bounding box, \texttt{source\_element\_ids}, \texttt{content\_hash} và review\_status. Khi provision bị sửa đổi, provision\_id giữ nguyên để trích dẫn ổn định, nội dung mới được lưu dưới version mới với khoảng hiệu lực mới.
+
+Quan hệ giữa các quy định được lưu trong bảng PostgreSQL và xử lý bằng application logic, không dùng Neo4j. ProvisionReference gồm bốn loại PARENT\_OF, REFERS\_TO, SIBLING\_OF và PENALTY\_COMPANION, trong đó PENALTY\_COMPANION gắn quy định xử phạt với quy định đi kèm như trừ điểm giấy phép lái xe hoặc tước quyền sử dụng giấy phép lái xe. DocumentRelation gồm AMENDS, REPEALS, SUPERSEDES, CORRECTS, GUIDES và RELATED\_TO. LegalEffectEvent ghi lại các sự kiện pháp lý như có hiệu lực, sửa đổi, thay thế hoặc bãi bỏ để phục vụ temporal resolver và câu hỏi so sánh lịch sử. Quan hệ không giải quyết được định tuyến review, không suy đoán.
+
+PostgreSQL là nguồn dữ liệu nghiệp vụ chính, lưu phiên bản văn bản, khoảng hiệu lực, quan hệ, review, audit, query trace và evaluation run. Qdrant là index dẫn xuất, luôn có thể dựng lại từ PostgreSQL và chỉ nhận dữ liệu có \texttt{review\_status = ACCEPTED}.
+
+\section{Truy xuất nhận biết cấu trúc và thời gian}
+
+Hệ thống xác định ranh giới pháp lý trước, chunking chỉ chạy sau đó: ranh giới chunk phải trùng ranh giới trích dẫn. Mỗi provision được embed dưới dạng một đơn vị; khi một provision quá dài, hệ thống tách theo câu nhưng vẫn giữ cùng provision\_id. Điểm ngắn được bổ sung ngữ cảnh cha vào \texttt{retrieval\_text} để vẫn mang đủ nghĩa khi truy xuất độc lập.
+
+Retrieval là pipeline nhiều tầng:
+
+\begin{enumerate}
+  \item exact legal lookup xử lý định danh chính xác như 168/2024/NĐ-CP, Điều 7, Khoản 4, Điểm a;
+  \item dense retrieval bằng embedding trên \texttt{retrieval\_text};
+  \item sparse retrieval bằng BM25 trong Qdrant cho số hiệu và cụm từ pháp lý;
+  \item hợp nhất dense và sparse bằng Reciprocal Rank Fusion;
+  \item reranking bằng Jina Reranker v3 như stage chuẩn, chưa khẳng định cải thiện chất lượng trước khi benchmark;
+  \item mở rộng ngữ cảnh pháp lý quanh seed mạnh theo parent, sibling, cross-reference và penalty companion, mỗi provision mở rộng ghi lý do vào context.
+\end{enumerate}
+
+Mọi query đều có một ngày áp dụng. Một provision chỉ được xem là hợp lệ khi:
+
+\[
+effective\_from \leq query\_date
+\]
+
+và \texttt{effective\_to} là rỗng hoặc \texttt{query\_date < effective\_to}, đồng thời \texttt{review\_status = ACCEPTED}. Temporal filter là điều kiện bắt buộc trong mọi retrieval. Hệ thống không dùng văn bản hiện hành làm mặc định cho câu hỏi lịch sử. Đối với câu hỏi so sánh, hệ thống tạo hai context độc lập và không trộn citation giữa hai thời điểm.
+
+Dense embedding chưa được chốt vĩnh viễn. Suite B benchmark ba ứng viên Gemini Embedding 2, Jina Embeddings v5 text-nano và Jina Embeddings v5 text-small trên câu hỏi pháp luật tiếng Việt trước khi chọn embedding production.
+
+\section{Sinh câu trả lời và kiểm chứng trích dẫn}
+
+Mô hình ngôn ngữ chính là Gemini 3.5 Flash với structured output theo schema cấp claim: answer\_summary, claims (mỗi claim gồm claim, claim\_type, provision\_ids, numbers), missing\_information và should\_abstain. Mô hình không được phép tự viết citation dạng văn bản tự do; mỗi claim chỉ được chọn provision\_id từ context đã truy xuất và mở rộng. Citation hiển thị được dựng từ metadata đã lưu, không phải chuỗi LLM gõ tự do.
+
+Verifier thực hiện sáu tầng theo thứ tự:
+
+\begin{enumerate}
+  \item L1 Schema: output tuân thủ Pydantic schema cấp claim;
+  \item L2 Citation ID: provision tồn tại, được truy xuất hoặc mở rộng hợp lệ, có \texttt{review\_status = ACCEPTED};
+  \item L3 Temporal: provision trích dẫn có hiệu lực tại ngày được hỏi;
+  \item L4 Numeric grounding: mức phạt, số điểm trừ, ngày, thời hạn, số lượng khớp giá trị bằng chứng đã chuẩn hóa;
+  \item L5 Claim support: quy tắc xác định trước, LLM judge độc lập chỉ dùng cho trường hợp ngữ nghĩa với hành vi fail-closed;
+  \item L6 Evidence completeness: mọi loại bằng chứng trong evidence plan được các claim cuối bao phủ.
+\end{enumerate}
+
+Nếu draft không hợp lệ, workflow không đơn thuần regenerate mà sửa lỗi theo loại: thiếu bằng chứng chạy targeted retrieval rồi dựng lại context và regenerate; claim không được hỗ trợ sinh lại từ bằng chứng hiện có; schema sai sinh lại structured output; xung đột thời gian truy xuất phiên bản đúng. Số lần repair có giới hạn cấu hình được; hết giới hạn, hệ thống trả trạng thái từ chối với reason code chuẩn thay vì hiển thị câu trả lời chưa được kiểm chứng. Bất biến API là Returned Invalid Citation Rate bằng 0.
+
+Citation hiển thị gồm tên văn bản, số hiệu, Điều, Khoản, Điểm, khoảng hiệu lực, trang nguồn và đoạn trích. Mọi response đều kèm thông báo giới hạn trách nhiệm pháp lý.
+
+\section{Vai trò người dùng}
+
+\subsection{Người dùng cuối}
+
+Người dùng nhập câu hỏi bằng tiếng Việt, có thể chọn ngày áp dụng và loại phương tiện. Hệ thống trả một trong hai kết quả:
+
+\begin{itemize}
+  \item câu trả lời đã được xác minh kèm citation và đoạn nguồn;
+  \item thông báo từ chối, nêu lý do thiếu dữ liệu hoặc thiếu thông tin.
+\end{itemize}
+
+Người dùng có thể đánh giá câu trả lời là Useful hoặc Not Useful kèm danh mục báo cáo (sai trích dẫn, thiếu thông tin, sai ngày hiệu lực, sai mức phạt, câu trả lời không đầy đủ, khác); feedback được lưu trong PostgreSQL và gửi về Langfuse. Người dùng cũng có thể tìm trực tiếp Điều, Khoản hoặc từ khóa mà không cần gọi mô hình sinh câu trả lời.
+
+\subsection{Corpus Reviewer}
+
+Reviewer kiểm tra PDF, metadata, hierarchy, provenance, quan hệ tham chiếu và hiệu lực trong pipeline ingestion. Tài liệu hoặc provision được gửi review khi metadata chưa chắc chắn, cấu trúc chưa đầy đủ, OCR coverage thấp, quan hệ sửa đổi hoặc hiệu lực không xác định, hoặc nhãn Điểm tiếng Việt không đạt quality gate. Chỉ tài liệu hoặc provision có trạng thái accepted mới được index. Human-in-the-Loop nằm tại khâu review ingestion, không nằm trong mỗi câu hỏi của người dùng.
+
+\subsection{Nhà phát triển}
+
+Nhà phát triển quản lý ingestion, database migration, Qdrant index và collection versioning, model configuration, prompt version, evaluation, backup, restore và release. Mọi experiment phải lưu corpus hash, gold-set hash, model ID, prompt version, cấu hình, git commit và raw result.
+
+\section{Công nghệ chính}
+
+\renewcommand{\arraystretch}{1.25}
+\begin{center}
+\begin{tabularx}{\textwidth}{>{\bfseries}p{4.0cm} X}
+\toprule
+Thành phần & Công nghệ \\
+\midrule
+Backend & Python 3.11, FastAPI, Pydantic v2 \\
+Workflow & LangGraph 1.x controlled workflow \\
+Parser chính & Docling 2.x \\
+Parser phụ / fallback & MinerU 3.4.x (Parser Router) \\
+Dữ liệu nghiệp vụ & PostgreSQL 18, SQLAlchemy 2, Alembic \\
+Retrieval & Qdrant v1.19 dense + sparse + RRF + payload filter \\
+Embedding & Ứng viên: Gemini Embedding 2, Jina Embeddings v5 text-nano / text-small \\
+Reranker & Jina Reranker v3 (stage chuẩn) \\
+Generator & Gemini 3.5 Flash \\
+Evaluation judge & GPT-5.4 mini snapshot \\
+Đánh giá & Deterministic metrics + Ragas v0.4.x \\
+Background jobs & Redis + Dramatiq 2.x \\
+Object storage & MinIO (S3-compatible) \\
+Observability & Langfuse Cloud \\
+Frontend & Next.js, TypeScript, shadcn/ui \\
+Triển khai & Docker Compose, GitHub Actions \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\section{Đánh giá hệ thống}
+
+Bộ gold set mục tiêu gồm 200 câu đã review, chia 40 development, 40 validation và 120 final test. Final test được đóng băng và không dùng để tuning. Các danh mục câu hỏi gồm hiện hành, lịch sử, so sánh, tra cứu chính xác, mức phạt, điểm giấy phép lái xe, điều kiện áp dụng, ngoại lệ, thủ tục, tham chiếu chéo, đa provision, đa văn bản, câu khẩu ngữ, thiếu thông tin, ngoài corpus và câu cố tình yêu cầu citation sai.
+
+Các bộ thí nghiệm:
+
+\begin{itemize}
+  \item Suite A (parser): P1 Docling, P2 MinerU, P3 Parser Router;
+  \item Suite B (embedding): E1 Gemini Embedding 2, E2 Jina Embeddings v5 text-nano, E3 Jina Embeddings v5 text-small;
+  \item Suite C (retrieval): R1 đến R10 bổ sung dần sparse/RRF, query normalization, multi-query rewrite, conditional HyDE, reranker, parent/sibling expansion, cross-reference expansion, temporal filtering;
+  \item Suite D (generation và verification): G1 prompt-only, G2 structured output, G3 citation ID verifier, G4 temporal verifier, G5 numeric grounding, G6 claim support, G7 evidence completeness.
+\end{itemize}
+
+Các nhóm metric chính gồm retrieval (Recall@5/10/20, MRR@10, nDCG@10), evidence, temporal, citation (Precision, Recall, F1, Invalid Citation Rate), grounding (Numeric Grounding Accuracy, Unsupported Claim Rate, Claim Support Precision), corpus và abstention (Precision, Recall, F1). Deterministic metrics là headline; LLM judge chỉ là nguồn thứ cấp.
+
+Tài liệu không khẳng định trước bất kỳ kết quả định lượng nào. Kết quả chỉ được đưa vào báo cáo sau khi chạy final evaluation trên corpus, gold set và cấu hình đã đóng băng.
+
+\section{Triển khai và bảo trì}
+
+Hệ thống chạy local bằng Docker Compose với bảy service chính: frontend (Next.js), backend (FastAPI), worker (Dramatiq), PostgreSQL, Qdrant, Redis và MinIO. PostgreSQL và Qdrant có volume riêng. Qdrant là index dẫn xuất, có thể rebuild từ PostgreSQL khi index hỏng bằng cách tạo collection mới rồi switch alias, không rebuild in place và không trộn hai embedding space. Langfuse Cloud là dịch vụ ngoài; nếu không khả dụng, query vẫn hoạt động vì observability không nằm trên đường tới hạn. RAGFlow chạy trong môi trường benchmark riêng, không nằm trong compose production.
+
+Release bundle gồm PostgreSQL dump, Qdrant snapshot, MinIO mirror, gold set, evaluation results, release manifest, git tag và checksum. Restore được kiểm chứng bằng script so sánh số point, hash corpus và migration revision.
+
+Khi có văn bản mới, hệ thống thực hiện quy trình:
+
+\begin{center}
+\small
+Phát hiện
+$\rightarrow$ Tải
+$\rightarrow$ Hash
+$\rightarrow$ Trích xuất
+$\rightarrow$ Validate
+$\rightarrow$ Review
+$\rightarrow$ Version
+$\rightarrow$ Cập nhật hiệu lực
+$\rightarrow$ Index
+$\rightarrow$ Regression
+$\rightarrow$ Kích hoạt
+\end{center}
+
+Không append dữ liệu mới vào retrieval mà bỏ qua quan hệ thời gian. Văn bản lịch sử vẫn được giữ để trả lời câu hỏi quá khứ, nhưng bị loại khỏi câu hỏi hiện hành bằng temporal filter.
+
+\section{Kết quả mong đợi}
+
+Sản phẩm khóa luận gồm:
+
+\begin{itemize}
+  \item mã nguồn backend và frontend;
+  \item Parser Router và báo cáo parser benchmark;
+  \item Canonical Document IR và Legal Structure Extractor;
+  \item đồ thị quan hệ tham chiếu ProvisionReference, DocumentRelation và LegalEffectEvent;
+  \item PostgreSQL schema và Qdrant index;
+  \item retrieval đa tầng và Evidence Completeness Gate;
+  \item verifier sáu tầng;
+  \item giao diện chat, tìm kiếm và xem nguồn;
+  \item gold set 200 câu và báo cáo các suite A-D;
+  \item Docker Compose, backup, restore và release candidate;
+  \item báo cáo khóa luận và slide bảo vệ.
+\end{itemize}
+
+\section{Tiến độ}
+
+Hệ thống được triển khai từ ngày 20/07/2026 đến ngày 12/09/2026. Feature freeze dự kiến ngày 06/09/2026, code freeze ngày 10/09/2026, rehearsal ngày 13/09/2026 và bảo vệ ngày 14/09/2026.
+
+\section{Tài liệu kỹ thuật tham khảo}
+
+\begin{sloppypar}
+\begin{itemize}
+  \item Google Gemini API documentation:
+  \url{https://ai.google.dev/gemini-api/docs}
+  \item Qdrant hybrid queries:
+  \url{https://qdrant.tech/documentation/search/hybrid-queries/}
+  \item Docling documentation:
+  \url{https://docling-project.github.io/docling/}
+  \item MinerU documentation:
+  \url{https://opendatalab.github.io/MinerU/}
+  \item LangGraph documentation:
+  \url{https://langchain-ai.github.io/langgraph/}
+  \item Langfuse documentation:
+  \url{https://langfuse.com/docs}
+  \item Jina AI API:
+  \url{https://jina.ai/}
+  \item Dramatiq documentation:
+  \url{https://dramatiq.io/}
+  \item MinIO documentation:
+  \url{https://docs.min.io/}
+  \item RAGFlow documentation:
+  \url{https://ragflow.io/docs/}
+  \item PostgreSQL documentation:
+  \url{https://www.postgresql.org/docs/18/}
+\end{itemize}
+\end{sloppypar}
 
 \end{document}
