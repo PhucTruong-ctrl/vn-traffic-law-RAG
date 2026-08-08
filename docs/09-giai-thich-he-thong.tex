@@ -1,159 +1,358 @@
-% !TEX program = pdflatex
+% !TEX program = xelatex
 \documentclass[a4paper,12pt]{extreport}
 
-% ── Vietnamese + Font (Times, size 13, pdfLaTeX compatible) ──
-\usepackage[T5]{fontenc}
-\usepackage[utf8]{inputenc}
-\usepackage{mathptmx}
-% Mathptmx provides Times-like serif for body text
-
-% ── Geometry (Left 3.5cm, Right/Top/Bottom 2cm) ──
-\usepackage[paperwidth=210mm,paperheight=297mm,
-            left=3.5cm,right=2cm,top=2cm,bottom=2cm]{geometry}
-
-% ── Line spacing 1.2 ──
+% ============================================================
+% FONT, LANGUAGE, AND PAGE FORMAT
+% ============================================================
+\usepackage{fontspec}
+\defaultfontfeatures{Ligatures=TeX}
+\IfFontExistsTF{Times New Roman}{
+  \setmainfont{Times New Roman}
+}{
+  \setmainfont{Tinos}
+}
+\setmonofont{DejaVu Sans Mono}
+\usepackage[vietnamese]{babel}
+\makeatletter
+\renewcommand\normalsize{%
+  \@setfontsize\normalsize{13pt}{15.6pt}%
+  \abovedisplayskip 10pt plus 2pt minus 5pt%
+  \abovedisplayshortskip 0pt plus 3pt%
+  \belowdisplayshortskip 6pt plus 3pt minus 3pt%
+  \belowdisplayskip \abovedisplayskip%
+  \let\@listi\@listI}
+\makeatother
+\normalsize
+\usepackage[
+  paperwidth=210mm,
+  paperheight=297mm,
+  left=3.5cm,
+  right=2cm,
+  top=2cm,
+  bottom=2cm,
+  headsep=0.5cm,
+  footskip=1cm
+]{geometry}
 \usepackage{setspace}
 \setstretch{1.2}
-
-% ── Paragraph formatting ──
 \setlength{\parindent}{1.5cm}
 \setlength{\parskip}{0pt}
 \usepackage{indentfirst}
+\usepackage{microtype}
+\emergencystretch=2em
 
-% ── Headers and footers ──
+% ============================================================
+% HEADINGS AND PAGINATION
+% ============================================================
+\usepackage{titlesec}
+\titleformat{\chapter}[display]
+  {\normalfont\fontsize{16}{19}\selectfont\bfseries\centering}
+  {CHƯƠNG \thechapter}
+  {12pt}
+  {\MakeUppercase}
+\titlespacing*{\chapter}{0pt}{0pt}{18pt}
+
+\titleformat{\section}
+  {\normalfont\fontsize{14}{17}\selectfont\bfseries}
+  {\thesection}{0.5em}{}
+\titlespacing*{\section}{0pt}{6pt}{0pt}
+
+\titleformat{\subsection}
+  {\normalfont\fontsize{13}{16}\selectfont\bfseries}
+  {\thesubsection}{0.5em}{}
+\titlespacing*{\subsection}{0pt}{6pt}{0pt}
+
+\titleformat{\subsubsection}
+  {\normalfont\fontsize{13}{16}\selectfont\bfseries\itshape}
+  {\thesubsubsection}{0.5em}{}
+\titlespacing*{\subsubsection}{0pt}{6pt}{0pt}
+
+\usepackage{needspace}
 \usepackage{fancyhdr}
 \pagestyle{fancy}
 \fancyhf{}
-\fancyfoot[C]{\thepage}
+\fancyfoot[C]{\fontsize{13}{15}\selectfont\thepage}
 \renewcommand{\headrulewidth}{0pt}
 \renewcommand{\footrulewidth}{0pt}
 \setlength{\headheight}{14.5pt}
 
-% ── Vietnamese support ──
-\usepackage[vietnamese]{babel}
-
-% ── Math ──
+% ============================================================
+% TABLES, FIGURES, MATH, LISTINGS
+% ============================================================
 \usepackage{amsmath,amssymb}
-
-% ── Tables ──
-\usepackage{array,multirow,booktabs}
+\usepackage{array,multirow,booktabs,tabularx,longtable}
+\usepackage{makecell}
+\usepackage{graphicx}
+\graphicspath{{images/}}
+\usepackage{float}
+\usepackage{pdflscape}
 \usepackage{caption}
-\captionsetup[table]{labelformat=simple,labelsep=period,
-    font={normalsize},skip=0pt,position=above,justification=raggedright,singlelinecheck=false}
-\captionsetup[figure]{labelformat=simple,labelsep=period,
-    font={normalsize},skip=0pt,position=bottom,justification=centering}
+\captionsetup[table]{
+  labelsep=colon,
+  font={normalsize},
+  skip=3pt,
+  position=above,
+  justification=raggedright,
+  singlelinecheck=false
+}
+\captionsetup[figure]{
+  labelsep=colon,
+  font={normalsize},
+  skip=3pt,
+  position=bottom,
+  justification=centering
+}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,calc}
+\usepackage{xcolor}
+\definecolor{DraftYellow}{RGB}{255,248,204}
+\definecolor{DraftBorder}{RGB}{150,120,0}
+\definecolor{SoftBlue}{RGB}{235,243,252}
+\definecolor{SoftGray}{RGB}{245,245,245}
+\definecolor{DarkBlue}{RGB}{31,78,121}
 
-% ── Headings ──
-\usepackage{titlesec}
-\titleformat{\chapter}[display]
-    {\normalfont\fontsize{16}{19}\bfseries\centering}
-    {Chương \thechapter}{12pt}{}
-\titlespacing*{\chapter}{0pt}{0pt}{18pt}
+\usepackage{listings}
+\lstdefinelanguage{json}{
+  basicstyle=\ttfamily\fontsize{10}{12}\selectfont,
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=7pt,
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  literate=
+   *{0}{{{\color{blue}0}}}{1}
+    {1}{{{\color{blue}1}}}{1}
+    {2}{{{\color{blue}2}}}{1}
+    {3}{{{\color{blue}3}}}{1}
+    {4}{{{\color{blue}4}}}{1}
+    {5}{{{\color{blue}5}}}{1}
+    {6}{{{\color{blue}6}}}{1}
+    {7}{{{\color{blue}7}}}{1}
+    {8}{{{\color{blue}8}}}{1}
+    {9}{{{\color{blue}9}}}{1}
+    {:}{{{\color{black}:}}}{1}
+    {,}{{{\color{black},}}}{1}
+    {\{}{{{\color{black}\{}}}{1}
+    {\}}{{{\color{black}\}}}}{1}
+    {[}{{{\color{black}[}}}{1}
+    {]}{{{\color{black}]}}}{1},
+}
+\lstset{
+  basicstyle=\ttfamily\fontsize{10}{12}\selectfont,
+  breaklines=true,
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny,
+  numbersep=7pt,
+  showstringspaces=false,
+  tabsize=2,
+  xleftmargin=0.6cm,
+  framexleftmargin=0.4cm
+}
 
-\titleformat{\section}
-    {\normalfont\fontsize{14}{16}\bfseries}
-    {\thesection}{0.5em}{}
-\titlespacing*{\section}{0pt}{6pt}{3pt}
-
-\titleformat{\subsection}
-    {\normalfont\fontsize{13}{15}\bfseries}
-    {\thesubsection}{0.5em}{}
-\titlespacing*{\subsection}{0pt}{6pt}{3pt}
-
-\titleformat{\subsubsection}
-    {\normalfont\fontsize{13}{15}\bfseries\itshape}
-    {\thesubsubsection}{0.5em}{}
-\titlespacing*{\subsubsection}{0pt}{6pt}{3pt}
-
-% ── Table of Contents ──
+% ============================================================
+% TOC, LINKS, BIBLIOGRAPHY
+% ============================================================
 \usepackage{tocloft}
 \renewcommand{\cftchapfont}{\bfseries}
 \renewcommand{\cftsecfont}{\normalfont}
 \renewcommand{\cftsubsecfont}{\normalfont}
 \renewcommand{\cftchapdotsep}{\cftdotsep}
-
-% ── Graphics ──
-\usepackage{graphicx}
-\usepackage{float}
-
-% ── Hyperlinks ──
-\usepackage[hidelinks]{hyperref}
-
-% ── Code listings ──
-\usepackage{listings}
-\lstset{
-    basicstyle=\ttfamily\small,
-    breaklines=true,
-    frame=single,
-    numbers=left,
-    numberstyle=\tiny,
-    xleftmargin=1.5cm,
-    framexleftmargin=1em,
-    showstringspaces=false,
-    tabsize=2
-}
-
-% ── Table of contents depth ──
 \setcounter{tocdepth}{3}
 \setcounter{secnumdepth}{3}
+
+\usepackage{xurl}
+\usepackage[hidelinks,unicode]{hyperref}
+\usepackage{bookmark}
+\hypersetup{
+  pdftitle={A Structure-Aware and Temporal RAG System for Vietnamese Traffic Law Question Answering with Verifiable Citations},
+  pdfauthor={Quach Truong Phuc},
+  pdfsubject={Khoa luan tot nghiep},
+  pdfkeywords={RAG, Vietnamese law, temporal retrieval, citation verification, structure-aware, evidence completeness}
+}
+
+\usepackage{csquotes}
+\DeclareQuoteStyle{vietnamese}{“}{”}{‘}{’}
+\usepackage[
+  backend=biber,
+  style=numeric,
+  sorting=none,
+  giveninits=true,
+  maxbibnames=20,
+  doi=true,
+  url=true
+]{biblatex}
+\addbibresource{references.bib}
+\DeclareLanguageMapping{vietnamese}{english}
+\AtBeginBibliography{\small}
+
+% ============================================================
+% DOCUMENT MACROS
+% ============================================================
+\newif\ifdraftmode
+\draftmodetrue
+
+\newcommand{\StudentName}{Quách Trương Phúc}
+\newcommand{\StudentId}{[Mã số sinh viên]}
+\newcommand{\AdvisorName}{[Tên giảng viên hướng dẫn]}
+\newcommand{\ThesisMonth}{9}
+\newcommand{\ThesisYear}{2026}
+\newcommand{\ThesisTitleVN}{XÂY DỰNG HỆ THỐNG RAG NHẬN BIẾT CẤU TRÚC VÀ THỜI GIAN HIỆU LỰC ĐỂ HỖ TRỢ TRA CỨU PHÁP LUẬT GIAO THÔNG VIỆT NAM VỚI TRÍCH DẪN CÓ THỂ KIỂM CHỨNG}
+\newcommand{\ThesisTitleEN}{A Structure-Aware and Temporal RAG System for Vietnamese Traffic Law Question Answering with Verifiable Citations}
+
+\newcommand{\draftnotice}{%
+  \ifdraftmode
+  \begin{center}
+  \fcolorbox{DraftBorder}{DraftYellow}{%
+    \parbox{0.90\textwidth}{%
+      \centering\bfseries
+      BẢN THẢO KỸ THUẬT - CHƯA CÓ KẾT QUẢ THỰC NGHIỆM CUỐI.\\
+      Các bảng kết quả trong Chương 6 phải được thay bằng số liệu từ evaluation run đã đóng băng trước khi nộp.
+    }
+  }
+  \end{center}
+  \fi
+}
+
+\newcommand{\pendingresult}[1]{%
+  \ifdraftmode
+  \begin{center}
+  \fcolorbox{DraftBorder}{DraftYellow}{%
+    \parbox{0.90\textwidth}{\textbf{Nội dung chờ cập nhật:} #1}
+  }
+  \end{center}
+  \else
+  #1
+  \fi
+}
+
+\newcommand{\placeholderfigure}[2][0.80\textwidth]{%
+  \begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][5cm][c]{#1}{\centering\textit{Vị trí chèn hình sau khi hoàn thiện giao diện hoặc xuất diagram chính thức}}}
+    \caption{#2}
+  \end{figure}
+}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcommand{\apipath}[1]{\path{#1}}
+\renewcommand{\arraystretch}{1.18}
 
 % ============================================================
 \begin{document}
 
-% ── TITLE PAGE ──
+% ============================================================
+% MAIN COVER
+% ============================================================
 \thispagestyle{empty}
 \begin{center}
-{\fontsize{16}{19}\bfseries
+{\fontsize{16}{19}\selectfont\bfseries
 BỘ GIÁO DỤC VÀ ĐÀO TẠO\\
 TRƯỜNG ĐẠI HỌC TÂY ĐÔ\\
-KHOA KỸ THUẬT \& CÔNG NGHỆ\\[6pt]
-\rule{8cm}{0.5pt}\\[6pt]
+KHOA KỸ THUẬT - CÔNG NGHỆ\\[6pt]
+}
+
+\IfFileExists{images/logo-tdu.png}{%
+  \includegraphics[width=2.6cm]{images/logo-tdu.png}\\[4pt]
+}{%
+  \vspace{1.3cm}
+}
+
+{\fontsize{13}{16}\selectfont\bfseries
 Trí tuệ - Sáng tạo - Năng động - Đổi mới
 }
 
-\vspace{3cm}
+\vspace{1.8cm}
 
-{\fontsize{16}{19}\bfseries KHÓA LUẬN TỐT NGHIỆP}
+{\fontsize{16}{19}\selectfont\bfseries KHÓA LUẬN TỐT NGHIỆP}
 
-\vspace{2cm}
+\vspace{1.8cm}
 
-{\fontsize{18}{21}\bfseries
-XÂY DỰNG HỆ THỐNG RAG HỖ TRỢ TRA CỨU\\
-PHÁP LUẬT GIAO THÔNG VIỆT NAM\\[12pt]
-\large (GIẢI THÍCH KIẾN TRÚC, THUẬT TOÁN VÀ CƠ CHẾ VẬN HÀNH)
-}
+{\fontsize{18}{22}\selectfont\bfseries \ThesisTitleVN}
 
-\vspace{3cm}
+\vspace{1.8cm}
 
-\begin{tabular}{rl}
+\begin{tabular}{>{\bfseries}rl}
 Chuyên ngành: & Công nghệ thông tin\\
 Ngành: & Công nghệ thông tin\\
 \end{tabular}
 
-\vspace{2cm}
+\vspace{1.6cm}
 
-\begin{tabular}{rl}
-Sinh viên thực hiện: & Quách Trương Phúc\\
-Người hướng dẫn: & [Tên giảng viên hướng dẫn]\\
+\begin{tabular}{>{\bfseries}rl}
+Sinh viên thực hiện: & \StudentName\\
+Mã số sinh viên: & \StudentId\\
+Người hướng dẫn: & \AdvisorName\\
 \end{tabular}
 
-\vspace{3cm}
-
-{\fontsize{14}{17} Cần Thơ, tháng 8 năm 2026}
+\vfill
+{\fontsize{14}{17}\selectfont Cần Thơ, tháng \ThesisMonth\ năm \ThesisYear}
 \end{center}
+\clearpage
 
-\newpage
-
-% ── CAM KẾT ──
+% ============================================================
+% INNER COVER
+% ============================================================
 \thispagestyle{empty}
 \begin{center}
-{\fontsize{16}{19}\bfseries LỜI CAM ĐOAN}
+{\fontsize{16}{19}\selectfont\bfseries
+BỘ GIÁO DỤC VÀ ĐÀO TẠO\\
+TRƯỜNG ĐẠI HỌC TÂY ĐÔ\\
+KHOA KỸ THUẬT - CÔNG NGHỆ
+}
+
+\vspace{2.2cm}
+
+{\fontsize{16}{19}\selectfont\bfseries KHÓA LUẬN TỐT NGHIỆP}
+
+\vspace{1.8cm}
+
+{\fontsize{18}{22}\selectfont\bfseries \ThesisTitleVN}
+
+\vspace{1cm}
+
+{\fontsize{13}{16}\selectfont\itshape \ThesisTitleEN}
+
+\vspace{1.8cm}
+
+\begin{tabular}{>{\bfseries}rl}
+Chuyên ngành: & Công nghệ thông tin\\
+Ngành: & Công nghệ thông tin\\
+Sinh viên thực hiện: & \StudentName\\
+Mã số sinh viên: & \StudentId\\
+Người hướng dẫn: & \AdvisorName\\
+\end{tabular}
+
+\vfill
+{\fontsize{14}{17}\selectfont Cần Thơ, tháng \ThesisMonth\ năm \ThesisYear}
 \end{center}
-\vspace{12pt}
+\clearpage
 
-Tôi xin cam đoan rằng Khóa luận này là do chính tôi thực hiện, không sao chép dưới bất kỳ hình thức nào hay thuê hoặc nhờ người khác thực hiện.
+% ============================================================
+% FRONT MATTER
+% ============================================================
+\pagenumbering{roman}
+\setcounter{page}{1}
 
-Dữ liệu và kết quả phân tích trong Khóa luận đảm bảo tính chính xác, khách quan và trung thực, không có bất kỳ sự ngụy tạo và điều chỉnh kết quả nghiên cứu bằng sự chủ quan của tác giả.
+\chapter*{Lời Cảm Ơn}
+\addcontentsline{toc}{chapter}{Lời cảm ơn}
+
+Tác giả xin gửi lời cảm ơn chân thành đến \AdvisorName\ đã dành thời gian hướng dẫn, góp ý và hỗ trợ trong quá trình xác định bài toán, lựa chọn phương pháp và xây dựng hệ thống. Các nhận xét chuyên môn đã giúp đề tài được điều chỉnh từ một chatbot hỏi đáp tài liệu tổng quát thành một nghiên cứu có phạm vi rõ ràng về truy xuất pháp luật giao thông theo cấu trúc, quan hệ tham chiếu và thời gian hiệu lực.
+
+Tác giả trân trọng cảm ơn quý thầy cô Khoa Kỹ thuật - Công nghệ, Trường Đại học Tây Đô đã cung cấp nền tảng kiến thức và tạo điều kiện để khóa luận được thực hiện. Tác giả cũng cảm ơn gia đình, bạn bè và những người đã hỗ trợ kiểm tra tài liệu, đối chiếu nội dung văn bản pháp luật, trao đổi tình huống sử dụng và động viên trong thời gian triển khai đề tài.
+
+Khóa luận còn có thể tồn tại thiếu sót do giới hạn về thời gian, quy mô corpus và kinh nghiệm nghiên cứu. Tác giả mong nhận được ý kiến góp ý để hệ thống và phương pháp đánh giá tiếp tục được hoàn thiện.
+\clearpage
+
+\chapter*{Lời Cam Đoan}
+\addcontentsline{toc}{chapter}{Lời cam đoan}
+
+Tôi xin cam đoan rằng khóa luận này là do chính tôi thực hiện, không sao chép dưới bất kỳ hình thức nào hay thuê hoặc nhờ người khác thực hiện.
+
+Dữ liệu và kết quả phân tích trong khóa luận bảo đảm tính chính xác, khách quan và trung thực, không có bất kỳ sự ngụy tạo hoặc điều chỉnh kết quả nghiên cứu theo chủ quan của tác giả. Những nội dung, phương pháp và tài liệu được kế thừa từ công trình khác đều được trích dẫn trong danh mục tài liệu tham khảo.
 
 \vspace{36pt}
 \begin{flushright}
@@ -161,724 +360,1492 @@ Dữ liệu và kết quả phân tích trong Khóa luận đảm bảo tính ch
 Cần Thơ, ngày \ldots\ tháng \ldots\ năm 2026\\[24pt]
 Tác giả\\[24pt]
 (Ký tên và ghi rõ họ và tên)\\[18pt]
-Quách Trương Phúc
+\StudentName
 \end{tabular}
 \end{flushright}
+\clearpage
 
-\newpage
-
-% ── LỜI CẢM ƠN ──
-\pagenumbering{roman}
-\chapter*{Lời Cảm Ơn}
-\addcontentsline{toc}{chapter}{Lời cảm ơn}
-
-Tác giả xin gửi lời cảm ơn chân thành đến [Tên giảng viên hướng dẫn] đã tận tình hướng dẫn trong quá trình thực hiện khóa luận này. Tác giả cũng xin cảm ơn các thầy cô trong Khoa Kỹ thuật \& Công nghệ, Trường Đại học Tây Đô, đã tạo điều kiện thuận lợi cho việc học tập và nghiên cứu.
-
-\newpage
-
-% ── TÓM TẮT ──
 \chapter*{Tóm Tắt}
 \addcontentsline{toc}{chapter}{Tóm tắt}
 
-Khóa luận này trình bày việc xây dựng hệ thống RAG (Retrieval-Augmented Generation) hỗ trợ tra cứu pháp luật giao thông Việt Nam. Hệ thống kết hợp truy xuất lai (hybrid retrieval) giữa dense retrieval bằng vector embedding và BM25, sử dụng LangGraph state machine để điều phối luồng xử lý, và Google Gemini 2.5 Flash làm mô hình ngôn ngữ chính. Hệ thống đạt Citation Correctness tối thiểu 0.85 trên gold set 30 câu hỏi, xác minh trích dẫn nghiêm ngặt trước khi trả kết quả cho người dùng.
+Khóa luận nghiên cứu và xây dựng một hệ thống Retrieval-Augmented Generation (RAG) hỗ trợ tra cứu pháp luật giao thông đường bộ Việt Nam. Khác với mô hình hỏi đáp tài liệu thông thường, hệ thống được thiết kế để nhận biết cấu trúc Chương, Mục, Điều, Khoản và Điểm kèm nhãn Điểm tiếng Việt (a) b) c) d) đ) e)); mô hình hóa quan hệ tham chiếu chéo giữa các quy định; quản lý khoảng thời gian hiệu lực của từng provision; đồng thời kiểm chứng trích dẫn theo nhiều tầng trước khi trả kết quả.
 
-\newpage
+Pipeline ingestion sử dụng Parser Router định tuyến tài liệu qua Docling hoặc MinerU theo đặc tính tài liệu và quality gate, sau đó chuẩn hóa sang Canonical Document IR do dự án sở hữu. Legal Structure Extractor trích xuất phân cấp pháp luật Việt Nam và tạo định danh provision ổn định; Legal Reference Resolver và Temporal and Amendment Resolver xác định quan hệ tham chiếu và khoảng hiệu lực. PostgreSQL là nguồn chân lý dữ liệu pháp lý; Qdrant là index dẫn xuất lưu dense vector, sparse BM25 và payload phục vụ truy xuất lai. Ingestion chạy nền qua Redis và Dramatiq; PDF nguồn và artifact được lưu trong MinIO.
 
-% ── ABSTRACT ──
+Pipeline hỏi đáp sử dụng LangGraph như một workflow có đường đi xác định trước, gồm query understanding, temporal resolution, query expansion, retrieval đa kênh (exact lookup, dense, sparse) với RRF fusion, reranking, mở rộng ngữ cảnh pháp lý theo quan hệ và Evidence Completeness Gate. Gemini 3.5 Flash sinh câu trả lời có cấu trúc cấp claim, trong đó mỗi claim chỉ được tham chiếu \code{provision\_id} thuộc context. Bộ kiểm chứng sáu tầng (schema, citation ID, temporal, numeric grounding, claim support, evidence completeness) quyết định trả verified answer hay abstention với lý do chuẩn. Khi bằng chứng không đủ, hệ thống từ chối trả lời thay vì tìm kiếm web tự do.
+
+Nghiên cứu đề xuất gold set 200 câu đã review, chia 40 development, 40 validation và 120 final test, cùng bốn suite thí nghiệm A-D: parser benchmark (P1-P3), embedding benchmark (E1-E3), retrieval ablation (R1-R10) và generation/verification ablation (G1-G7). Các metric chính gồm Recall@k, MRR@10, nDCG@10, Citation Precision/Recall/F1, Temporal Validity Accuracy, Numeric Grounding Accuracy, Evidence Completeness và Abstention F1. Langfuse phục vụ observability ngoài đường tới hạn; RAGFlow chỉ được dùng làm baseline so sánh bên ngoài.
+
+\draftnotice
+
+\noindent\textbf{Từ khóa:} Retrieval-Augmented Generation, pháp luật giao thông Việt Nam, truy xuất theo thời gian, hybrid retrieval, kiểm chứng trích dẫn, evidence completeness, Parser Router, Canonical Document IR.
+\clearpage
+
 \chapter*{Abstract}
 \addcontentsline{toc}{chapter}{Abstract}
 
-This thesis presents a RAG (Retrieval-Augmented Generation) system for Vietnamese traffic law retrieval. The system combines hybrid retrieval between dense vector embedding and BM25, uses LangGraph state machine for workflow orchestration, and Google Gemini 2.5 Flash as the primary language model. The system achieves Citation Correctness of at least 0.85 on a 30-question gold set, with strict citation verification before returning results to users.
+This thesis investigates and develops a Retrieval-Augmented Generation system for Vietnamese road traffic law question answering. Unlike a conventional document chatbot, the proposed system is designed to preserve the legal hierarchy of chapters, sections, articles, clauses, and points including Vietnamese point labels (a) b) c) d) đ) e)); to model cross-references between provisions; to represent the effective period of each provision; and to verify citations through multiple layers before returning an answer.
 
-\newpage
+The offline ingestion pipeline uses a Parser Router that dispatches documents to Docling or MinerU based on document characteristics and quality gates, then normalizes the output into a project-owned Canonical Document IR. A dedicated Legal Structure Extractor recognizes the Vietnamese legal hierarchy and generates stable provision identifiers; a Legal Reference Resolver and a Temporal and Amendment Resolver derive cross-reference relations and effective intervals. PostgreSQL is the legal source of truth, while Qdrant is a rebuildable retrieval index holding dense vectors, sparse BM25, and payload metadata. Ingestion runs in the background with Redis and Dramatiq; source PDFs and artifacts are stored in MinIO.
 
-% ── TABLE OF CONTENTS ──
+The online query pipeline is a controlled LangGraph workflow with predefined branches: query understanding, temporal resolution, query expansion, multi-channel retrieval (exact lookup, dense, sparse) fused by Reciprocal Rank Fusion, reranking, relation-aware legal context expansion, and an Evidence Completeness Gate. Gemini 3.5 Flash generates a claim-level structured answer whose claims may only reference provision identifiers from the retrieved context. A six-layer verifier (schema, citation ID, temporal, numeric grounding, claim support, evidence completeness) decides between a verified answer and abstention with a standard reason code. The system abstains when evidence is insufficient instead of relying on unrestricted web search.
+
+The study proposes a reviewed gold set of 200 questions split into 40 development, 40 validation, and 120 final test cases, together with four experiment suites: parser benchmark (P1-P3), embedding benchmark (E1-E3), retrieval ablation (R1-R10), and generation/verification ablation (G1-G7). Primary metrics include Recall@k, MRR@10, nDCG@10, Citation Precision/Recall/F1, Temporal Validity Accuracy, Numeric Grounding Accuracy, Evidence Completeness, and Abstention F1. Langfuse provides observability outside the correctness-critical path; RAGFlow is used only as an external comparison baseline.
+
+\draftnotice
+
+\noindent\textbf{Keywords:} Retrieval-Augmented Generation, Vietnamese traffic law, temporal retrieval, hybrid retrieval, citation verification, evidence completeness, Parser Router, Canonical Document IR.
+\clearpage
+
 \tableofcontents
-\newpage
+\clearpage
+\listoftables
+\addcontentsline{toc}{chapter}{Danh mục bảng}
+\clearpage
+\listoffigures
+\addcontentsline{toc}{chapter}{Danh mục hình}
+\clearpage
 
-% ── ABBREVIATIONS ──
 \chapter*{Danh Mục Ký Hiệu và Từ Viết Tắt}
 \addcontentsline{toc}{chapter}{Danh mục ký hiệu và từ viết tắt}
 
-\begin{tabular}{ll}
-AI & Artificial Intelligence (Trí tuệ nhân tạo)\\
+\begin{longtable}{p{3.2cm}p{10.2cm}}
+\textbf{Ký hiệu} & \textbf{Diễn giải}\\
+\toprule
+AI & Artificial Intelligence - Trí tuệ nhân tạo\\
 API & Application Programming Interface\\
-BM25 & Best Match 25 (thuật toán xếp hạng văn bản)\\
-CI/CD & Continuous Integration / Continuous Deployment\\
-DDG & DuckDuckGo\\
-HITL & Human-in-the-Loop\\
-LLM & Large Language Model (Mô hình ngôn ngữ lớn)\\
-MVP & Minimum Viable Product\\
-PDPA & Personal Data Protection Act (Nghị định 13/2023/NĐ-CP \cite{nd13})\\
+BM25 & Best Matching 25 - thuật toán xếp hạng truy xuất từ khóa\\
+Canonical IR & Canonical Document IR - biểu diễn tài liệu trung gian parser-neutral của dự án\\
+CI/CD & Continuous Integration / Continuous Delivery\\
+CRUD & Create, Read, Update, Delete\\
+Dramatiq & Thư viện background processing cho Python, chạy worker ingestion\\
+E2E & End-to-End\\
+Evidence Gate & Evidence Completeness Gate - cổng kiểm tra tính đầy đủ bằng chứng trước khi sinh câu trả lời\\
+F1 & F1-score - trung bình điều hòa của Precision và Recall\\
+HITL & Human-in-the-Loop - con người trong vòng lặp (ở khâu review ingestion)\\
+ID & Identifier - định danh\\
+IR & Intermediate Representation - biểu diễn trung gian (Canonical Document IR)\\
+JSON & JavaScript Object Notation\\
+Langfuse & Nền tảng observability, quản lý prompt và experiment cho LLM\\
+LegalProvision & Đơn vị pháp lý (Điều, Khoản, Điểm) kèm khoảng hiệu lực và provenance\\
+LLM & Large Language Model - mô hình ngôn ngữ lớn\\
+MinIO & Object storage S3-compatible\\
+MRR & Mean Reciprocal Rank\\
+nDCG & Normalized Discounted Cumulative Gain\\
+OCR & Optical Character Recognition\\
+P0/P1 & Mức ưu tiên bắt buộc / mở rộng\\
+Parser Router & Bộ định tuyến parser: Docling chính, MinerU phụ/fallback\\
+PII & Personally Identifiable Information\\
 RAG & Retrieval-Augmented Generation\\
-RPM & Requests Per Minute\\
-RPD & Requests Per Day\\
+RAGFlow & Công cụ RAG mã nguồn mở, chỉ dùng làm baseline so sánh bên ngoài\\
 RRF & Reciprocal Rank Fusion\\
-SDLC & Software Development Life Cycle\\
+SDK & Software Development Kit\\
+SHA & Secure Hash Algorithm\\
+SQL & Structured Query Language\\
 SSE & Server-Sent Events\\
-TPM & Tokens Per Minute\\
-WAL & Write-Ahead Log\\
-CDM & Canonical Document Model\\
-UDEF & Unstructured Data Extraction Framework\\
-\end{tabular}
+VLM & Vision-Language Model\\
+\bottomrule
+\end{longtable}
+\clearpage
 
-\newpage
+\chapter*{Nhận Xét Của Giảng Viên Hướng Dẫn}
+\addcontentsline{toc}{chapter}{Nhận xét của giảng viên hướng dẫn}
+
+\vspace{1cm}
+\noindent\rule{\textwidth}{0.4pt}\\[1.2cm]
+\noindent\rule{\textwidth}{0.4pt}\\[1.2cm]
+\noindent\rule{\textwidth}{0.4pt}\\[1.2cm]
+\noindent\rule{\textwidth}{0.4pt}\\[1.2cm]
+\noindent\rule{\textwidth}{0.4pt}\\[1.2cm]
+\noindent\rule{\textwidth}{0.4pt}\\[1.2cm]
+\noindent\rule{\textwidth}{0.4pt}
+\clearpage
 
 % ============================================================
 % MAIN CONTENT
 % ============================================================
 \pagenumbering{arabic}
+\setcounter{page}{1}
 
+% ============================================================
+\chapter{Tổng Quan Đề Tài}
+% ============================================================
 
-\chapter{Tổng Quan Hệ Thống}
+\section{Bối cảnh}
 
+Văn bản pháp luật giao thông đường bộ có ảnh hưởng trực tiếp đến hoạt động hằng ngày của người dân. Tuy nhiên, việc tra cứu thường đòi hỏi người dùng xác định đúng loại văn bản, số hiệu, Điều, Khoản, Điểm và trạng thái hiệu lực. Một quy định về mức phạt có thể được ban hành trong một Nghị định, được sửa đổi bởi văn bản khác và được thay thế ở một thời điểm cụ thể. Vì vậy, câu trả lời đúng ở năm 2023 chưa chắc đúng ở năm 2026.
 
-Hệ thống RAG hỗ trợ tra cứu pháp luật giao thông Việt Nam là một giải pháp công nghệ được xây dựng trên nền tảng trí tuệ nhân tạo và xử lý ngôn ngữ tự nhiên, nhằm giải quyết bài toán tra cứu văn bản quy phạm pháp luật giao thông đường bộ. Hệ thống giải quyết bốn hạn chế cốt lõi của phương pháp tra cứu truyền thống: người dùng phải đọc thủ công các tệp PDF dài hàng chục đến hàng trăm trang, các mô hình ngôn ngữ lớn phổ dụng như ChatGPT thường bịa đặt thông tin (hallucination) về số tiền phạt và điều khoản không tồn tại, văn bản pháp luật thay đổi liên tục khiến người dân không nắm được bản mới nhất, và ngôn ngữ pháp lý phức tạp gây khó hiểu cho người không chuyên.
+Cơ sở dữ liệu quốc gia về văn bản pháp luật cung cấp toàn văn, thuộc tính, lịch sử và văn bản liên quan. Ví dụ, Luật số 36/2024/QH15 có hiệu lực từ ngày 01/01/2025 \cite{luat36_2024}; Nghị định số 168/2024/NĐ-CP cũng có hiệu lực từ ngày 01/01/2025 và quy định xử phạt vi phạm hành chính, trừ điểm và phục hồi điểm giấy phép lái xe trong lĩnh vực giao thông đường bộ \cite{nghidinh168_2024}. Trước thời điểm đó, nhiều tình huống xử phạt được tra cứu theo Nghị định số 100/2019/NĐ-CP và các văn bản sửa đổi \cite{nghidinh100_2019}. Điều này làm cho thời gian hiệu lực và quan hệ giữa các văn bản trở thành dữ liệu bắt buộc thay vì metadata phụ.
 
-Hệ thống kết hợp kiến trúc truy xuất thông tin lai (hybrid retrieval) giữa tìm kiếm ngữ nghĩa bằng vector embedding và tìm kiếm từ khóa truyền thống BM25, đồng thời áp dụng quy trình xác minh trích dẫn nghiêm ngặt trước khi trả kết quả cho người dùng. Mỗi câu trả lời đều kèm trích dẫn có cấu trúc đến từng văn bản, Điều, Khoản, Điểm, cùng trạng thái hiệu lực cụ thể. Hệ thống vận hành trên kiến trúc bốn tầng: tầng trích xuất dùng UDEF với Docling và Rule Engine để xử lý tài liệu pháp luật đầu vào thành dữ liệu có cấu trúc, tầng nghiệp vụ chạy FastAPI và LangGraph để điều phối luồng xử lý, tầng dữ liệu gồm ChromaDB \cite{chroma} cho vector search, và Google Gemini 2.5 Flash làm mô hình ngôn ngữ chính.
+Các mô hình ngôn ngữ lớn có khả năng diễn đạt và tổng hợp tốt, nhưng không bảo đảm tự động rằng số hiệu hoặc trích dẫn được sinh ra là có thật. LegalCiteBench cho thấy hướng dẫn bằng prompt về sự không chắc chắn có thể giảm một phần câu trả lời tự tin sai, nhưng không tự cải thiện độ đúng của citation khi thiếu grounding bên ngoài \cite{chen2026legalcitebench}. Do đó, một hệ thống pháp luật cần ràng buộc mô hình bằng dữ liệu truy xuất và một lớp kiểm chứng xác định.
 
+\section{Vấn đề nghiên cứu}
 
+Một pipeline RAG cơ bản thường gồm bốn bước: chuyển tài liệu thành text, chia thành chunk, truy xuất chunk gần với câu hỏi và yêu cầu LLM tạo câu trả lời. Pipeline này còn bảy hạn chế khi áp dụng cho pháp luật:
 
+\begin{enumerate}
+  \item \textbf{Mất cấu trúc pháp lý:} fixed-token chunking có thể tách phần dẫn của Khoản khỏi các Điểm bên dưới hoặc gộp nhiều điều khoản không liên quan. Ranh giới pháp lý phải trùng ranh giới trích dẫn; nhãn Điểm tiếng Việt (kể cả \code{đ)}) không thể được xử lý bằng giả định bảng chữ cái đơn giản.
+  \item \textbf{Không nhận biết thời gian:} vector search chỉ đo độ gần ngữ nghĩa, không biết văn bản đã hết hiệu lực hay chưa có hiệu lực tại ngày được hỏi.
+  \item \textbf{Bỏ sót theo định danh chính xác:} retrieval thuần vector có thể bỏ sót số hiệu văn bản, số Điều, số Khoản hoặc cụm từ pháp lý có tính quyết định.
+  \item \textbf{Quan hệ tham chiếu chéo chưa được mô hình hóa:} một Điều dẫn chiếu Điều khác, quy định xử phạt thường gắn kèm quy định trừ điểm; hệ thống chỉ trả lời được nửa thông tin nếu không mở rộng ngữ cảnh theo quan hệ.
+  \item \textbf{Câu hỏi đa bằng chứng:} một câu hỏi có thể yêu cầu vừa mức phạt vừa số điểm trừ; hệ thống không được âm thầm trả lời một nửa dễ của câu hỏi.
+  \item \textbf{Citation không kiểm chứng:} mô hình có thể gõ số Điều hoặc số hiệu không tồn tại, hoặc ghép nội dung đúng với \code{provision\_id} sai. Một citation tồn tại chưa đủ; số liệu trong claim còn phải khớp bằng chứng.
+  \item \textbf{Đánh giá không tách lớp:} một điểm tổng hợp không chỉ ra lỗi đến từ parser, extraction, retrieval, temporal filter, generation hay verification.
+\end{enumerate}
 
+Vấn đề trung tâm của đề tài được phát biểu như sau:
 
+\begin{quote}
+Làm thế nào để xây dựng một hệ thống RAG truy xuất đúng đơn vị pháp lý, áp dụng đúng phiên bản văn bản tại thời điểm được hỏi, mở rộng đúng các quy định liên quan và chỉ trả về các nhận định có trích dẫn kiểm chứng được?
+\end{quote}
 
-\chapter{Kiến Thức Nền Tảng}
+\section{Mục tiêu}
 
+\subsection{Mục tiêu tổng quát}
 
-Phần này giải thích các khái niệm cốt lõi mà hệ thống xây dựng trên đó. Mỗi khái niệm được trình bày từ định nghĩa đến vai trò cụ thể trong dự án.
+Xây dựng và đánh giá một hệ thống RAG nhận biết cấu trúc, quan hệ tham chiếu và thời gian hiệu lực để hỗ trợ tra cứu pháp luật giao thông đường bộ Việt Nam bằng tiếng Việt.
 
+\subsection{Mục tiêu cụ thể}
 
-\section{RAG: Truy Xuất và Sinh Tăng Cường}
+\begin{enumerate}
+  \item Xây dựng Parser Router định tuyến tài liệu qua Docling hoặc MinerU theo đặc tính tài liệu và quality gate.
+  \item Thiết kế Canonical Document IR parser-neutral làm biểu diễn trung gian cho toàn bộ phân tích pháp lý.
+  \item Xây dựng Legal Structure Extractor nhận diện phân cấp Chương, Mục, Điều, Khoản, Điểm với nhãn tiếng Việt a) b) c) d) đ) e) và giữ lại Điểm ngắn hợp lệ.
+  \item Mô hình hóa quan hệ tham chiếu chéo và quan hệ hiệu lực bằng PostgreSQL, không dùng Neo4j.
+  \item Biểu diễn văn bản và điều khoản bằng LegalDocument và LegalProvision, kèm định danh ổn định và khoảng hiệu lực \code{[effective\_from, effective\_to)}.
+  \item Kết hợp exact lookup, dense retrieval và sparse BM25 trong Qdrant bằng RRF, kèm reranking và mở rộng ngữ cảnh pháp lý.
+  \item Xây dựng evidence plan và Evidence Completeness Gate để không trả lời nửa vời cho câu hỏi đa bằng chứng.
+  \item Sinh câu trả lời có cấu trúc cấp claim và kiểm chứng citation theo \code{provision\_id} ở sáu tầng.
+  \item Thiết kế abstention có lý do chuẩn khi thiếu dữ liệu hoặc verification thất bại.
+  \item Xây dựng gold set 200 câu và chạy bốn suite thí nghiệm A-D.
+  \item Thiết lập observability qua Langfuse ngoài đường tới hạn và baseline so sánh RAGFlow bên ngoài.
+\end{enumerate}
 
-
-RAG (Retrieval-Augmented Generation) là kiến trúc \cite{lewis} kết hợp hai bước trong xử lý câu hỏi. Bước truy xuất (retrieval) tìm kiếm các đoạn văn bản liên quan từ một kho tài liệu có sẵn. Bước sinh (generation) đưa các đoạn văn bản vừa tìm được vào một mô hình ngôn ngữ lớn để tạo câu trả lời. LLM trong RAG không dựa vào trí nhớ nội tại của nó. Nó bị ràng buộc chỉ được sử dụng thông tin từ các đoạn văn bản được cung cấp.
-
-LLM phổ dụng như ChatGPT vận hành khác. Nó sinh câu trả lời từ toàn bộ tri thức đã học trong quá trình huấn luyện, không có cơ chế kiểm tra xem thông tin đó có chính xác hay không. Với câu hỏi pháp luật Việt Nam, ChatGPT bịa ra số tiền phạt không tồn tại, điều khoản không tồn tại, hoặc trích dẫn văn bản đã hết hiệu lực. RAG giải quyết vấn đề này bằng cách tách biệt kho tri thức (corpus văn bản luật) khỏi khả năng diễn đạt (LLM). Kho tri thức có thể được kiểm tra, cập nhật, và kiểm soát độc lập với LLM.
-
-Trong dự án này, kho tri thức là 30 văn bản pháp luật giao thông đã được parse, chunk, embed và lưu vào ChromaDB. LLM là Gemini 2.5 Flash. Khi người dùng hỏi "Vượt đèn đỏ phạt bao nhiêu?", hệ thống tìm các chunk liên quan trong ChromaDB, đưa chúng vào prompt cùng câu hỏi, và yêu cầu Gemini chỉ trả lời dựa trên những chunk đó. Gemini không được phép dùng kiến thức bên ngoài.
-
-Agentic RAG là bước tiến xa hơn. Thay vì một pipeline tuyến tính cố định, một Agent dùng LangGraph tự quyết định luồng xử lý. Agent có thể viết lại câu hỏi nếu lượt tìm đầu tiên không tốt. Agent có thể chấm điểm chất lượng kết quả tìm được và quyết định có tìm lại hay không. Agent có thể chuyển sang tìm trên web nếu kho nội bộ không có câu trả lời. Trong dự án này, Agent được cài đặt bằng LangGraph state machine với sáu nút xử lý và ba bộ đếm loop guard.
-
-
-\section{LLM: Mô Hình Ngôn Ngữ Lớn}
-
-
-Mô hình ngôn ngữ lớn (Large Language Model) là một mạng nơ-ron được huấn luyện trên hàng tỷ câu văn bản để dự đoán từ tiếp theo trong một chuỗi. Kết quả của quá trình huấn luyện này là một mô hình có khả năng hiểu và sinh văn bản tiếng người ở mức độ đáng kinh ngạc. LLM không "biết" sự thật. Nó dự đoán chuỗi từ có xác suất cao nhất dựa trên mẫu đã học.
-
-Dự án sử dụng hai LLM. Gemini 2.5 Flash của Google \cite{gemini} làm LLM chính cho toàn bộ luồng xử lý: rewrite câu hỏi, grade chất lượng retrieval, generate câu trả lời. Mô hình này có free tier 250 request mỗi ngày, cửa sổ ngữ cảnh 1 triệu token (tương đương khoảng 750.000 từ), và chất lượng tiếng Việt tốt. OpenAI GPT-4o-mini làm LLM phụ, chỉ dùng cho evaluation. Lý do tách biệt: nếu cùng một LLM vừa sinh câu trả lời vừa chấm điểm câu trả lời đó, điểm số sẽ thiên vị (circularity). GPT-4o-mini có khả năng xuất JSON có cấu trúc ổn định, phù hợp cho vai trò judge.
-
-LLM không chạy cục bộ trên máy phát triển. GPU MX330 2GB VRAM không đủ để chạy bất kỳ LLM nào có chất lượng chấp nhận được cho legal reasoning. Toàn bộ LLM inference được gọi qua API cloud.
-
-
-\section{Embedding và Vector Database}
-
-
-Embedding là quá trình biến một đoạn văn bản thành một vector số thực nhiều chiều. Vector này nằm trong một không gian mà khoảng cách giữa hai vector phản ánh mức độ tương đồng ngữ nghĩa giữa hai đoạn văn bản gốc. Hai câu có nghĩa giống nhau sẽ có hai vector gần nhau. Hai câu về chủ đề khác nhau sẽ có hai vector xa nhau.
-
-Hệ thống dùng mô hình intfloat/multilingual-e5-small \cite{wang} để thực hiện embedding. Mô hình này nhận văn bản đầu vào và trả về một vector 384 chiều. Kích thước 384 chiều là sự cân bằng giữa chất lượng biểu diễn ngữ nghĩa và hiệu năng tính toán: vector càng nhiều chiều càng biểu diễn tốt nhưng càng tốn bộ nhớ và thời gian so sánh. Mô hình này hỗ trợ đa ngôn ngữ, bao gồm tiếng Việt.
-
-Yêu cầu kỹ thuật then chốt của e5-small là tiền tố. Khi embedding một câu hỏi, văn bản phải có tiền tố "query: " ở đầu. Khi embedding một đoạn văn bản tài liệu, văn bản phải có tiền tố "passage: " ở đầu. Thiếu tiền tố này, chất lượng truy xuất giảm 20 đến 40 phần trăm. Đây là lỗi âm thầm: không có exception, không có crash, chỉ có kết quả tìm kiếm kém đi mà không ai phát hiện.
-
-Vector database là cơ sở dữ liệu được thiết kế để lưu trữ và tìm kiếm vector. Khác với cơ sở dữ liệu quan hệ tìm kiếm theo giá trị chính xác, vector database tìm kiếm theo khoảng cách: "tìm 10 vector gần nhất với vector truy vấn". Hệ thống dùng ChromaDB, một vector database nhẹ chạy local không cần Docker. Mỗi bản ghi trong ChromaDB gồm ba thành phần: một định danh (id), văn bản gốc (document), và vector embedding 384 chiều. Kèm theo là metadata chứa thông tin về Điều, Khoản, Điểm, trạng thái hiệu lực, và đường dẫn đến văn bản gốc.
-
-
-\section{Chunking: Phân Mảnh Văn Bản}
-
-
-Văn bản pháp luật thường dài. Nghị định 168/2024 dài 84 trang. Không thể nhét toàn bộ 84 trang này vào prompt của LLM, dù Gemini có ngữ cảnh 1 triệu token. Việc này vừa tốn token (tốn tiền nếu dùng API trả phí), vừa làm loãng thông tin quan trọng trong một biển văn bản không liên quan.
-
-Chunking giải quyết vấn đề này bằng cách cắt văn bản dài thành các đoạn nhỏ (chunk). Hệ thống chỉ chọn những chunk liên quan nhất với câu hỏi để đưa vào LLM. Với câu hỏi về vượt đèn đỏ, chỉ chunk chứa Điều 6 Nghị định 168 là cần thiết. 83 trang còn lại bị bỏ qua.
-
-Chunking không đơn giản là cắt theo số ký tự cố định. Văn bản pháp luật có cấu trúc phân cấp: Chương chứa Mục, Mục chứa Điều, Điều chứa Khoản, Khoản chứa Điểm. Cắt ngang giữa một Điều sẽ làm mất ngữ cảnh pháp lý. Dự án có ba custom chunker cho ba loại văn bản. Chunker cho Luật nhận diện Chương, Mục, Điều. Chunker cho Nghị định nhận diện Chương, Điều, Khoản, Điểm. Chunker cho Thông tư nhận diện Điều, Khoản. Mỗi chunk tương ứng với một đơn vị pháp lý hoàn chỉnh (thường là một Điều hoặc một Khoản) và mang theo metadata hierarchy để phục vụ trích dẫn sau này.
-
-
-\section{TF-IDF và BM25}
-
-
-TF-IDF (Term Frequency - Inverse Document Frequency) là nền tảng của tìm kiếm văn bản. Ý tưởng cốt lõi: một từ quan trọng nếu nó xuất hiện nhiều trong một văn bản cụ thể (TF cao) nhưng xuất hiện ít trong toàn bộ tập văn bản (IDF cao). Từ "và", "của", "là" có TF cao nhưng IDF thấp vì xuất hiện trong mọi văn bản - chúng không có giá trị phân biệt. Từ "nghị định", "điều", "khoản" xuất hiện trong mọi văn bản luật - IDF của chúng cũng thấp. Từ "vượt đèn đỏ", "nồng độ cồn", "xe máy" xuất hiện ít hơn - IDF của chúng cao hơn.
-
-BM25 Okapi cải tiến TF-IDF \cite{robertson} bằng hai cơ chế. Thứ nhất, nó giới hạn ảnh hưởng của TF: một từ xuất hiện 100 lần không quan trọng gấp 100 lần từ xuất hiện 1 lần. Hàm bão hòa TF/(TF + k1) đảm bảo sau một ngưỡng, tần suất tăng thêm không làm tăng điểm đáng kể. Thứ hai, nó điều chỉnh theo độ dài văn bản: một từ xuất hiện 5 lần trong văn bản 100 từ quan trọng hơn 5 lần trong văn bản 10.000 từ. Tham số b kiểm soát mức độ phạt văn bản dài.
-
-Hàm điểm số BM25 cho truy vấn $Q$ gồm các từ $q_1, q_2, \ldots, q_n$ trên văn bản $D$ được biểu diễn như sau:
-\begin{equation}
-\text{score}(D, Q) = \sum_{i=1}^{n} \text{IDF}(q_i) \cdot \frac{f(q_i, D) \cdot (k_1 + 1)}{f(q_i, D) + k_1 \cdot \left(1 - b + b \cdot \frac{|D|}{\text{avgdl}}\right)}
-\label{eq:bm25}
-\end{equation}
-Trong đó $\text{IDF}(q_i)$ được tính bằng công thức:
-\begin{equation}
-\text{IDF}(q_i) = \ln \left( \frac{N - n(q_i) + 0.5}{n(q_i) + 0.5} + 1 \right)
-\label{eq:idf}
-\end{equation}
-với $N$ là tổng số văn bản trong corpus và $n(q_i)$ là số văn bản chứa từ $q_i$. Công thức IDF đảm bảo các từ hiếm gặp có trọng số cao hơn các từ phổ biến.
-
-Các tham số của công thức (\ref{eq:bm25}):
-
-\begin{itemize}
-    \item $f(q_i, D)$: tần suất xuất hiện của từ $q_i$ trong văn bản $D$.
-    \item $k_1$: tham số bão hòa tần suất từ, mặc định $1.2$. Khi $k_1$ càng nhỏ, ảnh hưởng của tần suất từ càng bị giới hạn sớm.
-    \item $b$: tham số điều chỉnh theo độ dài văn bản, mặc định $0.75$. Khi $b$ càng gần $1$, mức phạt văn bản dài càng nặng.
-    \item $|D|$: độ dài của văn bản $D$ tính bằng số từ; $\text{avgdl}$: độ dài trung bình của toàn bộ văn bản trong corpus.
-\end{itemize}
-
-Trong dự án, BM25 được cài đặt qua thư viện rank\_bm25 với tokenize tiếng Việt bằng pyvi. pyvi giải quyết vấn đề đặc thù của tiếng Việt: đây là ngôn ngữ đơn lập, từ ghép gồm nhiều âm tiết viết rời ("giao thông" là một từ nhưng viết bằng hai âm tiết có khoảng trắng). Tách từ bằng khoảng trắng đơn thuần sẽ biến "giao thông" thành hai từ "giao" và "thông", làm mất nghĩa. pyvi dùng từ điển để nhận diện ranh giới từ chính xác.
-
-
-\section{LangGraph và State Machine}
-
-
-LangGraph là thư viện xây dựng \cite{langgraph} ứng dụng agent dưới dạng đồ thị trạng thái. Một đồ thị gồm các nút (node) và các cạnh (edge). Mỗi nút thực hiện một thao tác cụ thể. Các cạnh xác định thứ tự thực hiện. Trạng thái (state) là một đối tượng dùng chung, được truyền từ nút này sang nút khác, tích lũy dữ liệu qua từng bước xử lý.
-
-Khác với pipeline tuyến tính thông thường (A -> B -> C -> D), LangGraph cho phép các cạnh có điều kiện. Sau nút grade, hệ thống có thể đi đến generate (nếu điểm cao), quay lại rewrite (nếu điểm trung bình), hoặc chuyển sang web\_search (nếu điểm thấp). Quyết định này dựa trên giá trị của relevance\_score và iterations trong state tại thời điểm đó.
-
-LangGraph cũng cung cấp cơ chế persistence. Toàn bộ state có thể được lưu vào SQLite sau mỗi bước, cho phép truy vết toàn bộ quá trình xử lý của một câu hỏi để debug hoặc audit. Trong MVP, persistence được dùng để lưu lịch sử hội thoại, không dùng để resume phiên bị gián đoạn.
-
-
-\section{Agent trong Ngữ Cảnh RAG}
-
-
-Trong ngữ cảnh hệ thống RAG, Agent là thành phần tự động đưa ra quyết định về luồng xử lý. Agent không phải là một thực thể riêng biệt. Nó là tập hợp của LangGraph state machine, các nút xử lý, và các điều kiện rẽ nhánh.
-
-Agent khác với pipeline RAG đơn giản ở chỗ nó có vòng lặp. Pipeline RAG đơn giản: nhận câu hỏi -> tìm kiếm -> sinh câu trả lời -> trả về. Agent RAG: nhận câu hỏi -> viết lại câu hỏi -> tìm kiếm -> chấm điểm -> nếu điểm thấp thì viết lại câu hỏi và tìm lại -> nếu vẫn thấp thì chuyển sang web -> sinh câu trả lời -> kiểm tra trích dẫn -> nếu sai thì sinh lại. Agent có khả năng tự sửa sai và thích nghi với chất lượng kết quả tìm kiếm.
-
-
-\section{HITL: Con Người Trong Vòng Lặp}
-
-
-HITL (Human-in-the-Loop) là cơ chế đưa con người vào quy trình tự động tại các điểm quyết định quan trọng. Khi hệ thống không chắc chắn về câu trả lời, nó tạm dừng và chờ con người phê duyệt thay vì tự động trả về kết quả có thể sai.
-
-Trong thiết kế đầy đủ của dự án, HITL được kích hoạt khi hệ thống phải dùng web search. Lý do: kết quả web search không được kiểm soát như corpus nội bộ. Một trang web có thể chứa thông tin lỗi thời, sai lệch, hoặc không chính thống. Trước khi trả câu trả lời dựa trên web cho người dùng, hệ thống gửi yêu cầu phê duyệt đến Admin. Admin xem xét các kết quả web, quyết định Approve hoặc Reject.
-
-Trong MVP, HITL đã bị tắt. Lý do: độ phức tạp triển khai cao. HITL yêu cầu cơ chế interrupt trong LangGraph, giao diện Admin riêng, và ánh xạ thread giữa user session và admin session. Thay vào đó, MVP gắn disclaimer vào mọi câu trả lời từ web: "Nguồn: Web (chưa qua kiểm duyệt). Vui lòng xác minh trước khi áp dụng." HITL được giữ lại trong thiết kế như một hướng phát triển tương lai.
-
-
-\section{Streaming qua SSE và Cơ Chế Buffer-Validate}
-
-
-SSE (Server-Sent Events) là giao thức cho phép server đẩy dữ liệu về client theo thời gian thực qua một kết nối HTTP duy trì. Khác với WebSocket là hai chiều, SSE chỉ một chiều từ server đến client. Client mở một kết nối HTTP GET và server giữ kết nối này mở, gửi các sự kiện khi có dữ liệu mới.
-
-Trong dự án, SSE được dùng để stream câu trả lời từ backend về frontend. Người dùng thấy câu trả lời xuất hiện dần từng phần.
-
-Streaming trực tiếp từ LLM đặt ra thách thức cho citation validation. Nếu câu trả lời được stream từng phần ra giao diện, rồi phát hiện một trích dẫn sai ở phần sau, hệ thống không thể rút lại phần đã gửi đến trình duyệt. Người dùng sẽ thấy câu trả lời thay đổi giữa chừng.
-
-Giải pháp là buffer-validate-stream. Hệ thống không stream trực tiếp từ LLM. Thay vào đó: LLM sinh toàn bộ câu trả lời vào bộ đệm trong bộ nhớ (buffer), CitationValidator kiểm tra toàn bộ citation trong bộ đệm (validate), và chỉ khi tất cả citation hợp lệ hoặc đã hết số lần thử sinh lại (regen\_count $\ge$ 2), câu trả lời hoàn chỉnh mới được stream ra giao diện qua SSE (stream). Cơ chế này đánh đổi latency - người dùng phải đợi đến khi validate xong mới thấy chữ đầu tiên - để lấy sự chính xác và nhất quán tuyệt đối của câu trả lời.
-
-
-\section{Corpus}
-
-
-Corpus là tập hợp toàn bộ văn bản pháp luật mà hệ thống có quyền tra cứu. Trong dự án này, corpus ban đầu gồm 30 văn bản pháp luật giao thông đường bộ Việt Nam, bao gồm: Nghị định 168/2024/NĐ-CP \cite{nd168} (xử phạt vi phạm hành chính giao thông đường bộ), Luật Trật tự An toàn Giao thông Đường bộ 36/2024/QH15 \cite{luat36}, các Thông tư hướng dẫn, và các văn bản liên quan khác.
-
-Corpus khác với database thông thường. Database lưu dữ liệu có cấu trúc (bảng, cột, khóa). Corpus lưu văn bản phi cấu trúc đã được xử lý thành chunks có embedding. Mỗi chunk trong corpus là một đơn vị có thể được tìm kiếm và trích xuất độc lập.
-
-Corpus được xây dựng qua ingest pipeline. PDF được tải về từ các nguồn công khai (thuvienphapluat.vn, phapdien.moj.gov.vn), parse bằng Docling thành CDM, chunk bằng SmartChunker, embed bằng multilingual-e5-small, và lưu vào ChromaDB. BM25 index được xây dựng từ toàn bộ văn bản đã chunk. Kết quả là corpus có thể được truy vấn bằng cả hai phương pháp dense và sparse.
-
-Chất lượng corpus quyết định chất lượng toàn bộ hệ thống. Nếu PDF parse sai, chunk bị cắt lệch, hoặc embedding bị thiếu prefix, câu trả lời sẽ sai bất kể LLM có tốt đến đâu. Nguyên tắc của dự án: corpus quality hơn quantity. 30 văn bản sạch, được parse chính xác, tốt hơn 100 văn bản parse lỗi.
-
-Corpus cần được bảo trì liên tục. Văn bản pháp luật thay đổi: văn bản mới được ban hành, văn bản cũ hết hiệu lực. Script ingest\_corpus.py thêm văn bản mới mà không xóa văn bản cũ (append mode). Script check\_expired.py quét corpus định kỳ để phát hiện văn bản đã hoặc sắp hết hiệu lực. Văn bản hết hiệu lực không bị xóa khỏi corpus vì vẫn có thể hữu ích cho tra cứu lịch sử, nhưng citation của chúng được gắn cảnh báo.
-
-
-\section{Worker: Đơn Vị Xử Lý Đồng Thời}
-
-
-Worker là một tiến trình hệ điều hành chạy ứng dụng FastAPI. Mỗi worker có thể nhận và xử lý một HTTP request tại một thời điểm. FastAPI chạy trên Uvicorn, một ASGI server. Uvicorn mặc định chạy 1 worker. Tuy nhiên, convention phổ biến khi triển khai FastAPI là dùng \texttt{workers = (2 $\times$ CPU) + 1}, tạo ra 13 worker trên máy i5-1035G1 4 nhân. Với cấu hình này, 13 tiến trình cùng truy cập ChromaDB.
-
-Hệ thống chạy với chính xác 1 worker. Lý do: ChromaDB, vector database dùng trong dự án, sử dụng SQLite nội bộ. SQLite không được thiết kế để nhiều tiến trình ghi đồng thời. Khi 13 worker cùng truy cập ChromaDB, SQLite bị treo (busy timeout), sinh lỗi segmentation fault, hoặc hỏng vĩnh viễn tệp cơ sở dữ liệu. Đây là vấn đề đã được ghi nhận rộng rãi trong cộng đồng ChromaDB.
-
-Giải pháp single-worker đánh đổi throughput lấy tính toàn vẹn dữ liệu. Hệ thống xử lý được khoảng 2.5 câu hỏi mỗi phút thay vì 13 câu mỗi phút nếu dùng multi-worker. Tuy nhiên, với quy mô dự án khóa luận (một người dùng, dưới 62 câu mỗi ngày do giới hạn Gemini free tier), single-worker không phải là nút thắt cổ chai. Thêm vào đó, LLM inference qua API cloud chiếm phần lớn thời gian xử lý, không phải CPU, nên nhiều worker cũng không cải thiện đáng kể throughput.
-
-
-\section{Citation và Citation Correctness}
-
-
-Citation là trích dẫn có cấu trúc đến nguồn pháp lý. Một citation đầy đủ gồm: tên văn bản, số Điều, số Khoản, Điểm (nếu có), và trạng thái hiệu lực. Ví dụ: Nghị định 168/2024/NĐ-CP, Điều 6, Khoản 2, Điểm a (còn hiệu lực).
-
-Citation Correctness là chỉ số đo tỷ lệ câu trả lời có ít nhất một trích dẫn khớp chính xác với đáp án chuẩn. Khớp chính xác nghĩa là doc\_id, dieu, khoan, diem trong câu trả lời trùng khớp với gold set. Đây là headline metric - chỉ số quan trọng nhất của toàn bộ dự án. Mục tiêu: Citation Correctness đạt tối thiểu 0.85 trên gold set 30 câu.
-
-Citation Correctness được tính bằng thuật toán xác định, không cần LLM judge. Điều này giúp chỉ số khách quan, có thể tái lập, và không bị ảnh hưởng bởi chất lượng của LLM judge. Hàm tính duyệt qua từng citation trong câu trả lời, so sánh doc\_id, dieu, khoan, diem với gold set. Nếu tìm thấy ít nhất một citation khớp hoàn toàn, điểm là 1.0. Nếu không, điểm là 0.0.
-
-
-\section{Gold Set}
-
-
-Gold set là tập hợp các câu hỏi kiểm thử kèm đáp án chuẩn. Mỗi câu trong gold set chứa: câu hỏi (query), câu trả lời mong đợi (expected\_answer), danh sách citation chính xác (expected\_citations), và loại câu hỏi (trong corpus / ngoài corpus / adversarial).
-
-Dự án xây dựng gold set 30 đến 50 câu. Trong đó có câu hỏi đơn giản trong corpus ("Vượt đèn đỏ phạt bao nhiêu?"), câu hỏi tình huống phức tạp ("Tôi đi xe máy va chạm với ô tô tại ngã tư không đèn, ai có lỗi?"), câu hỏi ngoài corpus ("Luật mới về xe điện năm 2026?"), và câu adversarial (câu hỏi bẫy để kiểm tra khả năng từ chối trả lời).
-
-Gold set được đóng băng bằng hash SHA-256 để đảm bảo không bị thay đổi trong quá trình đánh giá. Điều này ngăn chặn việc "tối ưu cho bài kiểm tra" - chỉnh sửa gold set để điểm số đẹp hơn. Mỗi lần chạy evaluation, hệ thống kiểm tra hash của gold set trước khi thực hiện.
-
-
-\chapter{Kiến Trúc Hệ Thống}
-
-
-Hệ thống được tổ chức theo mô hình bốn tầng. Tầng trích xuất sử dụng Docling để parse PDF thành Canonical Document Model, Rule Engine để trích xuất metadata, và SmartChunker để chunk theo Điều/Khoản/Điểm. Frontend sử dụng Next.js 14 với TypeScript và Tailwind CSS để dựng giao diện trò chuyện, hỗ trợ streaming câu trả lời qua giao thức SSE. Tầng nghiệp vụ chạy trên FastAPI, chứa bộ điều phối LangGraph, tầng service và các mô hình dữ liệu Pydantic. Tầng dữ liệu bao gồm ChromaDB cho lưu trữ vector, SQLite cho lưu trữ trạng thái và lịch sử hội thoại, và hệ thống tệp cho các tệp PDF gốc, chỉ mục BM25 và bộ nhớ đệm embedding.
-
-Kiến trúc client-server tập trung được chọn thay vì microservices vì hệ thống có quy mô nhỏ, một người quản lý được. API được thiết kế stateless, trạng thái hội thoại lưu trong SQLite thay vì trong bộ nhớ, giúp dễ dàng mở rộng và kiểm thử. Tầng agent sử dụng LangGraph với trạng thái có chủ đích, cho phép truy vết toàn bộ quá trình xử lý.
-
-
-
-\chapter{LangGraph State Machine}
-
-
-
-\section{Khái niệm}
-
-
-LangGraph là framework xây dựng luồng xử lý dưới dạng đồ thị trạng thái (state graph). Mỗi nút (node) trong đồ thị thực hiện một bước xử lý cụ thể. Trạng thái (state) được định nghĩa là một TypedDict chứa toàn bộ dữ liệu phát sinh trong suốt vòng đời xử lý của một câu hỏi. Các nút đọc và ghi vào trạng thái này, và các cạnh có điều kiện xác định nút nào sẽ chạy tiếp theo dựa trên giá trị hiện tại của trạng thái.
-
-
-\section{Định nghĩa AgentState}
-
-
-AgentState là cấu trúc dữ liệu trung tâm. Nó chứa các trường sau:
-
-Trường đầu vào: query là câu hỏi gốc từ người dùng, query\_id là mã định danh duy nhất cho mỗi yêu cầu phục vụ mục đích kiểm toán, thread\_id là mã định danh phiên hội thoại tùy chọn.
-
-Trường sau bước rewrite: rewritten\_query là câu hỏi đã được tối ưu, rewrite\_count đếm số lần rewrite, bị chặn cứng ở mức 2.
-
-Trường sau bước retrieve: chunks là danh sách mười chunk được truy xuất, retrieval\_method ghi lại phương pháp truy xuất đã dùng (dense, bm25, hoặc hybrid).
-
-Trường sau bước grade: relevance\_score là điểm số duy nhất dùng để định tuyến, grade\_explanation là giải thích của LLM.
-
-Trường cho web fallback: web\_results lưu kết quả tìm web, web\_used đánh dấu đã dùng web hay chưa.
-
-Trường sau bước generate: draft\_answer và draft\_citations là bản nháp trước khi kiểm duyệt.
-
-Trường sau bước validate: answer là câu trả lời cuối cùng, citations là danh sách trích dẫn đã được xác minh, validation\_warnings chứa cảnh báo cho các trích dẫn không hợp lệ, regen\_count đếm số lần sinh lại bị chặn cứng ở mức 2.
-
-Trường disclaimer và citation\_statuses được thêm vào cuối mọi câu trả lời.
-
-Trường iterations là bộ đếm vòng lặp tổng thể, bị chặn cứng ở mức 3.
-
-
-\section{Các nút xử lý}
-
-
-Hệ thống có sáu nút xử lý chính: rewrite, retrieve, grade, generate, web\_search, và validate\_citation. Thêm vào đó có các nút phụ: buffer\_output, append\_disclaimer, append\_status, stream\_sse, và refuse.
-
-Nút rewrite nhận câu hỏi gốc và tối ưu hóa nó. Việc tối ưu này cần thiết vì câu hỏi tự nhiên thường chứa từ ngữ không chính xác hoặc thiếu ngữ cảnh. Ví dụ, câu hỏi "Vượt đèn đỏ phạt bao nhiêu tiền?" có thể được rewrite thành "Mức xử phạt hành vi không chấp hành tín hiệu đèn giao thông theo Nghị định 168/2024 là bao nhiêu?" giúp tìm kiếm chính xác hơn. Sau mỗi lần rewrite, rewrite\_count tăng lên 1. Nếu rewrite\_count đạt 2 mà vẫn chưa đạt kết quả khả quan, hệ thống chuyển sang tìm web.
-
-Nút retrieve thực hiện truy xuất lai (hybrid retrieval) trên cơ sở dữ liệu văn bản luật. Chi tiết về thuật toán được trình bày ở phần sau. Kết quả trả về mười chunk có điểm số cao nhất.
-
-Nút grade gọi LLM để chấm điểm mức độ liên quan của các chunk vừa tìm được so với câu hỏi của người dùng. LLM trả về một điểm số từ 0 đến 1. Điểm số này là yếu tố duy nhất quyết định luồng xử lý tiếp theo. Nếu điểm từ 0.7 trở lên và số lần lặp nhỏ hơn 3, hệ thống chuyển sang nút generate. Nếu điểm từ 0.4 đến dưới 0.7 và số lần lặp nhỏ hơn 3, hệ thống quay lại nút rewrite, tăng iterations lên 1. Nếu điểm dưới 0.4, hoặc số lần lặp đã đạt 3, hoặc rewrite\_count đã đạt 2, hệ thống chuyển sang nút web\_search.
-
-Nút generate nhận câu hỏi gốc và mười chunk liên quan nhất, gọi LLM với Legal Reasoning Prompt. Prompt này gồm 14 quy tắc bắt buộc, bao gồm chỉ sử dụng thông tin từ context, mọi thông tin quan trọng phải có trích dẫn, tuyệt đối không bịa số tiền phạt hay điều khoản. Đầu ra của nút này là draft\_answer và draft\_citations ở dạng JSON.
-
-Nút validate\_citation kiểm tra từng trích dẫn trong draft\_citations có thực sự tồn tại trong context đã cung cấp hay không. Nếu tất cả đều hợp lệ, hệ thống chuyển sang buffer\_output. Nếu có trích dẫn không hợp lệ và số lần sinh lại chưa đạt 2, hệ thống gọi LLM sinh lại với prompt mạnh hơn. Nếu đã sinh lại 2 lần mà vẫn không hợp lệ, hệ thống vẫn trả về câu trả lời kèm cảnh báo.
-
-Nút web\_search được kích hoạt khi corpus nội bộ không có đủ thông tin. Nút này gọi DuckDuckGo API để tìm kiếm trên web. Nếu có kết quả, LLM sinh câu trả lời dựa trên nội dung web. Nếu không có kết quả, hệ thống từ chối trả lời.
-
-
-\section{Cơ chế loop guard}
-
-
-Hệ thống có ba bộ đếm loop guard. iterations là bộ đếm chính, tăng sau mỗi lần từ grade quay lại rewrite, bị chặn cứng ở mức 3. Nếu iterations đạt 3 mà vẫn chưa đạt điểm grade đủ cao, hệ thống chuyển sang web\_search. rewrite\_count đếm số lần rewrite, bị chặn cứng ở mức 2. regen\_count đếm số lần sinh lại sau khi validate thất bại, bị chặn cứng ở mức 2.
-
-
-\section{Buffer-validate-stream}
-
-
-Thay vì stream câu trả lời từng phần ra giao diện rồi sau đó phải rút lại nếu phát hiện lỗi (không thể thực hiện được vì đã gửi đến trình duyệt), hệ thống áp dụng cơ chế buffer-validate-stream. Toàn bộ câu trả lời được sinh ra và kiểm duyệt trong bộ nhớ trước. Chỉ sau khi vượt qua tất cả các bước kiểm duyệt, câu trả lời hoàn chỉnh mới được stream ra giao diện qua SSE.
-
-
-
-\chapter{Hybrid Retrieval}
-
-
-Truy xuất lai là kỹ thuật kết hợp hai phương pháp tìm kiếm khác nhau: tìm kiếm ngữ nghĩa bằng vector embedding (dense retrieval) và tìm kiếm từ khóa bằng thuật toán BM25 (sparse retrieval). Mỗi phương pháp có điểm mạnh và điểm yếu riêng, và việc kết hợp chúng cho kết quả tốt hơn từng phương pháp riêng lẻ, đặc biệt trên dữ liệu tiếng Việt pháp luật.
-
-
-\section{Dense Retrieval}
-
-
-Dense retrieval biến mỗi đoạn văn bản thành một vector số thực 384 chiều bằng mô hình embedding. Khi người dùng gửi câu hỏi, hệ thống biến câu hỏi đó thành một vector 384 chiều tương tự. Sau đó, hệ thống tính khoảng cách cosine giữa vector câu hỏi và vector của tất cả các chunk trong cơ sở dữ liệu. Chunk nào có khoảng cách gần nhất (cosine similarity cao nhất) được xem là liên quan nhất.
-
-Hệ thống sử dụng mô hình intfloat/multilingual-e5-small làm embedding. Mô hình này có một yêu cầu kỹ thuật quan trọng: phải thêm tiền tố vào văn bản trước khi embedding. Khi embedding câu hỏi, phải thêm "query: " ở đầu. Khi embedding chunk văn bản lúc ingest, phải thêm "passage: " ở đầu. Nếu thiếu tiền tố này, chất lượng truy xuất giảm từ 20 đến 40 phần trăm, lỗi âm thầm: không có lỗi hay cảnh báo nào phát ra.
-
-Mô hình embedding chạy trên CPU, không dùng GPU. Máy phát triển có card đồ họa MX330 với 2GB VRAM, không đủ để chạy embedding inference ổn định. Mỗi lần embedding một chunk mất khoảng 300 đến 500 mili giây.
-
-Quy trình embedding thực hiện như sau. Một lớp cấu hình SentenceTransformer tải mô hình với tham số device="cpu". Phương thức embed\_query kiểm tra xem văn bản đầu vào đã có tiền tố "query: " hay chưa, nếu chưa thì tự động thêm vào, sau đó gọi model.encode với normalize\_embeddings=True để chuẩn hóa vector về độ dài đơn vị. Phương thức embed\_passages thực hiện tương tự với tiền tố "passage: ".
-
-
-\section{BM25 Okapi}
-
-
-BM25 là thuật toán tìm kiếm từ khóa dựa trên mô hình xác suất, là phiên bản cải tiến của TF-IDF. Khác với TF-IDF chỉ tính tần suất xuất hiện của từ, BM25 tính thêm độ dài văn bản và tần suất xuất hiện tương đối để tránh thiên vị các văn bản dài.
-
-Công thức BM25 Okapi như sau:
-
-Hàm số điểm BM25 cho một truy vấn Q gồm các từ q1, q2, ..., qn trên một văn bản D:
-
-score(D, Q) = tổng của IDF(qi) nhân với TF(qi, D) nhân (k1 cộng 1) chia cho (TF(qi, D) cộng k1 nhân (1 trừ b cộng b nhân |D| chia avgdl))
-
-Trong đó:
-
-IDF(qi) là logarit tự nhiên của (N trừ n(qi) cộng 0.5) chia (n(qi) cộng 0.5) cộng 1. N là tổng số văn bản trong corpus. n(qi) là số văn bản chứa từ qi. Công thức này đảm bảo các từ hiếm gặp có trọng số cao hơn các từ phổ biến.
-
-TF(qi, D) là số lần từ qi xuất hiện trong văn bản D.
-
-k1 là tham số điều chỉnh độ bão hòa tần suất từ. Giá trị mặc định là 1.2. Khi k1 càng nhỏ, tác động của tần suất từ càng bị giới hạn sớm.
-
-b là tham số điều chỉnh độ dài văn bản. Giá trị mặc định là 0.75. Khi b càng gần 1, mức độ phạt văn bản dài càng lớn.
-
-|D| là độ dài của văn bản D tính bằng số từ. avgdl là độ dài trung bình của tất cả văn bản trong corpus.
-
-Hệ thống sử dụng thư viện rank\_bm25 cho cài đặt BM25. Điểm đặc biệt là rank\_bm25 chỉ hoạt động với bộ nhớ trong (in-memory), không hỗ trợ thêm dữ liệu gia tăng (incremental add). Mỗi khi có chunk mới được thêm vào, toàn bộ chỉ mục BM25 phải được xây dựng lại từ đầu. Điều này ảnh hưởng đến thiết kế ingest pipeline: sau khi thêm chunk mới vào ChromaDB, hệ thống đọc toàn bộ dữ liệu từ ChromaDB, tokenize bằng pyvi, xây dựng lại đối tượng BM25Okapi, và lưu kết quả vào tệp pickle trên đĩa.
-
-Việc tokenize tiếng Việt cho BM25 sử dụng thư viện pyvi, cụ thể là hàm ViTokenizer.tokenize. Tiếng Việt là ngôn ngữ đơn lập, các từ ghép gồm nhiều âm tiết (ví dụ: "giao thông", "pháp luật", "điều khiển"). Việc tách từ bằng khoảng trắng đơn thuần sẽ làm mất nghĩa của các từ ghép này. pyvi giải quyết vấn đề này bằng cách nhận diện ranh giới từ dựa trên từ điển tiếng Việt.
-
-
-\section{Vấn đề bất thường tần suất từ}
-
-
-TF-IDF và BM25 gặp khó khăn với văn bản pháp luật Việt Nam vì cấu trúc lặp từ đặc thù. Một nghị định thường có các cụm từ lặp đi lặp lại như "người điều khiển xe mô tô, xe gắn máy", "phạt tiền từ X đồng đến Y đồng", "không chấp hành tín hiệu đèn giao thông". Các từ như "điều", "khoản", "điểm", "nghị định", "xe" xuất hiện với tần suất rất cao và có giá trị phân biệt thấp. Hệ thống xử lý điều này bằng cách chuẩn hóa văn bản trước khi đưa vào BM25, nhưng sự trùng lặp nội tại của văn bản luật vẫn là thách thức. RRF giúp giảm tác động này bằng cách kết hợp với dense retrieval vốn không bị ảnh hưởng bởi tần suất từ.
-
-
-\section{Reciprocal Rank Fusion}
-
-
-RRF là phương pháp kết hợp \cite{cormack} hai danh sách xếp hạng từ hai hệ thống truy xuất khác nhau mà không cần điểm số chuẩn hóa tuyệt đối. Thay vào đó, RRF dựa trên thứ hạng (rank) của mỗi chunk trong từng danh sách.
-
-Công thức RRF được biểu diễn như sau:
-\begin{equation}
-\text{RRF\_score}(c) = \frac{1}{k + r_{\text{dense}}(c)} + \frac{1}{k + r_{\text{bm25}}(c)}
-\label{eq:rrf}
-\end{equation}
-
-Trong đó rank\_dense là thứ hạng của chunk trong kết quả dense retrieval, rank\_bm25 là thứ hạng của chunk trong kết quả BM25. k là hằng số, mặc định là 60.
-
-Giá trị k = 60 được đề xuất bởi Cormack và cộng sự trong bài báo gốc năm 2009. k càng lớn thì trọng số của thứ hạng cao càng bị san đều, k càng nhỏ thì thứ hạng cao càng có ảnh hưởng lớn. Giá trị 60 là điểm cân bằng được thực nghiệm chứng minh hiệu quả trên nhiều bộ dữ liệu.
-
-Công thức RRF:
-
-RRF\_score(chunk) = 1 chia (k cộng rank\_dense) cộng 1 chia (k cộng rank\_bm25)
-
-Trong đó rank\_dense là thứ hạng của chunk trong kết quả dense retrieval, rank\_bm25 là thứ hạng của chunk trong kết quả BM25. k là hằng số, mặc định là 60.
-
-Giá trị k = 60 được đề xuất bởi Cormack và cộng sự trong bài báo gốc năm 2009. k càng lớn thì trọng số của thứ hạng cao càng bị san đều, k càng nhỏ thì thứ hạng cao càng có ảnh hưởng lớn. Giá trị 60 là điểm cân bằng được thực nghiệm chứng minh hiệu quả trên nhiều bộ dữ liệu.
-
-Ví dụ: chunk A đứng hạng 1 trong dense và hạng 5 trong BM25. Điểm RRF của chunk A là 1 chia (60 cộng 1) cộng 1 chia (60 cộng 5) = 0.0164 cộng 0.0154 = 0.0318. Chunk B đứng hạng 10 trong dense và hạng 2 trong BM25. Điểm RRF của chunk B là 1 chia (60 cộng 10) cộng 1 chia (60 cộng 2) = 0.0143 cộng 0.0161 = 0.0304. Chunk A thắng nhờ hạng cao hơn trong dense.
-
-Trước khi đưa vào RRF, hệ thống chuẩn hóa điểm cosine và điểm BM25 về cùng thang đo 0-1 bằng phương pháp min-max normalization. Công thức chuẩn hóa như sau:
-
-
-
-Trước khi đưa vào RRF, hệ thống chuẩn hóa điểm cosine và điểm BM25 về cùng thang đo 0-1 bằng phương pháp min-max normalization. Công thức chuẩn hóa như sau:
-
-\begin{equation}
-\text{score}_{\text{norm}} = \frac{\text{score}_{\text{raw}} - \text{score}_{\text{min}}}{\text{score}_{\text{max}} - \text{score}_{\text{min}}}
-\label{eq:minmax}
-\end{equation}
-
-Nếu max\_score bằng min\_score, tất cả các điểm được gán giá trị 0.5. Bước chuẩn hóa này ngăn chặn trường hợp một hệ thống có điểm số cao hơn nhiều so với hệ thống kia và lấn át hoàn toàn kết quả hợp nhất.
-
-
-\section{Quy trình hybrid retrieval}
-
-
-Khi nhận một truy vấn, HybridRetriever thực hiện các bước sau đây theo thứ tự:
-
-Bước một: gọi EmbeddingService.embed\_query để biến câu hỏi thành vector 384 chiều. Tiền tố "query: " được tự động thêm vào nếu thiếu. Bước hai: truy vấn ChromaDB collection law\_chunks với vector này, yêu cầu 20 kết quả, kèm theo trường documents, metadatas, và distances. Kết quả trả về là danh sách 20 chunk cùng với khoảng cách cosine. Hệ thống chuyển khoảng cách cosine thành độ tương đồng cosine bằng công thức 1 trừ distance. Bước ba: nếu BM25 không được kích hoạt, hệ thống trả về 20 chunk đã sắp xếp theo dense score. Nếu BM25 được kích hoạt, hệ thống tiếp tục bước bốn. Bước bốn: tokenize truy vấn bằng pyvi, gọi BM25.get\_scores để lấy điểm BM25 cho tất cả chunk trong corpus. Lấy 20 chunk có điểm BM25 cao nhất. Bước năm: chuẩn hóa cả dense\_scores và bm25\_scores về thang 0-1 bằng min-max normalization. Bước sáu: áp dụng RRF để hợp nhất hai danh sách xếp hạng. Bước bảy: sắp xếp tất cả chunk theo điểm RRF giảm dần, trả về 10 chunk có điểm cao nhất.
-
-
-
-\chapter{Tiền Xử Lý Văn Bản Tiếng Việt và Phân Mảnh}
-
-
-
-\section{Chuẩn hóa văn bản (VietnameseNormalizer)}
-
-
-Văn bản pháp luật Việt Nam có đặc thù định dạng hỗn hợp. Các số thứ tự xuất hiện dưới nhiều dạng: "1.", "1)", "a)", "(a)". Dấu gạch ngang có ba biến thể: gạch ngắn (-), gạch dài (-), và gạch đôi (--). Chữ hoa chữ thường biến đổi không nhất quán: "Điều", "điều", "ĐIỀU" đều xuất hiện trong cùng một văn bản. Unicode có thể ở dạng tổ hợp (NFC) hoặc phân ly (NFD). Nếu không chuẩn hóa, BM25 và embedding sẽ xử lý các biến thể này như những từ khác nhau, làm giảm chất lượng truy xuất mà không có lỗi hay cảnh báo nào.
-
-VietnameseNormalizer xử lý bốn lớp vấn đề:
-
-\begin{itemize}
-    \item \textbf{lowercase}: Chuẩn hóa các nhãn mục pháp luật: "Điều" -> "điều", "Khoản" -> "khoản", "Điểm" -> "điểm", "Chương" -> "chương", "Phụ lục" -> "phụ lục", "Mục" -> "mục".
-    \item \textbf{unify\_dashes}: Thay thế tất cả biến thể dấu gạch ngang (-, -, ‒, -) bằng dấu gạch ngắn tiêu chuẩn (-).
-    \item \textbf{strip\_punctuation}: Loại bỏ dấu câu khỏi số thứ tự: "1.", "1)", "a)" trở thành " 1 ", " a " với khoảng trắng hai bên để BM25 tokenize chính xác.
-    \item \textbf{normalize\_unicode}: Chuẩn hóa tất cả ký tự Unicode về dạng NFC (Normalization Form Canonical Composition), đảm bảo các ký tự tiếng Việt có dấu được biểu diễn nhất quán.
-\end{itemize}
-
-
-\section{Phân mảnh văn bản (Custom Chunker)}
-
-
-Sau khi chuẩn hóa, văn bản được chuyển qua SmartChunker để cắt thành các chunk. SmartChunker hoạt động trên CDM (Canonical Document Model) do Docling tạo ra, duyệt qua các DocumentSection để nhận diện ranh giới pháp lý và thu thập nội dung theo đơn vị logic. Cấu trúc phân cấp của ba loại văn bản được xử lý tự động dựa trên CDM:
-
-\begin{itemize}
-    \item \textbf{Luật}: Chương -> Mục -> Điều
-    \item \textbf{Nghị định}: Chương -> Điều -> Khoản -> Điểm
-    \item \textbf{Thông tư}: Điều -> Khoản
-\end{itemize}
-
-Mỗi chunk tương ứng với một đơn vị pháp lý hoàn chỉnh (thường là một Điều hoặc một Khoản). Chunker lưu metadata hierarchy với các trường \texttt{chapter}, \texttt{dieu}, \texttt{khoan}, \texttt{diem}. Mỗi chunk được gán một định danh duy nhất theo mẫu: \texttt{{loại\textunderscore văn\textunderscore bản}\textunderscore {số}\textunderscore {năm}\textunderscore \textunderscore điều\textunderscore {x}\textunderscore \textunderscore khoản\textunderscore {y}\textunderscore \textunderscore điểm\textunderscore {z}}.
-
-
-
-
-\chapter{Extraction Pipeline với UDEF}
-
-
-Tầng trích xuất là thành phần mới được tích hợp vào hệ thống, sử dụng UDEF (Unstructured Data Extraction Framework) làm nền tảng xử lý tài liệu đầu vào. Thay vì parse PDF thô và chunk mù theo cửa sổ token cố định như phương pháp RAG truyền thống, hệ thống dùng Docling để phân tích cấu trúc tài liệu, ánh xạ vào Canonical Document Model (CDM), và chunk theo đơn vị logic pháp lý (Điều, Khoản, Điểm).
-
-
-\section{Docling Adapter và CDM}
-
-Docling là thư viện chuyển đổi tài liệu do IBM Research phát triển, hỗ trợ đa định dạng: PDF văn bản, PDF scan qua OCR, ảnh và bảng tính. Docling phân tích bố cục trang, nhận diện bảng biểu, tiêu đề, đoạn văn bản và hình ảnh, trả về cấu trúc phân cấp của tài liệu.
-
-DoclingAdapter nhận đường dẫn tệp PDF, cấu hình pipeline (OCR engine, table structure), chạy chuyển đổi và trả về DoclingDocument. Sau đó, DoclingToCDMMapper ánh xạ kết quả vào CanonicalDocument: trích xuất DocumentSection (đoạn văn bản), DocumentTable (bảng biểu), và DocumentKeyValue (cặp khóa-giá trị). Mỗi phần tử trong CDM đều mang SourceReference ghi lại số trang, tọa độ khung bao (bbox) làm dấu vết nguồn cho provenance tracking.
-
-
-\section{Rule Engine}
-
-Rule Engine là phần lõi của UDEF, thực hiện trích xuất dựa trên tệp cấu hình khai báo (RuleSpec JSON). Mỗi trường cần trích xuất trải qua bốn bước:
-
-\begin{itemize}
-    \item \textbf{Locate}: Xác định vị trí thông tin trong CDM. Các chiến lược: keyword\_match (tìm từ khóa), section\_context (theo tiêu đề mục), table\_column (theo cột bảng), visual\_template (theo mẫu trực quan), và plugin\_locate (dùng plugin tùy chỉnh).
-    \item \textbf{Extract}: Trích xuất giá trị. Các phương pháp: regex\_capture (biểu thức chính quy), section\_text (toàn bộ nội dung mục), cell\_lookup (ô bảng), row\_extract (hàng bảng), và plugin\_extract.
-    \item \textbf{Normalize}: Chuẩn hóa giá trị: string\_clean (làm sạch chuỗi), number\_parse (phân tích số), scale (hệ số), unit\_normalize (đơn vị), enum\_map (ánh xạ liệt kê). Mỗi bước chuẩn hóa đều ghi lại trace để truy vết.
-    \item \textbf{Validate}: Kiểm tra tính hợp lệ: required (bắt buộc), pattern (khớp mẫu), min/max (khoảng số), min\_length/max\_length (độ dài chuỗi), enum (giá trị liệt kê).
-\end{itemize}
-
-Sau bốn bước, ValidatorPlugin chạy kiểm tra chéo giữa các trường và tạo ExtractionReport chứa kết quả từng trường, lỗi/cảnh báo và tóm tắt kiểm tra.
-
-
-\section{SmartChunker}
-
-SmartChunker thay thế ba custom chunker cũ bằng một chunker duy nhất hoạt động trên CDM. Thay vì dùng biểu thức chính quy để nhận diện ranh giới Điều/Khoản trong văn bản thô, SmartChunker duyệt DocumentSection trong CDM, nhận diện tiêu đề "Điều X" và thu thập nội dung đến Điều hoặc Chương tiếp theo.
-
-Mỗi chunk mang metadata giàu từ Rule Engine: định danh tài liệu, loại văn bản, ngày ban hành, ngày hiệu lực, cùng dấu vết nguồn (trang, dòng) từ CDM. Các chunk được embed và lưu vào ChromaDB với metadata đầy đủ, hỗ trợ truy xuất và trích dẫn chính xác.
-
-Bảng so sánh Blind Chunking (cũ) và Smart Chunking (mới):
-
-\begin{tabular}{|l|l|l|}
-\hline
-\textbf{Tiêu chí} & \textbf{Blind Chunk (cũ)} & \textbf{Smart Chunk (mới)} \\
-\hline
-Đơn vị cắt & Cửa sổ token cố định (512) & Điều/Khoản/Điểm theo CDM \\
-\hline
-Metadata & document\_id cơ bản & doc\_id, dieu, khoan, diem, chuong \\
-\hline
-Provenance & Không & Trang, dòng, section\_id \\
-\hline
-Chất lượng & Có thể cắt ngang Điều & Giữ nguyên đơn vị pháp lý \\
-\hline
-\end{tabular}
-
-
-\section{Plugin System và Mở Rộng}
-
-Hệ thống plugin của UDEF cho phép mở rộng sang lĩnh vực pháp luật mới mà không sửa đổi phần lõi. Nhà phát triển viết EvidenceLocatorPlugin (tùy chỉnh cách tìm vị trí thông tin), ExtractorPlugin (tùy chỉnh cách trích xuất) hoặc ValidatorPlugin (kiểm tra chéo sau trích xuất), đăng ký qua PluginRegistry, và khai báo trong RuleSpec. Thiết kế này giúp mở rộng hệ thống sang lĩnh vực mới (thuế, đất đai, hình sự) mà không cần can thiệp vào code xử lý tài liệu.
-
-
-\chapter{LLM Integration}
-
-
-Hệ thống sử dụng hai mô hình ngôn ngữ lớn với vai trò khác nhau. Gemini 2.5 Flash là mô hình chính, đảm nhận các nhiệm vụ rewrite, grade, generate trong luồng xử lý. Mô hình này có free tier 250 request mỗi ngày, ngữ cảnh 1 triệu token, và hỗ trợ tiếng Việt tốt. OpenAI GPT-4o-mini là mô hình phụ, chỉ dùng cho đánh giá chất lượng, nhờ khả năng xuất JSON có cấu trúc ổn định.
-
-Mỗi câu hỏi từ người dùng tiêu tốn trung bình bốn lần gọi Gemini. Nếu kể cả các bước fallback và sinh lại, con số này có thể lên đến bảy hoặc tám lần. Với free tier 250 request mỗi ngày, hệ thống phục vụ tối đa khoảng 62 câu hỏi mỗi ngày. Nếu vượt quá giới hạn, hệ thống tự động chuyển sang Gemini 2.0 Flash hoặc OpenAI GPT-4o-mini thông qua cơ chế fallback.
-
-Việc gọi API Gemini được thực hiện thông qua LangChain. Mỗi lần gọi đều có timeout và retry với exponential backoff. Nếu Gemini trả về lỗi rate limit, hệ thống đợi một khoảng thời gian tăng dần (1 giây, 2 giây, 4 giây) rồi thử lại. Sau ba lần thử thất bại, hệ thống chuyển sang OpenAI.
-
-
-
-\chapter{Citation Pipeline}
-
-
-Citation pipeline đảm bảo mỗi câu trả lời có trích dẫn chính xác.
-
-Khi LLM sinh câu trả lời ở nút generate, nó được yêu cầu xuất ra định dạng JSON với hai trường: answer là nội dung câu trả lời, citations là danh sách các trích dẫn. CitationExtractor nhận đầu ra này và thử phân tích cú pháp JSON trước. Nếu LLM trả về một đối tượng dict, nó được phân tích trực tiếp. Nếu LLM trả về văn bản tự do, bộ trích xuất dùng biểu thức chính quy để tìm các mẫu trích dẫn pháp luật.
-
-Các mẫu biểu thức chính quy bao gồm: "Nghị định số X/YYYY/NĐ-CP", "Luật số X/YYYY/QH", "Thông tư số X/YYYY/TT", "Điều X", "Khoản Y", "Điểm Z". Bộ trích xuất cũng xử lý các định dạng lồng nhau như "[Nghị định 168/2024/NĐ-CP, Điều 6, Khoản 2, Điểm a]".
-
-Sau khi trích xuất, CitationValidator kiểm tra từng trích dẫn có thực sự tồn tại trong context đã cung cấp hay không. Nó đối chiếu doc\_id, dieu, khoan, diem với metadata của các chunk đã được retrieve. Nếu trích dẫn khớp với một chunk trong context, nó được đánh dấu hợp lệ. Nếu không khớp, nó được liệt kê vào validation\_warnings.
-
-
-
-\chapter{Web Search Fallback}
-
-
-Khi corpus nội bộ không có đủ thông tin, hệ thống kích hoạt luồng tìm kiếm web dự phòng. Điều kiện kích hoạt là relevance\_score dưới 0.4, hoặc số lần lặp đạt 3 mà vẫn chưa đạt điểm grade đủ cao, hoặc số lần rewrite đạt 2.
-
-Nút web\_search gọi thư viện duckduckgo-search để gửi truy vấn đến DuckDuckGo. Kết quả trả về là danh sách các URL cùng với tiêu đề và đoạn trích. Hệ thống lấy ba đến năm kết quả hàng đầu.
-
-Nếu có kết quả, nút generate\_with\_web\_context được gọi. LLM nhận các kết quả web làm ngữ cảnh và sinh câu trả lời. Một disclaimer được thêm vào cuối: "Nguồn: Web (chưa qua kiểm duyệt). Vui lòng xác minh trước khi áp dụng."
-
-Nếu không có kết quả, nút refuse\_answer được gọi. Hệ thống trả lời: "Tôi không tìm thấy thông tin trong cơ sở dữ liệu hiện có."
-
-DuckDuckGo có thể bị chặn trên các địa chỉ IP trung tâm dữ liệu (Oracle Cloud, Vultr). Để phòng trường hợp này, hệ thống hỗ trợ SerpAPI làm fallback thông qua biến môi trường SEARCH\_BACKEND.
-
-
-
-
-\chapter{Đánh Giá Hệ Thống RAGAS-lite \cite{es}}
-
-
-Hệ thống được đánh giá trên bộ câu hỏi chuẩn (gold set) gồm 30 đến 50 câu. Mỗi câu trong gold set bao gồm câu hỏi, câu trả lời mong đợi, các trích dẫn chính xác, và một biến thể retrieval được ấn định. Gold set cũng bao gồm các câu nên bị từ chối (adversarial) để kiểm tra khả năng từ chối trả lời đúng lúc.
-
-Năm chỉ số đánh giá được tính trên ba biến thể retrieval, tạo thành ma trận 3 nhân 5.
-
-Citation Correctness là chỉ số quan trọng nhất. Nó đo tỷ lệ các câu trả lời có trích dẫn khớp chính xác với gold set. Đây là chỉ số xác định, không cần LLM judge. Hàm đánh giá so sánh từng trích dẫn trong câu trả lời với trích dẫn trong gold set: doc\_id phải khớp, dieu phải khớp, nếu gold set có khoan thì khoan phải khớp, nếu gold set có diem thì diem phải khớp. Nếu có ít nhất một trích dẫn khớp hoàn toàn, điểm là 1. Nếu không, điểm là 0.
-
-Faithfulness đo mức độ câu trả lời trung thành với ngữ cảnh đã cung cấp. LLM judge nhận context và answer, trả về điểm 0-1.
-
-Answer Relevancy đo mức độ câu trả lời liên quan đến câu hỏi. LLM judge nhận question và answer, trả về điểm 0-1.
-
-Context Precision đo mức độ các ngữ cảnh được retrieve có chứa câu trả lời đúng và được xếp hạng đúng thứ tự. LLM judge nhận question và contexts, trả về điểm 0-1.
-
-Context Recall đo mức độ các ngữ cảnh được retrieve có chứa đủ thông tin để trả lời câu hỏi. LLM judge nhận question, expected\_answer, và contexts, trả về điểm 0-1.
-
-LLM judge được cố định là OpenAI GPT-4o-mini cho tất cả các biến thể, bất kể biến thể đó dùng LLM nào để sinh câu trả lời. Điều này ngăn chặn circularity: nếu cùng LLM vừa sinh câu trả lời vừa đánh giá, điểm số sẽ thiên vị.
-
-Điểm số được phân tích bằng regex pattern r"[-+]?\d*\.?\d+" để trích xuất số từ câu trả lời của LLM judge, thay vì dùng float() trực tiếp.
-
-
-
-\chapter{Bảo Mật và PDPA}
-
-
-Hệ thống tuân thủ Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân. Các yêu cầu cụ thể bao gồm: không lưu trữ thông tin nhận dạng cá nhân ngoài thread\_id, chính sách lưu trữ tối đa 30 ngày cho các cuộc hội thoại với cơ chế xóa tự động, xác thực admin bằng Bearer token thông qua biến môi trường ADMIN\_TOKEN, tất cả API endpoint admin và ingest yêu cầu Bearer token, và không ghi log các truy vấn có chứa thông tin cá nhân.
-
-Tốc độ API bị giới hạn ở 6 request mỗi phút mỗi địa chỉ IP, tương thích với giới hạn 10 RPM của Gemini Free Tier và sử dụng slowapi với header X-Real-IP để phát hiện địa chỉ IP thực.
-
-
-
-\chapter{Domain Model}
-
-
-Hệ thống có các thực thể chính sau đây. Document đại diện cho một văn bản pháp luật đã được ingest, bao gồm doc\_id, title, doc\_type (LUAT, NGHI\_DINH, THONG\_TU), issue\_date, status (HIEU\_LUC, HET\_HIEU\_LUC, CHUA\_HIEU\_LUC), source\_url, pdf\_path, file\_hash (để khử trùng lặp), và chunk\_count. Chunk đại diện cho một đoạn văn bản đã được cắt ra từ Document, bao gồm chunk\_id, doc\_id, content, hierarchy (dieu, khoan, diem, chapter), page, embedding, và status. Conversation đại diện cho một phiên hội thoại, bao gồm thread\_id, user\_id, title, và danh sách Message. Message chứa nội dung tin nhắn, vai trò (user, assistant, system), và tham chiếu đến chunks và citations. Query lưu trữ thông tin về một câu hỏi cụ thể, bao gồm raw\_query, rewritten\_query, intent, top\_k\_chunks, answer, citations, web\_used. Citation là một trích dẫn có cấu trúc: doc\_title, dieu, khoan, diem, page, snippet, status.
-
-
-
-\chapter{Concurrency và Thread Safety}
-
-
-ChromaDB sử dụng SQLite nội bộ với cơ chế persistent client. SQLite mặc định có thời gian chờ busy timeout ngắn và không bật WAL, dẫn đến xung đột khi nhiều tiến trình truy cập đồng thời. FastAPI với công thức mặc định workers = 2 nhân CPU cộng 1 sẽ tạo ra 13 worker trên máy i5, dẫn đến 13 tiến trình cùng đọc ghi ChromaDB. Kết quả là treo 16 phút, segmentation fault, hoặc hỏng vĩnh viễn cơ sở dữ liệu.
-
-Giải pháp là chạy Uvicorn với --workers 1 và bật WAL mode cho SQLite. WAL (Write-Ahead Log) cho phép đọc và ghi đồng thời mà không khóa toàn bộ cơ sở dữ liệu. Trade-off là throughput chỉ đạt khoảng 2.5 query mỗi phút thay vì 13 query mỗi phút nếu dùng multi-worker, nhưng tính toàn vẹn dữ liệu được đảm bảo.
-
-SQLite cho state database sử dụng SQLAlchemy với connect\_args check\_same\_thread=False, timeout=30, và bật WAL mode qua event listener. Điều này cho phép FastAPI xử lý đồng thời các request ghi state khác nhau.
-
-
-
-\chapter{Ingest Pipeline}
-
-
-Khi có văn bản luật mới, nhà quản trị chạy script ingest\_corpus.py. Pipeline thực hiện các bước sau: parse PDF bằng PyMuPDF, chunk theo loại văn bản, embed các chunk mới bằng embedding\_service.embed\_passages, thêm vào ChromaDB với chế độ append (không xóa chunk cũ), tái xây dựng toàn bộ chỉ mục BM25, và cập nhật bảng Document với chunk\_count và updated\_at.
-
-Việc cập nhật BM25 phải xây dựng lại từ đầu (full rebuild) vì thư viện rank\_bm25 không hỗ trợ thêm dữ liệu gia tăng. Thao tác này mất vài giây cho 30 văn bản nhưng sẽ tăng tuyến tính với kích thước corpus.
-
-Khi có văn bản hết hiệu lực, script \texttt{check\textunderscore expired.py} (theo kế hoạch trong \texttt{08-bao-tri.md}) quét toàn bộ corpus bằng cách đọc metadata \texttt{expiry\textunderscore date} của từng chunk trong ChromaDB, so sánh với ngày hiện tại. Văn bản có \texttt{expiry\textunderscore date} trong quá khứ được liệt kê là đã hết hiệu lực. Văn bản có \texttt{expiry\textunderscore date} trong vòng 30 ngày tới được liệt kê là sắp hết hiệu lực.
-
-
-
-\chapter{Ràng Buộc Phần Cứng}
-
-
-Hệ thống chạy trên máy Intel Core i5-1035G1 với 4 nhân 8 luồng, 19GB RAM, card đồ họa NVIDIA MX330 2GB VRAM. MX330 không đủ mạnh để chạy embedding inference ổn định (Out of Memory khi dùng CUDA), do đó mọi tác vụ embedding đều chạy trên CPU. Mô hình reranker đã bị loại bỏ khỏi thiết kế vì lý do này.
-
-Embedding time khoảng 300 đến 500 mili giây cho mỗi query sau lần khởi tạo đầu tiên nhờ bộ nhớ đệm. Retrieval time khoảng 2 giây cho mỗi query. Latency P50 của toàn bộ hệ thống dưới 12 giây. Latency P95 dưới 20 giây, dựa trên bốn lần gọi LLM mỗi lần khoảng 3 giây cộng retrieval 2 giây.
-
-
-
-\chapter{Kiến Trúc Giao Diện}
-
-
-Giao diện chat có bốn thành phần chính. ChatWindow chứa toàn bộ khung chat với streaming. MessageBubble hiển thị tin nhắn người dùng và trợ lý với định dạng Markdown. CitationBadge hiển thị badge cho mỗi trích dẫn dạng "[NĐ 168, Điều 6]" và có thể mở rộng để xem chi tiết. StreamingResponse xử lý sự kiện SSE để cập nhật câu trả lời theo thời gian thực.
-
-Câu trả lời hiển thị dưới dạng Markdown với các phần: nội dung câu trả lời, danh sách nguồn tham khảo ở cuối với citation có thể click để mở rộng xem snippet, disclaimer ở cuối cùng, và trạng thái hiệu lực của từng văn bản được trích dẫn.
-
-
-
-\chapter{Giao Diện API}
-
-
-Hệ thống cung cấp các REST API endpoint sau:
+\section{Câu hỏi nghiên cứu}
 
 \begin{table}[H]
-\centering
-\caption{Danh sách REST API Endpoint}
-\begin{tabular}{|l|l|p{6cm}|l|}
-\hline
-\textbf{Method} & \textbf{Path} & \textbf{Mô tả} & \textbf{Auth} \\
-\hline
-POST & \texttt{/api/chat} & Gửi câu hỏi, trả về streaming & Không \\
-\hline
-POST & \texttt{/api/chat/stream} & SSE streaming response & Không \\
-\hline
-GET & \texttt{/api/conversations/\{thread\_id\}} & Lấy lịch sử hội thoại & Không \\
-\hline
-GET & \texttt{/api/search?q=...} & Tìm kiếm từ khóa trực tiếp & Không \\
-\hline
-POST & \texttt{/api/ingest} & Upload PDF (multipart) & Admin \\
-\hline
-GET & \texttt{/api/admin/pending} & Danh sách HITL pending & Admin \\
-\hline
-POST & \texttt{/api/admin/approve/\{review\_id\}} & Phê duyệt HITL & Admin \\
-\hline
-POST & \texttt{/api/admin/reject/\{review\_id\}} & Từ chối HITL & Admin \\
-\hline
-POST & \texttt{/api/eval/run} & Chạy evaluation & Admin \\
-\hline
-GET & \texttt{/api/eval/results} & Xem kết quả đánh giá & Không \\
-\hline
-GET & \texttt{/api/health} & Health check & Không \\
-\hline
-GET & \texttt{/api/docs} & Swagger UI (tự động) & Không \\
-\hline
-\end{tabular}
+\caption{Câu hỏi nghiên cứu}
+\begin{tabularx}{\textwidth}{p{1.2cm}X}
+\toprule
+\textbf{Mã} & \textbf{Câu hỏi}\\
+\midrule
+RQ1 & Docling, MinerU và Parser Router khác nhau thế nào về chất lượng trích xuất cấu trúc pháp luật Việt Nam (Article/Clause/Point P/R/F1, Short Point Recall, Vietnamese đ) Recall, Parent Context Completeness, Provenance Coverage)?\\
+RQ2 & Embedding nào trong ba ứng viên (Gemini Embedding 2, Jina Embeddings v5 text-nano, Jina Embeddings v5 text-small) cho kết quả retrieval tốt nhất trên câu hỏi pháp luật tiếng Việt (Recall@10, MRR@10, nDCG@10)?\\
+RQ3 & Từng tầng của retrieval đa tầng (exact lookup, sparse/RRF, query normalization, multi-query rewrite, conditional HyDE, reranker, parent/sibling expansion, cross-reference expansion, temporal filter) cải thiện Recall@k, MRR và nDCG ở mức nào?\\
+RQ4 & Temporal filtering làm giảm tỷ lệ trích dẫn sai phiên bản (Temporal Leakage Rate) ở mức nào và giữ được bao nhiêu trích dẫn hợp lệ cho câu hỏi lịch sử?\\
+RQ5 & Verification sáu tầng, đặc biệt numeric grounding, claim support và evidence completeness, làm giảm invalid citation và unsupported claim ở mức nào, đồng thời ảnh hưởng thế nào đến tỷ lệ abstention?\\
+RQ6 & Những nhóm lỗi nào giới hạn chất lượng hệ thống: parser, extraction, retrieval, temporal metadata, generation hay verification?\\
+\bottomrule
+\end{tabularx}
 \end{table}
 
-Request chat có dạng JSON với trường \texttt{query} (câu hỏi) và \texttt{thread\textunderscore id} tùy chọn. Response trả về \texttt{thread\textunderscore id}, \texttt{query\textunderscore id}, \texttt{answer} dưới dạng Markdown, danh sách \texttt{citations} có cấu trúc, \texttt{disclaimer}, \texttt{citation\textunderscore statuses}, \texttt{validation\textunderscore warnings}, \texttt{web\textunderscore used}, và \texttt{latency\textunderscore ms}.
+\section{Đối tượng và phạm vi}
 
+Đối tượng nghiên cứu là pipeline RAG phục vụ hỏi đáp pháp luật giao thông đường bộ Việt Nam. Corpus mục tiêu gồm khoảng 20 đến 30 văn bản chính thống, có cả văn bản hiện hành, lịch sử và ít nhất 5 chuỗi sửa đổi, thay thế hoặc bãi bỏ. Người dùng cuối có thể hỏi quy định hiện hành, hỏi tại ngày cụ thể hoặc so sánh hai thời điểm.
 
-\chapter{Kiến Trúc Kiểm Thử}
+Đề tài không bao phủ toàn bộ hệ thống pháp luật, không cung cấp kết luận thay thế cơ quan có thẩm quyền, không tìm web tự do để sinh answer, không xây dựng multi-agent, không fine-tune LLM và không triển khai ứng dụng di động hoặc voice.
 
+\begin{table}[H]
+\caption{Phân định phạm vi}
+\begin{tabularx}{\textwidth}{X X}
+\toprule
+\textbf{Trong phạm vi} & \textbf{Ngoài phạm vi}\\
+\midrule
+PDF pháp luật giao thông đường bộ & Toàn bộ pháp luật Việt Nam\\
+Parser Router: Docling chính, MinerU phụ/fallback & Crawler tự động activate tài liệu\\
+Canonical Document IR và Legal Structure Extractor & Tư vấn pháp lý cá nhân hóa có tính kết luận\\
+Quan hệ tham chiếu chéo trong PostgreSQL & Open web search làm nguồn answer\\
+Temporal retrieval và sửa đổi từng phần & Autonomous multi-agent\\
+Exact lookup + dense + sparse + RRF + reranker & Fine-tuning LLM\\
+Evidence planning và Evidence Completeness Gate & Knowledge graph hoặc Neo4j\\
+Verification sáu tầng và abstention & Mobile, voice, Kubernetes\\
+Langfuse observability ngoài đường tới hạn & RAGFlow làm nền tảng chính\\
+Gold set 200 câu và bốn suite A-D & Local LLM\\
+RAGFlow làm baseline so sánh bên ngoài & Dịch vụ microservices\\
+\bottomrule
+\end{tabularx}
+\end{table}
 
-Hệ thống có ba lớp kiểm thử. Unit test kiểm tra từng module độc lập: parser PDF, chunker, embedding service, citation extractor, BM25 index. Mục tiêu coverage $\ge$ 70% cho core modules. Integration test kiểm tra các API endpoint với database thật: gửi request, kiểm tra response schema, kiểm tra dữ liệu trong SQLite. Mục tiêu coverage $\ge$ 80% cho API endpoints. Regression test \texttt{test\textunderscore retrieval\textunderscore regression.py} là bắt buộc, chạy sau mỗi lần cập nhật corpus để đảm bảo chất lượng retrieval không bị suy giảm.
+\section{Phương pháp thực hiện}
 
-Evaluation pipeline chạy qua script \texttt{run\textunderscore eval.py}: tải gold set, chạy từng câu hỏi qua toàn bộ pipeline RAG (bao gồm generation, không chỉ retrieval-only), thu thập citations và answers, gọi GPT-4o-mini làm judge cho 4 metrics RAGAS-lite, tính Citation Correctness bằng exact match, và xuất báo cáo JSON. Ba biến thể được đánh giá độc lập: V1 (chỉ Dense), V2 (chỉ BM25), V3 (Hybrid), tạo thành ma trận 3 biến thể $\times$ 5 metrics để so sánh.
+Nghiên cứu sử dụng phương pháp thiết kế và thực nghiệm hệ thống. Trước hết, yêu cầu và invariant pháp lý được phân tích để xây dựng data model. Tiếp theo, pipeline ingestion (Parser Router, Canonical Document IR, Legal Structure Extractor, resolver), retrieval đa tầng và verification được cài đặt theo kiến trúc module. Sau đó, các biến thể được đánh giá trên cùng corpus và gold set qua bốn suite thí nghiệm A-D. Kết quả được phân tích theo metric xác định, metric LLM phụ, latency, cost và error taxonomy.
 
+Quá trình thực hiện trải qua một lần thay đổi thiết kế: phương án thiết kế đầu tiên dựa trên một framework trích xuất dữ liệu phi cấu trúc tách rời \cite{udef2026}. Sau khi đánh giá, phương án này được thay bằng Parser Router, Canonical Document IR và Legal Structure Extractor do dự án sở hữu để giảm tầng chuyển đổi trung gian và kiểm soát trực tiếp việc nhận diện phân cấp pháp luật Việt Nam. Lý do chi tiết được trình bày trong Chương 2.
 
-\chapter{Tổng Kết}
+\section{Đóng góp dự kiến}
 
+Sáu đóng góp chính gồm:
 
-Hệ thống kết hợp năm kỹ thuật chính để giải quyết bài toán tra cứu pháp luật giao thông: hybrid retrieval kết hợp dense và BM25 để tối ưu truy xuất tiếng Việt, LangGraph state machine để điều phối luồng xử lý tự động với loop guard chống vòng lặp vô hạn, citation pipeline với validation để đảm bảo trích dẫn chính xác, RAGAS-lite với năm chỉ số để đánh giá chất lượng, và cơ chế web fallback với disclaimer để xử lý các câu hỏi ngoài phạm vi.
+\begin{enumerate}
+  \item Parser Router định tuyến Docling/MinerU theo đặc tính tài liệu và quality gate, cùng Canonical Document IR parser-neutral do dự án sở hữu;
+  \item Legal Structure Extractor cho phân cấp pháp luật Việt Nam, gồm nhãn Điểm tiếng Việt \code{d)} và \code{đ)}, short-Point retention và stable ID tái tạo được;
+  \item mô hình quan hệ tham chiếu chéo cấp provision và cấp văn bản lưu trong PostgreSQL kèm mở rộng ngữ cảnh pháp lý theo quan hệ;
+  \item retrieval đa tầng với evidence planning, Evidence Completeness Gate và mở rộng ngữ cảnh có ghi lý do (\code{added\_by}, \code{depth});
+  \item verification xác định sáu tầng với bất biến Returned Invalid Citation Rate bằng 0;
+  \item gold set tiếng Việt 200 câu và phương pháp evaluation bốn suite A-D có thể tái lập, kèm baseline RAGFlow bên ngoài.
+\end{enumerate}
 
+\section{Bố cục khóa luận}
+
+Chương 2 trình bày nền tảng lý thuyết và nghiên cứu liên quan. Chương 3 mô tả yêu cầu, corpus, gold set và phương pháp thực nghiệm. Chương 4 trình bày thiết kế hệ thống. Chương 5 mô tả cài đặt và triển khai. Chương 6 trình bày kiểm thử và đánh giá. Chương 7 tổng kết, nêu hạn chế và hướng phát triển.
+
+% ============================================================
+\chapter{Cơ Sở Lý Thuyết và Nghiên Cứu Liên Quan}
+% ============================================================
+
+\section{Mô hình ngôn ngữ lớn}
+
+Transformer sử dụng cơ chế attention để mô hình hóa quan hệ giữa các token trong chuỗi và là nền tảng của nhiều mô hình ngôn ngữ hiện đại \cite{vaswani2017attention}. LLM có khả năng sinh văn bản, phân loại và trích xuất có cấu trúc, nhưng đầu ra không mặc nhiên là bằng chứng. Trong hệ thống này, LLM chỉ đảm nhiệm phân tích phần ngôn ngữ chưa xử lý được bằng rule và sinh answer từ context đã giới hạn.
+
+Generator được cấu hình theo structured output. Gemini 3.5 Flash hỗ trợ structured outputs theo \code{json\_schema} tương thích Pydantic và context lớn \cite{google2026gemini35flash}. Tuy nhiên, model capability không thay thế retrieval correctness hoặc citation verification.
+
+\section{Retrieval-Augmented Generation}
+
+RAG kết hợp retriever với generator để cung cấp external knowledge cho mô hình \cite{lewis2020rag}. Một hệ thống RAG có thể chia thành:
+
+\begin{enumerate}
+  \item ingestion và indexing;
+  \item query processing;
+  \item retrieval;
+  \item context construction;
+  \item generation;
+  \item verification và response rendering.
+\end{enumerate}
+
+Đề tài xem RAG như một hệ thống nhiều lớp. Parser sai làm extraction sai; extraction sai làm index sai; retrieval sai đặt trần cho generation; generation đúng nhưng citation sai vẫn không thể trả ra người dùng. Vì vậy, một pipeline RAG tổng quát (PDF, chunk, vector, LLM) là chưa đủ cho pháp luật: nó không biết ranh giới trích dẫn, không biết phiên bản hiệu lực, không biết quan hệ giữa các quy định và không kiểm chứng được câu trả lời.
+
+\section{Dense retrieval và embedding}
+
+Dense retrieval ánh xạ query và document sang vector thực. Độ tương đồng cosine thường được dùng để xếp hạng. Gemini Embedding 2 hỗ trợ output dimension linh hoạt từ 128 đến 3072 và khuyến nghị các mức 768, 1536 hoặc 3072 \cite{google2026embedding2}. Hệ thống dùng 768 chiều làm cấu hình thử nghiệm khởi điểm để cân bằng chất lượng và chi phí lưu trữ, nhưng embedding production chưa được chốt vĩnh viễn: Suite B benchmark ba ứng viên (Gemini Embedding 2, Jina Embeddings v5 text-nano, Jina Embeddings v5 text-small) trên câu hỏi pháp luật tiếng Việt trước khi chọn.
+
+Embedding text của một provision không chỉ chứa nội dung gốc mà còn có tên văn bản, số hiệu và parent context (\code{retrieval\_text}). Việc bổ sung context giúp các Điểm ngắn vẫn mang đủ nghĩa khi được truy xuất độc lập, trong khi \code{source\_text} luôn giữ nguyên văn bản pháp lý gốc.
+
+\section{Sparse retrieval và BM25}
+
+BM25 là mô hình xác suất dựa trên tần suất từ, độ dài tài liệu và độ hiếm của thuật ngữ \cite{robertson2009bm25}. Một dạng công thức phổ biến là:
+
+\begin{equation}
+\operatorname{BM25}(q,d)=\sum_{t\in q}\operatorname{IDF}(t)
+\frac{f(t,d)(k_1+1)}{f(t,d)+k_1\left(1-b+b\frac{|d|}{\operatorname{avgdl}}\right)}.
+\end{equation}
+
+Sparse retrieval đặc biệt hữu ích cho số hiệu, tên văn bản, cụm từ pháp lý và tham chiếu Điều/Khoản/Điểm. Hệ thống không loại mạnh các từ như ``không'', ``phải'', ``được'', ``trừ'', vì chúng có thể thay đổi nghĩa quy phạm. Qdrant cung cấp sparse/BM25 retrieval ngay trong collection bằng tokenizer-based model \cite{qdrant2026bm25}; với tiếng Việt cần kiểm chứng tokenizer trong Suite C trước khi khóa cấu hình.
+
+\section{Hybrid retrieval và RRF}
+
+Dense và sparse score nằm trên scale khác nhau. Reciprocal Rank Fusion kết hợp các danh sách theo thứ hạng thay vì raw score \cite{cormack2009rrf}. Với document $d$ và tập ranking $R$:
+
+\begin{equation}
+\operatorname{RRF}(d)=\sum_{r\in R}\frac{1}{k+\operatorname{rank}_r(d)}.
+\end{equation}
+
+Qdrant hỗ trợ named dense/sparse vectors, prefetch và RRF trong Query API \cite{qdrant2026hybrid}. Điều này loại bỏ nhu cầu duy trì hai hệ retrieval tách rời và code fusion thủ công.
+
+\section{Chunking tài liệu}
+
+Chunking quyết định đơn vị được embed và retrieve. Fixed-token chunking đơn giản nhưng có thể phá cấu trúc. Docling cung cấp HierarchicalChunker và HybridChunker; HybridChunker thực hiện split chunk quá dài và merge peer chunk nhỏ dựa trên tokenizer, đồng thời giữ metadata của document structure \cite{docling2026chunking}.
+
+Đối với pháp luật, hierarchy tổng quát chưa đủ. Một Điểm có thể phụ thuộc vào lead-in của Khoản; một Khoản có thể phụ thuộc tiêu đề Điều. Ranh giới chunk phải trùng ranh giới trích dẫn. Vì vậy, Legal Structure Extractor của dự án xác định ranh giới pháp lý trước, còn chunking chỉ xử lý provision quá dài theo câu nhưng giữ cùng \code{provision\_id}; Docling chunker không được dùng làm legal structure parser chính.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=8mm,
+  box/.style={draw, rounded corners, minimum width=5.2cm, minimum height=0.75cm, align=center, fill=SoftBlue},
+  arrow/.style={-{Latex[length=2mm]}, thick}
+]
+\node[box] (doc) {Văn bản pháp luật};
+\node[box, below=of doc] (chapter) {Chương};
+\node[box, below=of chapter] (section) {Mục};
+\node[box, below=of section] (article) {Điều};
+\node[box, below=of article] (clause) {Khoản};
+\node[box, below=of clause] (point) {Điểm (a) b) c) d) đ) e))};
+\draw[arrow] (doc) -- (chapter);
+\draw[arrow] (chapter) -- (section);
+\draw[arrow] (section) -- (article);
+\draw[arrow] (article) -- (clause);
+\draw[arrow] (clause) -- (point);
+\end{tikzpicture}
+\caption{Cấu trúc phân cấp của một đơn vị pháp lý}
+\label{fig:legal-hierarchy}
+\end{figure}
+
+\section{Document parsing và provenance}
+
+Docling chuyển nhiều định dạng tài liệu sang một representation giàu cấu trúc, nhận biết layout và table, đồng thời hỗ trợ OCR tiếng Việt qua Tesseract, EasyOCR hoặc RapidOCR \cite{auer2024docling}. MinerU là parser phụ và fallback/challenger với OCR 109 ngôn ngữ và backend pipeline chạy CPU. Các khả năng chi tiết của hai parser được mô tả trong tài liệu nghiên cứu công nghệ của dự án; không khẳng định parser nào vượt trội tuyệt đối cho mọi trường hợp.
+
+Hệ thống không đưa đầu ra parser trực tiếp vào phân tích pháp lý. Parser Router chọn parser theo đặc tính tài liệu và quality gate, sau đó đầu ra được chuyển sang Canonical Document IR do dự án sở hữu gồm \code{ParsedDocument}, \code{ParsedPage} và \code{DocumentElement}. Tầng IR cô lập Legal Structure Extractor khỏi định dạng đầu ra của Docling/MinerU; thay hoặc nâng cấp parser chỉ cần một adapter mới.
+
+Provenance được giữ dưới dạng page number, bounding box và \code{source\_element\_ids} truy vết về IR. Provenance phục vụ ba mục tiêu: review extraction, hiển thị đoạn nguồn và audit khi answer bị phản ánh. Một citation không chỉ trỏ đến văn bản mà còn phải mở được passage cụ thể.
+
+\section{Temporal data và phiên bản pháp luật}
+
+Một provision hợp lệ tại ngày $d$ khi:
+
+\begin{equation}
+\operatorname{valid}(p,d)=
+\left(p.\operatorname{effective\_from}\le d\right)
+\land
+\left(p.\operatorname{effective\_to}=\varnothing\ \lor\ d<p.\operatorname{effective\_to}\right)
+\land
+\left(p.\operatorname{review\_status}=\text{ACCEPTED}\right).
+\end{equation}
+
+Khoảng thời gian được biểu diễn theo dạng nửa kín $[\operatorname{from},\operatorname{to})$. Khi một version mới có hiệu lực, version cũ kết thúc tại chính ngày bắt đầu của version mới. Partial amendment được xử lý ở mức provision thay vì đóng toàn bộ document: \code{provision\_id} giữ nguyên, nội dung mới được lưu dưới version mới với khoảng hiệu lực mới. Các sự kiện pháp lý (có hiệu lực, sửa đổi, thay thế, bãi bỏ, đính chính) được ghi nhận bằng \code{LegalEffectEvent} để phục vụ temporal resolver và câu hỏi so sánh lịch sử.
+
+Thời gian hiệu lực không phải metadata phụ mà là điều kiện lọc bắt buộc của mọi retrieval: câu trả lời đúng cho một hành vi năm 2023 phải dùng văn bản hợp lệ tại năm 2023, kể cả khi văn bản đó đã bị thay thế. Hệ thống không dùng văn bản hiện hành làm mặc định cho câu hỏi có thể là lịch sử.
+
+\section{Citation verification và abstention}
+
+LegalBench-RAG nhấn mạnh retrieval chính xác ở các đoạn pháp lý nhỏ thay vì trả cả document dài \cite{pipitone2024legalbenchrag}. Legal RAG Bench tiếp tục chỉ ra retrieval là yếu tố chủ đạo trong hiệu năng end-to-end của legal RAG \cite{butler2026legalragbench}. LegalCiteBench cho thấy citation generation không grounding là một failure mode nghiêm trọng \cite{chen2026legalcitebench}.
+
+Từ các kết quả này, hệ thống không yêu cầu LLM viết citation text. Mỗi claim chỉ được chọn \code{provision\_id} từ whitelist context. Tuy nhiên, citation tồn tại là chưa đủ: một trích dẫn hợp lệ về định danh vẫn có thể đi kèm số liệu sai (mức phạt, số điểm trừ) hoặc claim không được passage hỗ trợ. Vì vậy, ngoài kiểm tra ID và hiệu lực, hệ thống còn kiểm tra numeric grounding và claim support. Abstention được coi là hành vi đúng khi evidence không đủ.
+
+\section{Evidence completeness}
+
+Nhiều câu hỏi pháp luật yêu cầu nhiều loại bằng chứng phối hợp. Ví dụ, câu hỏi về mức phạt và điểm trừ giấy phép lái xe cần cả \code{monetary\_penalty} và \code{license\_points}. Nếu pipeline chỉ truy xuất được mức phạt và trả lời luôn, người dùng nhận được câu trả lời nửa vời. Đề tài xử lý vấn đề này bằng evidence plan (danh sách loại bằng chứng cần thiết được tạo trong query understanding) và Evidence Completeness Gate trước khi sinh câu trả lời. Khi còn thiếu loại bằng chứng bắt buộc, hệ thống chạy targeted retrieval hoặc mở rộng ngữ cảnh theo quan hệ thay vì sinh câu trả lời.
+
+Bằng chứng cho câu trả lời thường nằm rải rác ở nhiều provision liên quan. Mô hình quan hệ tham chiếu chéo (trình bày trong Chương 4) là cơ sở để mở rộng ngữ cảnh quanh các seed provision mạnh, đồng thời là dữ liệu gold cho metric Cross-reference Resolution Recall và Multi-hop Evidence Completeness.
+
+\section{Đánh giá hệ thống RAG}
+
+RAGAS cung cấp các metric như faithfulness, context precision và context recall \cite{es2024ragas,ragas2026metrics}. Tuy nhiên, metric LLM có thể biến động theo judge và prompt. Vì vậy, khóa luận dùng metric xác định làm headline (Recall@k, MRR, nDCG, Citation P/R/F1, Temporal Validity Accuracy, Numeric Grounding Accuracy, Evidence Set Recall, Abstention P/R/F1), còn Ragas và judge độc lập GPT-5.4 mini chỉ bổ sung đánh giá semantic \cite{openai2026gpt54mini}.
+
+\section{Khoảng trống nghiên cứu}
+
+Các benchmark pháp luật hiện có chủ yếu dùng tiếng Anh, hợp đồng hoặc án lệ. Đề tài tập trung vào văn bản quy phạm pháp luật giao thông Việt Nam, nơi hierarchy, nhãn Điểm tiếng Việt và hiệu lực theo thời gian là những đặc điểm bắt buộc. Khoảng trống cụ thể gồm:
+
+\begin{itemize}
+  \item chưa có benchmark nhỏ, review được cho current/historical/comparison query tiếng Việt;
+  \item pháp luật Việt Nam chưa được đánh giá trên sự khác biệt giữa parser tổng quát và parser pháp lý chuyên biệt;
+  \item citation ID, temporal validity và numeric grounding thường chưa được kiểm chứng cùng lúc;
+  \item nhiều pipeline trộn web fallback vào answer path, làm giảm khả năng tái lập;
+  \item câu hỏi đa bằng chứng và quan hệ tham chiếu chéo chưa được đánh giá như hạng mục đầu tiên trong legal RAG benchmark.
+\end{itemize}
+
+\begin{table}[H]
+\caption{So sánh định hướng nghiên cứu liên quan}
+\small
+\begin{tabularx}{\textwidth}{p{2.7cm}p{1.8cm}p{2.0cm}p{1.6cm}Y}
+\toprule
+\textbf{Công trình} & \textbf{Retrieval} & \textbf{Citation} & \textbf{Temporal} & \textbf{Định hướng chính}\\
+\midrule
+RAGAS & Có metric & Gián tiếp & Không & Đánh giá RAG tổng quát\\
+LegalBench-RAG & Chính xác & Không là trọng tâm & Không & Retrieval đoạn pháp lý nhỏ\\
+Legal RAG Bench & End-to-end & Độ bám nguồn & Hạn chế & Phân rã lỗi retrieval/reasoning\\
+LegalCiteBench & Closed-book & Trọng tâm & Không & Citation recovery và verification\\
+Đề tài này & Exact + dense + sparse & ID + sáu tầng verifier & Có & Luật giao thông Việt Nam\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ============================================================
+\chapter{Phân Tích Yêu Cầu và Phương Pháp Nghiên Cứu}
+% ============================================================
+
+\section{Tác nhân và use case}
+
+Ba tác nhân chính là người dùng cuối, corpus reviewer và nhà phát triển. Người dùng hỏi luật, xem citation và gửi feedback. Reviewer kiểm tra metadata, hierarchy, provenance, quan hệ và hiệu lực trước khi index. Nhà phát triển quản lý corpus, model, deployment, evaluation và baseline RAGFlow. HITL chỉ nằm ở khâu review trong ingestion pipeline, không nằm trong online query.
+
+\begin{figure}[H]
+\centering
+\resizebox{0.94\textwidth}{!}{%
+\begin{tikzpicture}[
+  actor/.style={draw, rounded corners, minimum width=3.2cm, minimum height=0.9cm, fill=SoftGray, align=center},
+  system/.style={draw, rounded corners, minimum width=6.0cm, minimum height=1.0cm, fill=SoftBlue, align=center},
+  arrow/.style={-{Latex[length=2mm]}, thick}
+]
+\node[system] (sys) {Structure-Aware and Temporal RAG};
+\node[actor, left=2.2cm of sys] (user) {Người dùng cuối};
+\node[actor, above=1.2cm of sys] (reviewer) {Corpus Reviewer};
+\node[actor, right=2.2cm of sys] (dev) {Nhà phát triển};
+\draw[arrow] (user) -- node[above, font=\small]{Câu hỏi / citation / feedback} (sys);
+\draw[arrow] (reviewer) -- node[right, font=\small]{Review ingestion} (sys);
+\draw[arrow] (dev) -- node[above, font=\small]{Config / evaluation} (sys);
+\end{tikzpicture}%
+}
+\caption{Các tác nhân chính của hệ thống}
+\end{figure}
+
+Hệ thống có mười hai use case: UC-01 hỏi luật hiện hành, UC-02 hỏi luật lịch sử, UC-03 so sánh quy định, UC-04 tìm provision, UC-05 xem citation và nguồn, UC-06 abstention, UC-07 ingest tài liệu bất đồng bộ, UC-08 review ingestion, UC-09 chạy evaluation, UC-10 gửi feedback, UC-11 chạy parser benchmark (Suite A) và UC-12 corpus QA review.
+
+\section{Yêu cầu chức năng}
+
+\begin{longtable}{p{1.6cm}p{5.2cm}p{6.5cm}}
+\caption{Yêu cầu chức năng P0 (rút gọn)}\\
+\toprule
+\textbf{Mã} & \textbf{Yêu cầu} & \textbf{Tiêu chí kiểm chứng}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Mã} & \textbf{Yêu cầu} & \textbf{Tiêu chí kiểm chứng}\\
+\midrule
+\endhead
+FR-01 & Parser Router (Docling | MinerU) & Routing đúng theo đặc tính tài liệu; quality gate kích hoạt fallback\\
+FR-02 & Canonical Document IR parser-neutral & Extractor chỉ đọc IR; adapter mới không đổi extractor\\
+FR-03 & Legal Structure Extractor & Phân cấp đúng; nhãn \code{d)}/\code{đ)} không lẫn; giữ Điểm ngắn\\
+FR-04 & Parent-context enrichment & \code{source\_text} bất biến; \code{retrieval\_text} kế thừa context cha\\
+FR-05 & Legal Reference Resolver & Quan hệ khớp fixture; unresolved định tuyến review\\
+FR-06 & Temporal and Amendment Resolver & Interval đúng quy tắc; hiệu lực không chắc chắn định tuyến review\\
+FR-07 & Background ingestion qua hàng đợi & Upload trả 202; actor idempotent; không parse đồng bộ\\
+FR-08 & Object storage qua MinIO & Round-trip put/get; backup sang nơi độc lập\\
+FR-09 & Review routing trước khi index & Chỉ accepted được index; dropped không bao giờ index\\
+FR-10 & Corpus QA & Báo cáo đủ 16 chỉ số\\
+FR-11 & Query Understanding và evidence plan & Intent/date/refs đúng; evidence plan liệt kê đủ loại bằng chứng\\
+FR-12 & Query Expansion & Giữ câu gốc; rewrite có giới hạn; HyDE chỉ bật có điều kiện\\
+FR-13 & Exact legal lookup & Trả đúng provision theo số hiệu, Điều, Khoản, Điểm\\
+FR-14 & Dense + sparse + RRF & Ba kênh chạy độc lập; variant tái lập bằng config\\
+FR-15 & Reranking & Chạy như stage chuẩn; không khẳng định cải thiện trước benchmark\\
+FR-16 & Legal context expansion & Chỉ mở rộng quanh seed mạnh; ghi \code{added\_by} và \code{depth}\\
+FR-17 & Evidence Completeness Gate & Câu đa bằng chứng thiếu loại bằng chứng bị đánh dấu INCOMPLETE\\
+FR-18 & Hỏi luật hiện hành & Chỉ cite provision có hiệu lực tại ngày hỏi\\
+FR-19 & Hỏi luật lịch sử & Dùng phiên bản hợp lệ tại mốc hỏi, không dùng hiện hành làm mặc định\\
+FR-20 & So sánh hai thời điểm & Hai temporal contexts độc lập; không gộp citation hai mốc\\
+FR-21 & Tìm kiếm provision & Trả top-k kèm hierarchy, hiệu lực và provenance; không gọi generator\\
+FR-22 & Structured generation & Output đúng schema cấp claim; chỉ dùng ID trong whitelist\\
+FR-23 & Verification sáu tầng L1-L6 & Invalid citation không trả ra; claim số liệu sai bị chặn\\
+FR-24 & Failure-aware repair và abstention & Mỗi lỗi có đường sửa riêng; hết giới hạn thì ABSTAIN\\
+FR-25 & Disclaimer & Có trong mọi verified/abstained response\\
+FR-26 & Observability qua Langfuse & Trace ghi lại được; Langfuse down không fail query\\
+FR-27 & Feedback người dùng cuối & Round-trip; gắn đúng \code{trace\_id}; danh mục báo cáo đầy đủ\\
+FR-28 & Evaluation và ablation & Bốn suite A-D chạy được; run lưu đủ metadata\\
+FR-31 & Benchmark đối chiếu RAGFlow & Bốn variant trên cùng corpus và eval queries; chạy riêng\\
+FR-32 & Hiển thị answer và citation & Citation dựng từ metadata; không stream draft chưa verify\\
+\bottomrule
+\end{longtable}
+
+Các yêu cầu FR-29 (lưu lịch sử truy vấn) và FR-30 (admin review UI) là P1, chỉ triển khai sau khi mọi acceptance criteria P0 đạt; trong P0, reviewer dùng CLI và JSON report.
+
+\section{Yêu cầu phi chức năng}
+
+Các invariant quan trọng gồm: returned invalid citation rate bằng 0; unverified answer không được trả; mọi indexed provision có page provenance và thuộc document đã accept; final evaluation phải lưu corpus hash và gold-set hash; hệ thống chạy local bằng Docker Compose với bảy service. Các ngưỡng hiệu năng là mục tiêu kỹ thuật trong môi trường test, không phải kết quả đo: retrieval P95 không quá 2 giây, end-to-end P50 không quá 12 giây, end-to-end P95 không quá 20 giây, search API P95 không quá 3 giây. Ingestion chạy nền với \code{MAX\_INGESTION\_WORKERS=1}. Langfuse không nằm trên đường tới hạn; nếu không khả dụng, query vẫn hoạt động.
+
+\section{Thiết kế corpus}
+
+Corpus được chọn theo bốn tiêu chí:
+
+\begin{enumerate}
+  \item nguồn chính thống và có thể kiểm tra lại;
+  \item liên quan giao thông đường bộ;
+  \item có metadata ban hành và hiệu lực;
+  \item tạo được nhóm current, historical và relation chain.
+\end{enumerate}
+
+Quy mô mục tiêu là 20 đến 30 văn bản chính thống, có ít nhất 5 chuỗi sửa đổi, thay thế hoặc bãi bỏ, có cả văn bản hiện hành và lịch sử. Mỗi file có manifest chứa document ID, số hiệu, ngày ban hành, khoảng hiệu lực, URL nguồn, file hash, relation notes và review status. Ưu tiên PDF born-digital có text layer; tài liệu scan đi qua OCR backend CPU và phải qua quality gate trước khi review.
+
+\begin{lstlisting}[language=json,caption={Ví dụ corpus manifest rút gọn}]
+{
+  "document_id": "nd-168-2024",
+  "document_number": "168/2024/ND-CP",
+  "document_type": "DECREE",
+  "issued_date": "2024-12-26",
+  "effective_from": "2025-01-01",
+  "effective_to": null,
+  "source_url": "https://vbpl.vn/...",
+  "file_hash": "sha256:...",
+  "relation_notes": "SUPERSEDES nd-100-2019",
+  "review_status": "ACCEPTED"
+}
+\end{lstlisting}
+
+Corpus có báo cáo/dashboard chất lượng riêng (corpus QA) với các chỉ số: document count, article count, clause count, point count, Point coverage, short-Point retention, tỷ lệ phát hiện nhãn \code{đ)}, orphan Point count, orphan Clause count, duplicate provision count, parent-context coverage, provenance coverage, table coverage, unresolved cross-reference count, unknown effective date count và temporal conflict count. Với các văn bản quan trọng (ví dụ Nghị định 168), thực hiện structural QA có mục tiêu riêng.
+
+\section{Thiết kế gold set}
+
+Gold set mục tiêu gồm 200 câu đã review, chia 40 development (lặp phát triển), 40 validation (chọn ngưỡng/model/prompt) và 120 final test (báo cáo kết quả, đóng băng, không dùng để tuning). Có 17 danh mục bắt buộc: CURRENT, HISTORICAL, COMPARISON, EXACT\_REFERENCE, PENALTY, LICENSE\_POINTS, CONDITION, EXCEPTION, PROCEDURE, CROSS\_REFERENCE, MULTI\_PROVISION, MULTI\_DOCUMENT, COLLOQUIAL\_QUERY, AMBIGUOUS, MISSING\_INFORMATION, OUT\_OF\_SCOPE, ADVERSARIAL\_CITATION.
+
+Mỗi record chứa id, question, category, query\_date, comparison\_dates, vehicle\_type, expected\_provision\_ids, acceptable\_provision\_ids, required\_evidence, must\_include\_facts, must\_not\_include\_facts, temporal\_metadata, review\_status, reviewed\_by, gold\_version và hash. Mỗi câu có thể yêu cầu nhiều provision bằng chứng; \code{required\_evidence} liệt kê các loại bằng chứng như \code{violation\_definition}, \code{monetary\_penalty}, \code{license\_points}, \code{license\_suspension}, \code{exception}, \code{procedure}, \code{legal\_condition}.
+
+\section{Thiết kế thí nghiệm}
+
+Bốn suite thí nghiệm thay thế mô hình ablation đơn lẻ của thiết kế trước:
+
+\begin{table}[H]
+\caption{Suite A - Parser benchmark}
+\small
+\begin{tabularx}{\textwidth}{p{1.2cm}Y}
+\toprule
+\textbf{Thí nghiệm} & \textbf{Parser}\\
+\midrule
+P1 & Docling\\
+P2 & MinerU\\
+P3 & Parser Router (quyết định routing + quality gates)\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Chỉ số Suite A: Article P/R/F1, Clause P/R/F1, Point P/R/F1, Short Point Recall, Vietnamese đ) Recall, Parent Context Completeness, Table Preservation, Header/Footer Leakage, Provenance Coverage.
+
+\begin{table}[H]
+\caption{Suite B - Embedding benchmark}
+\small
+\begin{tabularx}{\textwidth}{p{1.2cm}p{6.0cm}p{3.0cm}}
+\toprule
+\textbf{Thí nghiệm} & \textbf{Model} & \textbf{Dimensions}\\
+\midrule
+E1 & Gemini Embedding 2 & 768\\
+E2 & Jina Embeddings v5 text-nano & 768\\
+E3 & Jina Embeddings v5 text-small & 1024\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Chỉ số Suite B: Recall@10, MRR@10, nDCG@10 trên câu hỏi pháp luật tiếng Việt, latency, cost.
+
+\begin{table}[H]
+\caption{Suite C - Retrieval ablation}
+\small
+\begin{tabularx}{\textwidth}{p{1.2cm}Y}
+\toprule
+\textbf{Thí nghiệm} & \textbf{Cấu hình}\\
+\midrule
+R1 & Legal chunk + dense\\
+R2 & R1 + sparse/RRF\\
+R3 & R2 + query normalization\\
+R4 & R3 + multi-query rewrite\\
+R5 & R4 + conditional HyDE\\
+R6 & R5 + reranker\\
+R7 & R6 + parent/sibling expansion\\
+R8 & R7 + cross-reference expansion\\
+R9 & R8 + temporal filtering\\
+R10 & Complete retrieval pipeline\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\caption{Suite D - Generation và verification ablation}
+\small
+\begin{tabularx}{\textwidth}{p{1.2cm}Y}
+\toprule
+\textbf{Thí nghiệm} & \textbf{Cấu hình}\\
+\midrule
+G1 & Prompt-only\\
+G2 & Structured output\\
+G3 & G2 + citation ID verifier\\
+G4 & G3 + temporal verifier\\
+G5 & G4 + numeric grounding\\
+G6 & G5 + claim support\\
+G7 & G6 + evidence completeness\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Ma trận thí nghiệm được thiết kế có tham khảo các quan sát bên ngoài từ dự án Traffic-RAG (ranh giới chunk trùng ranh giới trích dẫn, Điểm ngắn không được lọc bỏ, \code{đ)} phải được nhận diện, retrieval cần ngữ cảnh câu mở đầu Khoản, mở rộng Khoản lân cận, citation filtering đơn thuần là chưa đủ, label gold có thể sai cần review độc lập). Các quan sát này chỉ là động lực thiết kế thí nghiệm, không phải kết quả của VNLRAG.
+
+\section{Metric}
+
+Với gold set $G_q$ và top-k result $R_q^k$:
+
+\begin{equation}
+\operatorname{Recall@k}(q)=\frac{|G_q\cap R_q^k|}{|G_q|}.
+\end{equation}
+
+Nếu relevant item đầu tiên ở rank $r_q$:
+
+\begin{equation}
+\operatorname{MRR}=\frac{1}{N}\sum_{q=1}^{N}\frac{1}{r_q}.
+\end{equation}
+
+Citation Precision, Recall và F1 được tính bằng exact/acceptable provision IDs. Temporal Validity Accuracy đo tỷ lệ citation hợp lệ tại query date; Temporal Leakage Rate đo tỷ lệ citation dùng phiên bản sai thời điểm. Abstention được đánh giá bằng precision, recall, F1 và confusion matrix.
+
+\begin{table}[H]
+\caption{Nhóm metric đánh giá}
+\begin{tabularx}{\textwidth}{p{3.2cm}X}
+\toprule
+\textbf{Lớp} & \textbf{Metric}\\
+\midrule
+Corpus & Hierarchy F1, Point Coverage, Short Point Recall, Provenance Coverage, Parent Context Coverage\\
+Retrieval & Recall@5/10/20, MRR@10, nDCG@10\\
+Evidence & Evidence Set Recall, All Required Evidence@10, Cross-reference Resolution Recall, Multi-hop Evidence Completeness\\
+Temporal & Temporal Validity Accuracy, Temporal Leakage Rate, Current/Historical Separation Accuracy, Comparison Separation Accuracy\\
+Citation & Precision, Recall, F1, Invalid Citation Rate\\
+Grounding & Numeric Grounding Accuracy, Unsupported Claim Rate, Claim Support Precision, Answer Evidence Completeness\\
+Abstention & Precision, Recall, F1\\
+Vận hành & P50/P95 latency, token usage, cost, parser time, indexing time\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Chống leakage và bảo đảm tái lập}
+
+Final test set được đóng băng trước final run và không bao giờ dùng để tuning. Thay đổi gold label phải tạo version mới, không sửa file đã đóng băng. Mỗi run lưu run\_id, git commit, corpus version/hash, gold-set version/hash, suite và variant, run\_manifest\_hash, model IDs, prompt versions, parser versions, config snapshot, token usage, estimated cost và raw results path. Run và raw artifact bất biến/append-only; mọi query fail vẫn được giữ trong error analysis.
+
+\section{Đe dọa đến tính hợp lệ}
+
+Các đe dọa gồm corpus nhỏ và một reviewer chính có thể tạo annotation bias, LLM judge variance, provider model drift, query distribution chưa đại diện toàn bộ người dùng, và khả năng label gold sai. Biện pháp giảm thiểu là dùng metric xác định làm headline, pin model snapshot, lưu raw output, review độc lập label gold, chia data split rõ ràng và công khai limitation.
+
+% ============================================================
+\chapter{Thiết Kế Hệ Thống}
+% ============================================================
+
+\section{Nguyên tắc thiết kế}
+
+Hệ thống tuân theo các nguyên tắc: parser-neutral IR, PostgreSQL là nguồn chân lý, Qdrant là index dẫn xuất dựng lại được, temporal-by-default, citation-by-ID, verified-or-abstain, structure-aware, chất lượng parser là mục tiêu hạng nhất, quan hệ tham chiếu được mô hình hóa tường minh, evidence completeness trước khi sinh câu trả lời, verification deterministic-first, failure-aware repair có giới hạn, controlled workflow (không autonomous agent), Langfuse ngoài đường tới hạn, RAGFlow chỉ là baseline bên ngoài, không dùng open-web search, reproducible experiments và local-first defense.
+
+\section{Kiến trúc tổng quan}
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=8mm and 10mm,
+  box/.style={draw, rounded corners, minimum width=3.5cm, minimum height=0.9cm, align=center},
+  arrow/.style={-{Latex[length=2mm]}, thick}
+]
+\node[box, fill=SoftBlue] (web) {Next.js UI};
+\node[box, fill=SoftBlue, right=of web] (api) {FastAPI};
+\node[box, fill=SoftGray, right=of api] (graph) {LangGraph Workflow};
+\node[box, fill=SoftGray, right=of graph] (gen) {Generator + Verifier};
+
+\node[box, fill=SoftBlue, below=1.3cm of api] (router) {Parser Router};
+\node[box, fill=SoftGray, right=of router] (ir) {Canonical IR};
+\node[box, fill=SoftGray, right=of ir] (lse) {Legal Extractor};
+\node[box, fill=SoftBlue, right=of lse] (pg) {PostgreSQL};
+\node[box, fill=SoftBlue, right=of pg] (qd) {Qdrant};
+
+\draw[arrow] (web) -- (api);
+\draw[arrow] (api) -- (graph);
+\draw[arrow] (graph) -- (gen);
+\draw[arrow] (api) -- (router);
+\draw[arrow] (router) -- (ir);
+\draw[arrow] (ir) -- (lse);
+\draw[arrow] (lse) -- (pg);
+\draw[arrow] (pg) -- (qd);
+\draw[arrow] (qd) |- (graph);
+\draw[arrow] (pg) |- (gen);
+\end{tikzpicture}%
+}
+\caption{Kiến trúc logic tổng thể của hệ thống}
+\label{fig:architecture}
+\end{figure}
+
+Hệ thống gồm hai pipeline tách biệt: offline ingestion và online query. Observability (Langfuse) chạy xuyên suốt nhưng không nằm trên đường tới hạn tính đúng đắn.
+
+\section{Pipeline ingestion ngoại tuyến}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=6mm,
+  box/.style={draw, rounded corners, minimum width=4cm, minimum height=0.78cm, align=center, fill=SoftBlue},
+  decision/.style={draw, diamond, aspect=2.2, align=center, fill=DraftYellow},
+  arrow/.style={-{Latex[length=2mm]}, thick}
+]
+\node[box] (source) {PDF + manifest chính thức};
+\node[box, below=of source] (queue) {Ingestion Queue (Redis + Dramatiq)};
+\node[box, below=of queue] (router) {Parser Router (Docling | MinerU)};
+\node[box, below=of router] (ir) {Canonical Document IR};
+\node[box, below=of ir] (extract) {Legal Structure Extractor};
+\node[box, below=of extract] (enrich) {Legal Context Enricher};
+\node[box, below=of enrich] (resolve) {Reference + Temporal Resolver};
+\node[decision, below=8mm of resolve] (route) {Quality Gates};
+\node[box, below left=9mm and 13mm of route, fill=SoftGray] (review) {Needs review};
+\node[box, below=9mm of route] (accept) {Accepted};
+\node[box, below right=9mm and 13mm of route, fill=SoftGray] (drop) {Dropped};
+\node[box, below=of review] (human) {Human Review};
+\node[box, below=of human] (accepted2) {Accepted sau review};
+\node[box, right=13mm of human, fill=SoftGray] (reject) {Rejected / audit};
+\node[box, below=of accept] (store) {PostgreSQL -> Qdrant};
+\draw[arrow] (source) -- (queue);
+\draw[arrow] (queue) -- (router);
+\draw[arrow] (router) -- (ir);
+\draw[arrow] (ir) -- (extract);
+\draw[arrow] (extract) -- (enrich);
+\draw[arrow] (enrich) -- (resolve);
+\draw[arrow] (resolve) -- (route);
+\draw[arrow] (route) -- (review);
+\draw[arrow] (route) -- (accept);
+\draw[arrow] (route) -- (drop);
+\draw[arrow] (review) -- (human);
+\draw[arrow] (human) -- node[above, font=\small]{accept} (accepted2);
+\draw[arrow] (human) -- node[above, font=\small]{reject} (reject);
+\draw[arrow] (drop) -- (reject);
+\draw[arrow] (accept) -- (store);
+\draw[arrow] (accepted2) |- (store);
+\end{tikzpicture}%
+}
+\caption{Pipeline xử lý và review tài liệu}
+\label{fig:ingestion}
+\end{figure}
+
+Pipeline worker thực hiện \code{parse -> normalize -> legal extract -> reference resolve -> temporal resolve -> quality gates -> review -> embed -> index}, mỗi bước là một actor Dramatiq ngắn, rời rạc và idempotent. Chỉ kết quả phân loại \code{accepted} mới được index; \code{needs\_review} phải qua quyết định reviewer; \code{dropped} chỉ được ghi audit và không bao giờ index. Qdrant chỉ nhận dữ liệu có \code{review\_status = ACCEPTED} đọc từ PostgreSQL.
+
+\section{Parser Router và Canonical Document IR}
+
+Parser Router quyết định parser theo đặc tính tài liệu và quality gate (FR-01). Docling là parser chính; MinerU là parser phụ và fallback/challenger. Quy tắc routing:
+
+\begin{itemize}
+  \item PDF searchable có text layer và layout chuẩn: Docling chạy trước;
+  \item PDF scan hoặc layout lỗi: Docling chạy trước với OCR backend CPU, nếu quality gate fail thì chuyển MinerU;
+  \item bảng phức tạp: so sánh đầu ra hai parser khi cần.
+\end{itemize}
+
+Quality gate chia hai nhóm: nhóm A (parser-level) chạy sau khi chuẩn hóa IR với các chỉ số như provenance coverage, text extraction rate, table detection và layout coherence; nhóm B (structural) chạy sau Legal Structure Extractor với các chỉ số như point label detection, hierarchy completeness và short-Point retention. Nếu nhóm structural fail, kết quả structural hiện tại bị hủy và Router chạy lại toàn bộ pipeline từ parser thay thế, không trộn kết quả hai parser. Mọi quyết định routing và kết quả quality gate được ghi vào \code{ingestion\_runs.parser\_routing} và \code{DocumentElement.source\_parser}.
+
+Canonical Document IR là biểu diễn trung gian do dự án sở hữu, gồm \code{ParsedDocument} chứa \code{ParsedPage[]}, mỗi trang chứa \code{DocumentElement[]}. Mỗi element mang \code{element\_id}, \code{element\_type}, \code{text}, \code{page\_number}, \code{bbox}, \code{reading\_order}, \code{parent\_element\_id}, \code{table\_html}, \code{source\_parser}, \code{parser\_version}, \code{parser\_confidence} và \code{raw\_reference}. Tầng IR cô lập phân tích pháp lý khỏi định dạng đầu ra của Docling/MinerU.
+
+\section{Legal Structure Extractor}
+
+Legal Structure Extractor là parser pháp lý riêng của VNLRAG, chạy trên Canonical Document IR, nhận diện Chương, Mục, Điều, Khoản, Điểm, Phụ lục, bảng pháp lý, điều khoản chuyển tiếp, tiêu đề và đánh số văn bản pháp luật Việt Nam kèm biến thể do OCR.
+
+Điểm nhấn quan trọng nhất là nhãn Điểm tiếng Việt: bắt buộc hỗ trợ a) b) c) d) đ) e) theo bảng chữ cái tiếng Việt 29 ký tự, không dùng giả định \code{[a-z]}. Ánh xạ sang provision ID giữ nguyên ký tự tiếng Việt: Điểm d) ứng \code{diem-d}, Điểm đ) ứng \code{diem-đ}, tránh va chạm ID. Khi OCR không phân biệt được \code{d)} và \code{đ)}, extractor dùng pattern ngữ cảnh; nếu không đủ ngữ cảnh thì gắn cờ ambiguity và định tuyến \code{needs\_review}, không tự chọn bừa.
+
+Extractor cũng bảo đảm short-Point retention: một Điểm pháp lý ngắn nhưng hợp lệ vẫn là provision hợp lệ, không bị loại bỏ vì số token thấp. Quy tắc tạo provision ID:
+
+\begin{center}
+\code{\{loai-van-ban\}-\{so\}-\{nam\}\_\_dieu-\{n\}\_\_khoan-\{n\}\_\_diem-\{chu-cai\}}
+\end{center}
+
+Ví dụ: \code{nd-168-2024\_\_dieu-7\_\_khoan-4\_\_diem-b}. Các node không thuộc cây Điều thường dùng dạng \code{\_\_phu-luc-\{n\}}, \code{\_\_phu-luc-\{n\}\_\_bang-\{m\}}, \code{\_\_dieu-\{n\}\_\_bang-\{m\}}, \code{\_\_dieu-\{n\}\_\_khoan-chuyen-tiep}, \code{\_\_chuyen-tiep-\{k\}}, \code{\_\_tieu-de-\{n\}}.
+
+Legal Context Enricher bổ sung parent-context vào \code{retrieval\_text} (câu mở đầu của Khoản, tiêu đề Điều) để phục vụ retrieval; \code{source\_text} không bao giờ bị biến đổi. Trích dẫn vẫn trỏ tới provision thực tế. Ví dụ minh họa: \code{source\_text} là ``p) Dàn hàng ngang từ 03 xe trở lên''; \code{retrieval\_text} là ``Khoản 4. Phạt tiền từ ... đến ... đối với một trong các hành vi sau: p) Dàn hàng ngang từ 03 xe trở lên''. Các con số trong ví dụ là placeholder minh họa, không phải khẳng định nội dung văn bản thực tế.
+
+\section{Mô hình dữ liệu}
+
+\subsection{LegalDocument và DocumentVersion}
+
+LegalDocument quản lý document ID, số hiệu, tiêu đề, loại văn bản, cơ quan ban hành, ngày ban hành, nguồn, file hash và trạng thái. DocumentVersion ghi nhận mỗi phiên bản nội dung với manifest bất biến, hash và khoảng hiệu lực, gắn với các quan hệ pháp lý.
+
+\subsection{LegalProvision}
+
+\begin{lstlisting}[language=Python,caption={Mô hình LegalProvision rút gọn}]
+class LegalProvision(BaseModel):
+    provision_id: str
+    document_version_id: str
+    node_kind: str                      # ARTICLE/CLAUSE/POINT/APPENDIX/TABLE/...
+    chapter: str | None = None
+    section: str | None = None
+    article: str | None = None
+    clause: str | None = None
+    point: str | None = None
+    heading: str | None = None
+    source_text: str                    # bat bien, giu nguyen van ban goc
+    retrieval_text: str                 # co the ke thua parent_context
+    parent_context: str | None = None
+    effective_from: date | None = None
+    effective_to: date | None = None
+    status: str
+    page_number: int
+    bbox: BoundingBox | None = None
+    source_element_ids: list[str]
+    content_hash: str
+    version: int
+    review_status: str                  # PENDING/ACCEPTED/REJECTED/DROPPED
+\end{lstlisting}
+
+\code{source\_text} là nội dung pháp lý thuộc trực tiếp provision và giữ nguyên; \code{retrieval\_text} phục vụ retrieval và có thể kế thừa ngữ cảnh cha. \code{provision\_id} ổn định và tái tạo được; khi provision bị sửa đổi, ID giữ nguyên để trích dẫn ổn định, nội dung mới lưu dưới version mới. Unique key vật lý là cặp \code{(provision\_id, version)}. \code{status} mô tả vòng đời pháp lý của provision; \code{review\_status} mô tả trạng thái review corpus và là cổng chặn trong điều kiện hiệu lực; hai trường này độc lập nhau.
+
+\subsection{ProvisionReference và DocumentRelation}
+
+ProvisionReference ghi quan hệ cấp provision với bốn loại: \code{PARENT\_OF}, \code{REFERS\_TO}, \code{SIBLING\_OF}, \code{PENALTY\_COMPANION}. Trong đó \code{PENALTY\_COMPANION} gắn quy định xử phạt với quy định đi kèm như trừ điểm giấy phép lái xe hoặc tước quyền sử dụng giấy phép lái xe. DocumentRelation ghi quan hệ cấp văn bản với sáu loại: \code{AMENDS}, \code{REPEALS}, \code{SUPERSEDES}, \code{CORRECTS}, \code{GUIDES}, \code{RELATED\_TO}. Quan hệ được version-bound (\code{source\_provision\_version\_id}, \code{target\_provision\_version\_id}) và lưu trong bảng PostgreSQL, xử lý bằng application logic; không dùng Neo4j hoặc knowledge graph. Reference không giải quyết được ghi \code{UNRESOLVED}/\code{PENDING\_REVIEW} và định tuyến review, không suy đoán quan hệ.
+
+\subsection{LegalEffectEvent}
+
+LegalEffectEvent ghi lại sự kiện pháp lý ảnh hưởng tới hiệu lực của văn bản/provision: \code{EFFECTIVE}, \code{AMENDED}, \code{PARTIAL\_AMENDED}, \code{SUPERSEDED}, \code{REPEALED}, \code{CORRECTED}, \code{EXPIRED}. \code{affected\_provision\_versions} liệt kê structured các provision/version chịu ảnh hưởng. Sự kiện này phục vụ Temporal and Amendment Resolver và câu hỏi so sánh lịch sử.
+
+\section{PostgreSQL schema}
+
+PostgreSQL là nguồn chân lý, lưu toàn bộ metadata, phiên bản, quan hệ, review, audit, query trace và feedback \cite{postgresql2026}.
+
+\begin{table}[H]
+\caption{Các bảng dữ liệu chính}
+\begin{tabularx}{\textwidth}{p{3.7cm}X}
+\toprule
+\textbf{Bảng} & \textbf{Vai trò}\\
+\midrule
+legal\_sources & Nguồn văn bản chính thống và mức ưu tiên đối chiếu\\
+legal\_documents & Document và metadata\\
+document\_versions & Phiên bản văn bản, manifest, hash và khoảng hiệu lực\\
+legal\_provisions & Provision version đầy đủ: hierarchy, text, interval, review\\
+provision\_versions & Registry lineage, \code{superseded\_by\_version}\\
+provision\_references & Quan hệ cấp provision, version-bound\\
+document\_relations & Quan hệ cấp văn bản (AMENDS, SUPERSEDES, REPEALS, ...)\\
+legal\_effect\_events & Sự kiện pháp lý ảnh hưởng hiệu lực\\
+parsed\_documents / document\_elements & Canonical Document IR đã chuẩn hóa\\
+ingestion\_runs & Trạng thái job và parser routing\\
+ingestion\_artifacts & Object key trong MinIO và metadata\\
+review\_items & Bằng chứng và quyết định reviewer\\
+query\_traces / query\_feedback & Lịch sử query, verification summary và feedback\\
+evaluation\_datasets / evaluation\_runs / evaluation\_results & Gold set, run metadata và raw result\\
+corpus\_qa\_reports & Báo cáo chất lượng corpus\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Các ràng buộc quan trọng: UNIQUE \code{(provision\_id, version)}; CHECK interval \code{effective\_to IS NULL OR effective\_to > effective\_from}; CHECK review-required \code{review\_status <> 'ACCEPTED' OR effective\_from IS NOT NULL}; exclusion constraint daterange ngăn hai version ACCEPTED chồng lấn trong cùng provision. Alembic quản lý migration; Qdrant dựng lại được từ \code{SELECT * FROM legal\_provisions WHERE review\_status = 'ACCEPTED'}.
+
+\section{Qdrant collection}
+
+Mỗi Qdrant point đại diện cho một provision version ACCEPTED. Collection có named dense vector \code{dense} (768 chiều khởi điểm, Cosine) và sparse vector \code{sparse} (BM25). Payload chứa provision ID, provision version, document ID/version, number, type, hierarchy fields, vehicle types, interval, review status, parser version, legal parser version, sparse encoder version, content hash và relation metadata giới hạn (\code{REFERS\_TO}/\code{PENALTY\_COMPANION} đã RESOLVED và ACCEPTED). Qdrant hỗ trợ hybrid query, RRF và payload filter trực tiếp \cite{qdrant2026hybrid}.
+
+Collection được version hóa, ví dụ \code{legal\_provisions\_v1}. Alias \code{legal\_provisions\_active} trỏ đến version đang phục vụ. Khi đổi embedding, sparse encoder, payload schema hoặc chunking production, hệ thống tạo collection mới, chạy regression rồi switch alias; không bao giờ rebuild in place và không trộn hai embedding space.
+
+\section{Retrieval đa tầng}
+
+\subsection{Query Understanding và temporal resolution}
+
+Query Understanding ưu tiên deterministic parsing bằng regex cho ngày, năm, số hiệu văn bản, Điều/Khoản/Điểm và loại phương tiện; LLM structured extraction chỉ xử lý phần còn lại. Output là QueryPlan gồm intent, effective date, comparison dates, vehicle type, document number, article/clause/point, legal entities, normalized query, required evidence (evidence plan) và missing query information. Các intent gồm CURRENT, HISTORICAL, COMPARISON, SOURCE\_SEARCH và OUT\_OF\_SCOPE.
+
+Chính sách ngày: không có ngày thì dùng ngày request; có ngày cụ thể thì dùng ngày đó; chỉ có năm và không có sự kiện đổi hiệu lực trong năm thì áp dụng canonical date (ví dụ 01/07 của năm) và bắt buộc hiển thị ngày đã áp dụng; có sự kiện đổi hiệu lực trong năm thì yêu cầu ngày cụ thể hoặc ABSTAIN với \code{MISSING\_QUERY\_DATE}. Hệ thống không dùng văn bản hiện hành làm mặc định cho câu hỏi lịch sử.
+
+\subsection{Query Expansion}
+
+Query expansion luôn giữ câu hỏi gốc của người dùng. Các variant gồm original, normalized (chuẩn hóa thuật ngữ pháp lý như ``phạt bao nhiêu'' sang ``mức xử phạt''), multi-query rewrite (giới hạn, không đệ quy) và conditional HyDE. HyDE chỉ bật khi câu ngắn, khẩu ngữ, ngữ nghĩa yếu hoặc bằng chứng chưa đủ, không bật luôn và không dùng cho exact lookup hay sparse.
+
+\subsection{Ba kênh retrieval, RRF và reranking}
+
+Ba kênh chạy song song:
+
+\begin{enumerate}
+  \item exact legal lookup theo payload filter và SQL cho định danh như \code{168/2024/NĐ-CP}, \code{Điều 7}, \code{Khoản 4}, \code{Điểm a};
+  \item dense semantic với named vector \code{dense};
+  \item sparse lexical BM25 với named vector \code{sparse}.
+\end{enumerate}
+
+Dense và sparse được hợp nhất bằng RRF (k và weights cấu hình được), sau đó post-filter temporal invariant và dedup theo \code{provision\_id}; các candidate exact lookup được bảo toàn và ghép vào tập đã fusion theo policy rõ ràng (exact match được ưu tiên giữ lại, loại trùng lặp theo \code{provision\_id}) trước khi rerank. Reranking dùng Jina Reranker v3 như stage chuẩn của pipeline, nhưng không khẳng định reranker cải thiện chất lượng trước khi có kết quả R6 của Suite C.
+
+\subsection{Legal context expansion}
+
+Mở rộng ngữ cảnh chỉ quanh các seed provision mạnh theo parent, sibling, direct cross-reference và penalty companion, cùng các quy định liên quan sửa đổi/thay thế. Mỗi provision mở rộng ghi lý do vào context:
+
+\begin{lstlisting}[language=json,caption={Metadata của provision được mở rộng}]
+{
+  "provision_id": "nd-168-2024__dieu-7__khoan-4__diem-b",
+  "added_by": "CROSS_REFERENCE",
+  "source_id": "nd-168-2024__dieu-33__khoan-2",
+  "depth": 1
+}
+\end{lstlisting}
+
+Mở rộng theo quan hệ phải áp dụng temporal filter và review filter theo ngày query; quan hệ PENDING\_REVIEW/UNRESOLVED không được dùng để mở rộng tự động; depth có giới hạn để tránh mở rộng đồ thị vô hạn.
+
+\section{Evidence Completeness Gate}
+
+Trước khi sinh câu trả lời, Evidence Completeness Gate kiểm tra mọi loại bằng chứng trong evidence plan đã được thu thập trong context. Nếu trạng thái là \code{INCOMPLETE} (ví dụ câu hỏi mức phạt + điểm trừ mà chỉ tìm được mức phạt), hệ thống chạy targeted retrieval theo \code{evidence\_gaps} hoặc mở rộng ngữ cảnh theo quan hệ, rồi kiểm tra lại trước khi gọi generator. Mỗi lượt quay lại tính vào \code{repair\_attempts} hữu hạn; hết giới hạn thì ABSTAIN. Hệ thống không âm thầm trả lời một nửa dễ của câu hỏi đa bằng chứng.
+
+\section{Workflow hỏi đáp}
+
+LangGraph phân biệt workflow và agent: workflow có code path định trước, còn agent tự quyết định process/tool usage \cite{langgraph2026workflows}. Đề tài dùng workflow có kiểm soát với các nhánh xác định trước, không phải autonomous multi-agent.
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=7mm and 10mm,
+  box/.style={draw, rounded corners, minimum width=3.1cm, minimum height=0.85cm, align=center, fill=SoftBlue},
+  decision/.style={draw, diamond, aspect=2.1, align=center, fill=DraftYellow},
+  arrow/.style={-{Latex[length=2mm]}, thick}
+]
+\node[box] (analyze) {Analyze query};
+\node[box, right=of analyze] (temporal) {Resolve temporal};
+\node[box, right=of temporal] (expand) {Expand query};
+\node[box, right=of expand] (retrieve) {Parallel recall};
+\node[box, right=of retrieve] (fuse) {Fuse + rerank};
+\node[box, right=of fuse] (lce) {Context expansion};
+\node[decision, right=of lce] (eg) {Evidence gate};
+\node[box, below=14mm of eg, fill=SoftGray] (target) {Targeted retrieval};
+\node[box, right=14mm of eg] (ctx) {Build context};
+\node[box, right=of ctx] (gen) {Structured generation};
+\node[decision, right=of gen] (verify) {Verify L1-L6};
+\node[box, above right=7mm and 10mm of verify] (final) {Verified answer};
+\node[box, below right=7mm and 10mm of verify, fill=SoftGray] (abstain) {Abstain};
+\draw[arrow] (analyze) -- (temporal);
+\draw[arrow] (temporal) -- (expand);
+\draw[arrow] (expand) -- (retrieve);
+\draw[arrow] (retrieve) -- (fuse);
+\draw[arrow] (fuse) -- (lce);
+\draw[arrow] (lce) -- (eg);
+\draw[arrow] (eg) -- node[above, font=\small]{complete} (ctx);
+\draw[arrow] (eg) -- node[right, font=\small]{incomplete} (target);
+\draw[arrow] (target) |- (eg);
+\draw[arrow] (ctx) -- (gen);
+\draw[arrow] (gen) -- (verify);
+\draw[arrow] (verify) -- (final);
+\draw[arrow] (verify) -- (abstain);
+\end{tikzpicture}%
+}
+\caption{Controlled workflow cho online query}
+\label{fig:query-workflow}
+\end{figure}
+
+Đồ thị đề xuất gồm: \code{analyze\_query}, \code{resolve\_temporal}, \code{expand\_query}, \code{retrieve\_parallel}, \code{fuse}, \code{rerank}, \code{expand\_legal\_context}, \code{check\_evidence}, \code{targeted\_retrieval}, \code{build\_context}, \code{generate}, \code{verify}, \code{finalize}, \code{repair} và \code{abstain}. Các cạnh có điều kiện: \code{check\_evidence} phân nhánh \code{complete} sang \code{build\_context} rồi \code{generate}, hoặc \code{incomplete} sang \code{targeted\_retrieval} rồi quay lại \code{check\_evidence}; \code{verify} phân nhánh \code{valid} sang \code{finalize}, \code{repairable} sang đường repair theo loại lỗi, còn lại sang \code{abstain}. Mọi đường quay lại đều tăng \code{repair\_attempts} trong state; khi \code{repair\_attempts >= max\_repair\_attempts} (config, khởi điểm 3) thì ABSTAIN. Không tồn tại vòng lặp không tăng counter.
+
+\section{Structured generation}
+
+Generator (Gemini 3.5 Flash) sinh câu trả lời theo schema cấp claim:
+
+\begin{lstlisting}[language=json,caption={Structured output của generator}]
+{
+  "answer_summary": "...",
+  "claims": [
+    {
+      "claim": "Người điều khiển xe mô tô vượt đèn đỏ bị xử phạt tiền.",
+      "claim_type": "MONETARY_PENALTY",
+      "provision_ids": [
+        "nd-168-2024__dieu-7__khoan-4__diem-b"
+      ],
+      "numbers": ["4.000.000", "6.000.000"]
+    }
+  ],
+  "missing_information": [],
+  "should_abstain": false
+}
+\end{lstlisting}
+
+Schema dùng Pydantic với \code{extra="forbid"}, \code{ClaimType} là enum đóng, \code{claims} bắt buộc tối thiểu một claim và mỗi \code{provision\_ids} có tối thiểu một ID khi \code{should\_abstain=false}. Các con số trong ví dụ mang tính minh họa cấu trúc dữ liệu, không phải khẳng định giá trị thực tế của văn bản. Model không được viết citation text; phần trích dẫn hiển thị được dựng từ metadata đã lưu, không phải chuỗi LLM gõ tự do. Khi draft có \code{should\_abstain=true}, workflow không chuyển sang \code{finalize} mà route sang abstention với reason code ánh xạ và bảo toàn \code{missing\_information}.
+
+\section{Verification sáu tầng}
+
+Verifier chạy theo thứ tự sáu tầng, deterministic-first; LLM judge độc lập chỉ được gọi ở L5 cho trường hợp ngữ nghĩa:
+
+\begin{table}[H]
+\caption{Sáu tầng verification}
+\begin{tabularx}{\textwidth}{p{1.2cm}p{4.2cm}Y}
+\toprule
+\textbf{Tầng} & \textbf{Bộ kiểm chứng} & \textbf{Nội dung}\\
+\midrule
+L1 & Schema verifier & Output tuân thủ Pydantic schema cấp claim; không unknown field; summary ánh xạ atomic sang claim\\
+L2 & Citation ID verifier & \code{provision\_id} tồn tại; thuộc context whitelist hoặc mở rộng hợp lệ; \code{review\_status = ACCEPTED}; metadata citation có thẩm quyền\\
+L3 & Temporal verifier & Provision trích dẫn hợp lệ tại ngày được hỏi\\
+L4 & Numeric grounding verifier & Mức phạt, số điểm trừ, ngày, tuổi, thời hạn, số lượng khớp giá trị bằng chứng đã chuẩn hóa\\
+L5 & Claim support verifier & Deterministic trước; LLM judge độc lập chỉ cho trường hợp ngữ nghĩa, fail-closed\\
+L6 & Evidence completeness verifier & Mọi loại bằng chứng trong evidence plan được claims cuối bao phủ\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Aggregate validity chỉ đúng khi cả sáu tầng đều pass, không có ``pass mềm''. Bất biến API: Returned Invalid Citation Rate = 0. Nếu hệ thống không thể bảo đảm invariant này, request phải abstain hoặc trả lỗi.
+
+Failure-aware repair xử lý lỗi theo loại cụ thể, không chỉ regenerate: thiếu bằng chứng chạy targeted retrieval rồi dựng lại context và regenerate; claim không được hỗ trợ regenerate từ bằng chứng hiện có hoặc targeted retrieval nếu thiếu; schema sai regenerate structured output; xung đột thời gian truy xuất phiên bản thời gian đúng. Mọi nhánh repair cùng tính vào \code{MAX\_REPAIR\_ATTEMPTS}; hết giới hạn thì ABSTAIN.
+
+\section{Abstention}
+
+Các reason code chuẩn gồm:
+\begin{itemize}
+  \item \code{OUT\_OF\_SCOPE}, \code{MISSING\_QUERY\_DATE};
+  \item \code{INSUFFICIENT\_EVIDENCE}, \code{NO\_VALID\_PROVISION};
+  \item \code{TEMPORAL\_CONFLICT}, \code{CITATION\_VERIFICATION\_FAILED};
+  \item \code{CORPUS\_NOT\_COVERED}.
+\end{itemize}
+
+Response abstention không chứa answer pháp lý, citations rỗng, có disclaimer, có trace ID, có message rõ ràng và thông tin cần bổ sung. Hệ thống không hiển thị confidence phần trăm nếu chưa được calibration.
+
+\section{Langfuse observability}
+
+Langfuse phục vụ tracing, token usage, cost, latency, prompt management và experiments. Trace \code{legal\_query} gồm các span \code{analyze\_query}, \code{normalize\_query}, \code{rewrite\_query}, \code{hyde}, \code{exact\_lookup}, \code{dense\_retrieval}, \code{sparse\_retrieval}, \code{rrf\_fusion}, \code{reranker}, \code{reference\_expansion}, \code{evidence\_check}, \code{generate}, \code{citation\_verify}, \code{numeric\_verify}, \code{claim\_verify}.
+
+Langfuse \textbf{không nằm trên đường tới hạn tính đúng đắn}: trace được ingest bất đồng bộ, toàn bộ callback non-mutating; nếu Langfuse không khả dụng, query vẫn hoạt động bình thường. Observability giải thích hệ thống chạy như thế nào và chi phí ra sao, nhưng không thay thế logic correctness - tính đúng đắn do retrieval, evidence gate và verifier L1-L6 bảo đảm. Prompt được quản lý theo version và label production/dev; version prompt được ghi vào từng evaluation run và \code{QueryTrace.config\_snapshot}.
+
+\section{Background ingestion và object storage}
+
+Ingestion chạy hoàn toàn qua hàng đợi: \apipath{POST /api/v1/documents} trả \code{202 Accepted} kèm \code{ingestion\_job\_id}; không parse PDF đồng bộ trong request handler. Redis làm broker cho Dramatiq và cache; job state nằm trong PostgreSQL (\code{ingestion\_runs}) là source of truth. Mỗi bước là một actor idempotent ngắn (\code{parse}, \code{normalize}, \code{extract}, \code{resolve\_refs}, \code{resolve\_temporal}, \code{quality\_gate}, \code{embed}, \code{index}) có time limit cấu hình riêng; retry chỉ áp dụng cho lỗi transient. Worker fail được phục hồi bằng retry, dead-letter queue và script reconcile giữa job state và index state.
+
+MinIO là object storage S3-compatible, lưu PDF nguồn, đầu ra parser, ảnh trang và artifact ingestion/review/evaluation trong các bucket riêng (\code{source-pdfs}, \code{parser-outputs}, \code{page-images}, \code{ingestion-artifacts}, \code{review-artifacts}, \code{evaluation-artifacts}). PostgreSQL lưu object key và metadata; backup MinIO dùng replication hoặc \code{mc mirror} sang nơi lưu trữ độc lập, không dùng tiering/ILM làm backup.
+
+\section{API và giao diện}
+
+FastAPI cung cấp chat, search, provision, documents, jobs, reviews, feedback, health, evaluations và corpus-qa endpoints \cite{fastapi2026}. Mọi response nghiệp vụ chứa \code{trace\_id}; abstention dùng HTTP 200 kèm trạng thái \code{ABSTAINED}; lỗi kỹ thuật dùng 4xx/5xx.
+
+\begin{table}[H]
+\caption{API chính}
+\small
+\begin{tabularx}{\textwidth}{p{1.6cm}p{5.2cm}Y}
+\toprule
+\textbf{Method} & \textbf{Path} & \textbf{Vai trò}\\
+\midrule
+POST & \apipath{/api/v1/chat} & Verified answer hoặc abstention\\
+POST & \apipath{/api/v1/search} & Search provision, không gọi generator\\
+POST & \apipath{/api/v1/documents} & Upload PDF + manifest, trả 202 + job ID\\
+GET & \apipath{/api/v1/jobs/\{job\_id\}} & Trạng thái job ingestion\\
+GET/POST & \apipath{/api/v1/reviews} & Danh sách và quyết định review\\
+POST & \apipath{/api/v1/feedback} & Feedback người dùng cuối\\
+POST & \apipath{/api/v1/evaluations} & Chạy evaluation run\\
+GET & \apipath{/api/v1/corpus-qa/report} & Báo cáo chất lượng corpus\\
+GET & \apipath{/api/v1/health/ready} & Readiness PostgreSQL/Qdrant/Redis/MinIO\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Frontend Next.js có chat page, search page, citation card dựng từ metadata, passage viewer mở snippet nguồn kèm trang, date selector hiển thị ngày áp dụng, abstention panel và feedback widget. Giao diện không stream raw token vì draft có thể chưa pass verifier; SSE chỉ stream progress event như query analyzed, retrieval completed, generation started và verification completed.
+
+\section{Bảo mật}
+
+Admin endpoint dùng Bearer token trong P0. Upload được kiểm tra MIME, magic bytes, size, filename và SHA-256 duplicate; filename nội bộ do hệ thống sinh để chặn path traversal. PDF text được coi là data, không phải instruction, nhằm giảm prompt injection; nội dung ``ignore previous instructions'' không được làm thay đổi hành vi và claim không được hỗ trợ bị verifier từ chối. API key không được log hoặc đưa vào image. Rate limiting cấu hình theo deployment, không hardcode theo free-tier quota. Hệ thống chỉ mô tả biện pháp giảm thiểu dữ liệu cá nhân, không tuyên bố tuân thủ pháp lý tuyệt đối khi chưa có compliance review \cite{nghidinh13_2023}.
+
+% ============================================================
+\chapter{Cài Đặt và Triển Khai}
+% ============================================================
+
+\section{Tech stack}
+
+\begin{table}[H]
+\caption{Công nghệ triển khai}
+\begin{tabularx}{\textwidth}{p{4cm}X}
+\toprule
+\textbf{Thành phần} & \textbf{Công nghệ}\\
+\midrule
+Ngôn ngữ/backend & Python 3.11, FastAPI, Pydantic v2\\
+Workflow & LangGraph 1.x controlled workflow\\
+Parser chính & Docling 2.x\\
+Parser phụ/fallback & MinerU 3.4.x (Parser Router)\\
+Metadata/versioning & PostgreSQL 18, SQLAlchemy 2, Alembic\\
+Retrieval & Qdrant v1.19 dense + sparse + RRF + payload filter\\
+Dense embedding & Ứng viên: Gemini Embedding 2, Jina Embeddings v5 text-nano/small\\
+Reranker & Jina Reranker v3 (stage chuẩn)\\
+Generator & Gemini 3.5 Flash\\
+Judge độc lập & GPT-5.4 mini snapshot \cite{openai2026gpt54mini}\\
+Background jobs & Redis 8 + Dramatiq 2.x\\
+Object storage & MinIO (S3-compatible)\\
+Observability & Langfuse Cloud\\
+Evaluation & Deterministic metrics + Ragas v0.4.x\\
+Frontend & Next.js, TypeScript, shadcn/ui\\
+Deployment & Docker Compose, GitHub Actions\\
+Package manager & uv\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Model ID nằm trong cấu hình, không hardcode trong domain logic. Embedding production chưa được chốt vĩnh viễn; quyết định dựa trên bằng chứng Suite B. Không dùng pgvector trong thiết kế này: vector retrieval nằm trong Qdrant, PostgreSQL giữ metadata và quan hệ pháp lý.
+
+\section{Cấu trúc source code}
+
+Source được chia thành API, domain, ingestion, retrieval, query, workflow, generation, verification, persistence, evaluation, feedback và observability. Domain không import FastAPI, SQLAlchemy, Qdrant client hoặc provider SDK để giữ khả năng kiểm thử độc lập.
+
+\begin{lstlisting}[caption={Cấu trúc backend rút gọn}]
+backend/app/
+  api/
+  domain/
+  ingestion/
+    parser_router.py
+    adapters/           # docling_adapter, mineru_adapter
+    document_ir.py      # ParsedDocument, ParsedPage, DocumentElement
+    structure_extractor.py
+    context_enricher.py
+    reference_resolver.py
+    temporal_resolver.py
+    quality_gates.py
+    actors/             # parse, extract, resolve_refs, quality_gate, embed, index
+    indexer.py
+  retrieval/            # embedding, sparse, qdrant_store, hybrid, reranker
+  query/                # query_understanding, expansion, hyde, evidence_gate
+  workflow/             # graph.py, state.py, nodes/
+  generation/           # provider, gemini, prompts, schemas
+  verification/         # l1_schema ... l6_evidence
+  persistence/          # database, repositories, models
+  evaluation/           # runner, suites, deterministic_metrics, ragas_metrics
+  feedback/
+  observability/        # logging, tracing (Langfuse)
+\end{lstlisting}
+
+\section{Cài đặt ingestion}
+
+Ingestion service nhận PDF và manifest, tính SHA-256, kiểm tra duplicate, lưu source file lên MinIO, enqueue \code{parse\_actor} và trả \code{202 Accepted}. Worker chạy pipeline parse, normalize, legal extract, reference resolve, temporal resolve, quality gates; kết quả \code{accepted} được lưu vào PostgreSQL rồi embed và upsert vào Qdrant. Qdrant upsert chạy sau PostgreSQL transaction commit; nếu upsert fail, job giữ trạng thái \code{INDEXING} và được retry bằng background/CLI reconcile, không rollback dữ liệu PostgreSQL. Actor được thiết kế idempotent: đọc state job từ PostgreSQL, bỏ qua bước đã hoàn thành.
+
+\section{Cài đặt retrieval}
+
+Exact lookup chuyển định danh như ``Nghị định 168, Điều 7'' thành payload filter. Dense và sparse prefetch được thực hiện song song trong Qdrant Query API; RRF fusion trả candidate; backend áp dụng temporal invariant lần cuối để correctness không phụ thuộc một filter implementation cụ thể. Config retrieval được version hóa:
+
+\begin{lstlisting}[caption={Ví dụ retrieval config}]
+retrieval:
+  exact_lookup:
+    enabled: true
+    filter_fields: [document_number, article, clause, point]
+  dense_prefetch: 30
+  sparse_prefetch: 30
+  rrf:
+    k: 60
+    weights: {dense: 1.0, sparse: 1.0}
+  fusion_limit: 20
+  final_top_k: 8
+  temporal_filter: true
+  dedup_key: provision_id
+  reranker: jina-reranker-v3
+\end{lstlisting}
+
+Các con số là khởi điểm, chỉ được khóa sau ablation Suite C.
+
+\section{Cài đặt verifier}
+
+Verifier không parse citation regex. Nó nhận Pydantic object và context map. Mỗi tầng L1-L6 là một module riêng trả \code{LayerResult} gồm \code{passed}, \code{issues}, \code{checked\_claim\_indexes}, \code{checked\_provision\_version\_ids} và \code{repair\_action}. L4 chuẩn hóa số tiền, điểm, ngày trước khi so sánh với giá trị bằng chứng. L5 chạy deterministic trước, LLM judge độc lập (GPT-5.4 mini snapshot) chỉ cho trường hợp ngữ nghĩa với hành vi fail-closed. Returned invalid citation là invariant bằng 0; nếu hệ thống không thể bảo đảm invariant này, request phải abstain hoặc error.
+
+\section{Giao diện người dùng}
+
+\placeholderfigure{Màn hình chat với bộ chọn ngày, loại phương tiện và citation panel}
+\placeholderfigure{Màn hình so sánh quy định giữa hai thời điểm}
+\placeholderfigure{Source drawer hiển thị passage, trang và hierarchy}
+
+Citation card được dựng từ database metadata đã verify, không phải chuỗi LLM. Passage viewer mở snippet nguồn kèm trang dựa trên page number và provenance. Ngày áp dụng được hiển thị rõ trên mỗi answer. Giao diện không stream raw token vì draft có thể chưa pass verifier.
+
+\section{Docker Compose}
+
+Bảy service chính: frontend (Next.js), backend (FastAPI), worker (Dramatiq), PostgreSQL, Qdrant, Redis và MinIO. Mọi service nằm trong một Docker network nội bộ; chỉ hai port public local là \code{127.0.0.1:3000} (frontend) và \code{127.0.0.1:8000} (backend). One-shot service \code{migrate} chạy \code{alembic upgrade head}, tạo collection Qdrant và bucket MinIO trước khi backend/worker/frontend khởi động. RAGFlow chạy trong môi trường benchmark riêng, không nằm trong compose production.
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=12mm and 14mm,
+  box/.style={draw, rounded corners, minimum width=3.5cm, minimum height=1cm, align=center, fill=SoftBlue},
+  arrow/.style={-{Latex[length=2mm]}, thick}
+]
+\node[box] (browser) {Browser};
+\node[box, right=of browser] (front) {Next.js};
+\node[box, right=of front] (back) {FastAPI};
+\node[box, right=of back] (worker) {Dramatiq Worker};
+\node[box, below left=12mm and 4mm of back] (pg) {PostgreSQL};
+\node[box, below right=12mm and 4mm of back] (qd) {Qdrant};
+\node[box, below=12mm of back] (redis) {Redis};
+\node[box, below right=12mm and 4mm of qd] (minio) {MinIO};
+\draw[arrow] (browser) -- (front);
+\draw[arrow] (front) -- (back);
+\draw[arrow] (back) -- (pg);
+\draw[arrow] (back) -- (qd);
+\draw[arrow] (back) -- (redis);
+\draw[arrow] (back) -- (minio);
+\draw[arrow] (worker) -- (redis);
+\draw[arrow] (worker) -- (pg);
+\draw[arrow] (worker) -- (qd);
+\draw[arrow] (worker) -- (minio);
+\end{tikzpicture}%
+}
+\caption{Kiến trúc triển khai local với bảy service}
+\end{figure}
+
+Các provider bên ngoài tùy chọn gồm Langfuse Cloud, Gemini API, OpenAI API (judge) và Jina API (embedding/reranker). Trong release, image bên thứ ba được pin exact tag và thay bằng digest trước code freeze.
+
+\section{Migration, backup và restore}
+
+Alembic quản lý schema; migration chỉ chạy bởi one-shot service \code{migrate}, application process không bao giờ tự chạy \code{alembic upgrade head}. Release bundle gồm PostgreSQL dump, Qdrant snapshot (copy sang nơi lưu trữ độc lập), MinIO mirror, gold set, evaluation results, release manifest, git tag và checksum. Vì PostgreSQL là source of truth, Qdrant có thể rebuild từ \code{SELECT * FROM legal\_provisions WHERE review\_status = 'ACCEPTED'} bằng alias switch; snapshot chỉ rút ngắn RTO, không phải nguồn chân lý. Restore được kiểm chứng bằng script \code{verify\_release.py} so sánh số point, hash corpus và migration revision.
+
+\section{CI/CD và quality gate}
+
+PR pipeline chạy lint (ruff), type check (mypy), unit test với coverage core tối thiểu 80\%, integration test trên PostgreSQL/Qdrant/Redis/MinIO thật (gồm \code{alembic upgrade head} từ database rỗng), frontend build và Docker build. Full LLM evaluation chỉ chạy manual ở feature freeze và release candidate để kiểm soát chi phí và nondeterminism. Bất kỳ PR nào ảnh hưởng retrieval phải chạy retrieval regression subset, temporal regression, citation invariant và gold-set integrity.
+
+\section{RAGFlow baseline (external)}
+
+RAGFlow không phải nền tảng chính mà chỉ là baseline so sánh bên ngoài (FR-31). Bốn variant bắt buộc: RAGFlow default, RAGFlow + Docling, RAGFlow + MinerU và pipeline VNLRAG custom legal-aware, chạy trên cùng corpus và cùng bộ câu hỏi evaluation trong môi trường benchmark riêng. Chỉ số so sánh tối thiểu gồm Recall@10, citation correctness, temporal leakage và evidence completeness. RAGFlow yêu cầu tối thiểu 4 CPU, 16 GB RAM và 50 GB disk, không chạy cùng lúc với ingestion/demo/eval nặng trên cùng máy. Kết quả baseline không bao giờ được báo cáo như kết quả thực nghiệm của VNLRAG.
+
+\section{Ràng buộc phần cứng}
+
+Máy mục tiêu dùng Intel Core i5-1035G1, 19 GB RAM và NVIDIA MX330 2 GB VRAM. Online stack chạy CPU và gọi model qua API; GPU local không dùng được cho LLM, embedding hay reranker. Docling chạy CPU trong worker với \code{MAX\_INGESTION\_WORKERS=1}; MinerU chỉ dùng pipeline backend CPU, không bao giờ chạy VLM/hybrid local (cần GPU tối thiểu 8 GB VRAM). Nếu RAM thực tế vượt budget, MinerU chuyển sang remote \code{*-http-client} hoặc host tách biệt; quyết định được ghi vào tài liệu vận hành.
+
+\section{Kế hoạch thời gian}
+
+\begin{table}[H]
+\caption{Mốc triển khai chính}
+\begin{tabularx}{\textwidth}{p{3.2cm}p{3.4cm}X}
+\toprule
+\textbf{Thời gian} & \textbf{Mốc} & \textbf{Deliverable}\\
+\midrule
+20/07-26/07 & Chốt thiết kế và corpus & ADR, manifest, schema, Parser Router, Canonical Document IR\\
+27/07-02/08 & Parser foundation & Suite A (P1-P3), adapter Docling/MinerU, quality gates\\
+03/08-09/08 & Legal extraction và data platform & Legal Structure Extractor, corpus QA, PostgreSQL, Qdrant, MinIO, ingestion queue\\
+10/08-16/08 & Relation graph và temporal & Reference Resolver, Temporal Resolver, parent-context enrichment\\
+17/08-23/08 & Retrieval và query workflow & Suite B và C (R1-R10), query expansion, reranker, evidence gate, LangGraph skeleton\\
+24/08-30/08 & Verification, Langfuse, frontend & Verifier L1-L6, LangGraph full flow, trace, chat UI, feedback\\
+31/08-06/09 & Evaluation và stabilization & Gold set 200 câu, Suite D (G1-G7), RAGFlow baseline, feature freeze\\
+07/09-12/09 & Finalization & Code freeze, final evaluation, report, release candidate\\
+13/09-14/09 & Rehearsal/defense & Demo local và bảo vệ\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Mốc kiểm soát cứng: feature freeze 06/09/2026, code freeze 10/09/2026, release candidate 12/09/2026. Không thêm tính năng mới trong hai ngày cuối; không thu hẹp phạm vi vì lịch trình.
+
+% ============================================================
+\chapter{Kiểm Thử và Đánh Giá}
+% ============================================================
+
+\section{Chiến lược kiểm thử}
+
+Test pyramid gồm unit, integration, regression và E2E. Unit test tập trung manifest, parser, structure extractor, stable ID, temporal interval, verifier L1-L6, metric và abstention; coverage core deterministic tối thiểu 80\%. Integration test bắt buộc chạy trên PostgreSQL, Qdrant, Redis và MinIO thật (không dùng SQLite để kết luận integration pass). Regression test ngăn chất lượng retrieval/citation/temporal giảm. E2E kiểm tra current, historical, comparison, abstention, multi-evidence, numeric-grounding-fail và scan PDF qua Parser Router.
+
+\section{Test extraction và parser}
+
+Golden fixture bao phủ Điều không có Khoản, Điều có nhiều Khoản, Khoản có nhiều Điểm, Điểm kéo dài nhiều paragraph, Chương và Mục, heading xuống dòng, OCR spacing bất thường, số thứ tự giả trong bảng, Phụ lục, nhãn \code{d)} và \code{đ)} không bị lẫn, Điểm ngắn hợp lệ, header/footer lặp, điều khoản chuyển tiếp và d/đ ambiguity. Invariant bắt buộc: \code{source\_text} không rỗng, article order deterministic, không có hai provision trùng stable ID, d/đ ambiguity không tạo provision ID collision. Hierarchy extraction được chấm bằng tuple document/article/clause/point; fixture stable-ID bắt buộc phân biệt \code{diem-d} và \code{diem-đ}.
+
+Test Parser Router kiểm tra ma trận routing: PDF searchable sang Docling; PDF scan sang Docling rồi quality gate fail sang MinerU; bảng phức tạp so sánh đầu ra hai parser. Quality gate nhóm A và nhóm B có test riêng; khi structural gate fail, dữ liệu structural cũ bị hủy và chạy lại từ parser thay thế, không trộn kết quả hai parser.
+
+\section{Test temporal và citation}
+
+Boundary test chạy tại \code{effective\_from}, \code{effective\_to} trừ một ngày và \code{effective\_to} (upper bound exclusive). Temporal and Amendment Resolver được test với fixture sự kiện AMENDED, PARTIAL\_AMENDED, REPEALED, SUPERSEDED và CORRECTED; mỗi event test kèm một query current và một query historical để khẳng định phiên bản đúng được chọn. Citation verifier có test cho ID ngoài context, provision không tồn tại, document chưa accepted, date invalid, claim không citation, số liệu sai (L4) và claim không được hỗ trợ (L5). Test repair workflow khẳng định mọi nhánh repair tăng cùng counter \code{repair\_attempts}, hết giới hạn kết thúc ở ABSTAIN và không có vòng lặp vô hạn.
+
+\section{Thiết lập evaluation}
+
+Mỗi run đọc frozen corpus, frozen gold set và variant config; result được align bằng question ID, không dùng \code{zip}; missing result làm run failed. Run và raw artifact bất biến/append-only: mỗi run ghi \code{run\_manifest\_hash}, model IDs, prompt versions, parser versions, token usage, estimated cost và raw results path. Deterministic metric là headline; GPT-5.4 mini snapshot chỉ chấm metric semantic phụ; citation, temporal và numeric metrics được tính bằng code. Dev set dùng để lặp phát triển, validation set dùng để chọn ngưỡng/model/prompt, final test set đóng băng và không dùng để tuning.
+
+\section{Thiết kế thí nghiệm các suite}
+
+\subsection{Suite A - Parser benchmark (P1-P3)}
+
+\pendingresult{Chạy P1 (Docling), P2 (MinerU) và P3 (Parser Router) trên cùng fixture với gold annotation; điền Article/Clause/Point P/R/F1, Short Point Recall, Vietnamese đ) Recall, Parent Context Completeness, Table Preservation, Header/Footer Leakage và Provenance Coverage.}
+
+\subsection{Suite B - Embedding benchmark (E1-E3)}
+
+\pendingresult{Chạy E1 (Gemini Embedding 2), E2 (Jina v5 text-nano) và E3 (Jina v5 text-small) trên development set; điền Recall@10, MRR@10, nDCG@10, latency và cost. Quyết định embedding production dựa trên kết quả này.}
+
+\subsection{Suite C - Retrieval ablation (R1-R10)}
+
+\pendingresult{Chạy các variant R1-R10 trên validation set; điền Recall@5/10/20, MRR@10, nDCG@10 cho từng variant và phân tích tầng nào đóng góp nhiều nhất. Không chọn config bằng final result.}
+
+\subsection{Suite D - Generation và verification ablation (G1-G7)}
+
+\pendingresult{Chạy G1-G7 trên validation set; điền Citation Precision/Recall/F1, Returned Invalid Citation Rate, Numeric Grounding Accuracy, Unsupported Claim Rate, Evidence Completeness và Abstention P/R/F1 cho từng variant.}
+
+\section{Kết quả extraction}
+
+\pendingresult{Điền bảng Suite A: Article/Clause/Point P/R/F1, Short Point Recall, Vietnamese đ) Recall, Parent Context Completeness, Table Preservation, Header/Footer Leakage và Provenance Coverage sau khi review bộ fixture cuối.}
+
+\begin{table}[H]
+\caption{Kết quả hierarchy (Suite A) - chờ final evaluation}
+\small
+\begin{tabularx}{\textwidth}{X c c c c c c c c c}
+\toprule
+\multirow{2}{*}{\textbf{Phương pháp}} & \multicolumn{3}{c}{\textbf{Article}} & \multicolumn{3}{c}{\textbf{Clause}} & \multicolumn{3}{c}{\textbf{Point}}\\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}\cmidrule(lr){8-10}
+ & \textbf{P} & \textbf{R} & \textbf{F1} & \textbf{P} & \textbf{R} & \textbf{F1} & \textbf{P} & \textbf{R} & \textbf{F1}\\
+\midrule
+P1 Docling & -- & -- & -- & -- & -- & -- & -- & -- & --\\
+P2 MinerU & -- & -- & -- & -- & -- & -- & -- & -- & --\\
+P3 Parser Router & -- & -- & -- & -- & -- & -- & -- & -- & --\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\caption{Kết quả các chỉ số bổ sung (Suite A) - chờ final evaluation}
+\small
+\begin{tabularx}{\textwidth}{X c c c c c c}
+\toprule
+\textbf{Phương pháp} & \textbf{Short Point} & \textbf{VN đ)} & \textbf{Parent Ctx} & \textbf{Table} & \textbf{H/F Leak} & \textbf{Provenance}\\
+ & \textbf{Recall} & \textbf{Recall} & \textbf{Completeness} & \textbf{Preservation} & \textbf{(mục tiêu thấp)} & \textbf{Coverage}\\
+\midrule
+P1 Docling & -- & -- & -- & -- & -- & --\\
+P2 MinerU & -- & -- & -- & -- & -- & --\\
+P3 Parser Router & -- & -- & -- & -- & -- & --\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Kết quả retrieval}
+
+\pendingresult{Chạy retrieval-only trên final test set đã đóng băng. Không chọn config bằng final result.}
+
+\begin{table}[H]
+\caption{Kết quả retrieval - chờ final evaluation}
+\begin{tabularx}{\textwidth}{c c c c c c}
+\toprule
+\textbf{Variant} & \textbf{R@5} & \textbf{R@10} & \textbf{MRR@10} & \textbf{nDCG@10} & \textbf{Evidence Set Recall}\\
+\midrule
+R1 & -- & -- & -- & -- & --\\
+R2 & -- & -- & -- & -- & --\\
+R3 & -- & -- & -- & -- & --\\
+R4 & -- & -- & -- & -- & --\\
+R5 & -- & -- & -- & -- & --\\
+R6 & -- & -- & -- & -- & --\\
+R7 & -- & -- & -- & -- & --\\
+R8 & -- & -- & -- & -- & --\\
+R9 & -- & -- & -- & -- & --\\
+R10 & -- & -- & -- & -- & --\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Kết quả temporal và citation}
+
+\pendingresult{Điền kết quả G4-G7, phân biệt Draft Invalid Citation Rate và Returned Invalid Citation Rate; báo Temporal Leakage Rate theo category.}
+
+\begin{table}[H]
+\caption{Kết quả temporal và citation - chờ final evaluation}
+\begin{tabularx}{\textwidth}{c c c c c c}
+\toprule
+\textbf{Variant} & \textbf{Temporal Acc.} & \textbf{Cit. P} & \textbf{Cit. R} & \textbf{Cit. F1} & \textbf{Returned Invalid}\\
+\midrule
+G4 & -- & -- & -- & -- & --\\
+G5 & -- & -- & -- & -- & --\\
+G6 & -- & -- & -- & -- & --\\
+G7 & -- & -- & -- & -- & --\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Kết quả generation và abstention}
+
+\begin{table}[H]
+\caption{Kết quả generation - chờ final evaluation}
+\begin{tabularx}{\textwidth}{c c c c c}
+\toprule
+\textbf{Variant} & \textbf{Numeric Acc.} & \textbf{Unsupported Claim} & \textbf{Ev. Completeness} & \textbf{Abstention F1}\\
+\midrule
+G6 & -- & -- & -- & --\\
+G7 & -- & -- & -- & --\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Latency, tài nguyên và chi phí}
+
+\begin{table}[H]
+\caption{Kết quả vận hành - chờ benchmark}
+\begin{tabularx}{\textwidth}{X c c c c}
+\toprule
+\textbf{Cấu hình} & \textbf{Retrieval P95} & \textbf{E2E P95} & \textbf{RAM đỉnh} & \textbf{Cost/query}\\
+\midrule
+R10 local defense & -- & -- & -- & --\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Các ngưỡng mục tiêu của hệ thống: retrieval P95 không quá 2 giây, end-to-end P50 không quá 12 giây, end-to-end P95 không quá 20 giây, search API P95 không quá 3 giây. Đây là mục tiêu kỹ thuật trong môi trường test, không phải kết quả đo.
+
+\section{Phân tích lỗi}
+
+Failure được gán một root cause trong các nhóm parser routing, parser OCR/layout, IR normalization, hierarchy extraction, provenance, dense retrieval, sparse retrieval, fusion, query analysis, query expansion, reranking, context expansion, evidence gate, temporal filter, generation, citation selection, numeric grounding, claim support, abstention, gold set và provider.
+
+\pendingresult{Sau final run, chọn 10-15 lỗi đại diện, mô tả triệu chứng, nguyên nhân, ảnh hưởng và hướng sửa. Không loại câu khó khỏi báo cáo.}
+
+\section{Diễn giải kết quả}
+
+Khi có số liệu, phần diễn giải phải trả lời trực tiếp RQ1-RQ6. Cần báo cả absolute difference, per-category difference và failure trade-off. Ví dụ, verifier sáu tầng có thể giảm invalid citation nhưng tăng over-abstention; đây là trade-off cần báo cáo thay vì chỉ trình bày một điểm tổng hợp. Mọi báo cáo aggregate bắt buộc kèm phân rã theo category (CURRENT, HISTORICAL, COMPARISON, MULTI\_PROVISION, ...) vì một điểm trung bình có thể che lỗi của nhóm câu quan trọng.
+
+\section{Tiêu chí release}
+
+Release candidate chỉ được chấp nhận khi migration từ database rỗng, restore từ release bundle, ba luồng E2E (hiện hành, lịch sử, so sánh), abstention flow, contract Returned Invalid Citation Rate = 0 và regression subset đều đạt. Báo cáo và slide phải dùng cùng evaluation artifact để tránh số liệu không đồng nhất. Trước khi nộp, chuyển \code{\textbackslash draftmodefalse} và điền mọi bảng kết quả từ evaluation run đã đóng băng.
+
+% ============================================================
+\chapter{Kết Luận và Hướng Phát Triển}
+% ============================================================
+
+\section{Kết luận}
+
+Khóa luận đề xuất một kiến trúc RAG chuyên biệt cho pháp luật giao thông đường bộ Việt Nam, tập trung vào structure-aware parsing, mô hình quan hệ tham chiếu, temporal retrieval và verifiable citations. Parser Router và Canonical Document IR cô lập tầng parsing khỏi phân tích pháp lý; Legal Structure Extractor xử lý phân cấp pháp luật Việt Nam với nhãn Điểm tiếng Việt; PostgreSQL quản lý version, quan hệ và review; Qdrant thực hiện retrieval đa tầng với exact lookup, dense, sparse và RRF; LangGraph điều phối workflow có giới hạn; generator chỉ được chọn \code{provision\_id} từ context; verifier sáu tầng quyết định trả verified answer hay abstain.
+
+Thiết kế này loại bỏ các thành phần khó kiểm soát của phương án cũ như web fallback, citation tự do, index retrieval tách rời và vòng lặp điều phối/sửa lỗi không giới hạn. Hệ thống được tổ chức để một lỗi có thể được truy ngược về parser, extraction, retrieval, temporal metadata, generation hoặc verification. Langfuse cung cấp observability nhưng không nằm trên đường tới hạn tính đúng đắn; RAGFlow chỉ đóng vai trò baseline so sánh bên ngoài.
+
+\pendingresult{Trước khi nộp, bổ sung kết luận định lượng dựa trên kết quả bốn suite A-D: phương pháp nào tốt nhất, mức cải thiện, returned invalid citation, temporal accuracy, evidence completeness, latency và chi phí.}
+
+\section{Ưu điểm}
+
+\begin{itemize}
+  \item mô hình hóa hierarchy, quan hệ tham chiếu và temporal interval như dữ liệu nghiệp vụ trong PostgreSQL;
+  \item Parser Router và Canonical Document IR cho phép đánh giá và thay parser mà không viết lại Legal Structure Extractor;
+  \item nhận diện nhãn Điểm tiếng Việt \code{d)} và \code{đ)} với stable ID tái tạo được;
+  \item provenance đến page/bounding box và truy vết về IR;
+  \item retrieval đa tầng trong một vector database với exact lookup, dense, sparse, RRF và reranker;
+  \item evidence planning và Evidence Completeness Gate chặn câu trả lời nửa vời;
+  \item citation-by-ID và verification sáu tầng với invariant Returned Invalid Citation Rate = 0;
+  \item verified-or-abstain contract với failure-aware repair có giới hạn;
+  \item evaluation có split, hash và raw artifacts bất biến;
+  \item local-first deployment với Docker Compose bảy service và restore plan.
+\end{itemize}
+
+\section{Hạn chế}
+
+\begin{itemize}
+  \item corpus nhỏ và chỉ tập trung giao thông đường bộ;
+  \item partial amendment mapping cần nhiều review thủ công;
+  \item một reviewer chính có thể tạo annotation bias;
+  \item model API và stable alias vẫn có thể drift giữa các lần chạy;
+  \item claim support judge chưa phải legal expert;
+  \item MinerU VLM/hybrid backend không khả thi trên máy cá nhân, chỉ dùng pipeline CPU;
+  \item hệ thống là công cụ hỗ trợ tra cứu, không thay tư vấn pháp lý.
+\end{itemize}
+
+\section{Hướng phát triển}
+
+Hướng ngắn hạn gồm admin review UI, conversation history, diff viewer, calibrated abstention và khóa ngưỡng reranker/evidence gate sau khi có kết quả Suite C-D. Hướng trung hạn gồm provision-level amendment engine, domain expert workflow, mở rộng baseline RAGFlow sang các dataset mới và multilingual query. Hướng dài hạn gồm citation entailment model tiếng Việt, mở rộng sang các domain pháp luật khác, nghiên cứu late-interaction/ColBERT-style reranking và tái sử dụng gold set cho các bộ dữ liệu công khai.
+
+\section{Bài học phương pháp}
+
+Các nhận định như parser nào tốt hơn, hybrid retrieval tốt hơn dense-only, reranker cải thiện chất lượng hay verifier giảm invalid citation chỉ được kết luận sau thực nghiệm trên gold set đã review, không dựa trên tuyên bố nhà cung cấp. Bài học cốt lõi của thiết kế là chất lượng hệ thống pháp luật phụ thuộc đồng thời vào dữ liệu có nguồn được review, ranh giới pháp lý trùng ranh giới trích dẫn, retrieval áp đúng phiên bản hiệu lực, quan hệ tham chiếu được mở rộng có giới hạn và contract không cho phép answer chưa verify đi qua.
 
 % ============================================================
 % REFERENCES
 % ============================================================
-\begin{thebibliography}{99}
+\clearpage
+\printbibliography[heading=bibintoc,title={Tài Liệu Tham Khảo}]
 
-\bibitem{nd168} Chính phủ. \textit{Nghị định 168/2024/NĐ-CP quy định xử phạt vi phạm hành chính về trật tự, an toàn giao thông trong lĩnh vực giao thông đường bộ}. 2024.
+% ============================================================
+% APPENDICES
+% ============================================================
+\appendix
 
-\bibitem{luat36} Quốc hội. \textit{Luật Trật tự, An toàn giao thông đường bộ số 36/2024/QH15}. 2024.
+\chapter{Hướng Dẫn Chạy Demo}
 
-\bibitem{nd13} Chính phủ. \textit{Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân}. 2023.
+\section{Khởi động hạ tầng}
 
-\bibitem{vaswani} Vaswani, A., et al. \textit{Attention Is All You Need}. NeurIPS, 2017.
+Theo quy định trình bày khóa luận của Khoa Kỹ thuật - Công nghệ, Trường Đại học Tây Đô \cite{taydo2024format}, mọi lệnh \code{docker compose} chạy từ repo root và kèm \code{--project-directory .}.
 
-\bibitem{lewis} Lewis, P., et al. \textit{Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks}. NeurIPS, 2020.
+\begin{lstlisting}[caption={Khởi động defense mode}]
+cp deploy/env/release.env.example .env
+# Dien API key va secret
 
-\bibitem{cormack} Cormack, G. V., Clarke, C. L. A., \& Buettcher, S. \textit{Reciprocal Rank Fusion Outperforms Condorcet and Individual Rank Learning Methods}. SIGIR, 2009.
+docker compose \
+  --project-directory . -f deploy/compose/compose.release.yml \
+  up -d
 
-\bibitem{robertson} Robertson, S., \& Zaragoza, H. \textit{The Probabilistic Relevance Framework: BM25 and Beyond}. Foundations and Trends in Information Retrieval, 2009.
+docker compose --project-directory . \
+  -f deploy/compose/compose.release.yml wait backend frontend
 
-\bibitem{wang} Wang, L., et al. \textit{Text Embeddings by Weakly-Supervised Contrastive Pre-training}. arXiv:2212.03533, 2022.
+curl --fail http://localhost:8000/api/v1/health/ready
+\end{lstlisting}
 
-\bibitem{langgraph} LangChain. \textit{LangGraph: Building Stateful, Multi-Actor Applications with LLMs}. 2024.
+\section{Kịch bản demo}
 
-\bibitem{es} Shahul, E. S. \textit{RAGAS: Automated Evaluation of Retrieval Augmented Generation}. 2024.
+\begin{enumerate}
+  \item Hỏi quy định hiện hành.
+  \item Mở citation và source passage kèm trang.
+  \item Hỏi cùng hành vi tại thời điểm lịch sử.
+  \item So sánh trước và sau một mốc hiệu lực.
+  \item Hỏi ngoài corpus để minh họa abstention.
+  \item Hỏi câu đa bằng chứng (mức phạt + điểm trừ) để minh họa evidence completeness.
+  \item Mở bảng kết quả evaluation bốn suite A-D.
+\end{enumerate}
 
-\bibitem{gemini} Google. \textit{Gemini API Documentation: Pricing and Rate Limits}. 2026.
+\chapter{Schema Gold Set}
 
-\bibitem{chroma} Chroma. \textit{ChromaDB Documentation: Persistent Client Concurrency Issues}. 2024.
+\begin{lstlisting}[language=json,caption={Gold record schema rút gọn}]
+{
+  "id": "Q001",
+  "split": "FINAL_TEST",
+  "question": "Năm 2023 xe máy vượt đèn đỏ bị xử lý thế nào?",
+  "category": "HISTORICAL",
+  "query_date": "2023-07-01",
+  "vehicle_type": "MOTORCYCLE",
+  "expected_provision_ids": ["..."],
+  "acceptable_provision_ids": ["..."],
+  "required_evidence": ["monetary_penalty"],
+  "must_include_facts": ["..."],
+  "must_not_include_facts": ["..."],
+  "temporal_metadata": {
+    "query_date": "2023-07-01",
+    "date_source": "canonical_date"
+  },
+  "review_status": "REVIEWED",
+  "reviewed_by": "reviewer-01",
+  "gold_version": "gold-v1",
+  "hash": "sha256:..."
+}
+\end{lstlisting}
 
-\bibitem{vnlaw} CTU-LinguTechies. \textit{VN-Law-Advisor}. GitHub Repository. 2024.
+Mọi định danh pháp lý trong ví dụ là placeholder tổng hợp; ID thật được xác định theo quy trình tạo gold và validate trong PostgreSQL. Câu lịch sử năm 2023 phải trỏ tới provision của văn bản hợp lệ tại mốc 2023, không trỏ tới văn bản ban hành sau mốc hỏi.
 
-\bibitem{viblo} Viblo. \textit{Xây dựng Hệ thống Agentic RAG Pháp luật Giao thông}. 2024.
+\chapter{Checklist Trước Khi Nộp}
 
-\end{thebibliography}
+\begin{itemize}
+  \item[$\square$] Điền tên giảng viên hướng dẫn và mã số sinh viên.
+  \item[$\square$] Chèn logo chính thức và screenshot giao diện.
+  \item[$\square$] Chuyển \code{\textbackslash draftmodefalse} sau khi có final results.
+  \item[$\square$] Điền các bảng kết quả Chương 6 từ evaluation artifact.
+  \item[$\square$] Cập nhật Tóm tắt, Abstract và Kết luận bằng số liệu thật.
+  \item[$\square$] Kiểm tra mọi citation trong bibliography.
+  \item[$\square$] Kiểm tra danh mục hình, bảng và mục lục.
+  \item[$\square$] Build bằng XeLaTeX + Biber từ clean workspace.
+  \item[$\square$] Render PDF và kiểm tra clipping, font, table overflow.
+  \item[$\square$] Đồng bộ số liệu giữa báo cáo và slide.
+  \item[$\square$] Tạo release bundle và video backup.
+\end{itemize}
 
 \end{document}
