@@ -374,7 +374,9 @@ Pipeline ingestion sử dụng Parser Router định tuyến tài liệu qua Doc
 
 Pipeline hỏi đáp sử dụng LangGraph như một workflow có đường đi xác định trước, gồm query understanding, temporal resolution, query expansion, retrieval đa kênh (exact lookup, dense, sparse) với RRF fusion, reranking, mở rộng ngữ cảnh pháp lý theo quan hệ và Evidence Completeness Gate. Gemini 3.5 Flash sinh câu trả lời có cấu trúc cấp claim, trong đó mỗi claim chỉ được tham chiếu \code{provision\_id} thuộc context. Bộ kiểm chứng sáu tầng (schema, citation ID, temporal, numeric grounding, claim support, evidence completeness) quyết định trả verified answer hay abstention với lý do chuẩn. Khi bằng chứng không đủ, hệ thống từ chối trả lời thay vì tìm kiếm web tự do.
 
+\begin{sloppypar}
 Nghiên cứu đề xuất gold set 200 câu đã review, chia 40 development, 40 validation và 120 final test, cùng bốn suite thí nghiệm A-D: parser benchmark (P1-P3), embedding benchmark (E1-E3), retrieval ablation (R1-R10) và generation/verification ablation (G1-G7). Các metric chính gồm Recall@k, MRR@10, nDCG@10, Citation Precision/Recall/F1, Temporal Validity Accuracy, Numeric Grounding Accuracy, Evidence Completeness và Abstention F1. Langfuse phục vụ observability ngoài đường tới hạn; RAGFlow chỉ được dùng làm baseline so sánh bên ngoài.
+\end{sloppypar}
 
 \draftnotice
 
@@ -512,7 +514,7 @@ Xây dựng và đánh giá một hệ thống RAG nhận biết cấu trúc, qu
   \item Thiết kế Canonical Document IR parser-neutral làm biểu diễn trung gian cho toàn bộ phân tích pháp lý.
   \item Xây dựng Legal Structure Extractor nhận diện phân cấp Chương, Mục, Điều, Khoản, Điểm với nhãn tiếng Việt a) b) c) d) đ) e) và giữ lại Điểm ngắn hợp lệ.
   \item Mô hình hóa quan hệ tham chiếu chéo và quan hệ hiệu lực bằng PostgreSQL, không dùng Neo4j.
-  \item Biểu diễn văn bản và điều khoản bằng LegalDocument và LegalProvision, kèm định danh ổn định và khoảng hiệu lực \code{[effective\_from, effective\_to)}.
+  \item \begin{sloppypar} Biểu diễn văn bản và điều khoản bằng LegalDocument và LegalProvision, kèm định danh ổn định và khoảng hiệu lực \code{[effective\_from, effective\_to)}. \end{sloppypar}
   \item Kết hợp exact lookup, dense retrieval và sparse BM25 trong Qdrant bằng RRF, kèm reranking và mở rộng ngữ cảnh pháp lý.
   \item Xây dựng evidence plan và Evidence Completeness Gate để không trả lời nửa vời cho câu hỏi đa bằng chứng.
   \item Sinh câu trả lời có cấu trúc cấp claim và kiểm chứng citation theo \code{provision\_id} ở sáu tầng.
@@ -676,19 +678,21 @@ Docling chuyển nhiều định dạng tài liệu sang một representation gi
 
 Hệ thống không đưa đầu ra parser trực tiếp vào phân tích pháp lý. Parser Router chọn parser theo đặc tính tài liệu và quality gate, sau đó đầu ra được chuyển sang Canonical Document IR do dự án sở hữu gồm \code{ParsedDocument}, \code{ParsedPage} và \code{DocumentElement}. Tầng IR cô lập Legal Structure Extractor khỏi định dạng đầu ra của Docling/MinerU; thay hoặc nâng cấp parser chỉ cần một adapter mới.
 
+\begin{sloppypar}
 Provenance được giữ dưới dạng page number, bounding box và \code{source\_element\_ids} truy vết về IR. Provenance phục vụ ba mục tiêu: review extraction, hiển thị đoạn nguồn và audit khi answer bị phản ánh. Một citation không chỉ trỏ đến văn bản mà còn phải mở được passage cụ thể.
+\end{sloppypar}
 
 \section{Temporal data và phiên bản pháp luật}
 
 Một provision hợp lệ tại ngày $d$ khi:
 
 \begin{equation}
+\begin{aligned}
 \operatorname{valid}(p,d)=
-\left(p.\operatorname{effective\_from}\le d\right)
-\land
-\left(p.\operatorname{effective\_to}=\varnothing\ \lor\ d<p.\operatorname{effective\_to}\right)
-\land
-\left(p.\operatorname{review\_status}=\text{ACCEPTED}\right).
+&\left(p.\operatorname{effective\_from}\le d\right)\\
+&\land\ \left(p.\operatorname{effective\_to}=\varnothing\ \lor\ d<p.\operatorname{effective\_to}\right)\\
+&\land\ \left(p.\operatorname{review\_status}=\text{ACCEPTED}\right).
+\end{aligned}
 \end{equation}
 
 Khoảng thời gian được biểu diễn theo dạng nửa kín $[\operatorname{from},\operatorname{to})$. Khi một version mới có hiệu lực, version cũ kết thúc tại chính ngày bắt đầu của version mới. Partial amendment được xử lý ở mức provision thay vì đóng toàn bộ document: \code{provision\_id} giữ nguyên, nội dung mới được lưu dưới version mới với khoảng hiệu lực mới. Các sự kiện pháp lý (có hiệu lực, sửa đổi, thay thế, bãi bỏ, đính chính) được ghi nhận bằng \code{LegalEffectEvent} để phục vụ temporal resolver và câu hỏi so sánh lịch sử.
@@ -852,9 +856,13 @@ Corpus có báo cáo/dashboard chất lượng riêng (corpus QA) với các ch�
 
 \section{Thiết kế gold set}
 
+\begin{sloppypar}
 Gold set mục tiêu gồm 200 câu đã review, chia 40 development (lặp phát triển), 40 validation (chọn ngưỡng/model/prompt) và 120 final test (báo cáo kết quả, đóng băng, không dùng để tuning). Có 17 danh mục bắt buộc: CURRENT, HISTORICAL, COMPARISON, EXACT\_REFERENCE, PENALTY, LICENSE\_POINTS, CONDITION, EXCEPTION, PROCEDURE, CROSS\_REFERENCE, MULTI\_PROVISION, MULTI\_DOCUMENT, COLLOQUIAL\_QUERY, AMBIGUOUS, MISSING\_INFORMATION, OUT\_OF\_SCOPE, ADVERSARIAL\_CITATION.
+\end{sloppypar}
 
+\begin{sloppypar}
 Mỗi record chứa id, question, category, query\_date, comparison\_dates, vehicle\_type, expected\_provision\_ids, acceptable\_provision\_ids, required\_evidence, must\_include\_facts, must\_not\_include\_facts, temporal\_metadata, review\_status, reviewed\_by, gold\_version và hash. Mỗi câu có thể yêu cầu nhiều provision bằng chứng; \code{required\_evidence} liệt kê các loại bằng chứng như \code{violation\_definition}, \code{monetary\_penalty}, \code{license\_points}, \code{license\_suspension}, \code{exception}, \code{procedure}, \code{legal\_condition}.
+\end{sloppypar}
 
 \section{Thiết kế thí nghiệm}
 
@@ -1070,7 +1078,9 @@ Hệ thống gồm hai pipeline tách biệt: offline ingestion và online query
 \label{fig:ingestion}
 \end{figure}
 
+\begin{sloppypar}
 Pipeline worker thực hiện \code{parse -> normalize -> legal extract -> reference resolve -> temporal resolve -> quality gates -> review -> embed -> index}, mỗi bước là một actor Dramatiq ngắn, rời rạc và idempotent. Chỉ kết quả phân loại \code{accepted} mới được index; \code{needs\_review} phải qua quyết định reviewer; \code{dropped} chỉ được ghi audit và không bao giờ index. Qdrant chỉ nhận dữ liệu có \code{review\_status = ACCEPTED} đọc từ PostgreSQL.
+\end{sloppypar}
 
 \section{Parser Router và Canonical Document IR}
 
@@ -1082,9 +1092,13 @@ Parser Router quyết định parser theo đặc tính tài liệu và quality g
   \item bảng phức tạp: so sánh đầu ra hai parser khi cần.
 \end{itemize}
 
-Quality gate chia hai nhóm: nhóm A (parser-level) chạy sau khi chuẩn hóa IR với các chỉ số như provenance coverage, text extraction rate, table detection và layout coherence; nhóm B (structural) chạy sau Legal Structure Extractor với các chỉ số như point label detection, hierarchy completeness và short-Point retention. Nếu nhóm structural fail, kết quả structural hiện tại bị hủy và Router chạy lại toàn bộ pipeline từ parser thay thế, không trộn kết quả hai parser. Mọi quyết định routing và kết quả quality gate được ghi vào \code{ingestion\_runs.parser\_routing} và \code{DocumentElement.source\_parser}.
+\begin{sloppypar}
+Quality gate chia hai nhóm: nhóm A (parser-level) chạy sau khi chuẩn hóa IR với các chỉ số như provenance coverage, text extraction rate, table detection và layout coherence; nhóm B (structural) chạy sau Legal Structure Extractor với các chỉ số như point label detection, hierarchy completeness và short-Point retention. Nếu nhóm structural fail, kết quả structural hiện tại bị hủy và Router chạy lại toàn bộ pipeline từ parser thay thế, không trộn kết quả hai parser. Mọi quyết định routing và kết quả quality gate được ghi vào \code{ingestion\_runs\allowbreak.parser\_routing} và \code{DocumentElement\allowbreak.source\_parser}.
+\end{sloppypar}
 
+\begin{sloppypar}
 Canonical Document IR là biểu diễn trung gian do dự án sở hữu, gồm \code{ParsedDocument} chứa \code{ParsedPage[]}, mỗi trang chứa \code{DocumentElement[]}. Mỗi element mang \code{element\_id}, \code{element\_type}, \code{text}, \code{page\_number}, \code{bbox}, \code{reading\_order}, \code{parent\_element\_id}, \code{table\_html}, \code{source\_parser}, \code{parser\_version}, \code{parser\_confidence} và \code{raw\_reference}. Tầng IR cô lập phân tích pháp lý khỏi định dạng đầu ra của Docling/MinerU.
+\end{sloppypar}
 
 \section{Legal Structure Extractor}
 
@@ -1095,10 +1109,12 @@ Legal Structure Extractor là parser pháp lý riêng của VNLRAG, chạy trên
 Extractor cũng bảo đảm short-Point retention: một Điểm pháp lý ngắn nhưng hợp lệ vẫn là provision hợp lệ, không bị loại bỏ vì số token thấp. Quy tắc tạo provision ID:
 
 \begin{center}
-\code{\{loai-van-ban\}-\{so\}-\{nam\}\_\_dieu-\{n\}\_\_khoan-\{n\}\_\_diem-\{chu-cai\}}
+\code{\{loai-van-ban\}\allowbreak-\{so\}\allowbreak-\{nam\}\allowbreak\_\_dieu\allowbreak-\{n\}\allowbreak\_\_khoan\allowbreak-\{n\}\allowbreak\_\_diem\allowbreak-\{chu-cai\}}
 \end{center}
 
+\begin{sloppypar}
 Ví dụ: \code{nd-168-2024\_\_dieu-7\_\_khoan-4\_\_diem-b}. Các node không thuộc cây Điều thường dùng dạng \code{\_\_phu-luc-\{n\}}, \code{\_\_phu-luc-\{n\}\_\_bang-\{m\}}, \code{\_\_dieu-\{n\}\_\_bang-\{m\}}, \code{\_\_dieu-\{n\}\_\_khoan-chuyen-tiep}, \code{\_\_chuyen-tiep-\{k\}}, \code{\_\_tieu-de-\{n\}}.
+\end{sloppypar}
 
 Legal Context Enricher bổ sung parent-context vào \code{retrieval\_text} (câu mở đầu của Khoản, tiêu đề Điều) để phục vụ retrieval; \code{source\_text} không bao giờ bị biến đổi. Trích dẫn vẫn trỏ tới provision thực tế. Ví dụ minh họa: \code{source\_text} là ``p) Dàn hàng ngang từ 03 xe trở lên''; \code{retrieval\_text} là ``Khoản 4. Phạt tiền từ ... đến ... đối với một trong các hành vi sau: p) Dàn hàng ngang từ 03 xe trở lên''. Các con số trong ví dụ là placeholder minh họa, không phải khẳng định nội dung văn bản thực tế.
 
@@ -1135,15 +1151,21 @@ class LegalProvision(BaseModel):
     review_status: str                  # PENDING/ACCEPTED/REJECTED/DROPPED
 \end{lstlisting}
 
+\begin{sloppypar}
 \code{source\_text} là nội dung pháp lý thuộc trực tiếp provision và giữ nguyên; \code{retrieval\_text} phục vụ retrieval và có thể kế thừa ngữ cảnh cha. \code{provision\_id} ổn định và tái tạo được; khi provision bị sửa đổi, ID giữ nguyên để trích dẫn ổn định, nội dung mới lưu dưới version mới. Unique key vật lý là cặp \code{(provision\_id, version)}. \code{status} mô tả vòng đời pháp lý của provision; \code{review\_status} mô tả trạng thái review corpus và là cổng chặn trong điều kiện hiệu lực; hai trường này độc lập nhau.
+\end{sloppypar}
 
 \subsection{ProvisionReference và DocumentRelation}
 
+\begin{sloppypar}
 ProvisionReference ghi quan hệ cấp provision với bốn loại: \code{PARENT\_OF}, \code{REFERS\_TO}, \code{SIBLING\_OF}, \code{PENALTY\_COMPANION}. Trong đó \code{PENALTY\_COMPANION} gắn quy định xử phạt với quy định đi kèm như trừ điểm giấy phép lái xe hoặc tước quyền sử dụng giấy phép lái xe. DocumentRelation ghi quan hệ cấp văn bản với sáu loại: \code{AMENDS}, \code{REPEALS}, \code{SUPERSEDES}, \code{CORRECTS}, \code{GUIDES}, \code{RELATED\_TO}. Quan hệ được version-bound (\code{source\_provision\_version\_id}, \code{target\_provision\_version\_id}) và lưu trong bảng PostgreSQL, xử lý bằng application logic; không dùng Neo4j hoặc knowledge graph. Reference không giải quyết được ghi \code{UNRESOLVED}/\code{PENDING\_REVIEW} và định tuyến review, không suy đoán quan hệ.
+\end{sloppypar}
 
 \subsection{LegalEffectEvent}
 
+\begin{sloppypar}
 LegalEffectEvent ghi lại sự kiện pháp lý ảnh hưởng tới hiệu lực của văn bản/provision: \code{EFFECTIVE}, \code{AMENDED}, \code{PARTIAL\_AMENDED}, \code{SUPERSEDED}, \code{REPEALED}, \code{CORRECTED}, \code{EXPIRED}. \code{affected\_provision\_versions} liệt kê structured các provision/version chịu ảnh hưởng. Sự kiện này phục vụ Temporal and Amendment Resolver và câu hỏi so sánh lịch sử.
+\end{sloppypar}
 
 \section{PostgreSQL schema}
 
@@ -1151,7 +1173,7 @@ PostgreSQL là nguồn chân lý, lưu toàn bộ metadata, phiên bản, quan h
 
 \begin{table}[H]
 \caption{Các bảng dữ liệu chính}
-\begin{tabularx}{\textwidth}{p{3.7cm}X}
+\begin{tabularx}{\textwidth}{p{4.5cm}X}
 \toprule
 \textbf{Bảng} & \textbf{Vai trò}\\
 \midrule
@@ -1174,7 +1196,9 @@ corpus\_qa\_reports & Báo cáo chất lượng corpus\\
 \end{tabularx}
 \end{table}
 
+\begin{sloppypar}
 Các ràng buộc quan trọng: UNIQUE \code{(provision\_id, version)}; CHECK interval \code{effective\_to IS NULL OR effective\_to > effective\_from}; CHECK review-required \code{review\_status <> 'ACCEPTED' OR effective\_from IS NOT NULL}; exclusion constraint daterange ngăn hai version ACCEPTED chồng lấn trong cùng provision. Alembic quản lý migration; Qdrant dựng lại được từ \code{SELECT * FROM legal\_provisions WHERE review\_status = 'ACCEPTED'}.
+\end{sloppypar}
 
 \section{Qdrant collection}
 
@@ -1199,7 +1223,7 @@ Query expansion luôn giữ câu hỏi gốc của người dùng. Các variant 
 Ba kênh chạy song song:
 
 \begin{enumerate}
-  \item exact legal lookup theo payload filter và SQL cho định danh như \code{168/2024/NĐ-CP}, \code{Điều 7}, \code{Khoản 4}, \code{Điểm a};
+  \item \begin{sloppypar} exact legal lookup theo payload filter và SQL cho định danh như \code{168/2024/NĐ-CP}, \code{Điều 7}, \code{Khoản 4}, \code{Điểm a}; \end{sloppypar}
   \item dense semantic với named vector \code{dense};
   \item sparse lexical BM25 với named vector \code{sparse}.
 \end{enumerate}
@@ -1270,7 +1294,9 @@ LangGraph phân biệt workflow và agent: workflow có code path định trư�
 \label{fig:query-workflow}
 \end{figure}
 
+\begin{sloppypar}
 Đồ thị đề xuất gồm: \code{analyze\_query}, \code{resolve\_temporal}, \code{expand\_query}, \code{retrieve\_parallel}, \code{fuse}, \code{rerank}, \code{expand\_legal\_context}, \code{check\_evidence}, \code{targeted\_retrieval}, \code{build\_context}, \code{generate}, \code{verify}, \code{finalize}, \code{repair} và \code{abstain}. Các cạnh có điều kiện: \code{check\_evidence} phân nhánh \code{complete} sang \code{build\_context} rồi \code{generate}, hoặc \code{incomplete} sang \code{targeted\_retrieval} rồi quay lại \code{check\_evidence}; \code{verify} phân nhánh \code{valid} sang \code{finalize}, \code{repairable} sang đường repair theo loại lỗi, còn lại sang \code{abstain}. Mọi đường quay lại đều tăng \code{repair\_attempts} trong state; khi \code{repair\_attempts >= max\_repair\_attempts} (config, khởi điểm 3) thì ABSTAIN. Không tồn tại vòng lặp không tăng counter.
+\end{sloppypar}
 
 \section{Structured generation}
 
@@ -1294,7 +1320,9 @@ Generator (Gemini 3.5 Flash) sinh câu trả lời theo schema cấp claim:
 }
 \end{lstlisting}
 
+\begin{sloppypar}
 Schema dùng Pydantic với \code{extra="forbid"}, \code{ClaimType} là enum đóng, \code{claims} bắt buộc tối thiểu một claim và mỗi \code{provision\_ids} có tối thiểu một ID khi \code{should\_abstain=false}. Các con số trong ví dụ mang tính minh họa cấu trúc dữ liệu, không phải khẳng định giá trị thực tế của văn bản. Model không được viết citation text; phần trích dẫn hiển thị được dựng từ metadata đã lưu, không phải chuỗi LLM gõ tự do. Khi draft có \code{should\_abstain=true}, workflow không chuyển sang \code{finalize} mà route sang abstention với reason code ánh xạ và bảo toàn \code{missing\_information}.
+\end{sloppypar}
 
 \section{Verification sáu tầng}
 
@@ -1334,15 +1362,21 @@ Response abstention không chứa answer pháp lý, citations rỗng, có discla
 
 \section{Langfuse observability}
 
+\begin{sloppypar}
 Langfuse phục vụ tracing, token usage, cost, latency, prompt management và experiments. Trace \code{legal\_query} gồm các span \code{analyze\_query}, \code{normalize\_query}, \code{rewrite\_query}, \code{hyde}, \code{exact\_lookup}, \code{dense\_retrieval}, \code{sparse\_retrieval}, \code{rrf\_fusion}, \code{reranker}, \code{reference\_expansion}, \code{evidence\_check}, \code{generate}, \code{citation\_verify}, \code{numeric\_verify}, \code{claim\_verify}.
+\end{sloppypar}
 
 Langfuse \textbf{không nằm trên đường tới hạn tính đúng đắn}: trace được ingest bất đồng bộ, toàn bộ callback non-mutating; nếu Langfuse không khả dụng, query vẫn hoạt động bình thường. Observability giải thích hệ thống chạy như thế nào và chi phí ra sao, nhưng không thay thế logic correctness - tính đúng đắn do retrieval, evidence gate và verifier L1-L6 bảo đảm. Prompt được quản lý theo version và label production/dev; version prompt được ghi vào từng evaluation run và \code{QueryTrace.config\_snapshot}.
 
 \section{Background ingestion và object storage}
 
+\begin{sloppypar}
 Ingestion chạy hoàn toàn qua hàng đợi: \apipath{POST /api/v1/documents} trả \code{202 Accepted} kèm \code{ingestion\_job\_id}; không parse PDF đồng bộ trong request handler. Redis làm broker cho Dramatiq và cache; job state nằm trong PostgreSQL (\code{ingestion\_runs}) là source of truth. Mỗi bước là một actor idempotent ngắn (\code{parse}, \code{normalize}, \code{extract}, \code{resolve\_refs}, \code{resolve\_temporal}, \code{quality\_gate}, \code{embed}, \code{index}) có time limit cấu hình riêng; retry chỉ áp dụng cho lỗi transient. Worker fail được phục hồi bằng retry, dead-letter queue và script reconcile giữa job state và index state.
+\end{sloppypar}
 
+\begin{sloppypar}
 MinIO là object storage S3-compatible, lưu PDF nguồn, đầu ra parser, ảnh trang và artifact ingestion/review/evaluation trong các bucket riêng (\code{source-pdfs}, \code{parser-outputs}, \code{page-images}, \code{ingestion-artifacts}, \code{review-artifacts}, \code{evaluation-artifacts}). PostgreSQL lưu object key và metadata; backup MinIO dùng replication hoặc \code{mc mirror} sang nơi lưu trữ độc lập, không dùng tiering/ILM làm backup.
+\end{sloppypar}
 
 \section{API và giao diện}
 
@@ -1359,7 +1393,7 @@ POST & \apipath{/api/v1/chat} & Verified answer hoặc abstention\\
 POST & \apipath{/api/v1/search} & Search provision, không gọi generator\\
 POST & \apipath{/api/v1/documents} & Upload PDF + manifest, trả 202 + job ID\\
 GET & \apipath{/api/v1/jobs/\{job\_id\}} & Trạng thái job ingestion\\
-GET/POST & \apipath{/api/v1/reviews} & Danh sách và quyết định review\\
+\makecell{GET\\POST} & \apipath{/api/v1/reviews} & Danh sách và quyết định review\\
 POST & \apipath{/api/v1/feedback} & Feedback người dùng cuối\\
 POST & \apipath{/api/v1/evaluations} & Chạy evaluation run\\
 GET & \apipath{/api/v1/corpus-qa/report} & Báo cáo chất lượng corpus\\
@@ -1468,7 +1502,9 @@ Các con số là khởi điểm, chỉ được khóa sau ablation Suite C.
 
 \section{Cài đặt verifier}
 
+\begin{sloppypar}
 Verifier không parse citation regex. Nó nhận Pydantic object và context map. Mỗi tầng L1-L6 là một module riêng trả \code{LayerResult} gồm \code{passed}, \code{issues}, \code{checked\_claim\_indexes}, \code{checked\_provision\_version\_ids} và \code{repair\_action}. L4 chuẩn hóa số tiền, điểm, ngày trước khi so sánh với giá trị bằng chứng. L5 chạy deterministic trước, LLM judge độc lập (GPT-5.4 mini snapshot) chỉ cho trường hợp ngữ nghĩa với hành vi fail-closed. Returned invalid citation là invariant bằng 0; nếu hệ thống không thể bảo đảm invariant này, request phải abstain hoặc error.
+\end{sloppypar}
 
 \section{Giao diện người dùng}
 
@@ -1480,7 +1516,9 @@ Citation card được dựng từ database metadata đã verify, không phải 
 
 \section{Docker Compose}
 
+\begin{sloppypar}
 Bảy service chính: frontend (Next.js), backend (FastAPI), worker (Dramatiq), PostgreSQL, Qdrant, Redis và MinIO. Mọi service nằm trong một Docker network nội bộ; chỉ hai port public local là \code{127.0.0.1:3000} (frontend) và \code{127.0.0.1:8000} (backend). One-shot service \code{migrate} chạy \code{alembic upgrade head}, tạo collection Qdrant và bucket MinIO trước khi backend/worker/frontend khởi động. RAGFlow chạy trong môi trường benchmark riêng, không nằm trong compose production.
+\end{sloppypar}
 
 \begin{figure}[H]
 \centering
@@ -1517,7 +1555,9 @@ Các provider bên ngoài tùy chọn gồm Langfuse Cloud, Gemini API, OpenAI A
 
 \section{Migration, backup và restore}
 
+\begin{sloppypar}
 Alembic quản lý schema; migration chỉ chạy bởi one-shot service \code{migrate}, application process không bao giờ tự chạy \code{alembic upgrade head}. Release bundle gồm PostgreSQL dump, Qdrant snapshot (copy sang nơi lưu trữ độc lập), MinIO mirror, gold set, evaluation results, release manifest, git tag và checksum. Vì PostgreSQL là source of truth, Qdrant có thể rebuild từ \code{SELECT * FROM legal\_provisions WHERE review\_status = 'ACCEPTED'} bằng alias switch; snapshot chỉ rút ngắn RTO, không phải nguồn chân lý. Restore được kiểm chứng bằng script \code{verify\_release.py} so sánh số point, hash corpus và migration revision.
+\end{sloppypar}
 
 \section{CI/CD và quality gate}
 
@@ -1570,7 +1610,9 @@ Test Parser Router kiểm tra ma trận routing: PDF searchable sang Docling; PD
 
 \section{Test temporal và citation}
 
+\begin{sloppypar}
 Boundary test chạy tại \code{effective\_from}, \code{effective\_to} trừ một ngày và \code{effective\_to} (upper bound exclusive). Temporal and Amendment Resolver được test với fixture sự kiện AMENDED, PARTIAL\_AMENDED, REPEALED, SUPERSEDED và CORRECTED; mỗi event test kèm một query current và một query historical để khẳng định phiên bản đúng được chọn. Citation verifier có test cho ID ngoài context, provision không tồn tại, document chưa accepted, date invalid, claim không citation, số liệu sai (L4) và claim không được hỗ trợ (L5). Test repair workflow khẳng định mọi nhánh repair tăng cùng counter \code{repair\_attempts}, hết giới hạn kết thúc ở ABSTAIN và không có vòng lặp vô hạn.
+\end{sloppypar}
 
 \section{Thiết lập evaluation}
 
@@ -1675,6 +1717,7 @@ G7 & -- & -- & -- & -- & --\\
 
 \begin{table}[H]
 \caption{Kết quả generation - chờ final evaluation}
+\small
 \begin{tabularx}{\textwidth}{c c c c c}
 \toprule
 \textbf{Variant} & \textbf{Numeric Acc.} & \textbf{Unsupported Claim} & \textbf{Ev. Completeness} & \textbf{Abstention F1}\\

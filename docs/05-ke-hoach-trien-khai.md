@@ -1,7 +1,9 @@
 # 05. Kế Hoạch Triển Khai (Implementation Plan)
 
 > **Giai đoạn SDLC**: 4 - Thực hiện và cài đặt
-> **Ngày cập nhật kế hoạch**: 19/07/2026
+> **Ngày tạo**: 16/06/2026
+> **Ngày baseline v1**: 19/07/2026
+> **Ngày thiết kế lại v2**: 08/08/2026
 > **Ngày bắt đầu kế hoạch mới**: 20/07/2026
 > **Hạn hoàn thành**: 12/09/2026
 > **Ngày tập bảo vệ**: 13/09/2026
@@ -130,7 +132,7 @@ Các mốc dưới đây xây quanh kiến trúc v2. Cột "Thời gian" khớp 
 
 | Milestone | Thời gian | Tuần chính | Deliverable chính | Gate |
 |---|---|---|---|---|
-| M0. Scope Freeze | 19/07 | - | Scope, kiến trúc, tech stack và kế hoạch được chốt (scope-baseline) | Kế hoạch này được duyệt; tài liệu 00-04 đạt baseline scope, không phải bất biến |
+| M0. Scope Freeze | 19/07 | - | Scope, kiến trúc, tech stack và kế hoạch chốt ở mức scope-baseline freeze | Kế hoạch này được duyệt; tài liệu 00-04 đạt baseline scope, không phải bất biến; cập nhật nghiên cứu sau freeze có kiểm soát và được ghi vào change log |
 | M1. Parser Foundation + Canonical IR | 20/07-02/08 | W1-W2 | Suite A (P1-P3) first pass parser-only, Canonical Document IR, Parser Router, manifest và fixture | Ba loại văn bản (Luật, Nghị định, Thông tư) parse được qua IR; routing ghi `source_parser`; gate 5.4, 5.5 |
 | M2. Legal Extraction + Data Platform | 03/08-16/08 | W3 (gate W4) | Legal Structure Extractor, corpus QA, PostgreSQL, Qdrant, MinIO, ingestion queue | Extractor và data platform pass cuối W3 (gate 5.6); Gate M2 accept+index E2E chốt W4 sau khi resolver tồn tại (gate 5.7) |
 | M3. Relation Graph + Temporal | 10/08-16/08 | W4 | Legal Reference Resolver, Temporal/Amendment Resolver, bảng quan hệ, `LegalEffectEvent`, parent-context enrichment | Quan hệ provision/văn bản trong PostgreSQL; khoảng hiệu lực đúng; Gate M2 chốt (gate 5.7) |
@@ -220,7 +222,7 @@ docker-compose.yml
 
 - [ ] Docker Compose khởi động PostgreSQL, Qdrant, Redis, MinIO; health endpoint pass (NFR-03).
 - [ ] Manifest và schema validate bằng JSON Schema.
-- [ ] Corpus batch 01 có 3-5 văn bản (Luật, Nghị định, Thông tư), gồm hiện hành và lịch sử, mỗi văn bản có manifest và SHA-256 (doc 00 mục 10, 5.3.1).
+- [ ] Corpus batch 01 có 3-5 văn bản (Luật, Nghị định, Thông tư), gồm hiện hành và lịch sử, mỗi văn bản có manifest và SHA-256 (doc 00 mục 10; mục 5.3.1).
 - [ ] Fixture Suite A có gold annotation cấu trúc.
 - [ ] Golden fixture stable-ID phân biệt `diem-d` (Điểm d)) và `diem-đ` (Điểm đ)) (FR-03).
 - [ ] Langfuse nhận được trace thử nghiệm; `LANGFUSE_ENABLED=false` tắt được trace không làm fail query (FR-26).
@@ -545,7 +547,7 @@ data/evaluation/suite-b/, data/evaluation/suite-c/
 - [ ] Suite B và C chạy bằng config, lưu run metadata và raw output (FR-28, NFR-08).
 - [ ] Current query không lấy provision hết hiệu lực; historical query không lấy văn bản tương lai (FR-18, FR-19).
 - [ ] LangGraph skeleton chạy: `analyze_query -> ... -> check_evidence`; `INCOMPLETE` routing tới `targeted_retrieval`; mọi đường quay lại tăng `repair_attempts`; stub `generate`/`verify` trả kết quả xác định (FR-24; doc 03 mục 3.5.4).
-- [ ] Corpus evaluation-ready: mọi văn bản dev/validation gold set tham chiếu có trong corpus đã review (manifest, SHA-256, `review_status = ACCEPTED`); Suite B/C không chạy khi gate này fail (doc 00 mục 10, 5.3.1).
+- [ ] Corpus evaluation-ready: mọi văn bản dev/validation gold set tham chiếu có trong corpus đã review (manifest, SHA-256, `review_status = ACCEPTED`); Suite B/C không chạy khi gate này fail (doc 00 mục 10; mục 5.3.1).
 
 ### Dependencies
 
@@ -620,7 +622,7 @@ scripts/review_item.py
 - [ ] Feedback round-trip create/read; feedback gắn đúng `trace_id`; danh mục báo cáo đầy đủ (FR-27).
 - [ ] Citation UI dựng từ database metadata; applied date hiển thị; không stream draft chưa verify (FR-32).
 - [ ] Search endpoint `/api/v1/search` chạy độc lập (không gọi LLM generator), trả top-k kèm `provision_id`, hierarchy (article/clause/point), khoảng hiệu lực, page và provenance; integration test pass (FR-21; doc 03 mục 3.28.2).
-- [ ] Corpus complete: 20-30 văn bản đã review và index, ≥5 chuỗi quan hệ, hiện hành + lịch sử; gate này chốt trước final evaluation W7 (doc 00 mục 10, 5.3.1).
+- [ ] Corpus complete: 20-30 văn bản đã review và index, ≥5 chuỗi quan hệ, hiện hành + lịch sử; gate này chốt trước final evaluation W7 (doc 00 mục 10; mục 5.3.1).
 - [ ] Full stack start từ Docker volume sạch; E2E smoke pass (NFR-03).
 
 ### Gate M5 và M6

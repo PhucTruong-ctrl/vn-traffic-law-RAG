@@ -1,7 +1,9 @@
 # 00. Phạm Vi và Quyết Định Thiết Kế
 
 > **Tên dự án**: VN Traffic Law RAG  
-> **Ngày chốt phạm vi**: 19/07/2026  
+> **Ngày tạo**: 16/06/2026  
+> **Ngày baseline v1**: 19/07/2026  
+> **Ngày thiết kế lại v2**: 08/08/2026  
 > **Hạn hoàn thành**: 12/09/2026  
 > **Ngày bảo vệ**: 14/09/2026  
 > **Trạng thái**: Baseline thiết kế đã chốt (bản thiết kế lại v2)  
