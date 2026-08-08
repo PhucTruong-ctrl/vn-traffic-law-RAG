@@ -2,7 +2,8 @@
 
 > **Giai đoạn SDLC**: 6 - Triển khai
 > **Ngày tạo**: 16/06/2026
-> **Ngày cập nhật thiết kế**: 19/07/2026 - thiết kế lại v2
+> **Ngày baseline v1**: 19/07/2026
+> **Ngày thiết kế lại v2**: 08/08/2026
 > **Hạn hoàn thành**: 12/09/2026
 > **Ngày tập bảo vệ**: 13/09/2026
 > **Ngày bảo vệ**: 14/09/2026
@@ -49,7 +50,7 @@ worker      Dramatiq worker ingestion (cùng image backend)
 postgres    PostgreSQL 18.x, nguồn chân lý dữ liệu pháp lý
 qdrant      Qdrant v1.19.0, retrieval engine dẫn xuất
 redis       Redis 8.x, Dramatiq broker + cache
-minio       MinIO (S3-compatible), object storage
+minio       MinIO (S3-compatible candidate), object storage
 ```
 
 ### 7.1.2. Ranh giới network
@@ -90,7 +91,7 @@ migrations               Alembic upgrade head qua one-shot migrate service
 background jobs          Redis + Dramatiq worker
 parser artifacts         MinIO buckets cho parser output và IR
 Qdrant rebuild           rebuild từ PostgreSQL + alias switch
-MinIO backup             replication hoặc mc mirror sang nơi độc lập
+object storage backup   replication hoặc mc mirror sang nơi độc lập
 release manifest         release-manifest.json kèm hash và digest
 clean-room deployment    quy trình từ máy trống tới demo
 ```
@@ -215,6 +216,8 @@ services:
       retries: 10
       start_period: 10s
 
+  # MinIO: implementation hiện tại của ObjectStoragePort (contract S3-compatible).
+  # Giữ làm mặc định trong compose; implementation production chốt sau object-storage ADR.
   minio:
     image: minio/minio:RELEASE.2025-05-20T20-30-00Z
     container_name: vnlaw-minio
@@ -400,6 +403,7 @@ Ghi chú:
 - `migrate` là one-shot service: chạy `alembic upgrade head` rồi `ensure_qdrant_collection` rồi `ensure_buckets`, `restart: "no"`. Backend, worker và frontend khai `depends_on: migrate: condition: service_completed_successfully`, nên Compose chỉ khởi động app sau khi migrate hoàn tất thành công. Không service nào khác tự chạy migration.
 - `MAX_INGESTION_WORKERS=1` được enforce ở hai tầng: (1) worker command khóa `--processes 1 --threads 1`; (2) application config đọc `MAX_INGESTION_WORKERS` để chỉ chạy một ingestion actor tại một thời điểm (doc 03 mục 3.2.5).
 - `DATABASE_URL` dùng driver `psycopg` (postgresql+psycopg) theo doc 03.
+- `minio` là implementation hiện tại của `ObjectStoragePort` (contract S3-compatible). Service này giữ trong compose làm mặc định cho tới khi object-storage ADR chốt implementation; cấu hình qua `S3_ENDPOINT`/`MINIO_ENDPOINT` và access/secret key (mục 7.5).
 - `restart: unless-stopped` phù hợp máy bảo vệ; với clean-room và rehearsal cũng dùng policy này.
 - Backend và frontend healthcheck gọi endpoint `live` / root trang chủ để Compose `depends_on` chờ đúng.
 - Worker healthcheck dùng `dramatiq --check app.ingestion.actors`: kiểm tra module actors import được và broker Redis reachable. Hành vi khi fail: container bị đánh dấu unhealthy; `restart: unless-stopped` không tự restart container đang chạy nhưng unhealthy, nên vận hành phải theo dõi (`dramatiq --check`, queue depth, dead-letter) và dùng `reconcile_index.py` làm đường phục hồi (mục 7.4.4).
@@ -525,6 +529,13 @@ vnlaw-rag/
 │   │   ├── development.env.example
 │   │   ├── evaluation.env.example
 │   │   └── release.env.example
+│   ├── prompts/
+│   │   └── fallback/
+│   │       ├── query-analyzer.yaml
+│   │       ├── query-rewriter.yaml
+│   │       ├── hyde.yaml
+│   │       ├── generator.yaml
+│   │       └── claim-verifier.yaml
 │   └── scripts/
 │       ├── bootstrap.sh
 │       ├── migrate.sh
@@ -568,7 +579,14 @@ QDRANT_COLLECTION_PREFIX=legal_provisions
 # Redis
 REDIS_URL=redis://redis:6379/0
 
-# MinIO
+# Object storage (ObjectStoragePort, contract S3-compatible).
+# MinIO là implementation hiện tại; implementation production chốt sau object-storage ADR.
+# App đọc bộ S3_* (generic); bộ MINIO_* là alias tương thích với service MinIO hiện tại.
+S3_ENDPOINT=minio:9000
+S3_ACCESS_KEY=change-me
+S3_SECRET_KEY=change-me
+S3_BUCKETS=source-pdfs,parser-outputs,page-images,ingestion-artifacts,review-artifacts,evaluation-artifacts
+S3_USE_SSL=false
 MINIO_ENDPOINT=minio:9000
 MINIO_ACCESS_KEY=change-me
 MINIO_SECRET_KEY=change-me
@@ -580,6 +598,15 @@ LANGFUSE_ENABLED=true
 LANGFUSE_PUBLIC_KEY=
 LANGFUSE_SECRET_KEY=
 LANGFUSE_HOST=https://cloud.langfuse.com
+
+# Prompt fallback cục bộ (Langfuse ngoài đường tới hạn; xem mục 7.3.6)
+PROMPT_SOURCE=LANGFUSE                 # LANGFUSE | CACHE | RELEASE_FALLBACK
+FALLBACK_PROMPTS_DIR=/app/prompts/fallback
+FALLBACK_PROMPT_VERSION_QUERY_ANALYZER=
+FALLBACK_PROMPT_VERSION_QUERY_REWRITER=
+FALLBACK_PROMPT_VERSION_HYDE=
+FALLBACK_PROMPT_VERSION_GENERATOR=
+FALLBACK_PROMPT_VERSION_CLAIM_VERIFIER=
 
 # Generator
 GENERATION_PROVIDER=gemini
@@ -648,10 +675,20 @@ PROJECT_BUDGET_USD=40
 
 ### 7.3.5. Quy tắc model và final evaluation
 
-- Không thay model alias sau khi final run bắt đầu (NFR-08, doc 02 NFR-04, doc 07.12).
+- Không thay model alias sau khi final run bắt đầu (NFR-08; xem mục 7.12).
 - Final evaluation dùng file env read-only: config không bị sửa giữa các batch.
 - Model ID được ghi trong evaluation run metadata (`generator_model_id`, `embedding_model_id`, `reranker_model_id`, `judge_model_id`) (NFR-08, doc 06 mục 6.6.4).
-- `GENERATION_FALLBACK_ENABLED=false` trong final evaluation; không tự động chuyển provider (doc 04 mục 4.10.5, ADR mục 3.32).
+- `GENERATION_FALLBACK_ENABLED=false` trong final evaluation; không tự động chuyển provider (doc 04 mục 4.10.5, doc 03 mục 3.32 ADR).
+
+### 7.3.6. Prompt fallback cho release (Langfuse ngoài đường tới hạn)
+
+Langfuse nằm ngoài đường tới hạn tính đúng đắn (ADR-009); để contract này deploy được, release phải có prompt fallback cục bộ:
+
+- Thư mục `deploy/prompts/fallback/` chứa prompt bản đóng băng cho các prompt chính: `query-analyzer.yaml`, `query-rewriter.yaml`, `hyde.yaml`, `generator.yaml`, `claim-verifier.yaml`. Thư mục này được build vào image runtime (backend/worker) và có sẵn tại `FALLBACK_PROMPTS_DIR` (ví dụ `/app/prompts/fallback`).
+- Mỗi file YAML ghi trường `version` và `hash`; version được pin trong env `FALLBACK_PROMPT_VERSION_*` và trong release manifest (mục 7.12.2).
+- Thứ tự nạp prompt: `LANGFUSE` -> `CACHE` (cache nội bộ sau lần nạp thành công) -> `RELEASE_FALLBACK` (file cục bộ). Biến `PROMPT_SOURCE` ghi nguồn prompt đang dùng: `LANGFUSE | CACHE | RELEASE_FALLBACK`.
+- Mọi trace và evaluation run metadata ghi `prompt_source` (`LANGFUSE | CACHE | RELEASE_FALLBACK`), `prompt_version`, `prompt_hash` (NFR-08).
+- Khi Langfuse không khả dụng, runtime chuyển sang `CACHE`/`RELEASE_FALLBACK` mà không fail query; log và trace ghi rõ `prompt_source`.
 
 ---
 
@@ -763,7 +800,11 @@ curl http://localhost:8000/api/v1/jobs/<job_id>
 
 ---
 
-## 7.5. Object storage (MinIO)
+## 7.5. Object storage (MinIO - S3-compatible candidate)
+
+### 7.5.0. ObjectStoragePort (contract S3-compatible)
+
+Object storage được truy cập qua port `ObjectStoragePort` (contract S3-compatible): put/get/delete object, head bucket, list buckets. MinIO là implementation hiện tại (service trong compose, mục 7.2.2) và là ứng viên mặc định; implementation production được chốt sau object-storage ADR. Kết nối qua biến S3-compatible: `S3_ENDPOINT` (hoặc `MINIO_ENDPOINT`), access key, secret key, bucket list, `S3_USE_SSL` (hoặc `MINIO_USE_SSL`). Khi đổi implementation chỉ cần thay service compose và endpoint env, không thay đổi domain logic (NFR-06). Bucket layout, backup, retention và health check trong mục này áp dụng cho mọi implementation S3-compatible của contract.
 
 ### 7.5.1. Buckets
 
@@ -871,7 +912,7 @@ Lập lịch ingestion batch: dừng demo (hoặc chọn thời điểm không d
 |---|---|---|---|
 | Langfuse Cloud | Tracing, prompt, experiment | Server v4 / SDK v4.x | Ngoài đường tới hạn; `LANGFUSE_ENABLED=false` không fail query |
 | Gemini API | Generator | `gemini-3.5-flash` | Có thể cần embedding `gemini-embedding-2` (ứng viên) |
-| OpenAI API | Judge | `gpt-5.4-mini-2026-03-17` | L5 semantic judge + metric thứ cấp |
+| OpenAI API | Judge (hai vai) | `gpt-5.4-mini-2026-03-17` | Online L5 semantic judge (fail-closed, doc 03 ADR-008) + metric thứ cấp trong evaluation |
 | Jina API | Embedding E2/E3, reranker | `jina-embeddings-v5-text-nano`, `jina-embeddings-v5-text-small`, `jina-reranker-v3` | Embedding quyết định sau Suite B |
 
 ### 7.7.2. Endpoint provider health (admin-only)
@@ -920,8 +961,9 @@ Public readiness chỉ kiểm tra local infra (PostgreSQL, Qdrant, Redis, MinIO,
 ```
 
 - **Embedding unavailable**: query embedding không cache được thì dense retrieval unavailable; có thể dùng sparse-only nếu config cho phép; response trace ghi retrieval mode thực tế; final evaluation không cho automatic mode degradation.
-- **Judge unavailable**: không ảnh hưởng production chat; trong evaluation, run tuân theo terminal-status policy `RUNNING -> COMPLETED/FAILED` một chiều, KHÔNG có trạng thái PARTIAL; metric phụ thuộc judge được đánh dấu `ABSENT_<lý do>` trong `metric_availability` (doc 06 mục 6.8.5).
-- **Langfuse unavailable**: bỏ qua span hiện tại, pipeline tiếp tục, query trả kết quả bình thường (doc 03 mục 3.27.6).
+- **Online L5 judge unavailable** (vai trò online trong verifier L5, doc 03 mục 3.24.2, ADR-008): claim kết luận được bằng deterministic rule vẫn chạy bình thường; claim ngữ nghĩa không kết luận được bằng deterministic bị xử lý fail-closed (coi như unsupported): workflow chuyển sang repair có giới hạn (`MAX_REPAIR_ATTEMPTS`) hoặc ABSTAIN; không bao giờ trả claim chưa verified.
+- **Evaluation judge unavailable** (vai trò metric thứ cấp trong evaluation): deterministic metrics vẫn được tính và lưu; metric phụ thuộc judge bị đánh dấu `ABSENT_<lý do>` trong `metric_availability`; run tuân theo terminal-status policy `RUNNING -> COMPLETED/FAILED` một chiều, KHÔNG có trạng thái PARTIAL (doc 06 mục 6.8.5).
+- **Langfuse unavailable**: bỏ qua span hiện tại, pipeline tiếp tục, query trả kết quả bình thường (doc 03 mục 3.27.6); prompt được nạp từ fallback cục bộ với `prompt_source = CACHE` hoặc `RELEASE_FALLBACK` (mục 7.3.6).
 
 ---
 
@@ -1450,6 +1492,15 @@ git push origin v1.0.0-rc2
     "legal-claim-support-judge-v1": "…",
     "legal-citation-renderer-v1": "…"
   },
+  "prompt_source": "LANGFUSE",
+  "prompt_fallback_dir": "deploy/prompts/fallback",
+  "fallback_prompt_versions": {
+    "query-analyzer": "…",
+    "query-rewriter": "…",
+    "hyde": "…",
+    "generator": "…",
+    "claim-verifier": "…"
+  },
   "minio_buckets": [
     "source-pdfs",
     "parser-outputs",
@@ -1461,7 +1512,7 @@ git push origin v1.0.0-rc2
 }
 ```
 
-Model ID và prompt version phải khớp với cấu hình final evaluation (NFR-08, doc 06 mục 6.6.4). Embedding production quyết định sau Suite B; nếu chọn Jina v5 text-small (1024 dims), `embedding_dimensions` và collection dimension phải ghi tương ứng.
+Model ID và prompt version phải khớp với cấu hình final evaluation (NFR-08, doc 06 mục 6.6.4). Embedding production quyết định sau Suite B; nếu chọn Jina v5 text-small (1024 dims), `embedding_dimensions` và collection dimension phải ghi tương ứng. `minio_image` ghi image của implementation hiện tại của `ObjectStoragePort` (mục 7.5); nếu object-storage ADR chốt implementation khác, trường này được đổi hoặc ghi chú tương ứng.
 
 ### 7.12.3. Release checklist (Gate F, doc 06 mục 6.12.6)
 
@@ -1541,7 +1592,7 @@ Admin-only `GET /api/v1/admin/health/providers` (mục 7.7.2); chạy thủ côn
 
 ### 7.13.5. Logging
 
-- JSON structured logs, stdout: `timestamp`, `level`, `service`, `trace_id`, `intent`, `response_status`, latencies (`retrieval_ms`, `generation_ms`, `verification_ms`, `total_ms`), `generator_model`.
+- JSON structured logs, stdout: `timestamp`, `level`, `service`, `trace_id`, `intent`, `response_status`, latencies (`retrieval_ms`, `generation_ms`, `verification_ms`, `total_ms`), `generator_model`, `prompt_source` (`LANGFUSE | CACHE | RELEASE_FALLBACK`), `prompt_version`, `prompt_hash` (mục 7.3.6).
 
 ```json
 {

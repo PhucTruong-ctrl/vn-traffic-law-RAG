@@ -2,7 +2,8 @@
 
 > **Giai đoạn SDLC**: 3 - Thiết kế  
 > **Ngày tạo**: 16/06/2026  
-> **Ngày nghiên cứu lại**: 08/08/2026  
+> **Ngày baseline v1**: 19/07/2026  
+> **Ngày nghiên cứu lại v2**: 08/08/2026  
 > **Hạn hoàn thành**: 12/09/2026  
 > **Ngày bảo vệ**: 14/09/2026  
 > **Tên đề tài**: Xây dựng hệ thống RAG nhận biết cấu trúc và thời gian hiệu lực để hỗ trợ tra cứu pháp luật giao thông Việt Nam với trích dẫn có thể kiểm chứng  
@@ -84,7 +85,7 @@ Bảng này đồng bộ với mục 7 của doc 00. Mọi khác biệt phải �
 | Evaluation | Ragas | 0.4.x (0.4.3), pin exact | Faithfulness, relevancy, factual correctness (thứ cấp) | selected (thứ cấp) |
 | Background jobs | Dramatiq | v2.2.0 | Actor ingestion idempotent, Redis broker | selected |
 | Cache / broker | Redis | 8.10.0 | Dramatiq broker + cache | selected |
-| Object storage | MinIO | Date-tagged release (AIStor) | PDF nguồn, parser output, artifact review/evaluation | selected |
+| Object storage | ObjectStoragePort (S3-compatible); MinIO là ứng viên hiện tại | MinIO date-tagged community release (AIStor) | PDF nguồn, parser output, artifact review/evaluation | selected (ứng viên) |
 | Observability | Langfuse | Server v4, SDK v4.x | Trace, prompt management, experiments; ngoài đường tới hạn | selected |
 | Frontend | Next.js | 16.x App Router | Chat, search, citation panel | selected |
 | UI | React + TypeScript + Tailwind + shadcn/ui | Pin lock file | Giao diện | selected |
@@ -624,7 +625,7 @@ Lưu ý:
 
 ### 4.8.3. Embedding text
 
-Không embed raw point text đơn thuần. Embedding text gồm (doc 03 mục 4.5.6 của phiên bản cũ được giữ logic trong retrieval design):
+Không embed raw point text đơn thuần. Embedding text gồm (dựa trên cấu trúc `retrieval_text`/`parent_context` theo doc 03 mục 3.8.6, được giữ logic trong retrieval design):
 
 ```text
 Tên văn bản
@@ -819,7 +820,7 @@ Phần cứng: MX330 2 GB VRAM, 19 GB RAM, i5-1035G1. Local LLM bị bác bỏ v
 - tăng thời gian setup;
 - không phải đóng góp chính của khóa luận.
 
-Local model chỉ được cân nhắc trong future work cho các tác vụ phụ (out-of-scope classifier, reranker nhỏ, query normalization, private deployment study), không phải dependency P0 (doc 03 mục 4.13 của thiết kế cũ được giữ logic tương đương).
+Local model chỉ được cân nhắc trong future work cho các tác vụ phụ (out-of-scope classifier, reranker nhỏ, query normalization, private deployment study), không phải dependency P0 (doc 00 mục 9.3 đưa local LLM vào ngoài phạm vi khóa luận).
 
 ### 4.10.7. Trạng thái xác minh
 
@@ -870,6 +871,20 @@ Doc 03 mục 3.24.2 quyết định: L5 semantic judge được phép chạy onl
 - Judge chỉ nhận một claim + các provision được cite, không nhìn answer tổng thể hay gold answer;
 - Judge không bao giờ quyết định citation ID hay temporal validity (ADR-008);
 - Cả hai chế độ online và evaluation dùng cùng model snapshot pin.
+
+Tóm tắt hành vi khi judge không khả dụng theo từng vai trò:
+
+```text
+Judge online L5 không khả dụng:
+  - claim được hỗ trợ bằng deterministic rule -> vẫn tiếp tục được xác nhận
+  - claim ngữ nghĩa deterministic không kết luận được -> fail-closed:
+      repair có giới hạn, nếu không xác minh được thì loại claim hoặc ABSTAIN
+
+Judge evaluation không khả dụng:
+  - deterministic metrics (headline) vẫn chạy đầy đủ
+  - metric thứ cấp phụ thuộc judge (faithfulness, relevancy, factual correctness)
+    được đánh dấu unavailable, không block run, không thay thế headline
+```
 
 ### 4.11.3. Khả năng phù hợp
 
@@ -1089,19 +1104,30 @@ Bogdan, D. (2026). Dramatiq: Background processing for Python (v2.2.0).
 
 ---
 
-## 4.15. MinIO: object storage S3-compatible
+## 4.15. Object storage: ObjectStoragePort (S3-compatible), MinIO là ứng viên hiện tại
 
 ### 4.15.1. Vai trò và nhãn
 
 ```text
-Nhãn: selected
-Phiên bản: date-tagged community release (AIStor branding)
+Nhãn: selected (ứng viên) - cần ADR so sánh implementation
+Quyết định cam kết: abstraction ObjectStoragePort -> triển khai S3-compatible
+Ứng viên hiện tại: MinIO (date-tagged community release, AIStor branding)
 Vai trò: lưu PDF nguồn, parser output, ảnh trang, artifact ingestion/review/evaluation
 ```
 
-PostgreSQL lưu object key và metadata; nội dung file nằm trong MinIO (doc 03 mục 3.12, ADR-012). Managed S3 không cần thiết cho khóa luận (chạy local).
+Quyết định được cam kết ở tầng kiến trúc là **abstraction `ObjectStoragePort`** phía sau một triển khai S3-compatible, không phải hard-lock một sản phẩm cụ thể. PostgreSQL lưu object key và metadata; nội dung file nằm trong object store (doc 03 mục 3.12, ADR-012). Managed S3 không cần thiết cho khóa luận (chạy local). Thiết kế này không quay lại ad-hoc folder storage: mọi file vẫn được lưu dưới object store với object key truy vết trong PostgreSQL.
 
-### 4.15.2. Tính năng dùng
+### 4.15.2. Ghi chú ADR: MinIO đang được xem xét lại
+
+MinIO đang là ứng viên hiện tại nhưng quyết định chưa được đóng băng:
+
+- Kho GitHub chính thức `minio/minio` được archive/read-only ngày 2026-04-25 (theo issue minio/minio#21584);
+- Community Edition là bản source-only với mức bảo trì giảm so với thời kỳ phát triển tích cực;
+- Điều này không đồng nghĩa MinIO ngừng hoạt động, nhưng một hệ thống thiết kế năm 2026 không nên ghi "MinIO = selected" như quyết định hoàn tất;
+- Trước khi pin image chính thức, bắt buộc chạy một ADR so sánh implementation: MinIO vs SeaweedFS, Garage, Ceph RGW (nếu cần) và managed S3 (nếu chọn cloud). Tiêu chí: tính sẵn sàng image Docker ổn định, AGPL/giấy phép phù hợp khóa luận, tính năng bucket/versioning/ILM/WORM cần thiết, tài nguyên RAM trên máy 19 GB, độ tin cậy bảo trì 2026.
+- ADR này phải ghi status, context, decision, consequences và date, nằm trong danh mục ADR của dự án.
+
+### 4.15.3. Tính năng dùng (theo ứng viên MinIO)
 
 - Buckets, versioning, tagging;
 - ILM: expiry/transition;
@@ -1115,20 +1141,22 @@ Layout bucket theo doc 03 mục 3.12.1:
 source-pdfs, parser-outputs, page-images, ingestion-artifacts, review-artifacts, evaluation-artifacts
 ```
 
-### 4.15.3. Backup: tiering KHÔNG phải backup
+### 4.15.4. Backup: tiering KHÔNG phải backup
 
 - ILM/transition chỉ chuyển dữ liệu giữa các tầng trong cùng hệ thống, không thay thế nơi lưu trữ độc lập cho mục đích phục hồi;
 - Backup bằng server-side replication (async) hoặc `mc mirror`/`mc cp` sang nơi lưu trữ độc lập (doc 03 mục 3.12.3).
 
-### 4.15.4. Trạng thái xác minh
+### 4.15.5. Trạng thái xác minh
 
 ```text
-S3-compatible, GNU AGPLv3, AIStor docs: verified (docs.min.io, github.com/minio/minio)
+MinIO S3-compatible, GNU AGPLv3, AIStor docs: verified (docs.min.io, github.com/minio/minio)
+MinIO repo archive/read-only 2026-04-25: verified (minio/minio#21584)
 Versioning, ILM, WORM Object Locking: verified
 Tiering không phải backup: verified (tài liệu + thiết kế doc 03)
+So sánh implementation (MinIO vs SeaweedFS/Garage/Ceph RGW/managed S3): to-verify, ADR bắt buộc trước pin
 ```
 
-### 4.15.5. URL chính thức và trích dẫn
+### 4.15.6. URL chính thức và trích dẫn
 
 ```text
 Docs: https://docs.min.io/
@@ -1275,7 +1303,7 @@ FastAPI: Pydantic request/response, OpenAPI, dependency injection, async I/O, mu
 Nhãn: selected
 ```
 
-uv quản lý dependency và virtual environment, pin bằng `uv.lock`. Mọi version trong `pyproject.toml` là range định hướng; lock file là nguồn version chính xác (doc 03 mục 4.15 của thiết kế cũ, giữ nguyên policy).
+uv quản lý dependency và virtual environment, pin bằng `uv.lock`. Mọi version trong `pyproject.toml` là range định hướng; lock file là nguồn version chính xác (giữ nguyên policy; quy tắc dependency của module theo doc 03 mục 3.2.6).
 
 ### 4.18.4. pytest + Playwright (testing)
 
@@ -1283,7 +1311,7 @@ uv quản lý dependency và virtual environment, pin bằng `uv.lock`. Mọi ve
 Nhãn: selected
 ```
 
-pytest cho unit/integration, Playwright cho E2E. Integration test bắt buộc chạy PostgreSQL và Qdrant (testcontainers), không dùng SQLite thay thế (doc 03 mục 4.8.4).
+pytest cho unit/integration, Playwright cho E2E. Integration test bắt buộc chạy PostgreSQL và Qdrant (testcontainers), không dùng SQLite thay thế (doc 06 mục 6.2.2).
 
 ### 4.18.5. GitHub Actions (CI/CD)
 
@@ -1326,7 +1354,7 @@ Haystack và LlamaIndex có integration tốt với Docling và vector database,
 - khó kiểm soát citation ID;
 - thêm dependency upgrade risk.
 
-Có thể dùng trong future work làm baseline độc lập, không dùng trong implementation chính (doc 03 mục 4.3.2 của thiết kế cũ, giữ nguyên quyết định).
+Có thể dùng trong future work làm baseline độc lập, không dùng trong implementation chính (quyết định theo doc 00 mục 7).
 
 ### 4.18.9. Dependency bị loại khỏi core
 
@@ -1367,7 +1395,7 @@ Một số dependency có thể tồn tại gián tiếp qua tooling nhưng back
 | Redis 8.10 | Broker + cache | selected | Dramatiq broker + cache; đủ cho quy mô khóa luận |
 | Dramatiq v2.2 | Background jobs | selected | Actor idempotent, retry, time limit, dead-letter; ingestion không đồng bộ |
 | Celery | - | rejected | Nặng hơn, cấu hình phức tạp hơn nhu cầu |
-| MinIO | Object storage | selected | S3-compatible local; tiering không phải backup |
+| MinIO | Object storage (ObjectStoragePort, ứng viên) | selected (ứng viên) - cần ADR so sánh implementation | S3-compatible local; tiering không phải backup; repo archived 2026-04-25, phải so sánh implementation trước pin |
 | Ragas v0.4.3 | Evaluation thứ cấp | selected (thứ cấp) | Metric ngữ nghĩa phụ; deterministic là headline |
 | Next.js 16 | Frontend | selected | App Router, React 19.2; không phải backend chính |
 | FastAPI | Backend | selected | Pydantic, OpenAPI, async I/O |
@@ -1402,7 +1430,7 @@ Bảng này chỉ dùng để ghi nhận lịch sử chuyển đổi từ thiế
 | Judge | GPT-4o-mini | GPT-5.4 mini snapshot | historical/replaced |
 | Reranker | Không có stage riêng | Jina Reranker v3 (stage chuẩn) | selected (mới) |
 | Background jobs | Không rõ ràng (đồng bộ hoặc ad hoc) | Redis + Dramatiq actor pipeline | selected (mới) |
-| Object storage | Không có | MinIO (S3-compatible) | selected (mới) |
+| Object storage | Không có | ObjectStoragePort (S3-compatible); MinIO là ứng viên | selected (mới) |
 | Observability | Không có hoặc log thủ công | Langfuse trace toàn pipeline | selected (mới) |
 | Streaming | Token buffer-validate-stream | Progress events + verified final | selected (mới) |
 | Frontend | Next.js 14 | Next.js 16 | historical/replaced |
@@ -1588,7 +1616,7 @@ Tài liệu này chốt tech stack v2 với các nhãn selected/challenger/basel
 - Reranker: Jina Reranker v3 là ứng viên chính; ColBERT chỉ experiment; chưa tuyên bố cải thiện.
 - Generator: Gemini 3.5 Flash selected; automatic fallback, local LLM, model quá lớn rejected.
 - Judge: GPT-5.4 mini selected; online L5 semantic judge với fail-closed behavior (nhất quán doc 03); judge không bao giờ là nguồn sự thật cho metric xác định.
-- Hạ tầng: PostgreSQL source of truth, Redis broker/cache, Dramatiq background jobs, MinIO object storage.
+- Hạ tầng: PostgreSQL source of truth, Redis broker/cache, Dramatiq background jobs, ObjectStoragePort (S3-compatible) với MinIO là ứng viên cần ADR so sánh implementation.
 - Evaluation: deterministic metrics headline, Ragas thứ cấp.
 - Khác: Next.js, FastAPI, uv, pytest/Playwright, GitHub Actions, Docker Compose; full LangChain/Haystack/LlamaIndex rejected cho core.
 

@@ -2,7 +2,8 @@
 
 > **Giai đoạn SDLC**: 1 - Phân tích tính khả thi  
 > **Ngày tạo**: 16/06/2026  
-> **Ngày cập nhật thiết kế**: 19/07/2026 - thiết kế lại v2  
+> **Ngày baseline v1**: 19/07/2026  
+> **Ngày thiết kế lại v2**: 08/08/2026  
 > **Hạn hoàn thành**: 12/09/2026  
 > **Ngày bảo vệ**: 14/09/2026  
 > **Tên đề tài**: Xây dựng hệ thống RAG nhận biết cấu trúc và thời gian hiệu lực để hỗ trợ tra cứu pháp luật giao thông Việt Nam với trích dẫn có thể kiểm chứng  
@@ -140,7 +141,7 @@ MAX_INGESTION_WORKERS = 1
 | Docker Engine | Compose Spec hiện hành | Chạy backend, frontend, PostgreSQL, Qdrant, Redis, MinIO; RAGFlow chạy trong môi trường benchmark riêng |
 | Redis | 8.x | Broker cho Dramatiq và cache (thành phần dev mới) |
 | Dramatiq | 2.x | Worker ingestion phía sau hàng đợi (thành phần dev mới) |
-| MinIO | Bản community hiện hành | Object storage S3-compatible (thành phần dev mới) |
+| MinIO | Bản community hiện hành | Object storage S3-compatible (thành phần dev mới); ứng viên hiện tại, lựa chọn implementation chờ ADR |
 | Langfuse Cloud | SDK v4.x | Tracing, quản lý prompt, experiment (thành phần dev mới, mặc định dùng cloud) |
 | Git | Phiên bản hiện hành | Quản lý source, tag release và experiment config |
 | CI/CD | GitHub Actions | Lint, type check, unit test, integration test, regression test và security test |
@@ -171,7 +172,7 @@ Phiên bản chính xác phải được pin trong:
 | Generator | Gemini 3.5 Flash | Hỗ trợ structured output (`json_schema`) và context lớn |
 | Evaluation judge | GPT-5.4 mini (snapshot đã pin) | Model độc lập, pin snapshot để tăng khả năng tái lập |
 | Background jobs | Redis + Dramatiq | Actor idempotent, pipeline ngắn rời rạc; lưu ý giới hạn thời gian mặc định 10 phút mỗi actor |
-| Object storage | MinIO | Lưu PDF nguồn, đầu ra parser, ảnh trang và artifact; PostgreSQL lưu object key |
+| Object storage | S3-compatible qua `ObjectStoragePort` (MinIO là ứng viên hiện tại, chờ ADR so sánh) | Lưu PDF nguồn, đầu ra parser, ảnh trang và artifact; PostgreSQL lưu object key |
 | Observability | Langfuse Cloud | Trace, prompt management, experiment, feedback; không nằm trên đường tới hạn tính đúng đắn |
 | Baseline | RAGFlow (môi trường so sánh bên ngoài) | Chạy riêng trong môi trường benchmark, yêu cầu tối thiểu 4 CPU, 16 GB RAM, 50 GB disk; không nằm trong compose production |
 | Frontend | Next.js + TypeScript + shadcn/ui | Đủ để xây chat, citation panel và review UI |
@@ -294,7 +295,7 @@ POST /documents -> 202 Accepted + ingestion_job_id
 
 - **Redis** làm broker cho Dramatiq và cache.
 - **Dramatiq**: mỗi bước là một actor idempotent ngắn; actor được thiết kế để chạy lại an toàn khi worker fail. Lưu ý giới hạn thời gian mặc định 10 phút mỗi actor, cần nâng lên phù hợp hoặc tách bước dài thành nhiều actor.
-- **MinIO**: buckets riêng cho PDF nguồn, đầu ra parser, ảnh trang, artifact ingestion/review/evaluation. PostgreSQL lưu object key và metadata; backup MinIO bằng replication hoặc `mc mirror`/`mc cp` sang nơi lưu trữ độc lập. Lifecycle tiering/ILM/transition không phải là backup; dữ liệu chuyển tầng vẫn nằm trong cùng hệ thống và cần nơi lưu trữ độc lập riêng cho mục đích phục hồi.
+- **Object storage (S3-compatible, qua `ObjectStoragePort`)**: lựa chọn object storage đang được mở lại; quyết định implementation chờ ADR so sánh và **MinIO là ứng viên hiện tại**, chưa được khóa trong tài liệu này. Object storage dùng buckets riêng cho PDF nguồn, đầu ra parser, ảnh trang, artifact ingestion/review/evaluation; PostgreSQL lưu object key và metadata; backup bằng replication hoặc `mc mirror`/`mc cp` sang nơi lưu trữ độc lập. Lifecycle tiering/ILM/transition không phải là backup; dữ liệu chuyển tầng vẫn nằm trong cùng hệ thống và cần nơi lưu trữ độc lập riêng cho mục đích phục hồi. Lý do khả thi tài nguyên không đổi: lưu trữ S3-compatible chạy local trong Docker Compose và miễn phí (0 USD).
 
 Tính khả thi cao vì Dramatiq và Redis chạy được trong Docker Compose trên CPU, và queue tách ingestion khỏi online query path.
 
@@ -504,7 +505,7 @@ Các bề mặt cài đặt mới so với v1:
 
 - **Parser benchmark trước** (Suite A) quyết định hướng routing và chất lượng đầu vào cho toàn bộ pipeline;
 - **MinerU là parser lane bổ sung** (rủi ro mới về tài nguyên và chất lượng OCR tiếng Việt);
-- **background ingestion** (Redis, Dramatiq, MinIO);
+- **background ingestion** (Redis, Dramatiq, object storage S3-compatible qua `ObjectStoragePort`);
 - **evidence completeness và numeric grounding** là logic mới ngoài citation verification.
 
 Điểm có rủi ro lịch trình cao nhất:
@@ -538,7 +539,7 @@ Các bề mặt cài đặt mới so với v1:
 | R13 | Model API, quota hoặc giá thay đổi | Trung bình | Trung bình | Provider interface, pin model ID, budget cap, không hardcode quota trong logic |
 | R14 | Langfuse không khả dụng | Thấp | Thấp | Langfuse không nằm trên đường tới hạn; trace fail không chặn query; bật/tắt qua config |
 | R15 | Hạ tầng RAGFlow baseline (tối thiểu 16 GB RAM) cạnh tranh tài nguyên local | Cao | Trung bình | Bắt buộc chạy đủ mọi variant baseline trong môi trường benchmark riêng; chạy tuần tự từng variant, dừng service không cần thiết khi benchmark; nếu RAM local không đủ, chạy tuần tự trên máy phù hợp khác thay vì lược bớt variant |
-| R16 | Lỗi hàng đợi MinIO/Redis/Dramatiq | Trung bình | Trung bình | Actor idempotent, retry middleware, dead-letter queue, giám sát worker, backup MinIO |
+| R16 | Lỗi hàng đợi MinIO/Redis/Dramatiq | Trung bình | Trung bình | Actor idempotent, retry middleware, dead-letter queue, giám sát worker, backup MinIO; lựa chọn object storage implementation là ADR-gated và nằm sau `ObjectStoragePort`, đổi implementation không làm thay đổi contract |
 | R17 | PostgreSQL, Qdrant và parser dùng quá nhiều RAM khi chạy cùng | Cao | Trung bình | `MAX_INGESTION_WORKERS = 1`, dừng frontend khi benchmark cần thiết, giám sát Docker, cấu hình giới hạn bộ nhớ |
 | R18 | Không kịp hoàn thiện báo cáo | Trung bình | Rất cao | Viết từng chương song song, feature freeze 06/09, code freeze 10/09 |
 | R19 | Demo phụ thuộc Internet | Trung bình | Cao | Chuẩn bị retrieval-only demo, cache corpus, health check API, video backup |

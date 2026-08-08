@@ -2,7 +2,8 @@
 
 > **Giai đoạn SDLC**: 7 - Bảo trì
 > **Ngày tạo**: 16/06/2026
-> **Ngày cập nhật thiết kế**: 19/07/2026 - thiết kế lại v2
+> **Ngày baseline v1**: 19/07/2026
+> **Ngày thiết kế lại v2**: 08/08/2026
 > **Hạn hoàn thành**: 12/09/2026
 > **Ngày tập bảo vệ**: 13/09/2026
 > **Ngày bảo vệ**: 14/09/2026
@@ -32,7 +33,7 @@ Kế hoạch bảo trì phải bảo đảm hệ thống tiếp tục:
 2. Dùng đúng phiên bản văn bản tại ngày được hỏi theo khoảng [effective_from, effective_to).
 3. Không làm mất lịch sử khi có văn bản mới; văn bản bị thay thế vẫn phục vụ câu hỏi lịch sử.
 4. Không index dữ liệu chưa review; `needs_review` và `dropped` không bao giờ vào Qdrant.
-5. Có thể tái tạo PostgreSQL (nguồn chân lý), Qdrant (index dẫn xuất), MinIO và evaluation artifacts.
+5. Có thể tái tạo PostgreSQL (nguồn chân lý), Qdrant (index dẫn xuất), object storage (MinIO hiện tại) và evaluation artifacts.
 6. Phát hiện retrieval hoặc citation regression qua bộ regression subset cố định.
 7. Kiểm soát mọi thay đổi model, prompt, parser, embedding, reranker qua gate và regression.
 8. Giữ report, code và dữ liệu đồng bộ; số liệu trong báo cáo phải có raw evidence.
@@ -241,6 +242,7 @@ Không được đóng toàn bộ document cũ nếu chỉ một số provision 
 - đóng interval của provision cũ tại biên sửa đổi;
 - giữ nguyên provision không bị sửa;
 - ghi `LegalEffectEvent` PARTIAL_AMENDED với `affected_provision_versions` structured;
+- ghi `ProvisionProvenance` với role = AMENDMENT_TEXT cho phần nội dung thay đổi từ văn bản sửa đổi (`source_document_version_id`, `source_element_id`, `page_number`, `bbox`); phần nội dung không bị sửa giữ role = BASE_TEXT;
 - cập nhật `provision_versions` registry với `superseded_by_version` (doc 03 mục 3.15.3).
 
 #### E. Đính chính (correction)
@@ -292,7 +294,7 @@ Nếu cùng file và cùng pipeline version đã thành công, không chạy l�
 
 - Mỗi `ParsedDocument` ghi `ir_schema_version` (ví dụ `document-ir-v1`).
 - Khi parsing pipeline thay đổi cấu trúc IR (thêm/bớt field, đổi semantics của `DocumentElement`), `ir_schema_version` phải bump (ví dụ `document-ir-v2`).
-- IR schema bump yêu cầu re-normalization: đọc artifact parser đã lưu trong MinIO (`parser-outputs`), chuyển sang IR mới bằng adapter hiện hành. Nếu chỉ thay đổi IR schema mà parser version không đổi, có thể re-project mà không cần re-parse.
+- IR schema bump yêu cầu re-normalization: đọc artifact parser đã lưu trong object storage (`parser-outputs`), chuyển sang IR mới bằng adapter hiện hành. Nếu chỉ thay đổi IR schema mà parser version không đổi, có thể re-project mà không cần re-parse.
 - Nếu parser version thay đổi, phải re-parse (không tái sử dụng parser output cũ) (mục 8.4.5).
 - Idempotency key chứa IR schema version; bump schema làm key đổi, cho phép chạy lại pipeline.
 
@@ -368,7 +370,7 @@ Nguyên tắc:
 - `DocumentElement` fields được version hóa qua `ir_schema_version` trên `ParsedDocument`.
 - Quy tắc bump IR schema: bất kỳ thay đổi field, kiểu field hoặc semantics của IR làm thay đổi cách Legal Structure Extractor đọc dữ liệu.
 - Re-normalization procedure:
-  - nếu chỉ IR schema thay đổi: đọc artifact parser gốc từ MinIO bucket `parser-outputs`, chuyển sang IR mới bằng adapter hiện hành, không cần re-parse;
+  - nếu chỉ IR schema thay đổi: đọc artifact parser gốc từ object storage bucket `parser-outputs`, chuyển sang IR mới bằng adapter hiện hành, không cần re-parse;
   - nếu parser version thay đổi: re-parse từ PDF nguồn (`source-pdfs`) vì parser output cũ không tương thích;
   - sau khi re-normalize/re-parse, chạy lại quality gates và golden fixtures trước khi viết vào PostgreSQL.
 
@@ -489,6 +491,8 @@ unique (provision_id, version)
 - effective interval thay đổi;
 - provenance thay đổi đáng kể;
 - split/merge do legal amendment.
+
+`ProvisionProvenance` (provision_version_row_id, source_document_version_id, source_element_id, page_number, bbox, role = BASE_TEXT | AMENDMENT_TEXT | CORRECTION_TEXT | EFFECT_SOURCE) gắn với từng provision version: thêm hoặc thay đổi bản ghi provenance (ví dụ nguồn AMENDMENT_TEXT từ văn bản sửa đổi, CORRECTION_TEXT từ đính chính, EFFECT_SOURCE từ văn bản gây sự kiện hiệu lực) được xem là provenance thay đổi đáng kể và bump provision version.
 
 ### 8.6.3. Pipeline revisions
 
@@ -645,7 +649,7 @@ legal_query
 
 ---
 
-## 8.8. Queue và object storage (Redis job recovery + MinIO retention)
+## 8.8. Queue và object storage (Redis job recovery + object-storage retention)
 
 ### 8.8.1. Redis job recovery
 
@@ -694,9 +698,15 @@ retry condition: không retry validation error
 - Khảo sát khi dead-letter count tăng liên tục (worker chết, actor time limit, lỗi dữ liệu).
 - Message dead-letter không được âm thầm xóa trước khi inspect và replay hoặc ghi nhận lỗi cố hữu.
 
-### 8.8.4. MinIO artifact retention
+### 8.8.4. Object storage artifact retention
 
-Buckets (doc 03 mục 3.12.1):
+Object storage được tiếp cận theo hợp đồng `ObjectStoragePort` với implementation S3-compatible; MinIO là ứng viên hiện tại (ADR đang mở). Mọi quy tắc trong mục này áp dụng cho implementation S3-compatible được chọn, không gắn cứng với một sản phẩm cụ thể:
+
+- chuyển implementation (nếu ADR chọn store S3-compatible khác) là thay đổi cấp cấu hình (S3 endpoint, access key, secret key), không phải schema change; bucket layout và object key không đổi;
+- bucket versioning, tagging và metadata vẫn do PostgreSQL (`ingestion_artifacts`) quản lý;
+- tiering/ILM không phải backup và quy tắc replication/`mc mirror` áp dụng cho mọi implementation được chọn (mục 8.8.5).
+
+Bucket layout (doc 03 mục 3.12.1):
 
 ```text
 source-pdfs           PDF nguồn đã validate
@@ -718,15 +728,15 @@ Retention rules:
 | review-artifacts | Giữ cho mục đích audit; không xóa trước khi khóa luận được chấm |
 | evaluation-artifacts | Giữ theo run, bất biến; không ghi đè, không chỉnh sửa sau khi run kết thúc (append-only) |
 
-Metadata (file_hash, size, parser version, uploaded_at) nằm trong PostgreSQL (`ingestion_artifacts`), không dùng MinIO tag làm nguồn chính (NFR-09). Bật versioning bucket khi cần giữ lịch sử object.
+Metadata (file_hash, size, parser version, uploaded_at) nằm trong PostgreSQL (`ingestion_artifacts`), không dùng object tag làm nguồn chính (NFR-09). Bật versioning bucket khi cần giữ lịch sử object.
 
-Quy tắc retention source PDF thống nhất với doc 07 mục 7.5.6: source PDF và corpus artifact được giữ theo version văn bản - giữ ít nhất tới khi mọi version hiệu lực hoặc version lịch sử được tham chiếu không còn được phục vụ. Việc xóa (nếu có) chỉ thực hiện sau khi archive sang nơi lưu trữ backup độc lập, ghi audit, và xác nhận không còn provision/relation nào tham chiếu tới nó. Trước khi việc xóa hoàn tất, backup MinIO vẫn bắt buộc theo lịch (mục 8.10.1); PDF gốc là nguồn đối chiếu cuối cùng nên việc xóa không được làm mất nguồn đối chiếu cho các version còn được phục vụ.
+Quy tắc retention source PDF thống nhất với doc 07 mục 7.5.6: source PDF và corpus artifact được giữ theo version văn bản - giữ ít nhất tới khi mọi version hiệu lực hoặc version lịch sử được tham chiếu không còn được phục vụ. Việc xóa (nếu có) chỉ thực hiện sau khi archive sang nơi lưu trữ backup độc lập, ghi audit, và xác nhận không còn provision/relation nào tham chiếu tới nó. Trước khi việc xóa hoàn tất, backup object storage vẫn bắt buộc theo lịch (mục 8.10.1); PDF gốc là nguồn đối chiếu cuối cùng nên việc xóa không được làm mất nguồn đối chiếu cho các version còn được phục vụ.
 
 ### 8.8.5. Tiering/ILM không phải backup
 
-- ILM/transition (tiering) chỉ chuyển dữ liệu giữa các tầng trong cùng hệ thống, không thay thế nơi lưu trữ độc lập cho mục đích phục hồi (doc 03 mục 3.12.3, doc 07 mục 7.5.5).
-- Backup MinIO bằng server-side replication (async) hoặc `mc mirror`/`mc cp` sang nơi lưu trữ độc lập (khác volume `minio_data`).
-- Restore MinIO phải đi kèm kiểm tra hash với metadata trong PostgreSQL.
+- ILM/transition (tiering) chỉ chuyển dữ liệu giữa các tầng trong cùng hệ thống, không thay thế nơi lưu trữ độc lập cho mục đích phục hồi (doc 03 mục 3.12.3, doc 07 mục 7.5.5); quy tắc này áp dụng cho mọi implementation S3-compatible được chọn.
+- Backup object storage bằng server-side replication (async) hoặc `mc mirror`/`mc cp` sang nơi lưu trữ độc lập (khác volume lưu trữ production).
+- Restore object storage phải đi kèm kiểm tra hash với metadata trong PostgreSQL.
 - Backup verification định kỳ: so sánh số object (`mc du`) giữa nguồn và đích; kiểm tra checksum trước khi restore.
 
 ---
@@ -828,7 +838,7 @@ Gold-set health theo dõi: expected IDs còn tồn tại; query date hợp lệ;
 |---|---|
 | PostgreSQL | Trước release và sau corpus update (pg_dump --format=custom) |
 | Qdrant snapshot | Trước alias switch và release; copy sang nơi lưu trữ độc lập |
-| MinIO artifacts | `mc mirror` sang nơi lưu trữ độc lập; source PDF + artifact archive sau ingestion accepted |
+| Object storage artifacts (MinIO/S3-compatible) | `mc mirror` sang nơi lưu trữ độc lập; source PDF + artifact archive sau ingestion accepted |
 | Gold set | Mỗi version/run |
 | Evaluation results | Mỗi run (append-only) |
 | Git repository | Mỗi commit/push |
@@ -840,8 +850,8 @@ Backup scope bắt buộc (NFR-03, doc 07 mục 7.10.1):
 ```text
 1. PostgreSQL dump        pg_dump --format=custom
 2. Qdrant snapshot        snapshot collection active + copy sang nơi độc lập
-3. MinIO artifacts        mc mirror sang nơi lưu trữ độc lập
-4. Source PDF + manifest  từ MinIO bucket source-pdfs + data/manifests
+3. Object storage artifacts  mc mirror sang nơi lưu trữ độc lập
+4. Source PDF + manifest      từ bucket source-pdfs của object storage + data/manifests
 5. Gold set               gold set version + hash (data/gold-sets)
 6. Evaluation results     data/evaluation
 7. Release config         deploy/env/*.env.example, release-manifest.json
@@ -899,7 +909,7 @@ Backup chỉ hợp lệ khi đồng thời:
 | PostgreSQL connectivity | Fail |
 | Qdrant connectivity | Fail |
 | Redis connectivity | Fail |
-| MinIO connectivity | Fail |
+| Object storage (MinIO/S3-compatible) connectivity | Fail |
 | Disk usage | Trên 80% |
 | RAM usage | Trên 85% kéo dài |
 | Error rate | Tăng bất thường |
@@ -996,7 +1006,7 @@ SEV-1 không được phép: trả lời kèm citation không đạt L2-L6; sử
 
 - Restore service từ backup release.
 - Protect data (không chạy destructive command trước khi backup).
-- Use release backup (postgres dump, qdrant snapshot, minio mirror).
+- Use release backup (postgres dump, qdrant snapshot, object storage mirror).
 - Verify readiness (health/ready, verify_release.py).
 - Postmortem.
 
@@ -1038,7 +1048,7 @@ open correction
     -> preserve old record
 ```
 
-Bản ghi cũ không bị xóa; nó vẫn phục vụ câu hỏi lịch sử và audit. Correction dạng đính chính nội dung pháp lý ghi `LegalEffectEvent` CORRECTED và `DocumentRelation` CORRECTS khi cần.
+Bản ghi cũ không bị xóa; nó vẫn phục vụ câu hỏi lịch sử và audit. Correction dạng đính chính nội dung pháp lý ghi `LegalEffectEvent` CORRECTED và `DocumentRelation` CORRECTS khi cần. Bản ghi `ProvisionProvenance` với role = CORRECTION_TEXT được tạo cho nội dung hiệu chỉnh, kèm nguồn hiệu chỉnh (`source_document_version_id`, `source_element_id`, `page_number`, `bbox`).
 
 ### 8.13.2. Query trace correction
 
@@ -1069,7 +1079,7 @@ Hiệu lực không chắc chắn được ghi `UNKNOWN`/`PENDING_REVIEW`, tạo
 ### 8.14.1. Data versions
 
 - Document version unique `(document_id, version)`.
-- Provision version unique `(provision_id, version)`; bump khi content/hierarchy/interval/provenance thay đổi hoặc split/merge.
+- Provision version unique `(provision_id, version)`; bump khi content/hierarchy/interval/provenance (gồm các bản ghi `ProvisionProvenance` mới) thay đổi hoặc split/merge.
 - `provision_id` giữ nguyên khi provision bị sửa; trích dẫn ổn định và câu hỏi lịch sử vẫn hoạt động.
 
 ### 8.14.2. Pipeline revisions
@@ -1116,6 +1126,7 @@ parser version (Docling/MinerU)
 Document IR schema version
 legal parser version
 relation extraction version
+object storage implementation (S3-compatible; MinIO hiện tại)
 ```
 
 Không dùng một version duy nhất cho mọi artifact; mỗi thành phần có version riêng và được ghi trong run metadata và release manifest.
@@ -1123,6 +1134,7 @@ Không dùng một version duy nhất cho mọi artifact; mỗi thành phần c�
 ### 8.14.6. Dependency rules
 
 - Parser (Docling/MinerU), embedding và reranker upgrade bắt buộc golden fixtures hoặc regression trước khi promote.
+- Object storage implementation (S3-compatible) swap: thay đổi cấp cấu hình (S3 endpoint/keys), không phải schema change; tiering/ILM không phải backup và replication/`mc mirror` vẫn áp dụng cho mọi implementation được chọn (mục 8.8.5).
 - Không auto-upgrade parser/embedding/reranker theo branch.
 - Không dùng floating tags (`latest`) cho deployment; pin image tag và digest trước code freeze (doc 07 mục 7.2.1).
 - Lock file (`uv.lock`, `package-lock.json`) là nguồn version chính xác.
