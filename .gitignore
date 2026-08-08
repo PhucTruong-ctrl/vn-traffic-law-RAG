@@ -8,9 +8,15 @@
 *.fls
 *.fdb_latexmk
 *.synctex.gz
+*.bbl
+*.bcf
+*.blg
+*.run.xml
+*.blx.bib
 
 # Hive session folder
 .hive/
+.hive
 
 # Python
 __pycache__/
