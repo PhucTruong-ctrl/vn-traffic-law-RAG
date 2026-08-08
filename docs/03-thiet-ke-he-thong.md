@@ -2,7 +2,8 @@
 
 > **Giai đoạn SDLC**: 3 - Thiết kế hệ thống
 > **Ngày tạo**: 16/06/2026
-> **Ngày cập nhật thiết kế**: 19/07/2026 - thiết kế lại v2
+> **Ngày baseline v1**: 19/07/2026
+> **Ngày thiết kế lại v2**: 08/08/2026
 > **Hạn hoàn thành**: 12/09/2026
 > **Ngày bảo vệ**: 14/09/2026
 > **Tài liệu quyết định nguồn**: [00-scope-and-decisions.md](00-scope-and-decisions.md)
@@ -361,7 +362,8 @@ sequenceDiagram
     participant IR as Canonical IR
     participant LSE as Legal Structure Extractor
     participant REF as Reference/Temporal Resolver
-    participant QG as Quality Gates
+    participant QGA as Quality Gate A (parser-level)
+    participant QGB as Quality Gate B (structural)
     participant MO as MinIO
     participant EMB as Embedding Provider
     participant QD as Qdrant
@@ -378,10 +380,24 @@ sequenceDiagram
     WK->>PR: chọn parser theo đặc tính tài liệu
     PR->>WK: Docling (hoặc MinerU nếu quality gate fail)
     WK->>IR: chuyển output parser -> ParsedDocument
-    WK->>LSE: trích LegalProvision[]
+    WK->>QGA: gate A (provenance, text extraction, table, layout)
+    alt Gate A fail trên parser hiện tại (Docling)
+        WK->>PR: chuyển MinerU, chạy lại từ đầu parse
+        PR->>WK: MinerU output
+        WK->>IR: chuyển sang IR mới (supersede artifact cũ)
+        WK->>QGA: gate A lại trên kết quả MinerU
+    end
+    WK->>LSE: trích LegalProvision[] (Legal Structure Extractor)
+    WK->>QGB: gate B (point label, hierarchy, short-point)
+    alt Gate B fail trên parser hiện tại
+        WK->>PR: hủy kết quả structural cũ, chạy lại toàn bộ từ parser khác
+        PR->>WK: output parser thay thế
+        WK->>IR: IR mới (artifact structural cũ bị đánh dấu invalid)
+        WK->>LSE: extract lại
+        WK->>QGB: gate B lại
+    end
     WK->>REF: resolve references + temporal
-    WK->>QG: quality gates
-    alt accepted
+    alt accepted (auto-accept hợp lệ hoặc reviewer accept)
         WK->>PG: lưu provisions (ACCEPTED) + commit
         WK->>EMB: embed accepted provisions
         WK->>QD: upsert dense + sparse + payload
@@ -391,7 +407,6 @@ sequenceDiagram
     else dropped
         WK->>PG: ghi lý do DROPPED
     end
-    WK->>PG: cập nhật IngestionRun (terminal state)
 ```
 
 Upload trả `202 Accepted` ngay. Không parse PDF đồng bộ trong request handler (FR-07).
@@ -982,6 +997,27 @@ parser_router:
 
 Mọi quyết định routing và kết quả quality gate được ghi vào `ingestion_runs.parser_routing` và `DocumentElement.source_parser` để phục vụ Suite A và corpus QA (NFR-09).
 
+### 3.7.5. Chính sách auto-accept (không dùng confidence để quyết định sự thật pháp lý)
+
+Quality gate và review routing phân loại kết quả thành `accepted`, `needs_review` hoặc `dropped`. Một số kết quả được **auto-accept** (index tự động), số khác **bắt buộc review**. Nguyên tắc cốt lõi: **confidence score không bao giờ được dùng để quyết định một sự thật pháp lý** (ngày hiệu lực, quan hệ sửa đổi/thay thế/bãi bỏ). Quyết định pháp lý chỉ dựa trên nguồn xác định (manifest chính thức, pattern deterministic khớp tuyệt đối, quyết định reviewer).
+
+| Loại kết quả | Auto-accept? | Điều kiện |
+|---|---|---|
+| Cấu trúc parser deterministic (Chương/Mục/Điều/Khoản/Điểm, nhãn đ), short-Point) | Có thể auto-accept | Quality gate nhóm A + B đạt, không ambiguity cờ; vẫn phải ACCEPTED trước khi index |
+| Metadata manifest chính thức (document_number, issued_date, effective_from, effective_to từ nguồn chính thức) | Có thể auto-accept | Manifest khớp nguồn chính thức; nếu manifest mâu thuẫn nguồn -> review |
+| Giải quyết `REFERS_TO` chính xác (pattern tường minh trỏ target tồn tại) | Có thể nếu deterministic | Target tồn tại, pattern khớp tuyệt đối, không mơ hồ |
+| Suy luận `PENALTY_COMPANION` (inferred, không tường minh) | Review | Luôn định tuyến review, không auto |
+| Sửa đổi từng phần inferred (partial amendment không tường minh trong manifest) | Review | Luôn review |
+| Ngày hiệu lực không chắc chắn (không có nguồn tin cậy) | Review | `UNKNOWN`/`PENDING_REVIEW` tới khi reviewer quyết định |
+| Quan hệ pháp lý dựa thuần trên confidence score | **Không bao giờ** | Không dùng confidence để quyết định sự thật pháp lý; phải có nguồn hoặc review |
+| Tài liệu/provision có provenance thiếu (page/bbox) | Review | Ngoại trừ element không cần provenance |
+
+Hệ quả triển khai:
+
+- `review_status = ACCEPTED` chỉ được gán khi auto-accept hợp lệ (bảng trên) HOẶC sau quyết định reviewer có ghi identity + timestamp;
+- Mọi quan hệ pháp lý (`DocumentRelation` AMENDS/REPEALS/SUPERSEDES/CORRECTS, `LegalEffectEvent`) đều yêu cầu nguồn tường minh (`source` = MANIFEST/OFFICIAL/REVIEW); không có đường "chấp nhận vì confidence cao";
+- Quyết định auto-accept phải được ghi trong `ingestion_runs.parser_routing` hoặc review item để audit.
+
 ---
 
 ## 3.8. Legal Structure Extractor
@@ -1195,7 +1231,7 @@ class DocumentVersion(BaseModel):
     version: int
     manifest_json: dict            # manifest gốc, bất biến
     content_hash: str
-    effective_from: date
+    effective_from: date | None = None   # nullable khi hiệu lực chưa xác định/chưa review (xem 3.15.6)
     effective_to: date | None = None
     review_status: ReviewStatus
     created_at: datetime
@@ -1224,7 +1260,7 @@ class LegalProvision(BaseModel):
     node_kind: LegalNodeKind = LegalNodeKind.ARTICLE   # loại nút pháp lý (xem 3.8.1)
     chapter: str | None = None
     section: str | None = None
-    article: str | None = None      # nullable khi node_kind là APPENDIX/TABLE/HEADING
+    article: str | None = None      # nullable khi node_kind là APPENDIX/TABLE/HEADING/TRANSITIONAL/OTHER
     clause: str | None = None
     point: str | None = None
     heading: str | None = None
@@ -1246,7 +1282,7 @@ class LegalProvision(BaseModel):
     review_status: ReviewStatus
 ```
 
-- `node_kind` phân biệt ARTICLE/CLAUSE/POINT/APPENDIX/TABLE/TRANSITIONAL/HEADING/OTHER (mở rộng từ mô hình phân cấp cơ bản ở 3.8.1). `article` trở thành nullable khi node_kind là APPENDIX/TABLE/HEADING (không thuộc cây Điều thường).
+- `node_kind` phân biệt ARTICLE/CLAUSE/POINT/APPENDIX/TABLE/TRANSITIONAL/HEADING/OTHER (mở rộng từ mô hình phân cấp cơ bản ở 3.8.1). `article` trở thành nullable khi node_kind là APPENDIX/TABLE/HEADING/TRANSITIONAL/OTHER (không thuộc cây Điều thường).
 - `TRANSITIONAL` được định nghĩa là một loại node riêng (không phải subtype của ARTICLE): Điều khoản chuyển tiếp thường có tiêu đề riêng ("Điều khoản chuyển tiếp") và có thể không có số Điều; khi có số Điều (ví dụ "Điều 8. Điều khoản chuyển tiếp"), nó vẫn mang node_kind = ARTICLE và được gắn cờ qua `heading`.
 - `effective_from` nullable cho các row chưa review/không chắc chắn (xem 3.15.6): chỉ row `review_status = ACCEPTED` bắt buộc có `effective_from`.
 
@@ -1295,6 +1331,10 @@ class ProvisionReference(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
+    # FK vật lý tới đúng row version trong legal_provisions (khóa (provision_id, version))
+    source_legal_provision_id: uuid               # REFERENCES legal_provisions(id)
+    target_legal_provision_id: uuid | None = None # REFERENCES legal_provisions(id); None khi UNRESOLVED
+    # Các cột logical để query/debug, không phải FK
     source_provision_id: str
     source_provision_version_id: str | None       # version nguồn thực tế của quan hệ (bắt buộc cho REFERS_TO/PENALTY_COMPANION)
     target_provision_id: str | None               # None khi UNRESOLVED
@@ -1308,7 +1348,7 @@ class ProvisionReference(BaseModel):
     created_at: datetime
 ```
 
-Quan hệ **version-bound**: khi một provision bị sửa đổi từng phần, nội dung tham chiếu có thể thay đổi theo version, nên quan hệ được gắn version nguồn (`source_provision_version_id`) và version đích (`target_provision_version_id`). Legal Context Expansion (3.20) khi mở rộng phải áp dụng **temporal filter + review filter theo ngày query**: chỉ mở rộng sang target có `review_status = ACCEPTED` và khoảng hiệu lực chứa ngày query; quan hệ PENDING_REVIEW/UNRESOLVED không được dùng để mở rộng tự động.
+Quan hệ **version-bound**: khi một provision bị sửa đổi từng phần, nội dung tham chiếu có thể thay đổi theo version, nên quan hệ được gắn chặt vào row version cụ thể qua FK vật lý `source_legal_provision_id`/`target_legal_provision_id` (trỏ `legal_provisions.id`). `source_provision_id`/`target_provision_id` và các cột version là cột logical phục vụ query/debug. Legal Context Expansion (3.20) khi mở rộng phải áp dụng **temporal filter + review filter theo ngày query**: chỉ mở rộng sang target có `review_status = ACCEPTED` và khoảng hiệu lực chứa ngày query; quan hệ PENDING_REVIEW/UNRESOLVED không được dùng để mở rộng tự động.
 
 `PENALTY_COMPANION` gắn quy định xử phạt với quy định đi kèm (trừ điểm giấy phép, tước quyền sử dụng giấy phép lái xe).
 
@@ -1661,7 +1701,36 @@ Performance:   P50 latency, P95 latency, token usage, cost, parser time, indexin
 - Mọi query fail (retrieval/evidence/temporal/provider/error outcome) đều được giữ lại trong error analysis, không bị lọc khỏi report;
 - Deterministic metrics là headline; LLM judge là nguồn thứ cấp; model IDs và prompt versions được pin và ghi trong run metadata (NFR-08).
 
-### 3.9.14. SQLAlchemy mapping hints
+### 3.9.14. ProvisionProvenance
+
+Provision bị sửa đổi (bởi văn bản sửa đổi/đính chính) có nội dung gốc và nội dung sửa đổi thuộc nhiều nguồn khác nhau. Provenance trên `LegalProvision` (page_number, bbox, source_element_ids) chỉ đủ cho nội dung gốc; cần entity riêng ghi nguồn của từng thành phần nội dung theo version:
+
+```python
+class ProvenanceRole(StrEnum):
+    BASE_TEXT = "BASE_TEXT"                  # nội dung gốc từ văn bản nền
+    AMENDMENT_TEXT = "AMENDMENT_TEXT"        # nội dung thay thế từ văn bản sửa đổi
+    CORRECTION_TEXT = "CORRECTION_TEXT"      # nội dung từ văn bản đính chính
+    EFFECT_SOURCE = "EFFECT_SOURCE"          # nguồn xác định hiệu lực (manifest/nguồn chính thức)
+
+
+class ProvisionProvenance(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    provision_version_row_id: uuid      # FK legal_provisions.id - đúng row version
+    source_document_version_id: str     # document version chứa nội dung (văn bản nền hoặc văn bản sửa đổi)
+    source_element_id: str              # DocumentElement element_id trong parsed document của nguồn
+    page_number: int
+    bbox: BoundingBox | None = None
+    role: ProvenanceRole
+    created_at: datetime
+```
+
+- Mỗi row `legal_provisions` (provision version) có thể có nhiều `ProvisionProvenance` (BASE_TEXT gốc + AMENDMENT_TEXT/CORRECTION_TEXT từ văn bản sửa đổi);
+- `page_number`/`bbox`/`source_element_ids` trên `LegalProvision` được giữ lại như **convenience projection** (provenance gần nhất/hợp nhất), còn nguồn chính xác từng phần nội dung nằm ở `provision_provenance`;
+- Temporal/Amendment Resolver (3.15) ghi provenance cho từng version: khi tạo version mới do sửa đổi, ghi `AMENDMENT_TEXT` trỏ element của văn bản sửa đổi và `EFFECT_SOURCE` trỏ nguồn xác định hiệu lực (manifest/nguồn chính thức).
+
+### 3.9.15. SQLAlchemy mapping hints
 
 ```text
 legal_sources        -> LegalSource        (Table)
@@ -1669,6 +1738,7 @@ legal_documents      -> LegalDocument      (Table)
 document_versions    -> DocumentVersion    (Table)
 legal_provisions     -> LegalProvision     (Table, UNIQUE(provision_id, version))
 provision_versions   -> ProvisionVersion   (Table)
+provision_provenances -> ProvisionProvenance (Table, FK legal_provisions.id)
 provision_references -> ProvisionReference (Table)
 document_relations   -> DocumentRelation   (Table)
 legal_effect_events  -> LegalEffectEvent   (Table)
@@ -1689,7 +1759,8 @@ Mối quan hệ quan trọng:
 
 - `LegalProvision.document_version_id` -> `DocumentVersion.id`;
 - `legal_provisions` LÀ bảng version có thẩm quyền (UNIQUE(provision_id, version), đầy đủ nội dung + `review_status`); `provision_versions` là registry có `FOREIGN KEY (provision_id, version) REFERENCES legal_provisions(provision_id, version)`;
-- `ProvisionReference` gắn version nguồn/đích (`source_provision_version_id`, `target_provision_version_id`) và trỏ tới `legal_provisions`; `DocumentRelation` trỏ theo logical `document_id`;
+- `ProvisionProvenance.provision_version_row_id` -> `legal_provisions(id)` (FK tới đúng row version), mỗi version có nhiều provenance row theo role;
+- `ProvisionReference` gắn FK vật lý `source_legal_provision_id`/`target_legal_provision_id` trỏ `legal_provisions(id)` (đúng row version); `source_provision_id`/`target_provision_id` là cột logical; `DocumentRelation` trỏ theo logical `document_id`;
 - Không dùng Neo4j; duyệt quan hệ bằng application logic + SQL (JOIN hoặc truy vấn đệ quy có giới hạn độ sâu).
 
 ---
@@ -1704,6 +1775,7 @@ erDiagram
     LEGAL_DOCUMENTS ||--o{ DOCUMENT_VERSIONS : versioned_by
     DOCUMENT_VERSIONS ||--o{ LEGAL_PROVISIONS : contains
     LEGAL_PROVISIONS ||--o{ PROVISION_VERSIONS : versioned_by
+    LEGAL_PROVISIONS ||--o{ PROVISION_PROVENANCES : provenance_by
     LEGAL_PROVISIONS ||--o{ PROVISION_REFERENCES : source
     LEGAL_DOCUMENTS ||--o{ DOCUMENT_RELATIONS : source
     LEGAL_DOCUMENTS ||--o{ DOCUMENT_RELATIONS : target
@@ -1788,6 +1860,8 @@ erDiagram
     }
     PROVISION_REFERENCES {
         uuid id PK
+        uuid source_legal_provision_id FK
+        uuid target_legal_provision_id FK
         varchar source_provision_id
         varchar source_provision_version_id
         varchar target_provision_id
@@ -1798,6 +1872,16 @@ erDiagram
         text source_text
         varchar resolution_status
         varchar review_status
+        timestamptz created_at
+    }
+    PROVISION_PROVENANCES {
+        uuid id PK
+        uuid provision_version_row_id FK
+        uuid source_document_version_id FK
+        varchar source_element_id
+        int page_number
+        jsonb bbox
+        varchar role
         timestamptz created_at
     }
     DOCUMENT_RELATIONS {
@@ -2016,14 +2100,17 @@ CREATE TABLE document_versions (
     version        int NOT NULL,
     manifest_json  jsonb NOT NULL,
     content_hash   varchar NOT NULL,
-    effective_from date NOT NULL,
+    effective_from date,
     effective_to   date,
     review_status  varchar NOT NULL DEFAULT 'PENDING'
                    CHECK (review_status IN ('PENDING', 'ACCEPTED', 'REJECTED', 'DROPPED')),
     created_at     timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT document_versions_pk UNIQUE (document_id, version),
     CONSTRAINT document_versions_interval_check
-        CHECK (effective_to IS NULL OR effective_to > effective_from)
+        CHECK (effective_to IS NULL OR effective_to > effective_from),
+    -- effective_from bắt buộc khi đã ACCEPTED (xem 3.15.6)
+    CONSTRAINT document_versions_effective_from_accepted_check
+        CHECK (review_status <> 'ACCEPTED' OR effective_from IS NOT NULL)
 );
 
 -- legal_provisions
@@ -2056,9 +2143,9 @@ CREATE TABLE legal_provisions (
     CONSTRAINT legal_provisions_pk UNIQUE (provision_id, version),
     CONSTRAINT legal_provisions_interval_check
         CHECK (effective_to IS NULL OR effective_to > effective_from),
-    -- Article bắt buộc trừ các node ngoài cây Điều thường (Appendix/Table/Heading/Other)
+    -- Article bắt buộc trừ các node ngoài cây Điều thường (Appendix/Table/Heading/Transitional/Other)
     CONSTRAINT legal_provisions_article_required
-        CHECK (article IS NOT NULL OR node_kind IN ('APPENDIX', 'TABLE', 'HEADING', 'OTHER')),
+        CHECK (article IS NOT NULL OR node_kind IN ('APPENDIX', 'TABLE', 'HEADING', 'TRANSITIONAL', 'OTHER')),
     -- effective_from bắt buộc khi đã ACCEPTED (ràng buộc thời gian, xem 3.15.6)
     CONSTRAINT legal_provisions_effective_from_accepted_check
         CHECK (review_status <> 'ACCEPTED' OR effective_from IS NOT NULL)
@@ -2082,6 +2169,10 @@ CREATE TABLE provision_versions (
 -- provision_references
 CREATE TABLE provision_references (
     id                          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    -- FK vật lý tới row version cụ thể trong legal_provisions
+    source_legal_provision_id   uuid NOT NULL REFERENCES legal_provisions(id),
+    target_legal_provision_id   uuid REFERENCES legal_provisions(id),
+    -- Cột logical để query/debug (không phải FK)
     source_provision_id         varchar NOT NULL,
     source_provision_version_id varchar,
     target_provision_id         varchar,
@@ -2096,14 +2187,14 @@ CREATE TABLE provision_references (
     review_status               varchar NOT NULL DEFAULT 'PENDING'
                                 CHECK (review_status IN ('PENDING', 'ACCEPTED', 'REJECTED', 'DROPPED')),
     created_at                  timestamptz NOT NULL DEFAULT now(),
-    CONSTRAINT provision_references_resolved_pk UNIQUE (source_provision_id, source_provision_version_id, target_provision_id, target_provision_version_id, relation_type)
+    CONSTRAINT provision_references_resolved_pk UNIQUE (source_legal_provision_id, target_legal_provision_id, relation_type)
 );
 
--- partial unique index cho unresolved (target NULL): dùng nguồn + loại + văn bản tham chiếu chuẩn hóa
+-- partial unique index cho unresolved (target NULL): dùng FK nguồn + loại + văn bản tham chiếu chuẩn hóa
 -- normalize_ref_text() là hàm dự án (lowercase, NFKC, chuẩn hóa khoảng trắng/dấu câu) khai báo trong migration
 CREATE UNIQUE INDEX provision_references_unresolved_pk
-    ON provision_references (source_provision_id, source_provision_version_id, relation_type, md5(normalize_ref_text(source_text)))
-    WHERE (resolution_status = 'UNRESOLVED' AND target_provision_id IS NULL);
+    ON provision_references (source_legal_provision_id, relation_type, md5(normalize_ref_text(source_text)))
+    WHERE (resolution_status = 'UNRESOLVED' AND target_legal_provision_id IS NULL);
 
 -- document_relations
 CREATE TABLE document_relations (
@@ -2175,6 +2266,21 @@ CREATE TABLE document_elements (
     raw_reference      jsonb,
     CONSTRAINT document_elements_pk UNIQUE (parsed_document_id, element_id)
 );
+
+-- provision_provenances
+CREATE TABLE provision_provenances (
+    id                         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    provision_version_row_id   uuid NOT NULL REFERENCES legal_provisions(id),
+    source_document_version_id uuid NOT NULL REFERENCES document_versions(id),
+    source_element_id          varchar NOT NULL,
+    page_number                int NOT NULL,
+    bbox                       jsonb,
+    role                       varchar NOT NULL
+                               CHECK (role IN ('BASE_TEXT', 'AMENDMENT_TEXT', 'CORRECTION_TEXT', 'EFFECT_SOURCE')),
+    created_at                 timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_provision_provenances_version
+    ON provision_provenances (provision_version_row_id);
 
 -- ingestion_runs
 CREATE TABLE ingestion_runs (
@@ -2382,9 +2488,12 @@ CREATE INDEX idx_evaluation_results_run
 - CHECK interval: `effective_to IS NULL OR effective_to > effective_from`.
 - CHECK review-required: `review_status <> 'ACCEPTED' OR effective_from IS NOT NULL` (không có row ACCEPTED thiếu ngày bắt đầu; xem 3.15.6).
 - `review_status` CHECK chỉ nhận `PENDING, ACCEPTED, REJECTED, DROPPED` ở mọi bảng có trường này.
-- **Không có hai version `ACCEPTED` chồng lấn trong cùng provision** - ràng buộc bằng **PostgreSQL exclusion constraint**:
+- **Không có hai version `ACCEPTED` chồng lấn trong cùng provision** - ràng buộc bằng **PostgreSQL exclusion constraint**. Exclusion constraint so sánh bằng trên cột `provision_id` (varchar) trong GiST cần extension `btree_gist`; phải bật extension **trong migration bootstrap, trước khi định nghĩa constraint**:
 
 ```sql
+-- Migration/bootstrap: bắt buộc trước khi tạo bảng/constraint dùng GiST so sánh varchar
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
 ALTER TABLE legal_provisions
     ADD CONSTRAINT legal_provisions_no_overlap_accepted
     EXCLUDE USING gist (
@@ -2393,6 +2502,8 @@ ALTER TABLE legal_provisions
     )
     WHERE (review_status = 'ACCEPTED');
 ```
+
+Lưu ý bootstrap: `CREATE EXTENSION IF NOT EXISTS btree_gist;` phải chạy trong migration khởi tạo schema (trước mọi lệnh CREATE/ALTER dùng `EXCLUDE USING gist` trên cột varchar), ghi rõ trong quy trình migration (3.10, tài liệu vận hành); extension cần quyền superuser hoặc được cấp phép trong database (thường được Docker image PostgreSQL cấp mặc định cho user khởi tạo).
 
 - Nếu một xung đột hiệu lực thực sự xảy ra (ví dụ hai văn bản cùng tuyên bố hiệu lực cho cùng ngày), dữ liệu đó phải được mô hình là **unresolved/PENDING_REVIEW**: review_status không phải ACCEPTED (hoặc ghi `LegalEffectEvent` + review item), tạm loại khỏi query serving cho tới khi có cách diễn giải có thẩm quyền được reviewer chấp nhận; không được giữ hai row ACCEPTED chồng lấn.
 - `review_status = ACCEPTED` là điều kiện để row được phục vụ query và được đưa vào Qdrant (3.11, 3.15.2).
@@ -2843,6 +2954,11 @@ AND review_status = 'ACCEPTED'
 
 - Khi văn bản sửa đổi chỉ thay đổi một số Điều/Khoản/Điểm, các provision không bị ảnh hưởng giữ nguyên khoảng hiệu lực;
 - Provision bị sửa: tạo row mới trong `legal_provisions` với `provision_id` giữ nguyên, version tăng, khoảng [effective_from, effective_to) mới, `review_status` mới; đồng thời ghi `provision_versions` (registry) với `superseded_by_version` trỏ version mới;
+- **Ghi provenance từng version**: với row version mới, Resolver ghi `provision_provenances`:
+  - `BASE_TEXT` trỏ element gốc (từ văn bản nền) cho phần nội dung giữ nguyên;
+  - `AMENDMENT_TEXT` trỏ element của văn bản sửa đổi cho phần nội dung bị thay (hoặc `CORRECTION_TEXT` cho văn bản đính chính);
+  - `EFFECT_SOURCE` trỏ nguồn xác định hiệu lực (manifest/nguồn chính thức);
+  - `page_number`/`bbox`/`source_element_ids` trên `LegalProvision` chỉ là projection hợp nhất (xem 3.9.14);
 - Temporal Resolver chọn version áp dụng tại ngày `d` bằng cách chọn row `legal_provisions` có `review_status = ACCEPTED` và `effective_from <= d < effective_to`;
 - `LegalEffectEvent` (event_type AMENDED/PARTIAL_AMENDED) ghi `affected_provision_versions` để trace nhanh các provision bị ảnh hưởng.
 
@@ -2867,6 +2983,8 @@ AND review_status = 'ACCEPTED'
 ### 3.15.6. Hiệu lực không chắc chắn
 
 Trường hợp không xác định được hiệu lực từ nguồn tin cậy: ghi `UNKNOWN`/`PENDING_REVIEW`, tạo ReviewItem, cho phép `effective_from`/`effective_to` NULL (hằng số row chưa review), không index provision đó vào Qdrant và không dùng cho temporal query cho tới khi reviewer quyết định. Ràng buộc database bảo đảm: row chỉ có `review_status = ACCEPTED` thì `effective_from` bắt buộc khác NULL (xem 3.10.4). Không suy đoán ngày hiệu lực từ nội dung PDF khi manifest chính thức không cung cấp.
+
+**Hiệu lực văn bản chưa xác định (DocumentVersion)**: `document_versions.effective_from` cũng nullable và có CHECK `review_status <> 'ACCEPTED' OR effective_from IS NOT NULL`. Khi một văn bản có hiệu lực không xác định, `DocumentVersion` phải giữ `PENDING`/`PENDING_REVIEW` và đi qua review trước khi được chuyển sang `ACCEPTED`; văn bản chưa xác định hiệu lực không được phục vụ temporal query và không được làm nguồn cho provision ACCEPTED.
 
 ### 3.15.7. Current / Historical / Comparison
 
@@ -3708,6 +3826,22 @@ legal-citation-renderer-v1
 ```
 
 Prompt version được ghi vào evaluation run (NFR-08) và QueryTrace config_snapshot.
+
+**Fallback prompt (release pin) - bảo đảm Langfuse ngoài đường tới hạn thực sự**:
+
+`get_prompt()` của Langfuse có thể throw khi instance mới khởi động (cold cache) hoặc không khả dụng; prompt là thành phần bắt buộc của pipeline, nên cần đường fallback tường minh để query vẫn chạy khi Langfuse không phục vụ được prompt:
+
+- Thư mục release fallback `prompts/fallback/` chứa bản prompt đã pin theo release (được xuất từ Langfuse khi cắt release, có hash):
+  ```text
+  prompts/fallback/query-analyzer.yaml
+  prompts/fallback/query-rewriter.yaml
+  prompts/fallback/hyde.yaml
+  prompts/fallback/generator.yaml
+  prompts/fallback/claim-verifier.yaml
+  ```
+- Mọi lần lấy prompt dùng `client.get_prompt(name, version=..., fallback=PINNED_RELEASE_PROMPT)`; thứ tự nguồn: Langfuse API -> local cache (LRU/đĩa) -> release fallback file;
+- Trace/QueryTrace ghi `prompt_source` = `LANGFUSE | CACHE | RELEASE_FALLBACK`, kèm `prompt_version` và `prompt_hash` (SHA-256 nội dung prompt) để tái lập được nội dung prompt thực tế đã dùng (NFR-08);
+- Quy tắc: prompt release fallback phải được đóng gói trong artifact deploy (không phụ thuộc mạng), cập nhật mỗi release cùng lúc với prompt trên Langfuse.
 
 ### 3.27.4. Experiment và dataset
 

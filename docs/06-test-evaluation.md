@@ -2,7 +2,8 @@
 
 > **Giai đoạn SDLC**: 5 - Kiểm thử và đánh giá
 > **Ngày tạo**: 16/06/2026
-> **Ngày cập nhật thiết kế**: 19/07/2026 - thiết kế lại v2
+> **Ngày baseline v1**: 19/07/2026
+> **Ngày thiết kế lại v2**: 08/08/2026
 > **Hạn hoàn thành**: 12/09/2026
 > **Ngày tập bảo vệ**: 13/09/2026
 > **Ngày bảo vệ**: 14/09/2026
@@ -372,12 +373,18 @@ def test_amended_provision_keeps_id_and_bumps_version() -> None:
                             effective_from=date(2025, 1, 1))
     amend_event = effect_event("AMENDED", event_date=date(2026, 3, 1))
 
-    applied = temporal_resolver.apply(old, amend_event)
+    applied_provision = temporal_resolver.apply(old, amend_event)
 
-    assert applied.provision_id == "nd-168-2024__dieu-7"
-    assert applied.version == 2
-    assert applied.effective_from == date(2026, 3, 1)
-    assert applied.superseded_by_version == 2  # registry ghi đúng
+    assert applied_provision.provision_id == "nd-168-2024__dieu-7"
+    assert applied_provision.version == 2
+    assert applied_provision.effective_from == date(2026, 3, 1)
+
+    # superseded_by_version thuộc ProvisionVersion registry, không thuộc LegalProvision
+    registry_v1 = repository.get_version_registry(
+        provision_id=old.provision_id,
+        version=1,
+    )
+    assert registry_v1.superseded_by_version == 2
 ```
 
 #### 6.2.1.7. Verification sáu tầng (unit tests)
@@ -1396,6 +1403,13 @@ Ngưỡng mục tiêu kỹ thuật (NFR-02, không phải kết quả đo): Retr
 
 ### 6.5.9. Ragas và judge thứ cấp
 
+**Vai trò kép của GPT-5.4 mini (nhất quán doc 03 mục 3.24.2 và doc 04 mục 4.11):**
+
+1. **Online L5 semantic verifier** (fail-closed): chạy trong verifier L5 cho các trường hợp ngữ nghĩa mà deterministic rule không kết luận được; judge timeout/provider error -> `L5_JUDGE_UNAVAILABLE` -> repair path có giới hạn hoặc ABSTAIN; khi judge tắt bằng config -> fail-closed `L5_CLAIM_NOT_SUPPORTED` (mục 6.2.2.7, doc 03 mục 3.24.2).
+2. **Evaluation judge cho metric thứ cấp**: Ragas/judge cho Faithfulness, Response Relevancy, Factual Correctness trên selected variants; kết quả headline không phụ thuộc vào vai trò này.
+
+Cả hai vai trò dùng cùng model snapshot pin (`gpt-5.4-mini-2026-03-17`). Judge không bao giờ là nguồn sự thật cho citation ID, temporal validity hay numeric grounding trong cả hai vai trò (ADR-008).
+
 Ragas v0.4.x (pin exact) dùng cho metric ngữ nghĩa phụ khi cần:
 
 ```text
@@ -1413,7 +1427,8 @@ Quy tắc judge:
 - pin snapshot, temperature thấp, structured rubric, lưu raw output;
 - không cho judge xem tên variant;
 - chạy subset lặp lại để kiểm tra variance;
-- numeric correctness KHÔNG được giao cho LLM judge; các fact check số liệu phải là deterministic trong code.
+- numeric correctness KHÔNG được giao cho LLM judge; các fact check số liệu phải là deterministic trong code;
+- judge failure ở bất kỳ vai trò nào -> run chuyển COMPLETED/FAILED theo terminal-status write policy với per-metric availability (mục 6.6.3, 6.8.5); không có trạng thái run PARTIAL.
 
 ### 6.5.10. Quy tắc tính metric
 
@@ -1656,21 +1671,46 @@ Trước khi sinh `comparison.csv`, mỗi run B1-B4 phải lưu:
 ```text
 corpus hash (dùng chung cho cả bốn variant)
 query-set hash (bộ câu hỏi evaluation đã đóng băng)
-adapter/evaluator version
+adapter/evaluator version (gồm canonical mapping adapter version, mục 6.7.5)
 run config (variant, parser method, model/config)
 raw per-query output cho từng chỉ số so sánh
 ```
 
 Chỉ khi cả bốn variant có raw output hợp lệ mới được sinh bảng so sánh; không điền placeholder hoặc giá trị ước lượng vào bảng (FR-31, NFR-08).
 
-### 6.7.5. Môi trường benchmark riêng
+### 6.7.5. Canonical provision_id mapping adapter (bắt buộc)
+
+VNLRAG đánh giá citation bằng `provision_id` chuẩn (canonical, doc 03 mục 3.8.5), trong khi RAGFlow trả citation/chunk theo định dạng riêng của nó (chunk reference, không phải `provision_id`). Để so sánh citation correctness giữa B1-B3 và B4 là công bằng (apples-to-apples), mọi citation/chunk của RAGFlow phải đi qua một **canonical mapping adapter** trước khi tính metric.
+
+**Adapter contract:**
+
+```text
+RAGFlow citation/chunk
+    -> nguồn document (tên file / document ID theo manifest corpus chung)
+    -> page (số trang RAGFlow báo)
+    -> text/span/hash (nội dung chunk trích dẫn)
+    -> canonical provision_id (tra cứu ngược trong PostgreSQL theo document,
+       page, nội dung/span hash và khoảng [effective_from, effective_to))
+```
+
+Yêu cầu:
+
+- mapping phải có khả năng trace ngược: từ `provision_id` tới chunk RAGFlow gốc và ngược lại;
+- map theo **nội dung/span hash** là nguồn chính, page là nguồn phụ trợ (RAGFlow page có thể lệch do chunking khác);
+- mọi bước mapping ghi vào run config và raw per-query output (`mapping_version` trong `adapter/evaluator version`, mục 6.7.4);
+- nếu một citation/chunk không map được tới `provision_id` (không tìm thấy trong PostgreSQL, page/text lệch, ngoài interval): ghi trạng thái `UNMAPPABLE` kèm lý do và **tính vào metric** (đếm như citation không khớp gold khi tính citation correctness), không được loại bỏ âm thầm khỏi tử số/mẫu số;
+- báo cáo riêng tỷ lệ `UNMAPPABLE` để biết mức độ không khớp do adapter, không do chất lượng trả lời.
+
+Không thực hiện bước này, so sánh citation correctness giữa RAGFlow và VNLRAG không phải apples-to-apples (một bên theo `provision_id`, một bên theo chunk riêng) và không được báo cáo là kết quả so sánh hợp lệ.
+
+### 6.7.6. Môi trường benchmark riêng
 
 - RAGFlow chạy trong môi trường benchmark riêng, không nằm trong compose production (ADR-010);
 - yêu cầu tài nguyên tối thiểu theo nhà cung cấp: 4 CPU, 16 GB RAM, 50 GB disk; Docker >= 24, Compose >= 2.26.1 (doc 04 mục 4.6.4);
 - trên máy cá nhân 19 GB RAM: không chạy RAGFlow cùng lúc với ingestion/demo/evaluation nặng; chạy tuần tự từng variant, dừng service không cần thiết, giữ `MAX_INGESTION_WORKERS=1`;
 - thời điểm: setup W7 (31/08), chạy đủ B1-B4 và dựng bảng so sánh trước feature freeze 06/09; packaging vào report ở W8 (doc 05 mục 5.18).
 
-### 6.7.6. Framing kết quả so sánh
+### 6.7.7. Framing kết quả so sánh
 
 Phân biệt vai trò của từng variant trong bảng so sánh:
 
@@ -1680,7 +1720,7 @@ Phân biệt vai trò của từng variant trong bảng so sánh:
 
 Bảng so sánh phải ghi rõ nguồn của từng con số (run_id, corpus hash, query-set hash, adapter/evaluator version). Không được gán kết quả của B1-B3 cho B4 và ngược lại.
 
-### 6.7.7. Tách biệt với quan sát Traffic-RAG
+### 6.7.8. Tách biệt với quan sát Traffic-RAG
 
 Động lực thiết kế thí nghiệm lấy từ quan sát bên ngoài Traffic-RAG (mục 6.4.6) vẫn giữ nguyên tính chất: **chỉ là động lực thiết kế, không phải kết quả của VNLRAG**, và không bao giờ được báo cáo như kết quả VNLRAG. Khác với bảng so sánh B1-B4 (kết quả đo của chính VNLRAG), các quan sát Traffic-RAG là thông tin tham khảo đầu vào, không phải số liệu đo của khóa luận.
 
@@ -2078,6 +2118,7 @@ Threshold aggregate được khóa sau baseline trên validation set.
 - Final report metrics khớp evaluation JSON (không sao chép thủ công).
 - Không có metric giả định ghi như result.
 - Baseline RAGFlow B1-B4 chạy trên cùng corpus và eval queries; so sánh Recall@10, citation correctness, temporal leakage, evidence completeness (FR-31).
+- Canonical mapping adapter pass: mọi citation/chunk RAGFlow được map qua adapter tới `provision_id`; mọi `UNMAPPABLE` được ghi kèm lý do và tính vào metric (không loại bỏ); adapter version ghi trong run config (mục 6.7.5).
 - Backup corpus, database, Qdrant snapshot, MinIO và video tồn tại (NFR-03).
 
 ---

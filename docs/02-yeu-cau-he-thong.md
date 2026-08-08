@@ -2,7 +2,8 @@
 
 > **Giai đoạn SDLC**: 2 - Phân tích và đặc tả yêu cầu  
 > **Ngày tạo**: 16/06/2026  
-> **Ngày cập nhật thiết kế**: 19/07/2026 - thiết kế lại v2  
+> **Ngày baseline v1**: 19/07/2026  
+> **Ngày thiết kế lại v2**: 08/08/2026  
 > **Hạn hoàn thành**: 12/09/2026  
 > **Ngày bảo vệ**: 14/09/2026  
 > **Tài liệu quyết định nguồn**: [00-scope-and-decisions.md](00-scope-and-decisions.md)  
@@ -249,7 +250,7 @@ graph TB
 | Mô tả | Xác định khoảng hiệu lực `[effective_from, effective_to)` cho văn bản và provision từ manifest, `LegalEffectEvent` và review; hỗ trợ biên sửa đổi, sửa đổi từng phần, thay thế, bãi bỏ; trường hợp hiệu lực không chắc chắn định tuyến sang review |
 | Input | Manifest, `LegalEffectEvent`, quyết định reviewer |
 | Output | `effective_from`, `effective_to`, trạng thái hiệu lực, review item khi không chắc chắn |
-| Tiêu chí kiểm chứng | Provision hợp lệ cho ngày `d` khi: `effective_from <= d` VÀ (`effective_to IS NULL` HOẶC `d < effective_to`) VÀ `review_status = ACCEPTED`; không có hai phiên bản active chồng lấn ngoài trường hợp được ghi rõ |
+| Tiêu chí kiểm chứng | Provision hợp lệ cho ngày `d` khi: `effective_from <= d` VÀ (`effective_to IS NULL` HOẶC `d < effective_to`) VÀ `review_status = ACCEPTED`; `DocumentVersion.effective_from` nullable và non-null bắt buộc chỉ khi `review_status = ACCEPTED`, nhất quán với `LegalProvision` (doc 03); hiệu lực văn bản không chắc chắn định tuyến review trước khi accept; không có hai phiên bản active chồng lấn ngoài trường hợp được ghi rõ |
 | Use Case | UC-01, UC-02, UC-03, UC-07, UC-08 |
 | Priority | P0 |
 ### FR-07: Background ingestion qua hàng đợi
@@ -767,11 +768,11 @@ Quy tắc:
 | Tiêu chí | Yêu cầu |
 |---|---|
 | Indexed provision | Phải thuộc document accepted |
-| Provenance | Có page; bounding box khi parser cung cấp; `source_element_ids` truy vết về Document IR |
+| Provenance | Có page; bounding box khi parser cung cấp; `source_element_ids` truy vết về Document IR; provision do văn bản sửa đổi tạo ra phải ghi multi-source provenance qua `ProvisionProvenance` (doc 03): `BASE_TEXT` từ văn bản gốc, `AMENDMENT_TEXT` từ văn bản sửa đổi, `EFFECT_SOURCE` cho nguồn của ngày hiệu lực |
 | File identity | Có SHA-256 |
 | Manifest | Bắt buộc cho từng tài liệu |
 | Parser source | Mỗi element ghi `source_parser` và `parser_version` |
-| Effective interval | Không bỏ trống khi văn bản được dùng cho temporal query |
+| Effective interval | `effective_from` nullable ở cả `LegalProvision` và `DocumentVersion`, non-null bắt buộc khi `review_status = ACCEPTED`; không bỏ trống khi văn bản được dùng cho temporal query; hiệu lực không chắc chắn định tuyến review trước khi accept |
 | Review audit | Có reviewer, timestamp và decision |
 | Duplicate | Dựa trên stable ID và content hash |
 
