@@ -164,6 +164,7 @@ def test_unknown_label_passes_through() -> None:
 # ────────────────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.integration
 def test_nd_full_parse_contract(parsed_fixtures: dict[str, ParsedDocument]) -> None:
     doc = parsed_fixtures["nd"]
     assert doc.parser == "DOCLING"
@@ -188,6 +189,7 @@ def test_nd_full_parse_contract(parsed_fixtures: dict[str, ParsedDocument]) -> N
     assert orders == list(range(len(elements)))  # contiguous, 0-based
 
 
+@pytest.mark.integration
 def test_source_object_key_is_injected_not_local_path(
     parsed_fixtures: dict[str, ParsedDocument],
 ) -> None:
@@ -197,6 +199,7 @@ def test_source_object_key_is_injected_not_local_path(
     assert "fixtures/parser_benchmark" not in doc.source_object_key
 
 
+@pytest.mark.integration
 def test_round_trip_json_equality(parsed_fixtures: dict[str, ParsedDocument]) -> None:
     """model_dump_json -> model_validate_json reproduces an equal document."""
     for doc in parsed_fixtures.values():
@@ -208,6 +211,7 @@ def test_round_trip_json_equality(parsed_fixtures: dict[str, ParsedDocument]) ->
 # ────────────────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.integration
 def test_bbox_normalized_to_top_left_and_unit_interval(
     parsed_fixtures: dict[str, ParsedDocument],
 ) -> None:
@@ -257,6 +261,7 @@ def test_bbox_normalized_to_top_left_and_unit_interval(
 # ────────────────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.integration
 def test_parent_element_id_populated(parsed_fixtures: dict[str, ParsedDocument]) -> None:
     """luat is list-heavy: list items must point at their 'list' container."""
     doc = parsed_fixtures["luat"]
@@ -332,6 +337,7 @@ def test_table_export_failure_raises_with_item_context(
         )
 
 
+@pytest.mark.integration
 def test_non_table_elements_have_null_table_html(
     parsed_fixtures: dict[str, ParsedDocument],
 ) -> None:
@@ -425,6 +431,7 @@ def test_ocr_fail_fast_raises_before_convert(monkeypatch: pytest.MonkeyPatch) ->
         )
 
 
+@pytest.mark.integration
 @pytest.mark.skipif(
     bool(check_ocr_readiness()),
     reason="tesseract not ready in this environment (scan-route OCR needs vie traineddata)",
@@ -527,6 +534,7 @@ def test_docling_conversion_failure_raises(monkeypatch: pytest.MonkeyPatch) -> N
 # ────────────────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.integration
 def test_element_id_stable_across_parses() -> None:
     """Same PDF + same docling version -> identical element_id sequences."""
     adapter = DoclingAdapter()
@@ -548,6 +556,7 @@ def test_element_id_stable_across_parses() -> None:
     assert first_ids, "fixture must yield elements"
 
 
+@pytest.mark.integration
 def test_all_fixtures_validate_as_parsed_document(
     parsed_fixtures: dict[str, ParsedDocument],
 ) -> None:
