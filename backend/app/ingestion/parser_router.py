@@ -231,6 +231,54 @@ def _na_group_a_result() -> GroupAResult:
 # ────────────────────────────────────────────────────────────────────────────
 
 
+def _table_element_share(doc: ParsedDocument) -> float | None:
+    """Share of ``table`` elements among all elements; None for an empty doc.
+
+    Derived from the canonical IR (``element_type == "table"``) — the fallback
+    table-quality signal when no expected table count is available (finding #8).
+    """
+    elements = [element for page in doc.pages for element in page.elements]
+    if not elements:
+        return None
+    tables = sum(1 for element in elements if element.element_type == "table")
+    return tables / len(elements)
+
+
+def _table_quality_signal(
+    result: GroupAResult, doc: ParsedDocument
+) -> tuple[str | None, float | None]:
+    """Table-quality signal for one parser, or ``(None, None)`` when N/A.
+
+    ``table_detection_rate`` (detected/expected) is the signal when an expected
+    table count exists; otherwise the doc-derived table-element share. ``None``
+    only when neither is computable (no tables at all / empty doc).
+    """
+    detection = result.table_detection_rate.value
+    if detection is not None:
+        return "table_detection_rate", detection
+    share = _table_element_share(doc)
+    if share is not None:
+        return "table_element_share", share
+    return None, None
+
+
+def _dimension_winner(
+    primary_value: float | None,
+    alternate_value: float | None,
+    primary_parser: str,
+    alternate_parser: str,
+) -> str:
+    """Parser winning one comparison dimension, or ``"tie"``.
+
+    A present value beats an absent (N/A) one; equal or both-N/A -> ``"tie"``.
+    """
+    if primary_value is not None and (alternate_value is None or primary_value > alternate_value):
+        return primary_parser
+    if alternate_value is not None and (primary_value is None or alternate_value > primary_value):
+        return alternate_parser
+    return "tie"
+
+
 class ParserRouter:
     """Selects the parser for a document and gates its output (VNLRAG-131).
 
@@ -593,7 +641,8 @@ class ParserRouter:
 
         ``alternate_doc`` is None when the alternate parse failed/unavailable
         (``alternate_error`` records why). Picking policy:
-          * both pass -> accept the better parser (tie-break: higher
+          * both pass -> accept the better parser (finding #8: table quality
+            leads — higher table quality wins, then higher
             provenance_coverage, then higher text_extraction_rate; equal ->
             primary preferred), superseding the losing parser's artifacts;
           * one passes -> accept it (``superseded_old_artifacts`` per config —
@@ -673,6 +722,7 @@ class ParserRouter:
             "alternate_provenance_problems": alternate_problems or None,
             "pick": None,
             "pick_rule": None,
+            "tiebreak": None,
         }
 
         primary_passed = primary_result.verdict == "passed"
@@ -708,11 +758,18 @@ class ParserRouter:
             )
 
         if primary_passed and alternate_passed:
-            pick, rule = self._pick_better(
-                primary_result, alternate_result, primary_parser, alternate_parser
+            assert alternate_doc is not None  # alternate passed -> its parse exists
+            pick, rule, tiebreak = self._pick_better(
+                primary_result,
+                alternate_result,
+                primary_doc,
+                alternate_doc,
+                primary_parser,
+                alternate_parser,
             )
             comparison["pick"] = pick
             comparison["pick_rule"] = rule
+            comparison["tiebreak"] = tiebreak
             return GateOutcome(
                 document_id=primary_doc.document_id,
                 selected_parser=primary_parser,
@@ -765,29 +822,73 @@ class ParserRouter:
     def _pick_better(
         primary_result: GroupAResult,
         alternate_result: GroupAResult,
+        primary_doc: ParsedDocument,
+        alternate_doc: ParsedDocument,
         primary_parser: str,
         alternate_parser: str,
-    ) -> tuple[str, str]:
-        """Tie-break when both parsers pass Group A.
+    ) -> tuple[str, str, dict[str, Any]]:
+        """Tie-break when both parsers pass Group A (finding #8).
 
-        Rule (documented): higher ``provenance_coverage`` wins; on a tie,
-        higher ``text_extraction_rate``; still equal -> primary preferred
-        (Docling is the primary parser; no evidence either is superior).
+        The complex-table route exists because of complex tables, so TABLE
+        QUALITY leads the pick: higher table quality wins (detection rate when
+        an expected count exists, else the doc-derived table-element share); on
+        a tie, higher ``provenance_coverage``; then ``text_extraction_rate``;
+        still equal -> primary preferred. When neither parser has a computable
+        table-quality signal (e.g. no tables at all) the comparison falls back
+        to the pre-finding provenance -> text -> primary order. Returns the
+        pick, the rule, and the per-dimension tie-break metrics recorded on
+        ``comparison["tiebreak"]`` (auditable decision).
         """
-        primary_score = (
+        primary_table = _table_quality_signal(primary_result, primary_doc)
+        alternate_table = _table_quality_signal(alternate_result, alternate_doc)
+        provenance = (
             primary_result.provenance_coverage.value or 0.0,
-            primary_result.text_extraction_rate.value or 0.0,
-        )
-        alternate_score = (
             alternate_result.provenance_coverage.value or 0.0,
+        )
+        text = (
+            primary_result.text_extraction_rate.value or 0.0,
             alternate_result.text_extraction_rate.value or 0.0,
         )
-        rule = "both passed; tie-break provenance_coverage then text_extraction_rate -> "
-        if alternate_score > primary_score:
-            return alternate_parser, rule + "alternate higher"
-        if primary_score > alternate_score:
-            return primary_parser, rule + "primary higher"
-        return primary_parser, rule + "equal, primary preferred"
+        tiebreak: dict[str, Any] = {
+            "table_quality": {
+                "signal": primary_table[0] or alternate_table[0],
+                "primary": primary_table[1],
+                "alternate": alternate_table[1],
+                "winner": _dimension_winner(
+                    primary_table[1], alternate_table[1], primary_parser, alternate_parser
+                ),
+            },
+            "provenance": {
+                "primary": provenance[0],
+                "alternate": provenance[1],
+                "winner": _dimension_winner(
+                    provenance[0], provenance[1], primary_parser, alternate_parser
+                ),
+            },
+            "text": {
+                "primary": text[0],
+                "alternate": text[1],
+                "winner": _dimension_winner(text[0], text[1], primary_parser, alternate_parser),
+            },
+        }
+        rule = (
+            "both passed; tie-break table quality -> provenance_coverage -> "
+            "text_extraction_rate -> primary preference -> "
+        )
+        table_winner = tiebreak["table_quality"]["winner"]
+        if table_winner != "tie":
+            return table_winner, rule + f"{table_winner} higher table quality", tiebreak
+        provenance_winner = tiebreak["provenance"]["winner"]
+        if provenance_winner != "tie":
+            return (
+                provenance_winner,
+                rule + f"{provenance_winner} higher provenance_coverage",
+                tiebreak,
+            )
+        text_winner = tiebreak["text"]["winner"]
+        if text_winner != "tie":
+            return text_winner, rule + f"{text_winner} higher text_extraction_rate", tiebreak
+        return primary_parser, rule + "equal, primary preferred", tiebreak
 
     # ── orchestration (routing + OCR fail-fast + gate/fallback/compare) ──────
 

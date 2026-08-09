@@ -171,6 +171,37 @@ def _docling_with_bbox(bbox_count: int, total: int = 10) -> ParsedDocument:
     return _document([_page(1, elements)])
 
 
+def _doc_with_tables(
+    table_count: int,
+    total_elements: int,
+    parser: str = "DOCLING",
+) -> ParsedDocument:
+    """Doc with ``table_count`` table elements among ``total_elements`` (one page).
+
+    All elements carry a bbox and non-empty text (Group A provenance/text 1.0);
+    the table-element share is ``table_count / total_elements`` and the
+    detection rate with ``expected_tables=N`` is ``table_count / N``.
+    """
+    elements = [
+        DocumentElement(
+            element_id=f"e{i}",
+            element_type="table" if i < table_count else "paragraph",
+            text="Nội dung.",
+            page_number=1,
+            bbox=_box(),
+            reading_order=i,
+            parent_element_id=None,
+            table_html="<table></table>" if i < table_count else None,
+            source_parser=parser,
+            parser_version="docling-2.118.1",
+            parser_confidence=None,
+            raw_reference={"index": i},
+        )
+        for i in range(total_elements)
+    ]
+    return _document([_page(1, elements)], parser=parser)
+
+
 def _boom_runner() -> ParsedDocument:
     raise RuntimeError("mineru pipeline blocked")
 
@@ -891,6 +922,164 @@ def test_compare_both_pass_picks_higher_provenance() -> None:
     assert outcome_rev.source_parser == "mineru"
     assert outcome_rev.comparison is not None
     assert outcome_rev.comparison["pick"] == "mineru"
+
+
+def test_compare_both_pass_table_quality_leads_over_primary() -> None:
+    """Finding #8: equal provenance+text but Docling table 0.65 vs MinerU
+    table 0.95 -> MinerU wins on table quality, NOT the primary (Docling)."""
+    primary = _doc_with_tables(13, 20, parser="DOCLING")  # 13/20 = 0.65 detected
+    alternate = _doc_with_tables(19, 20, parser="MINERU")  # 19/20 = 0.95 detected
+    outcome = ParserRouter().compare_and_pick(
+        primary, alternate, "docling", "mineru", expected_tables=20
+    )
+    assert outcome.terminal_outcome == "accepted"
+    assert outcome.source_parser == "mineru"
+    assert outcome.comparison is not None
+    assert outcome.comparison["pick"] == "mineru"
+    assert outcome.comparison["tiebreak"] is not None
+    table = outcome.comparison["tiebreak"]["table_quality"]
+    assert table["signal"] == "table_detection_rate"
+    assert table["primary"] == pytest.approx(0.65)
+    assert table["alternate"] == pytest.approx(0.95)
+    assert table["winner"] == "mineru"
+    assert outcome.comparison["pick_rule"].endswith("mineru higher table quality")
+
+
+def test_compare_both_pass_equal_table_quality_primary_wins() -> None:
+    """Finding #8: equal table quality (element-share signal) + equal
+    provenance/text -> primary tie-break preserved (Docling wins)."""
+    primary = _doc_with_tables(10, 20, parser="DOCLING")  # share 0.5
+    alternate = _doc_with_tables(10, 20, parser="MINERU")  # share 0.5
+    outcome = ParserRouter().compare_and_pick(primary, alternate, "docling", "mineru")
+    assert outcome.terminal_outcome == "accepted"
+    assert outcome.source_parser == "docling"
+    assert outcome.comparison is not None
+    assert outcome.comparison["pick"] == "docling"
+    assert outcome.comparison["tiebreak"] is not None
+    table = outcome.comparison["tiebreak"]["table_quality"]
+    assert table["signal"] == "table_element_share"
+    assert table["primary"] == pytest.approx(0.5)
+    assert table["alternate"] == pytest.approx(0.5)
+    assert table["winner"] == "tie"
+    assert outcome.comparison["pick_rule"].endswith("equal, primary preferred")
+
+
+def test_compare_zero_table_share_falls_back_to_provenance_then_text() -> None:
+    """Finding #8: zero-table docs yield a VALID 0.0 element share (not N/A),
+    which ties, so the pre-finding provenance -> text -> primary order applies
+    (existing behavior retained)."""
+    # Primary: provenance 1.0, text 1.0. Alternate: provenance 1.0, text 0.8
+    # (page 5 has no elements/text) — both pass Group A; zero-table docs.
+    primary = _passing_doc()
+    alternate = _document(
+        [
+            _page(1, [_element(0, source_parser="MINERU")]),
+            _page(2, [_element(1, source_parser="MINERU")]),
+            _page(3, [_element(2, source_parser="MINERU")]),
+            _page(4, [_element(3, source_parser="MINERU")]),
+            _page(5, []),
+        ],
+        parser="MINERU",
+    )
+    outcome = ParserRouter().compare_and_pick(primary, alternate, "docling", "mineru")
+    assert outcome.terminal_outcome == "accepted"
+    assert outcome.source_parser == "docling"
+    assert outcome.comparison is not None
+    assert outcome.comparison["pick"] == "docling"
+    assert outcome.comparison["tiebreak"] is not None
+    table = outcome.comparison["tiebreak"]["table_quality"]
+    assert table["signal"] == "table_element_share"
+    assert table["winner"] == "tie"
+    assert outcome.comparison["tiebreak"]["provenance"]["winner"] == "tie"
+    assert outcome.comparison["tiebreak"]["text"]["winner"] == "docling"
+    assert outcome.comparison["pick_rule"].endswith("docling higher text_extraction_rate")
+
+
+def test_compare_table_signal_na_both_falls_back_to_provenance_then_text() -> None:
+    """Finding #8 (ora-5): both docs have page text but NO elements -> the
+    table-quality signal is TRUE N/A (None, None) on both sides, so the
+    tie-break falls through to provenance -> text and decides on text."""
+    # Both docs: pages with non-empty text, empty elements lists -> Group A
+    # passes on text alone (provenance/table N/A). Primary text 1.0 (2 pages),
+    # alternate text 0.8 (4 of 5 pages) — both pass; table signal (None, None).
+    primary = _document(
+        [
+            ParsedPage(page_number=1, width=595.0, height=842.0, text="Nội dung.", elements=[]),
+            ParsedPage(page_number=2, width=595.0, height=842.0, text="Nội dung.", elements=[]),
+        ]
+    )
+    alternate = _document(
+        [
+            ParsedPage(page_number=1, width=595.0, height=842.0, text="Nội dung.", elements=[]),
+            ParsedPage(page_number=2, width=595.0, height=842.0, text="Nội dung.", elements=[]),
+            ParsedPage(page_number=3, width=595.0, height=842.0, text="Nội dung.", elements=[]),
+            ParsedPage(page_number=4, width=595.0, height=842.0, text="Nội dung.", elements=[]),
+            ParsedPage(page_number=5, width=595.0, height=842.0, text=None, elements=[]),
+        ],
+        parser="MINERU",
+    )
+    outcome = ParserRouter().compare_and_pick(primary, alternate, "docling", "mineru")
+    assert outcome.terminal_outcome == "accepted"
+    assert outcome.source_parser == "docling"
+    assert outcome.comparison is not None
+    assert outcome.comparison["pick"] == "docling"
+    assert outcome.comparison["tiebreak"] is not None
+    table = outcome.comparison["tiebreak"]["table_quality"]
+    # True N/A: no elements -> neither detection rate nor element share exists.
+    assert table["signal"] is None
+    assert table["primary"] is None
+    assert table["alternate"] is None
+    assert table["winner"] == "tie"
+    # Fallback chain: provenance (N/A both -> tie), then text decides.
+    assert outcome.comparison["tiebreak"]["provenance"]["winner"] == "tie"
+    assert outcome.comparison["tiebreak"]["text"]["winner"] == "docling"
+    assert outcome.comparison["pick_rule"].endswith("docling higher text_extraction_rate")
+
+
+def test_compare_table_na_primary_present_alternate_wins_on_table() -> None:
+    """Finding #8: primary's table signal is N/A (no elements -> no share)
+    while the alternate carries tables -> alternate wins on table quality."""
+    # Primary: 2 pages with text but NO elements -> passes Group A (text 1.0);
+    # its table-element share is N/A (no elements). Alternate: 2 tables among
+    # 5 elements (share 0.4), passes Group A.
+    primary = _document(
+        [
+            ParsedPage(page_number=1, width=595.0, height=842.0, text="Nội dung.", elements=[]),
+            ParsedPage(page_number=2, width=595.0, height=842.0, text="Nội dung.", elements=[]),
+        ]
+    )
+    alternate = _doc_with_tables(2, 5, parser="MINERU")  # share 0.4
+    outcome = ParserRouter().compare_and_pick(primary, alternate, "docling", "mineru")
+    assert outcome.terminal_outcome == "accepted"
+    assert outcome.source_parser == "mineru"
+    assert outcome.comparison is not None
+    assert outcome.comparison["pick"] == "mineru"
+    assert outcome.comparison["tiebreak"] is not None
+    table = outcome.comparison["tiebreak"]["table_quality"]
+    assert table["signal"] == "table_element_share"
+    assert table["primary"] is None
+    assert table["alternate"] == pytest.approx(0.4)
+    assert table["winner"] == "mineru"
+    assert outcome.comparison["pick_rule"].endswith("mineru higher table quality")
+
+
+def test_compare_partial_alternate_high_table_quality_never_wins() -> None:
+    """Finding #8 + #4 regression: a PARTIAL_SUCCESS alternate with HIGH table
+    quality must still never win — the healthy primary is accepted."""
+    primary = _doc_with_tables(1, 5, parser="DOCLING")  # share 0.2, passes
+    alternate = _doc_with_tables(4, 5, parser="MINERU")  # share 0.8, would win
+    alternate.quality_report["conversion_status"] = "PARTIAL_SUCCESS"
+    alternate.quality_report["conversion_errors"] = ["mineru page 3 timed out"]
+    outcome = ParserRouter().compare_and_pick(primary, alternate, "docling", "mineru")
+    assert outcome.terminal_outcome == "accepted"
+    assert outcome.source_parser == "docling"
+    assert outcome.comparison is not None
+    assert outcome.comparison["alternate_partial"] is True
+    assert outcome.comparison["pick"] == "docling"
+    assert outcome.comparison["pick_rule"] == "only primary passed Group A"
+    assert outcome.comparison["tiebreak"] is None  # never reached the both-pass pick
+    assert outcome.reason is not None
+    assert "PARTIAL_SUCCESS" in outcome.reason
 
 
 def test_compare_one_pass_picks_passing_parser() -> None:

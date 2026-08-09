@@ -20,11 +20,14 @@ from app.evaluation.suites.suite_a import (
     TESSERACT_CMD,
     OcrConfig,
     RunMetadata,
+    _cmd_generate_report,
+    _discover_variant_runs,
     _make_run_id,
     _ocr_options_kwargs,
     check_ocr_readiness,
     compute_all_metrics,
     create_run_root,
+    generate_first_pass_report,
     header_footer_leakage,
     layout_coherence,
     parse_with_docling,
@@ -461,7 +464,7 @@ def test_run_metadata_json_shape() -> None:
     assert dumped["status"] == "RUNNING"
     assert dumped["ir_schema_version"] == IR_SCHEMA_VERSION
     assert dumped["suite"] == "suite-a"
-    assert dumped["p3_parser_router"].startswith("PENDING")
+    assert dumped["p3_parser_router"].startswith("OPERATIONAL")
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -722,3 +725,498 @@ def test_parse_with_docling_persists_raw_bbox_points() -> None:
     # The parser-native keys are preserved alongside bbox_points.
     assert text_element.raw_reference["docling_item_type"] == "TextItem"
     assert text_element.raw_reference["prov_page_no"] == 1
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# P3 (parser router, VNLRAG-131) wiring — route_and_gate with stubbed runners
+# ────────────────────────────────────────────────────────────────────────────
+
+
+def _routed_document(
+    document_id: str, parser: str = "DOCLING", *, elements: list[dict[str, Any]] | None = None
+) -> ParsedDocument:
+    """Valid v2 ParsedDocument for the router stubs (never touches docling/mineru)."""
+    started_at = datetime.now(UTC)
+    els = elements if elements is not None else [_element()]
+    return ParsedDocument(
+        parsed_document_id="stub-00000000-0000-0000-0000-000000000000",
+        document_id=document_id,
+        parser=parser,
+        parser_version="docling-2.118.1" if parser == "DOCLING" else "mineru-3.4.4",
+        ir_schema_version=IR_SCHEMA_VERSION,
+        source_object_key=f"fixtures/{document_id}.pdf",
+        pages=[_page(1, els)],
+        parse_started_at=started_at,
+        parse_completed_at=started_at,  # v2: completed >= started
+        quality_report={},
+    )
+
+
+def _stub_docling_pass(pdf_path: Path, document_id: str, converter: Any) -> ParsedDocument:
+    """Docling stub passing Group A (bbox'd element, non-empty text)."""
+    del pdf_path, converter
+    return _routed_document(document_id, "DOCLING")
+
+
+def _stub_docling_fail(pdf_path: Path, document_id: str, converter: Any) -> ParsedDocument:
+    """Docling stub failing Group A (no bbox -> provenance 0.0 < 0.9)."""
+    del pdf_path, converter
+    return _routed_document(document_id, "DOCLING", elements=[_element(bbox=None)])
+
+
+def _stub_mineru_pass(pdf_path: Path, document_id: str) -> ParsedDocument:
+    """MinerU stub passing Group A (genuine MINERU provenance)."""
+    del pdf_path
+    return _routed_document(document_id, "MINERU", elements=[_element(source_parser="MINERU")])
+
+
+def _stub_mineru_fail(pdf_path: Path, document_id: str) -> ParsedDocument:
+    """MinerU stub failing Group A (no bbox -> provenance 0.0 < 0.9)."""
+    del pdf_path
+    return _routed_document(
+        document_id, "MINERU", elements=[_element(source_parser="MINERU", bbox=None)]
+    )
+
+
+def _p3_fixtures(tmp_path: Path) -> Path:
+    """Three born-digital fixture PDFs (one per document type, as in the real corpus)."""
+    fixtures = tmp_path / "documents"
+    for folder, name in (
+        ("luat", "luat-fixture.pdf"),
+        ("nd", "nd-fixture.pdf"),
+        ("tt", "tt-fixture.pdf"),
+    ):
+        (fixtures / folder).mkdir(parents=True)
+        (fixtures / folder / name).write_bytes(b"stub born-digital pdf bytes")
+    return fixtures
+
+
+def test_run_suite_p3_writes_routing_records(tmp_path: Path) -> None:
+    """P3 (VNLRAG-131) wiring: run_suite p3 routes each fixture through
+    ParserRouter.decide + route_and_gate with stubbed lazy runners and writes
+    the per-document parser_routing records (selected parser + gate verdicts)."""
+    fixtures = _p3_fixtures(tmp_path)
+    out = tmp_path / "out"
+    rc = run_suite(
+        fixtures,
+        out,
+        "p3",
+        parse_docling=_stub_docling_pass,
+        parse_mineru=_stub_mineru_pass,
+    )
+    assert rc == 0
+    run_dirs = list(out.iterdir())
+    assert len(run_dirs) == 1
+    run_root = run_dirs[0]
+    run_json = json.loads((run_root / "run.json").read_text(encoding="utf-8"))
+    assert run_json["status"] == "COMPLETED"
+    assert run_json["parser"] == "p3-parser-router"
+    assert run_json["p3_parser_router"].startswith("OPERATIONAL")
+
+    phase = run_root / "p3-parser-router"
+    routing = json.loads((phase / "routing-and-gates.json").read_text(encoding="utf-8"))
+    assert routing["parser"] == "p3-parser-router"
+    assert routing["router"] == "ParserRouter (VNLRAG-131)"
+    records = routing["per_document"]
+    # No gold files in the test fixtures -> document_id falls back to the PDF stem.
+    assert set(records) == {"luat-fixture", "nd-fixture", "tt-fixture"}
+    for _document_id, record in records.items():
+        # Routing: born-digital -> docling_text, Docling selected, accepted.
+        assert record["schema_version"] == "parser_routing-v1"
+        assert record["decision"]["route"] == "docling_text"
+        assert record["inputs"]["has_text_layer"] is True
+        assert record["selected_parser"] == "docling"
+        assert record["source_parser"] == "docling"
+        assert record["fallback_attempted"] is False
+        assert record["gate_verdict"] == "passed"
+        assert record["terminal_outcome"] == "accepted"
+        assert record["executed"] is True
+        assert record["gates"]["group_a"]["provenance_coverage"]["status"] == "passed"
+        assert record["gates"]["group_a"]["text_extraction_rate"]["status"] == "passed"
+    aggregate = routing["aggregate"]
+    assert aggregate["documents"] == 3
+    assert aggregate["accepted"] == 3
+    assert aggregate["selected_parsers"] == {"docling": 3}
+    assert aggregate["gate_verdicts"] == {"passed": 3}
+    assert aggregate["terminal_outcomes"] == {"accepted": 3}
+    assert aggregate["fallback_attempted_documents"] == 0
+
+    # Metrics computed on the accepted (Docling) doc.
+    metrics = json.loads((phase / "metrics.json").read_text(encoding="utf-8"))
+    assert set(metrics["per_document"]) == set(records)
+    for doc_metrics in metrics["per_document"].values():
+        assert doc_metrics["text_extraction_rate"]["status"] == "computed"
+        assert doc_metrics["text_extraction_rate"]["value"] == 1.0
+        assert doc_metrics["provenance_coverage"]["status"] == "computed"
+
+    # IR artifacts are recorded for every accepted doc.
+    manifest = json.loads((phase / "artifacts-manifest.json").read_text(encoding="utf-8"))
+    assert set(manifest["per_document"]) == set(records)
+    results = json.loads((phase / "results.json").read_text(encoding="utf-8"))
+    assert results["aggregate"]["accepted"] == 3
+
+
+def test_run_suite_p3_primary_gate_fail_falls_back_to_mineru(tmp_path: Path) -> None:
+    """P3 wiring: a Docling parse failing Group A triggers the REAL alternate
+    runner path — MinerU supersedes (single source_parser) and the routing
+    record captures fallback_attempted with the alternate's gate verdict."""
+    fixtures = _p3_fixtures(tmp_path)
+    out = tmp_path / "out"
+    rc = run_suite(
+        fixtures,
+        out,
+        "p3",
+        parse_docling=_stub_docling_fail,
+        parse_mineru=_stub_mineru_pass,
+    )
+    assert rc == 0
+    run_root = next(iter(out.iterdir()))
+    run_json = json.loads((run_root / "run.json").read_text(encoding="utf-8"))
+    assert run_json["status"] == "COMPLETED"
+
+    routing = json.loads(
+        (run_root / "p3-parser-router" / "routing-and-gates.json").read_text(encoding="utf-8")
+    )
+    records = routing["per_document"]
+    assert len(records) == 3
+    for _document_id, record in records.items():
+        # Primary (Docling) failed Group A -> MinerU ran as the alternate and
+        # superseded; every artifact is attributed to a single parser.
+        assert record["selected_parser"] == "docling"
+        assert record["gate_verdict"] == "failed"  # primary Group A verdict
+        assert record["fallback_attempted"] is True
+        assert record["fallback_parser"] == "mineru"
+        assert record["source_parser"] == "mineru"
+        assert record["terminal_outcome"] == "accepted"
+        assert record["gates"]["group_a"]["provenance_coverage"]["status"] == "failed"
+    assert routing["aggregate"]["fallback_attempted_documents"] == 3
+    assert routing["aggregate"]["source_parsers"] == {"mineru": 3}
+
+    # The alternate parser's Group A evidence is recorded on the run results.
+    results = json.loads(
+        (run_root / "p3-parser-router" / "results.json").read_text(encoding="utf-8")
+    )
+    for _document_id, entry in results["per_document"].items():
+        assert entry["fallback_attempted"] is True
+        assert entry["fallback_parser"] == "mineru"
+        assert entry["source_parser"] == "mineru"
+        assert entry["fallback_group_a"]["provenance_coverage"]["status"] == "passed"
+
+    # Metrics are computed on the ACCEPTED (MinerU) doc — provenance 1.0.
+    metrics = json.loads(
+        (run_root / "p3-parser-router" / "metrics.json").read_text(encoding="utf-8")
+    )
+    for doc_metrics in metrics["per_document"].values():
+        assert doc_metrics["provenance_coverage"]["status"] == "computed"
+        assert doc_metrics["provenance_coverage"]["value"] == 1.0
+        assert doc_metrics["text_extraction_rate"]["value"] == 1.0
+
+
+def test_run_suite_p3_no_accepted_doc_still_completes(tmp_path: Path) -> None:
+    """ora-5 #1 regression: when NO parser output is accepted (primary and
+    alternate BOTH fail Group A), the P3 run still COMPLETES — routing records
+    carry the needs_review outcome per doc, metrics are N/A (never fabricated),
+    no IR artifact is written, and the aggregate never hits a KeyError."""
+    fixtures = _p3_fixtures(tmp_path)
+    out = tmp_path / "out"
+    rc = run_suite(
+        fixtures,
+        out,
+        "p3",
+        parse_docling=_stub_docling_fail,
+        parse_mineru=_stub_mineru_fail,
+    )
+    assert rc == 0
+    run_root = next(iter(out.iterdir()))
+    run_json = json.loads((run_root / "run.json").read_text(encoding="utf-8"))
+    assert run_json["status"] == "COMPLETED"  # not FAILED by the aggregate KeyError
+
+    routing = json.loads(
+        (run_root / "p3-parser-router" / "routing-and-gates.json").read_text(encoding="utf-8")
+    )
+    records = routing["per_document"]
+    assert len(records) == 3  # every doc's routing outcome is recorded, none dropped
+    for _document_id, record in records.items():
+        assert record["source_parser"] is None
+        assert record["terminal_outcome"] == "needs_review"
+        assert record["routed_to_review"] is True
+        assert record["fallback_attempted"] is True
+        assert record["gate_verdict"] == "failed"  # primary's Group A verdict
+    aggregate = routing["aggregate"]
+    assert aggregate["accepted"] == 0
+    assert aggregate["terminal_outcomes"] == {"needs_review": 3}
+    assert aggregate["fallback_attempted_documents"] == 3
+    assert aggregate["pages"] == 0
+    assert aggregate["elements"] == 0
+    assert aggregate["element_type_histogram"] == {}
+
+    # Metrics are N/A with the availability reason — never fabricated values.
+    metrics = json.loads(
+        (run_root / "p3-parser-router" / "metrics.json").read_text(encoding="utf-8")
+    )
+    assert set(metrics["per_document"]) == set(records)
+    for doc_metrics in metrics["per_document"].values():
+        for metric in doc_metrics.values():
+            assert metric["status"] == "na"
+            assert metric["value"] is None
+            assert "no accepted parser output" in metric["na_reason"]
+
+    # No accepted doc -> no IR artifact is written for any document.
+    manifest = json.loads(
+        (run_root / "p3-parser-router" / "artifacts-manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["per_document"] == {}
+
+    # results.json per-doc entries carry the routing outcome + fallback evidence.
+    results = json.loads(
+        (run_root / "p3-parser-router" / "results.json").read_text(encoding="utf-8")
+    )
+    for _document_id, entry in results["per_document"].items():
+        assert "ir_summary" not in entry
+        assert entry["source_parser"] is None
+        assert entry["terminal_outcome"] == "needs_review"
+        assert entry["fallback_group_a"]["provenance_coverage"]["status"] == "failed"
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# ora-5 #2 — reproducible committed report (`suite_a report` subcommand)
+# ────────────────────────────────────────────────────────────────────────────
+
+_DOC_IDS = ("luat-36-2024-qh15", "nd-168-2024", "tt-24-2024-tt-bgtvt")
+
+
+def _fake_metric(name: str, detail: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Minimal computed metric dict consumed by the report generator cells."""
+    return {
+        "name": name,
+        "status": "computed",
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "na_reason": None,
+        "detail": detail or {},
+    }
+
+
+def _write_synthetic_run(
+    base: Path, run_id: str, parser_label: str, doc_ids: tuple[str, ...] | None = None
+) -> None:
+    """Write a COMPLETED run dir with minimal artifacts for report generation.
+
+    ``doc_ids`` varies the input-manifest content (hence its sha256) so tests
+    can build multiple trios with DIFFERENT manifest hashes.
+    """
+    doc_ids = doc_ids or _DOC_IDS
+    run_root = base / run_id
+    run_root.mkdir(parents=True)
+    phase = {
+        "docling": "p1-docling",
+        "mineru": "p2-mineru",
+        "p3-parser-router": "p3-parser-router",
+    }[parser_label]
+    (run_root / phase).mkdir()
+    (run_root / "input-manifest.json").write_text(
+        json.dumps({"fixtures_dir": str(base), "entries": [{"document_id": d} for d in doc_ids]}),
+        encoding="utf-8",
+    )
+    (run_root / "run.json").write_text(
+        json.dumps(
+            {
+                "run_id": run_id,
+                "status": "COMPLETED",
+                "parser": parser_label,
+                "git_commit": "abc123",
+                "ir_schema_version": "document-ir-v2",
+                "parser_versions": {"docling": "2.118.1", "mineru": "3.4.4"},
+                "p3_parser_router": "OPERATIONAL (VNLRAG-131)",
+                "created_at": "2026-08-09T00:00:00+00:00",
+                "completed_at": "2026-08-09T00:01:00+00:00",
+                "config": {
+                    "ocr": {
+                        "engine": "tesseract",
+                        "tesseract_version": "tesseract 5.5.3",
+                        "lang": ["vie"],
+                        "tessdata_dir": "/tmp/opencode/tessdata",
+                        "tesseract_cmd": "/usr/bin/tesseract",
+                        "psm": 3,
+                        "scale": 3.0,
+                        "dpi": 300,
+                        "dpi_policy": "300 (born-digital)",
+                        "ocr_status": "SKIPPED_TEXT_LAYER_PRESENT",
+                    },
+                    "ocr_readiness": {"checked": True, "problems": []},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    per_doc_metrics = {
+        doc: {
+            name: _fake_metric(name, {"bbox_share": 1.0, "bbox_count": 1, "element_count": 1})
+            for name in (
+                "text_extraction_rate",
+                "provenance_coverage",
+                "table_detection_rate",
+                "table_preservation",
+                "header_footer_leakage",
+                "layout_coherence",
+            )
+        }
+        for doc in _DOC_IDS
+    }
+    per_doc_results = {
+        doc: {"pages": 1, "elements": 3, "element_type_histogram": {"paragraph": 3}}
+        for doc in _DOC_IDS
+    }
+    (run_root / phase / "metrics.json").write_text(
+        json.dumps({"per_document": per_doc_metrics, "aggregate": {}}), encoding="utf-8"
+    )
+    (run_root / phase / "results.json").write_text(
+        json.dumps(
+            {
+                "per_document": per_doc_results,
+                "aggregate": {
+                    "documents": 3,
+                    "pages": 3,
+                    "elements": 9,
+                    "element_type_histogram": {"paragraph": 9},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    (run_root / phase / "artifacts-manifest.json").write_text(
+        json.dumps({"per_document": {}}), encoding="utf-8"
+    )
+    if parser_label == "p3-parser-router":
+        routing = {
+            "per_document": {
+                doc: {
+                    "schema_version": "parser_routing-v1",
+                    "decision": {"route": "docling_text"},
+                    "selected_parser": "docling",
+                    "source_parser": "docling",
+                    "fallback_attempted": False,
+                    "gate_verdict": "passed",
+                    "terminal_outcome": "accepted",
+                }
+                for doc in _DOC_IDS
+            },
+            "aggregate": {
+                "documents": 3,
+                "accepted": 3,
+                "routes": {"docling_text": 3},
+                "selected_parsers": {"docling": 3},
+                "source_parsers": {"docling": 3},
+                "gate_verdicts": {"passed": 3},
+                "terminal_outcomes": {"accepted": 3},
+                "fallback_attempted_documents": 0,
+                "pages": 3,
+                "elements": 9,
+                "element_type_histogram": {"paragraph": 9},
+            },
+        }
+        (run_root / phase / "routing-and-gates.json").write_text(
+            json.dumps(routing), encoding="utf-8"
+        )
+    else:
+        (run_root / phase / "routing-and-gates.json").write_text(
+            json.dumps({"per_document": {}}), encoding="utf-8"
+        )
+
+
+def test_generate_first_pass_report_from_artifacts(tmp_path: Path) -> None:
+    """ora-5 #2: `suite_a report` discovers the p1/p2/p3 run trio sharing one
+    input-manifest hash and generates the committed report from the run
+    artifacts (run_ids + numbered sections), never from hand-edited numbers."""
+    base = tmp_path / "runs"
+    _write_synthetic_run(base, "run-20260809-000000-aaaaaa", "docling")
+    _write_synthetic_run(base, "run-20260809-000001-bbbbbb", "mineru")
+    _write_synthetic_run(base, "run-20260809-000002-cccccc", "p3-parser-router")
+
+    runs = _discover_variant_runs(base)
+    assert set(runs) == {"p1", "p2", "p3"}
+    assert runs["p1"].name == "run-20260809-000000-aaaaaa"
+    assert runs["p2"].name == "run-20260809-000001-bbbbbb"
+    assert runs["p3"].name == "run-20260809-000002-cccccc"
+
+    text = generate_first_pass_report(runs)
+    assert "## 1. P1 (Docling) — run run-20260809-000000-aaaaaa" in text
+    assert "## 2. P2 (MinerU) — run run-20260809-000001-bbbbbb" in text
+    assert "## 3. P3 (Parser Router) — run run-20260809-000002-cccccc" in text
+    assert "## 4. OCR configuration snapshot" in text
+    assert "## 5. 300-vs-600 DPI OCR benchmark" in text
+    assert "## 6. Immutable artifact paths + hashes" in text
+    assert "## 7. Routing recommendation" in text
+    assert "## 8. M1 status" in text
+    assert "## 9. Immutability contract note" in text
+    assert "tesseract 5.5.3" in text
+    assert "docling_text" in text
+    assert "parser_routing-v1" in text
+
+    # The CLI command writes the committed report file.
+    out = tmp_path / "suite-a-first-pass-report.md"
+    rc = _cmd_generate_report(base, out)
+    assert rc == 0
+    assert out.is_file()
+    regenerated = out.read_text(encoding="utf-8")
+    assert "## 1. P1 (Docling) — run run-20260809-000000-aaaaaa" in regenerated
+
+
+def test_discover_variant_runs_requires_full_trio(tmp_path: Path) -> None:
+    """Discovery refuses an incomplete trio (missing variant)."""
+    base = tmp_path / "runs"
+    _write_synthetic_run(base, "run-20260809-000000-aaaaaa", "docling")
+    _write_synthetic_run(base, "run-20260809-000001-bbbbbb", "mineru")
+    with pytest.raises(ValueError, match="no COMPLETED p1/p2/p3 run trio"):
+        _discover_variant_runs(base)
+
+
+def test_discover_variant_runs_prefers_newest_trio(tmp_path: Path) -> None:
+    """ora-6 #A: with TWO complete trios (different manifest hashes, different
+    timestamps), discovery returns the NEWER trio — not the first complete one
+    found in an oldest-first walk."""
+    base = tmp_path / "runs"
+    # Older trio (hash differs from the newer trio's manifest content).
+    old_docs: tuple[str, ...] = ("old-a", "old-b", "old-c")
+    _write_synthetic_run(base, "run-20260809-000000-aaaaaa", "docling", doc_ids=old_docs)
+    _write_synthetic_run(base, "run-20260809-000001-bbbbbb", "mineru", doc_ids=old_docs)
+    _write_synthetic_run(base, "run-20260809-000002-cccccc", "p3-parser-router", doc_ids=old_docs)
+    # Newer trio (later timestamps, DIFFERENT manifest content -> different hash).
+    new_docs: tuple[str, ...] = ("new-a", "new-b", "new-c")
+    _write_synthetic_run(base, "run-20260809-000003-dddddd", "docling", doc_ids=new_docs)
+    _write_synthetic_run(base, "run-20260809-000004-eeeeee", "mineru", doc_ids=new_docs)
+    _write_synthetic_run(base, "run-20260809-000005-ffffff", "p3-parser-router", doc_ids=new_docs)
+
+    runs = _discover_variant_runs(base)
+    assert set(runs) == {"p1", "p2", "p3"}
+    assert runs["p1"].name == "run-20260809-000003-dddddd"
+    assert runs["p2"].name == "run-20260809-000004-eeeeee"
+    assert runs["p3"].name == "run-20260809-000005-ffffff"
+
+
+def test_report_uses_recorded_git_commit_not_checkout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ora-6 #B: report generation reads run.json.git_commit from the artifact,
+    so regenerating after a later checkout commit does NOT change the report —
+    even when the live checkout reports a different HEAD."""
+    base = tmp_path / "runs"
+    _write_synthetic_run(base, "run-20260809-000000-aaaaaa", "docling")  # git_commit "abc123"
+    _write_synthetic_run(base, "run-20260809-000001-bbbbbb", "mineru")
+    _write_synthetic_run(base, "run-20260809-000002-cccccc", "p3-parser-router")
+    monkeypatch.setattr("app.evaluation.suites.suite_a._git_commit", lambda: "fake-checkout-HEAD")
+
+    runs = _discover_variant_runs(base)
+    text = generate_first_pass_report(runs)
+    # The artifact's recorded commit wins over the checkout's.
+    assert "`abc123`" in text
+    assert "fake-checkout-HEAD" not in text
+
+    # The CLI path behaves identically.
+    out = tmp_path / "suite-a-first-pass-report.md"
+    rc = _cmd_generate_report(base, out)
+    assert rc == 0
+    regenerated = out.read_text(encoding="utf-8")
+    assert "`abc123`" in regenerated
+    assert "fake-checkout-HEAD" not in regenerated
