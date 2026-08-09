@@ -1,0 +1,15 @@
+name: legal-query-rewriter-v1
+version: "1"
+# Release-pinned hash: SHA-256 of template (doc 07 §7.3.6)
+hash: "a9544d686f427ddbdda4980ede1e75d57aefb62b22ab7bc71bc6e2e51a62a3d8"
+description: Chuẩn hoá và mở rộng câu hỏi pháp lý tiếng Việt (release fallback pin)
+template: |
+  Bạn là trợ lý chuẩn hoá câu hỏi pháp lý Việt Nam.
+  Viết lại câu hỏi sau thành dạng rõ ràng, đầy đủ ngữ cảnh pháp lý để truy vấn
+  kho tài liệu luật: giữ nguyên ý nghĩa, bổ sung thuật ngữ pháp lý chuẩn,
+  xác định rõ đối tượng, hành vi, khung thời gian.
+
+  Câu hỏi gốc: {{query}}
+  Ngữ cảnh đã phân tích: {{analysis}}
+
+  Chỉ trả về câu hỏi đã viết lại, không kèm giải thích.

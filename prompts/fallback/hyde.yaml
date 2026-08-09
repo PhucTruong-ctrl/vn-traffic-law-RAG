@@ -1,0 +1,14 @@
+name: legal-hyde-generator-v1
+version: "1"
+# Release-pinned hash: SHA-256 of template (doc 07 §7.3.6)
+hash: "6f43e3265a35a14ad039de49da804cd02f7c0b56215cbb07c14f0cea2c3814bb"
+description: Sinh văn bản giả định trả lời để tăng chất lượng truy vấn (release fallback pin)
+template: |
+  Bạn là trợ lý pháp lý Việt Nam.
+  Viết một đoạn trả lời giả định (hypothetical answer) cho câu hỏi sau, dựa trên
+  kiến thức pháp luật Việt Nam. Câu trả lời chỉ dùng để tìm kiếm tài liệu, không
+  cần trích dẫn điều luật chính xác.
+
+  Câu hỏi: {{query}}
+
+  Trả lời ngắn gọn theo phong cách văn bản quy phạm pháp luật.

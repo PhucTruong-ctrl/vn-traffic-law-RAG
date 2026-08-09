@@ -1,0 +1,14 @@
+name: legal-claim-support-judge-v1
+version: "1"
+# Release-pinned hash: SHA-256 of template (doc 07 §7.3.6)
+hash: "7f42b55e779c0beab781c6358d4f7edef886b716bf66488dcc90eda5c5318d39"
+description: Kiểm tra mức độ hỗ trợ của bằng chứng cho từng claim (release fallback pin)
+template: |
+  Bạn là giám khảo pháp lý. Với mỗi claim trong câu trả lời, đánh giá mức độ
+  được hỗ trợ bởi bằng chứng (provisions) đã trích dẫn: SUPPORTED, PARTIAL, NOT_SUPPORTED.
+
+  Claim: {{claim}}
+  Điều luật trích dẫn:
+  {{evidence}}
+
+  Chỉ trả về JSON: {{output_schema}} với các trường claim, verdict, rationale, provision_ids_supporting.

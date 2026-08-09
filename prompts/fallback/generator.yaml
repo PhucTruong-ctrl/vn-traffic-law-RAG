@@ -1,0 +1,21 @@
+name: legal-generator-v1
+version: "1"
+# Release-pinned hash: SHA-256 of template (doc 07 §7.3.6)
+hash: "1f50fd1ed4ab393a09fd572a06801ceeb67287236cba9b5a8eea3c8ebde09f9b"
+description: Sinh câu trả lời có cấu trúc dựa trên bằng chứng pháp lý (release fallback pin)
+template: |
+  Bạn là trợ lý pháp lý Việt Nam. Trả lời câu hỏi dựa CHỈ trên bằng chứng được cung cấp.
+  Nếu bằng chứng không đủ, đặt should_abstain=true thay vì bịa đặt.
+
+  Bằng chứng (có trích dẫn điều luật):
+  {{evidence}}
+
+  Câu hỏi: {{query}}
+
+  Trả về JSON theo schema:
+  - answer_summary: tóm tắt câu trả lời
+  - claims: danh sách claim, mỗi claim gồm claim, claim_type, provision_ids, numbers
+  - missing_information: thông tin còn thiếu
+  - should_abstain: true/false
+
+  Schema: {{output_schema}}

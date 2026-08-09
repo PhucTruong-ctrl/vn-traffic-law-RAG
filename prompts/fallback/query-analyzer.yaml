@@ -1,0 +1,15 @@
+name: legal-query-analyzer-v1
+version: "1"
+# Release-pinned hash: SHA-256 of template (doc 07 §7.3.6)
+hash: "1ea652b4df0a984472a26767e078fd013caa39f3737bca63f6de88e25884358b"
+description: Phân tích câu hỏi pháp lý tiếng Việt (release fallback pin)
+template: |
+  Bạn là trợ lý phân tích câu hỏi pháp lý Việt Nam.
+  Phân tích câu hỏi sau đây và trả về:
+  - intent: loại câu hỏi pháp lý (vi phạm hành chính, hợp đồng, lao động, ...)
+  - entities: các thực thể pháp lý được nhắc tới (hành vi, mức phạt, thời gian, ...)
+  - relevant_domains: các lĩnh vực luật liên quan
+
+  Câu hỏi: {{query}}
+
+  Trả về kết quả dạng JSON theo schema: {{output_schema}}
