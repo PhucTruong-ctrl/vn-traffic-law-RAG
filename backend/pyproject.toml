@@ -21,7 +21,7 @@ dependencies = [
     "google-genai",
     "openai",
     "docling==2.118.1",
-    "mineru>=3.4,<3.5",
+    "mineru[pipeline]>=3.4,<3.5",
     "ragas==0.4.3",
     "jinja2",
 ]
