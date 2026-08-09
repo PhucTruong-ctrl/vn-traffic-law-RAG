@@ -36,6 +36,12 @@ data/
 
 - **PDFs nằm trong `data/` — gitignored, KHÔNG commit**; chỉ manifests +
   README được commit (doc 05 §5.3.1: "chỉ manifest được commit").
+- **Text layer**: chỉ `luat-36-2024` có born-digital text layer (pdftotext
+  2940 dòng); `nd-168-2024`, `nd-100-2019`, `tt-79-2024`, `tt-24-2023` là
+  **scan-only** (nội dung là ảnh CCITT; pdftotext chỉ ra 5 dòng metadata chữ
+  ký số, không phải nội dung pháp lý). Router sẽ đi đường scan: Docling OCR
+  CPU → Group A gates → MinerU fallback (doc 03 §3.7, ADR-002). Suite A
+  (VNLRAG-97) chính là nơi đo chất lượng OCR của các file này.
 - Văn bản 2 phần (ND 100/2019, Luật 36/2024): merge thành 1 PDF canoncial
   bằng `pdfunite`; `file_hash` = SHA-256 của file merged đầy đủ (không phải
   hash một phần). URL nguồn 2 phần ghi trong `relation_notes`.
@@ -44,7 +50,5 @@ data/
   chỉ bãi bỏ phần đường bộ nên `status = PARTIALLY_EFFECTIVE`, `effective_to
   = null` — khoảng [2020-01-01, 2025-01-01) áp cho provision đường bộ ở tầng
   temporal resolution.
-- Một số PDF (168/2024, 79/2024) là bản scan signed — không có text layer;
-  pipeline parser sẽ dùng OCR (Docling/MinerU) — ghi nhận cho Suite A.
 - Mọi manifest đã validate: `cd backend && uv run python -m scripts.validate_manifest
   ../data/manifests/batch-01/<id>.manifest.json` → PASS.
