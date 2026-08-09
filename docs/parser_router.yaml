@@ -35,6 +35,17 @@
 # - Mọi quyết định routing và kết quả quality gate được ghi vào
 #   ingestion_runs.parser_routing và DocumentElement.source_parser
 #   (phục vụ Suite A và corpus QA, NFR-09).
+#
+# Chính sách scan-review routing (VNLRAG-20 OCR decision, AC 9):
+# - Scan-derived docs có d/đ ambiguity, provenance thấp (Group A
+#   provenance_coverage < 0.9 hoặc bbox thiếu), hoặc structural mismatch
+#   -> route review (VNLRAG-155 Review CLI), KHÔNG BAO GIỜ auto-index
+#   partial OCR output.
+# - Group A text_extraction_rate >= 0.8 chỉ là quantity-only, không đủ cho
+#   legal correctness; Group B (d/đ, hierarchy, short-point) giữ vai trò
+#   correctness gate.
+# - OCR engine = tesseract vie (CER 1.2% / WER 3.8%), CPU-only; 600 DPI
+#   scan-only conditional (theo benchmark); không force_backend_text cho scan.
 # =============================================================================
 
 parser_router:
