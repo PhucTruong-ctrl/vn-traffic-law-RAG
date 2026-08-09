@@ -1,0 +1,145 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LegalDocument / DocumentVersion",
+  "description": "Schemas cho LegalDocument va DocumentVersion (docs/00 §8.2, docs/03 §3.9.3). Top-level nhan mot trong hai loai, phan biet qua cac truong required (document_title / manifest_json).",
+  "oneOf": [
+    { "$ref": "#/$defs/LegalDocument" },
+    { "$ref": "#/$defs/DocumentVersion" }
+  ],
+  "$defs": {
+    "LegalDocument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_id",
+        "document_number",
+        "document_title",
+        "document_type",
+        "file_hash",
+        "status",
+        "version",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "document_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+-[a-z0-9-]*[a-z0-9]+$"
+        },
+        "document_number": { "type": "string" },
+        "document_title": { "type": "string" },
+        "document_type": {
+          "type": "string",
+          "enum": ["LAW", "DECREE", "CIRCULAR", "RESOLUTION", "DECISION", "OTHER"]
+        },
+        "issuer": { "type": ["string", "null"] },
+        "issued_date": { "type": ["string", "null"] },
+        "source_url": { "type": ["string", "null"] },
+        "file_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "NOT_YET_EFFECTIVE",
+            "EFFECTIVE",
+            "PARTIALLY_EFFECTIVE",
+            "EXPIRED",
+            "UNKNOWN"
+          ]
+        },
+        "version": { "type": "integer", "minimum": 1 },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "DocumentVersion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "document_id",
+        "version",
+        "manifest_json",
+        "content_hash",
+        "effective_from",
+        "effective_to",
+        "review_status",
+        "created_at"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "document_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+-[a-z0-9-]*[a-z0-9]+$"
+        },
+        "version": { "type": "integer", "minimum": 1 },
+        "manifest_json": {
+          "type": "object",
+          "description": "Manifest goc, bat bien (docs/03:1232)"
+        },
+        "content_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "effective_from": {
+          "anyOf": [
+            { "type": "null" },
+            { "type": "string", "format": "date" }
+          ],
+          "description": "Ngay bat dau hieu luc; nullable khi hieu luc chua xac dinh/chua review (docs/03:1234). Bat buoc co gia tri (date) khi review_status = ACCEPTED."
+        },
+        "effective_to": {
+          "anyOf": [
+            { "type": "null" },
+            { "type": "string", "format": "date" }
+          ],
+          "description": "Ngay ket thuc hieu luc; nullable cho van ban dang hieu luc (docs/03:1235)."
+        },
+        "review_status": {
+          "type": "string",
+          "enum": ["PENDING", "ACCEPTED", "REJECTED", "DROPPED"]
+        },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "allOf": [
+        {
+          "description": "review_status = ACCEPTED => effective_from bat buoc la date (khong null) (docs/03:2491-2500, accepted version bat buoc co effective start).",
+          "if": {
+            "type": "object",
+            "properties": {
+              "review_status": { "const": "ACCEPTED" }
+            },
+            "required": ["review_status"]
+          },
+          "then": {
+            "properties": {
+              "effective_from": { "type": "string", "format": "date" }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "properties": {
+              "effective_from": { "type": "string" },
+              "effective_to": { "type": "string" }
+            },
+            "required": ["effective_from", "effective_to"]
+          },
+          "then": {
+            "properties": {
+              "effective_from": { "type": "string", "format": "date" },
+              "effective_to": { "type": "string", "format": "date" }
+            }
+          }
+        },
+        {
+          "description": "Khi ca hai effective_from/effective_to co gia tri: effective_to phai > effective_from (docs/03:2488, CHECK interval). JSON Schema draft-07 khong the so sanh giua hai thuoc tinh; rang buoc duoc thuc thi boi custom keyword x-effective-interval (xem backend/tests/test_legal_document_schema.py) va CHECK constraint o tang DB.",
+          "x-effective-interval": true
+        }
+      ]
+    }
+  }
+}
