@@ -1,0 +1,129 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LegalProvision",
+  "description": "Schema cho LegalProvision (docs/00 §8.3, docs/03 §3.9.4). Mot row = mot provision version; unique key vat ly la (provision_id, version) (docs/03:1087). 20 field goc theo FR-03 + node_kind (docs/03:1289).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "provision_id",
+    "document_version_id",
+    "chapter",
+    "section",
+    "article",
+    "clause",
+    "point",
+    "heading",
+    "source_text",
+    "retrieval_text",
+    "parent_context",
+    "effective_from",
+    "effective_to",
+    "status",
+    "page_number",
+    "bbox",
+    "source_element_ids",
+    "content_hash",
+    "version",
+    "review_status"
+  ],
+  "properties": {
+    "node_kind": {
+      "type": "string",
+      "description": "Loai node (docs/03:1243-1251): ARTICLE/CLAUSE/POINT/APPENDIX/TABLE/TRANSITIONAL/HEADING/OTHER. Mac dinh ARTICLE.",
+      "enum": ["ARTICLE", "CLAUSE", "POINT", "APPENDIX", "TABLE", "TRANSITIONAL", "HEADING", "OTHER"],
+      "default": "ARTICLE"
+    },
+    "provision_id": {
+      "type": "string",
+      "$comment": "Stable & reproducible id (docs/00:396, docs/03 §3.8.5): {loai-van-ban}-{so}-{nam}__dieu-{n}__khoan-{n}__diem-{chu-cai}, vi du nd-168-2024__dieu-7__khoan-4__diem-b. Chuan hoa (docs/03:1080-1088): lowercase; bo dau trong ID tru ky tu đ (giu nguyen); thay khoang trang bang '-'; version KHONG nam trong id logic. Nhan Điem giu nguyen ky tu tieng Viet trong ID bao gom ca đ: Điem đ) -> diem-đ, Điem d) -> diem-d (khong va cham, docs/03:1041). Node ngoai cay Đieu thuong (docs/03:1090-1098): __phu-luc-{n}, __phu-luc-{n}__bang-{m}, __dieu-{n}__bang-{m}, __dieu-{n}__khoan-chuyen-tiep, __chuyen-tiep-{k}, __tieu-de-{n}. Grammar: mot trong cac nhanh ro rang — cay thuong (dieu -> khoan -> diem) theo thu tu, hoac cac dang non-tree rieng.",
+      "pattern": "^[a-zđ]+-[0-9]+-[0-9]{4}(?:__dieu-[0-9]+(?:__khoan-[0-9]+(?:__diem-[a-zđ])?)?|__dieu-[0-9]+__bang-[0-9]+|__dieu-[0-9]+__khoan-chuyen-tiep|__phu-luc-[0-9]+(?:__bang-[0-9]+)?|__chuyen-tiep-[0-9]+|__tieu-de-[0-9]+)?$"
+    },
+    "document_version_id": { "type": "string" },
+    "chapter": { "type": ["string", "null"] },
+    "section": { "type": ["string", "null"] },
+    "article": { "type": ["string", "null"] },
+    "clause": { "type": ["string", "null"] },
+    "point": { "type": ["string", "null"] },
+    "heading": { "type": ["string", "null"] },
+    "source_text": {
+      "type": "string",
+      "description": "Noi dung phap ly thuoc truc tiep provision, giu nguyen van ban goc (docs/00:394); bat bien sau enrichment (docs/03:1289)"
+    },
+    "retrieval_text": {
+      "type": "string",
+      "description": "Co the ke thua ngu canh cha khi phuc vu retrieval; trich dan van tro toi provision thuc te (docs/00:395, 409)"
+    },
+    "parent_context": { "type": ["string", "null"] },
+    "effective_from": {
+      "anyOf": [
+        { "type": "null" },
+        { "type": "string", "format": "date" }
+      ],
+      "description": "Ngay bat dau hieu luc; nullable khi hieu luc chua xac dinh/chua review (docs/03:1272, 3.15.6)"
+    },
+    "effective_to": {
+      "anyOf": [
+        { "type": "null" },
+        { "type": "string", "format": "date" }
+      ]
+    },
+    "status": {
+      "type": "string",
+      "description": "Vong doi phap ly cua provision, doc lap voi review_status (docs/00:398)",
+      "enum": ["NOT_YET_EFFECTIVE", "EFFECTIVE", "PARTIALLY_EFFECTIVE", "EXPIRED", "UNKNOWN"]
+    },
+    "page_number": { "type": "integer", "minimum": 1 },
+    "bbox": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["left", "top", "right", "bottom"],
+      "properties": {
+        "left": { "type": "number" },
+        "top": { "type": "number" },
+        "right": { "type": "number" },
+        "bottom": { "type": "number" },
+        "page_height": { "type": "number" },
+        "page_width": { "type": "number" }
+      }
+    },
+    "source_element_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "content_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "version": { "type": "integer", "minimum": 1 },
+    "review_status": {
+      "type": "string",
+      "$comment": "Trang thai review corpus, la cong gate cua corpus (docs/00:398, 8.6); doc lap voi status (vong doi phap ly). Schema cho phep toan bo enum PENDING/ACCEPTED/REJECTED/DROPPED va KHONG loai bo row non-ACCEPTED; rang buoc ACCEPTED chi xuat hien o logic gate (docs/03:1272).",
+      "description": "Trang thai review corpus (PENDING/ACCEPTED/REJECTED/DROPPED); schema khong loai bo non-ACCEPTED",
+      "enum": ["PENDING", "ACCEPTED", "REJECTED", "DROPPED"]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "type": "object",
+        "properties": {
+          "effective_from": { "type": "string" },
+          "effective_to": { "type": "string" }
+        },
+        "required": ["effective_from", "effective_to"]
+      },
+      "then": {
+        "properties": {
+          "effective_from": { "type": "string", "format": "date" },
+          "effective_to": { "type": "string", "format": "date" }
+        }
+      }
+    },
+    {
+      "description": "Khi ca hai effective_from/effective_to co gia tri: effective_to phai > effective_from (docs/00 §8.3, docs/03:1272). JSON Schema draft-07 khong the so sanh giua hai thuoc tinh; rang buoc duoc thuc thi boi custom keyword x-effective-interval (xem backend/tests/test_legal_provision_schema.py) va CHECK constraint o tang DB.",
+      "x-effective-interval": true
+    }
+  ]
+}
