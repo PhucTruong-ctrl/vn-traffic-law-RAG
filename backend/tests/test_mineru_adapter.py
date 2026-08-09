@@ -1,11 +1,17 @@
-"""Tests for the MinerU → Canonical IR adapter (VNLRAG-130).
+"""Tests for the MinerU → Canonical IR adapter (VNLRAG-130) + pipeline execution.
 
-Pure-dict synthetic fixtures only: the adapter is the JSON→IR mapping layer and
-must be testable without the MinerU pipeline (environment-blocked on this
-machine per VNLRAG-20) and without ``import mineru`` succeeding.
+Pure-dict synthetic fixtures for the JSON→IR mapping layer, plus unit tests for
+:func:`run_mineru` (subprocess command construction, mocked) and one gated
+integration test that runs the real MinerU CLI on the 1-page tt fixture (only
+when ``MINERU_INTEGRATION=1`` and the ``mineru`` CLI is on PATH).
 """
 
 import json
+import os
+import shutil
+import sys
+from collections import Counter
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -14,9 +20,8 @@ from pydantic import ValidationError
 import app.ingestion.adapters.mineru_adapter as mineru_adapter
 from app.ingestion.adapters.mineru_adapter import (
     IR_SCHEMA_VERSION,
-    MINERU_ENV_ERROR_MESSAGE,
     MinerUAdapter,
-    MinerUEnvironmentError,
+    MineruExecutionError,
 )
 from app.ingestion.document_ir import (
     BoundingBox,
@@ -28,6 +33,16 @@ from app.ingestion.document_ir import (
 _PARSED_DOCUMENT_ID = "a1b2c3d4-0000-4000-8000-000000000000"
 _DOCUMENT_ID = "nd-168-2024"
 _SOURCE_OBJECT_KEY = "documents/nd-168-2024/source/<sha256>.pdf"
+
+#: 1-page born-digital fixture used by the gated real-pipeline integration test.
+FIXTURE_TT_PDF = (
+    Path(__file__).parent
+    / "fixtures"
+    / "parser_benchmark"
+    / "documents"
+    / "tt"
+    / "tt-traffic-2024-fixture.pdf"
+)
 
 
 def make_content_list() -> list[dict]:
@@ -389,18 +404,254 @@ def test_parse_rejects_malformed_input() -> None:
         parse_default(["not-a-dict"])
 
 
-def test_run_mineru_raises_env_error_with_documented_message(monkeypatch) -> None:
-    """run_mineru surfaces the documented blocker without executing MinerU."""
-    monkeypatch.setattr(mineru_adapter, "_mineru_env_blocker", lambda: MINERU_ENV_ERROR_MESSAGE)
-    with pytest.raises(MinerUEnvironmentError) as excinfo:
-        mineru_adapter.run_mineru("some.pdf")
+class _FakeCompleted:
+    """Stand-in for ``subprocess.CompletedProcess`` in mocked runs."""
+
+    def __init__(self, returncode: int = 0, stdout: str = "", stderr: str = "") -> None:
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+
+
+def _fake_subprocess_run(monkeypatch, returncode: int = 0, stderr: str = "") -> dict:
+    """Patch ``mineru_adapter.subprocess.run`` and capture the invocation."""
+    captured: dict = {}
+
+    def fake_run(command, **kwargs):
+        captured["command"] = command
+        captured["kwargs"] = kwargs
+        return _FakeCompleted(returncode=returncode, stderr=stderr)
+
+    monkeypatch.setattr(mineru_adapter.subprocess, "run", fake_run)
+    return captured
+
+
+def _write_flat_content_list(output_dir: Path, docname: str = "doc") -> Path:
+    """Simulate the CLI's ``<outdir>/<docname>/txt/<docname>_content_list.json``."""
+    txt_dir = output_dir / docname / "txt"
+    txt_dir.mkdir(parents=True)
+    path = txt_dir / f"{docname}_content_list.json"
+    path.write_text(
+        json.dumps(
+            [{"type": "text", "text": "x", "bbox": [0, 0, 1, 1], "page_idx": 0}],
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def test_run_mineru_builds_cli_command_with_all_kwargs(monkeypatch, tmp_path) -> None:
+    """run_mineru constructs the full CLI argv (module entrypoint + flags).
+
+    The input PDF stem drives artifact resolution (``doc``), so the mocked
+    run returns the exact derived ``doc/txt/doc_content_list.json`` path.
+    """
+    content_list = _write_flat_content_list(tmp_path)
+    captured = _fake_subprocess_run(monkeypatch)
+
+    result = mineru_adapter.run_mineru(
+        str(tmp_path / "doc.pdf"),
+        str(tmp_path),
+        method="txt",
+        backend="pipeline",
+        lang="vie",
+        start_page=0,
+        end_page=1,
+    )
+
+    assert result == str(content_list)
+    assert captured["command"] == [
+        sys.executable,
+        "-m",
+        "mineru.cli.client",
+        "-p",
+        str(tmp_path / "doc.pdf"),
+        "-o",
+        str(tmp_path),
+        "-b",
+        "pipeline",
+        "-m",
+        "txt",
+        "-l",
+        "vie",
+        "-s",
+        "0",
+        "-e",
+        "1",
+    ]
+    # CUDA_VISIBLE_DEVICES is always blanked for CPU-only execution.
+    assert captured["kwargs"]["env"]["CUDA_VISIBLE_DEVICES"] == ""
+    assert captured["kwargs"]["text"] is True
+    assert captured["kwargs"]["check"] is False
+
+
+def test_run_mineru_defaults_method_auto_and_merges_env_extra(monkeypatch, tmp_path) -> None:
+    """Defaults: method=auto, no page-range flags; env_extra wins over the base env."""
+    _write_flat_content_list(tmp_path)
+    captured = _fake_subprocess_run(monkeypatch)
+
+    mineru_adapter.run_mineru(str(tmp_path / "doc.pdf"), str(tmp_path), env_extra={"FOO": "bar"})
+
+    assert "-m" in captured["command"]
+    # "-m" appears twice: "python -m mineru.cli.client" then the method flag.
+    last_dash_m = max(i for i, token in enumerate(captured["command"]) if token == "-m")
+    assert captured["command"][last_dash_m + 1] == "auto"
+    assert "-l" not in captured["command"]
+    assert "-s" not in captured["command"]
+    assert "-e" not in captured["command"]
+    env = captured["kwargs"]["env"]
+    assert env["CUDA_VISIBLE_DEVICES"] == ""
+    assert env["FOO"] == "bar"
+
+
+def test_run_mineru_nonzero_rc_raises_execution_error_with_stderr(monkeypatch, tmp_path) -> None:
+    _fake_subprocess_run(monkeypatch, returncode=1, stderr="boom\ntraceback line\nroot cause")
+    with pytest.raises(MineruExecutionError) as excinfo:
+        mineru_adapter.run_mineru(str(tmp_path / "in.pdf"), str(tmp_path))
     message = str(excinfo.value)
-    assert "find_pruneable_heads_and_indices" in message
-    assert "transformers" in message
-    assert "VNLRAG-20" in message
+    assert "rc=1" in message
+    assert "root cause" in message
 
 
-def test_run_mineru_not_wired_when_environment_ok(monkeypatch) -> None:
-    monkeypatch.setattr(mineru_adapter, "_mineru_env_blocker", lambda: None)
-    with pytest.raises(RuntimeError, match="VNLRAG-97"):
-        mineru_adapter.run_mineru("some.pdf")
+def test_run_mineru_no_content_list_raises_execution_error(monkeypatch, tmp_path) -> None:
+    _fake_subprocess_run(monkeypatch, returncode=0)
+    with pytest.raises(MineruExecutionError, match="no content_list JSON produced"):
+        mineru_adapter.run_mineru(str(tmp_path / "in.pdf"), str(tmp_path))
+
+
+def test_run_mineru_missing_package_raises_clear_error(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(mineru_adapter, "_mineru_module_available", lambda: False)
+    with pytest.raises(MineruExecutionError, match="not installed"):
+        mineru_adapter.run_mineru(str(tmp_path / "in.pdf"), str(tmp_path))
+
+
+def test_run_mineru_prefers_flat_content_list_over_v2_sibling(monkeypatch, tmp_path) -> None:
+    """run_mineru returns the FLAT *_content_list.json (the IR mapping input).
+
+    The real 3.4.4 pipeline writes a *_content_list_v2.json sibling too, but
+    that file is a per-page NESTED structure (list of page-lists, items carry
+    ``content.paragraph_content`` spans and no ``page_idx``) which
+    ``MinerUAdapter.parse`` does not consume — so the flat file is the
+    artifact returned (verified against the real output shape, 2026-08-09).
+    """
+    content_list = _write_flat_content_list(tmp_path, docname="doc")
+    v2 = content_list.with_name("doc_content_list_v2.json")
+    v2.write_text("[[ ]]", encoding="utf-8")
+    _fake_subprocess_run(monkeypatch, returncode=0)
+
+    result = mineru_adapter.run_mineru(str(tmp_path / "doc.pdf"), str(tmp_path))
+    assert result == str(content_list)
+
+
+def test_run_mineru_ignores_wrong_stem_artifact(monkeypatch, tmp_path) -> None:
+    """An unrelated document's content_list under the same output dir is never
+    returned: resolution is keyed on the input PDF stem, so a reused/shared
+    output dir cannot map the wrong document's output."""
+    correct = _write_flat_content_list(tmp_path, docname="doc")
+    # Wrong-stem artifact from a sibling document (lexicographically earlier,
+    # the case the old first-glob implementation would have returned).
+    wrong = tmp_path / "aaa" / "txt" / "aaa_content_list.json"
+    wrong.parent.mkdir(parents=True)
+    wrong.write_text("[[ ]]", encoding="utf-8")
+    _fake_subprocess_run(monkeypatch, returncode=0)
+
+    result = mineru_adapter.run_mineru(str(tmp_path / "doc.pdf"), str(tmp_path))
+    assert result == str(correct)
+
+
+def test_run_mineru_wrong_stem_only_raises_execution_error(monkeypatch, tmp_path) -> None:
+    """Only an unrelated document's artifact exists → the expected file is
+    missing for THIS document → MineruExecutionError (no silent mismatch)."""
+    wrong = tmp_path / "other" / "txt" / "other_content_list.json"
+    wrong.parent.mkdir(parents=True)
+    wrong.write_text("[[ ]]", encoding="utf-8")
+    _fake_subprocess_run(monkeypatch, returncode=0)
+
+    with pytest.raises(MineruExecutionError, match="no content_list JSON produced"):
+        mineru_adapter.run_mineru(str(tmp_path / "doc.pdf"), str(tmp_path))
+
+
+def test_parse_pdf_runs_pipeline_then_parses(monkeypatch, tmp_path) -> None:
+    """parse_pdf wires run_mineru → parse and preserves MINERU provenance."""
+    content_list = _write_flat_content_list(tmp_path)
+    monkeypatch.setattr(mineru_adapter, "run_mineru", lambda pdf, out, **kw: str(content_list))
+
+    doc = MinerUAdapter().parse_pdf(
+        str(tmp_path / "in.pdf"),
+        str(tmp_path),
+        source_object_key=_SOURCE_OBJECT_KEY,
+        parsed_document_id=_PARSED_DOCUMENT_ID,
+        document_id=_DOCUMENT_ID,
+        method="txt",
+        lang="vie",
+        parser_version="mineru-3.4.4-custom",
+    )
+
+    assert doc.parser == "MINERU"
+    assert doc.parser_version == "mineru-3.4.4-custom"
+    assert doc.ir_schema_version == IR_SCHEMA_VERSION
+    assert doc.source_object_key == _SOURCE_OBJECT_KEY
+    assert [page.page_number for page in doc.pages] == [1]
+    assert doc.pages[0].elements[0].source_parser == "MINERU"
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(
+    shutil.which("mineru") is None or os.environ.get("MINERU_INTEGRATION") != "1",
+    reason="real MinerU pipeline integration test: needs the mineru CLI and "
+    "MINERU_INTEGRATION=1 (downloads models on first run)",
+)
+def test_run_mineru_real_pipeline_parses_ir(tmp_path: Path) -> None:
+    """End-to-end: real run_mineru on the 1-page tt fixture → parse → v2 IR.
+
+    Asserts the exact verified real-output contract (2026-08-09 tt fixture
+    run): 1 page / 21 elements, element_type histogram {paragraph: 20,
+    heading: 1}, and the first element's normalized bbox + raw permille.
+
+    First run downloads the MinerU models (~1-2 min). Run explicitly with::
+
+        cd backend && MINERU_INTEGRATION=1 CUDA_VISIBLE_DEVICES="" \\
+            uv run pytest tests/test_mineru_adapter.py -q --no-cov \\
+            -m integration -k real_pipeline
+    """
+    content_list_path = mineru_adapter.run_mineru(
+        str(FIXTURE_TT_PDF),
+        str(tmp_path),
+        method="txt",
+        backend="pipeline",
+    )
+    # Artifact is resolved from the input PDF stem (Finding 1 oracle):
+    # <output_dir>/<pdf_stem>/txt/<pdf_stem>_content_list.json
+    assert Path(content_list_path) == (
+        tmp_path / FIXTURE_TT_PDF.stem / "txt" / f"{FIXTURE_TT_PDF.stem}_content_list.json"
+    )
+
+    doc = MinerUAdapter().parse(
+        content_list_path,
+        source_object_key=f"documents/tt/source/{FIXTURE_TT_PDF.name}",
+        parsed_document_id=_PARSED_DOCUMENT_ID,
+        document_id="tt-24-2024",
+    )
+
+    assert doc.ir_schema_version == IR_SCHEMA_VERSION
+    assert doc.parser == "MINERU"
+    assert doc.parser_version.startswith("mineru-")
+    # Exact verified real-output contract for the 1-page tt fixture.
+    assert [page.page_number for page in doc.pages] == [1]
+    assert len(doc.pages[0].elements) == 21
+    histogram = Counter(element.element_type for page in doc.pages for element in page.elements)
+    assert dict(histogram) == {"paragraph": 20, "heading": 1}
+    assert all(element.source_parser == "MINERU" for page in doc.pages for element in page.elements)
+    first = doc.pages[0].elements[0]
+    assert first.bbox is not None
+    assert first.bbox.model_dump() == {
+        "left": 0.089,
+        "top": 0.053,
+        "right": 0.877,
+        "bottom": 0.085,
+        "coordinate_space": "NORMALIZED_PAGE",
+        "page_height": None,
+        "page_width": None,
+    }
+    assert first.raw_reference["bbox_permille"] == [89.0, 53.0, 877.0, 85.0]

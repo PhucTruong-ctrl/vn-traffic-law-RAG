@@ -443,6 +443,86 @@ def test_ocr_enabled_runs_tesseract_route() -> None:
 
 
 # ────────────────────────────────────────────────────────────────────────────
+# ConversionStatus PARTIAL_SUCCESS / FAILURE (finding #4)
+# ────────────────────────────────────────────────────────────────────────────
+
+
+class _FakeConversionResult:
+    """Minimal docling convert() result (status/document/errors) for adapter tests."""
+
+    def __init__(self, document: Any, status: Any, errors: list[Any]) -> None:
+        self.document = document
+        self.status = status
+        self.errors = errors
+
+
+class _FakeConverter:
+    """Stand-in for ``docling.document_converter.DocumentConverter``."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    def convert(self, source: Any, **kwargs: Any) -> _FakeConversionResult:
+        return self._result
+
+    def with_result(self, result: _FakeConversionResult) -> "_FakeConverter":
+        self._result = result
+        return self
+
+
+def test_docling_partial_success_yields_doc_with_conversion_status(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Finding #4: PARTIAL_SUCCESS must yield a ParsedDocument (not raise) with
+    the conversion status + errors recorded on quality_report so the router can
+    force the gate to failed instead of silently accepting partial output."""
+    from docling.datamodel.base_models import ConversionStatus
+
+    result = _FakeConversionResult(
+        document=_synthetic_doc(),
+        status=ConversionStatus.PARTIAL_SUCCESS,
+        errors=["page 2 conversion timed out", "OCR backend failure on page 3"],
+    )
+    converter = _FakeConverter().with_result(result)
+    monkeypatch.setattr("docling.document_converter.DocumentConverter", lambda **_: converter)
+
+    parsed = DoclingAdapter().parse(
+        pdf_path=str(FIXTURE_FILES["nd"]),
+        source_object_key="documents/nd/source/partial.pdf",
+        parsed_document_id=str(uuid.uuid4()),
+        document_id="nd-document",
+    )
+    # Usable-but-incomplete output is normalized, not discarded.
+    assert parsed.pages
+    assert parsed.quality_report["conversion_status"] == "PARTIAL_SUCCESS"
+    assert parsed.quality_report["conversion_errors"] == [
+        "page 2 conversion timed out",
+        "OCR backend failure on page 3",
+    ]
+
+
+def test_docling_conversion_failure_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    """FAILURE keeps the hard-fail contract: the parse raises (no partial IR)."""
+    from docling.datamodel.base_models import ConversionStatus
+
+    result = _FakeConversionResult(
+        document=_synthetic_doc(),
+        status=ConversionStatus.FAILURE,
+        errors=["backend crashed before any output"],
+    )
+    converter = _FakeConverter().with_result(result)
+    monkeypatch.setattr("docling.document_converter.DocumentConverter", lambda **_: converter)
+
+    with pytest.raises(RuntimeError, match="docling conversion failed"):
+        DoclingAdapter().parse(
+            pdf_path=str(FIXTURE_FILES["nd"]),
+            source_object_key="documents/nd/source/failure.pdf",
+            parsed_document_id=str(uuid.uuid4()),
+            document_id="nd-document",
+        )
+
+
+# ────────────────────────────────────────────────────────────────────────────
 # Stability (spike §5 rec 8) + integration
 # ────────────────────────────────────────────────────────────────────────────
 

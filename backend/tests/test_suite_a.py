@@ -281,46 +281,122 @@ def test_compute_all_metrics_bundle_applies_na_rules() -> None:
 
 
 # ────────────────────────────────────────────────────────────────────────────
-# Metric 6 — layout coherence (deterministic rule)
+# Metric 6 — layout coherence (spatial-progression rule, user finding #7)
 # ────────────────────────────────────────────────────────────────────────────
 
 
-def test_layout_coherence_contiguous_reading_order() -> None:
+def _spatial_element(
+    reading_order: int, top: float, left: float = 0.1, **overrides: Any
+) -> dict[str, Any]:
+    return _element(
+        element_id=f"s{reading_order}",
+        reading_order=reading_order,
+        bbox={"left": left, "top": top, "right": left + 0.2, "bottom": top + 0.1},
+        **overrides,
+    )
+
+
+def test_layout_coherence_in_order_rows_is_1() -> None:
     doc = _document(
-        [
-            _page(1, [_element(), _element(element_id="e1", reading_order=1)]),
-            _page(2, [_element(element_id="e2", page_number=2, reading_order=2)]),
-        ]
+        [_page(1, [_spatial_element(0, 0.1), _spatial_element(1, 0.4), _spatial_element(2, 0.7)])]
     )
     result = layout_coherence(doc)
     assert result.status == "computed"
     assert result.value == 1.0
-    assert result.detail["reading_order_contiguous"] is True
+    assert result.detail["per_page_scores"] == {1: 1.0}
     assert result.detail["empty_pages"] == []
 
 
-def test_layout_coherence_gap_in_reading_order_fails() -> None:
+def test_layout_coherence_bottom_before_top_scores_zero() -> None:
+    # Adapter-contiguous reading_order (0,1,2,3) but spatial path is bottom-up
+    # -> every pair is spatially inverted -> 0.0 (the old tautological rule
+    # would have reported 1.0).
     doc = _document(
         [
             _page(
                 1,
                 [
-                    _element(reading_order=0),
-                    _element(element_id="e1", reading_order=2),  # gap: order 1 missing
+                    _spatial_element(0, 0.9),
+                    _spatial_element(1, 0.7),
+                    _spatial_element(2, 0.4),
+                    _spatial_element(3, 0.2),
                 ],
             )
         ]
     )
     result = layout_coherence(doc)
     assert result.value == 0.0
-    assert result.detail["reading_order_contiguous"] is False
+    assert result.detail["per_page_scores"] == {1: 0.0}
 
 
-def test_layout_coherence_empty_page_fails() -> None:
-    doc = _document([_page(1, [_element()]), _page(2, [])])
+def test_layout_coherence_bottom_to_top_pair_scores_zero() -> None:
+    # Minimal non-tautology proof: contiguous reading_order 0,1 with the second
+    # element physically ABOVE the first -> 0.0, never 1.0.
+    doc = _document([_page(1, [_spatial_element(0, 0.8), _spatial_element(1, 0.2)])])
     result = layout_coherence(doc)
     assert result.value == 0.0
-    assert result.detail["empty_pages"] == [2]
+
+
+def test_layout_coherence_single_element_is_1() -> None:
+    doc = _document([_page(1, [_spatial_element(0, 0.2)])])
+    result = layout_coherence(doc)
+    assert result.value == 1.0
+    assert result.detail["per_page_scores"] == {1: 1.0}
+
+
+def test_layout_coherence_empty_document_vacuously_coherent() -> None:
+    doc = _document([_page(1, [])])
+    result = layout_coherence(doc)
+    assert result.status == "computed"
+    assert result.value == 1.0
+    assert result.detail["per_page_scores"] == {}
+    assert result.detail["empty_pages"] == [1]
+
+
+def test_layout_coherence_no_bbox_signal_is_none() -> None:
+    doc = _document(
+        [
+            _page(
+                1,
+                [_element(bbox=None), _element(element_id="e1", reading_order=1, bbox=None)],
+            )
+        ]
+    )
+    result = layout_coherence(doc)
+    assert result.status == "computed"
+    assert result.value is None  # never a fabricated 0.0/1.0 without spatial signal
+    assert result.detail["per_page_scores"] == {}
+
+
+def test_layout_coherence_multi_row_mixed_partial_agreement() -> None:
+    # Three rows top/mid/bottom; reading_order swaps the bottom two rows ->
+    # one of three pairs disagrees -> 2/3.
+    doc = _document(
+        [_page(1, [_spatial_element(0, 0.1), _spatial_element(2, 0.4), _spatial_element(1, 0.7)])]
+    )
+    result = layout_coherence(doc)
+    assert result.value == pytest.approx(2 / 3)
+    assert result.detail["per_page_scores"] == {1: pytest.approx(2 / 3)}
+
+
+def test_layout_coherence_within_row_left_to_right_disorder_scores_zero() -> None:
+    # Two-column-ish page: same row band, right column read before left — a
+    # multi-column layout bug row-band monotonicity alone would NOT catch.
+    doc = _document(
+        [_page(1, [_spatial_element(0, 0.1, left=0.6), _spatial_element(1, 0.1, left=0.1)])]
+    )
+    result = layout_coherence(doc)
+    assert result.value == 0.0
+
+
+def test_layout_coherence_identical_boxes_no_spatial_signal_is_1() -> None:
+    # All elements share one bbox (fixture artifact): every pair is
+    # non-comparable (identical spatial keys) -> trivially coherent.
+    doc = _document([_page(1, [_element(), _element(element_id="e1", reading_order=1)])])
+    result = layout_coherence(doc)
+    assert result.status == "computed"
+    assert result.value == 1.0
+    assert result.detail["per_page_scores"] == {1: 1.0}
 
 
 # ────────────────────────────────────────────────────────────────────────────

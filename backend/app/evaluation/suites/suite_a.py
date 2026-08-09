@@ -37,7 +37,6 @@ import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
 from difflib import SequenceMatcher
-from itertools import pairwise
 from pathlib import Path
 from typing import Any, ClassVar, Literal
 
@@ -431,37 +430,86 @@ def header_footer_leakage(
     )
 
 
-def layout_coherence(doc: ParsedDocument) -> MetricResult:
-    """Metric 6 — deterministic layout-coherence rule (documented in code).
+def _page_layout_score(elements: list[DocumentElement]) -> float:
+    """Share of spatial pairs on one page that agree with ``reading_order``.
 
-    Rule:
-      (a) reading-order continuity: across all elements in document order the
-          reading_order values must be strictly monotonic with no gaps beyond
-          tolerance: reading_order[i] == reading_order[i-1] + 1 (tolerance = 0
-          gaps). The adapter assigns reading_order as the parser's item
-          iteration index, so this validates the adapter produced a contiguous
-          sequence (a duplicated or skipped index would fail the rule).
-      (b) element-count-per-page sanity: every page must carry at least one
-          element; pages with zero elements are flagged as empty.
+    Only elements carrying a bbox participate. A pair is *comparable* when its
+    two elements have distinct spatial keys ``(round(top, 2), round(left, 2))``
+    AND distinct ``reading_order`` — equal keys mean no spatial discrimination
+    (e.g. overlapping/stacked boxes) and equal orders mean no claimed order, so
+    neither can be judged. A comparable pair *agrees* when the relative spatial
+    order (row-major: top-down, then left-to-right) matches the relative
+    ``reading_order``. Pages with <2 bbox'd elements have no pairs and are
+    trivially coherent (1.0). Deterministic — no scipy, pure integer/float
+    comparisons.
     """
-    elements = _elements(doc)
-    orders = [element.reading_order for element in elements]
-    contiguous = all(b == a + 1 for a, b in pairwise(orders)) if len(orders) > 1 else True
+    keys: list[tuple[float, float]] = []
+    orders: list[int] = []
+    for element in elements:
+        bbox = element.bbox
+        if bbox is None:
+            continue
+        keys.append((round(bbox.top, 2), round(bbox.left, 2)))
+        orders.append(element.reading_order)
+    comparable = 0
+    agreeing = 0
+    for i in range(len(keys)):
+        for j in range(i + 1, len(keys)):
+            if keys[i] == keys[j] or orders[i] == orders[j]:
+                continue
+            comparable += 1
+            if (keys[i] < keys[j]) == (orders[i] < orders[j]):
+                agreeing += 1
+    return 1.0 if comparable == 0 else agreeing / comparable
+
+
+def layout_coherence(doc: ParsedDocument) -> MetricResult:
+    """Metric 6 — spatial-progression coherence (user finding #7).
+
+    The previous rule asserted the adapter-assigned ``reading_order`` was
+    strictly ``+1`` contiguous; since the adapters number elements by global
+    iteration index, that passed by construction and measured adapter
+    numbering, not parser layout quality. This rule instead measures whether
+    the parser read the page in a plausible row-major spatial path (same rule
+    as ``app/ingestion/quality_gates.py``, duplicated locally — the evaluation
+    package must not import the ingestion gates): per page, the score is the
+    fraction of element pairs whose relative ``reading_order`` matches their
+    relative spatial key ``(round(bbox.top, 2), round(bbox.left, 2))``
+    (top-down, then left-to-right); the document score is the mean across
+    pages carrying at least one bbox'd element. Pages with no bbox'd element
+    contribute no signal and are skipped; the value is None (never a fabricated
+    0.0/1.0) when no page has a bbox'd element, and 1.0 vacuously for a
+    document with no elements at all.
+    """
+    rule = (
+        "share of pairs whose reading_order matches row-major bbox order "
+        "(round(top,2), round(left,2)); N/A without bbox"
+    )
+    per_page_scores: dict[int, float] = {}
+    for page in doc.pages:
+        bboxed = [element for element in page.elements if element.bbox is not None]
+        if bboxed:
+            per_page_scores[page.page_number] = _page_layout_score(bboxed)
     empty_pages = [page.page_number for page in doc.pages if not page.elements]
-    coherent = contiguous and not empty_pages
+    if not per_page_scores:
+        return MetricResult(
+            name="layout_coherence",
+            status="computed",
+            value=1.0 if not _elements(doc) else None,
+            detail={
+                "rule": rule,
+                "per_page_scores": per_page_scores,
+                "empty_pages": empty_pages,
+            },
+        )
     return MetricResult(
         name="layout_coherence",
         status="computed",
-        value=1.0 if coherent else 0.0,
+        value=sum(per_page_scores.values()) / len(per_page_scores),
         detail={
-            "rule": "reading_order strictly +1 contiguous (tolerance=0 gaps); "
-            "every page has >=1 element",
-            "reading_order_contiguous": contiguous,
-            "reading_order_start": orders[0] if orders else None,
-            "reading_order_end": orders[-1] if orders else None,
-            "per_page_element_counts": {page.page_number: len(page.elements) for page in doc.pages},
+            "rule": rule,
+            "per_page_scores": per_page_scores,
             "empty_pages": empty_pages,
-            "element_count": len(orders),
         },
     )
 

@@ -3,9 +3,11 @@
 Maps MinerU pipeline JSON output (``content_list``) onto the frozen canonical
 Document IR (``app.ingestion.document_ir``; contract
 ``docs/canonical-document-ir-design.md``). The mapping layer is pure and
-unit-testable: it consumes the JSON artifacts MinerU writes, NOT a PDF, so it
-runs on this machine even though the MinerU pipeline backend is
-environment-blocked (see ``run_mineru`` / ``MinerUEnvironmentError``).
+unit-testable: it consumes the JSON artifacts MinerU writes, NOT a PDF. The
+real pipeline backend is executed by :func:`run_mineru` (a subprocess call to
+``python -m mineru.cli.client`` — the module entrypoint behind the ``mineru``
+console script), which returns the produced flat ``*_content_list.json`` path
+that :meth:`MinerUAdapter.parse` consumes (VNLRAG-131 finding #5).
 
 Input schema (verified against the installed mineru 3.4.4 sources, 2026-08-09):
   * ``{pdf}_content_list.json`` is a BARE JSON ARRAY of items — the CLI writes
@@ -53,6 +55,9 @@ Conventions shared with the Docling adapter (spike VNLRAG-21):
 
 import ast
 import json
+import os
+import subprocess
+import sys
 from datetime import UTC, datetime
 from html import escape
 from pathlib import Path
@@ -61,19 +66,6 @@ from typing import Any
 from app.ingestion.document_ir import BoundingBox, DocumentElement, ParsedDocument, ParsedPage
 
 IR_SCHEMA_VERSION = "document-ir-v2"
-
-# Known environment blocker (VNLRAG-20 evidence): the MinerU 3.4.4 pipeline
-# backend calls transformers.pytorch_utils.find_pruneable_heads_and_indices,
-# which was removed in the installed transformers 5.8.1.
-MINERU_ENV_ERROR_MESSAGE = (
-    "MinerU pipeline backend is blocked in this environment: "
-    "transformers.pytorch_utils.find_pruneable_heads_and_indices was removed "
-    "in the installed transformers 5.8.1 (ImportError recorded in VNLRAG-20 "
-    "evidence; the docling==2.118.1 pin was resolved the same way). MinerU "
-    "pipeline re-attempt is owned by VNLRAG-97 (W3). The VNLRAG-130 adapter "
-    "consumes MinerU content_list.json output directly and does not require "
-    "the pipeline to execute locally."
-)
 
 # Explicit MinerU content_list type → canonical IR element_type mapping
 # (spike VNLRAG-21 §5 rec #3). Unknown types pass through verbatim so a future
@@ -116,11 +108,13 @@ _VISUAL_TEXT_KEYS = (
 )
 
 
-class MinerUEnvironmentError(RuntimeError):
-    """The MinerU pipeline backend cannot run in this environment.
+class MineruExecutionError(RuntimeError):
+    """The MinerU pipeline failed to run or produced no IR-consumable output.
 
-    Raised by :func:`run_mineru` with the documented VNLRAG-20 blocker instead
-    of the raw ImportError from the transformers incompatibility.
+    Raised by :func:`run_mineru` when the ``mineru`` package is unavailable in
+    this environment, when the CLI subprocess exits nonzero (the message
+    carries the stderr tail), when the subprocess times out, or when the run
+    succeeded but produced no ``*_content_list.json`` artifact.
     """
 
 
@@ -199,39 +193,200 @@ class MinerUAdapter:
             quality_report={},
         )
 
+    def parse_pdf(
+        self,
+        pdf_path: str,
+        output_dir: str,
+        source_object_key: str,
+        parsed_document_id: str,
+        document_id: str,
+        *,
+        method: str = "auto",
+        lang: str | None = None,
+        start_page: int | None = None,
+        end_page: int | None = None,
+        parser_version: str | None = None,
+    ) -> ParsedDocument:
+        """End-to-end convenience: run the pipeline, then map the IR.
 
-def run_mineru(pdf_path: str, **kwargs: Any) -> dict:
-    """Run the MinerU pipeline backend on a PDF (environment-dependent).
+        Executes the real MinerU pipeline via :func:`run_mineru`, then maps
+        the produced flat ``content_list.json`` through :meth:`parse`
+        (``source_parser`` stays ``"MINERU"``, provenance/bbox handling
+        unchanged). Used by Suite A P2 / ingestion wiring (VNLRAG-131 #6).
+        ``parser_version`` overrides the resolved ``mineru-<version>`` when
+        provided; the other kwargs forward to :func:`run_mineru`.
+        """
+        content_list_path = run_mineru(
+            pdf_path,
+            output_dir,
+            method=method,
+            lang=lang,
+            start_page=start_page,
+            end_page=end_page,
+        )
+        return self.parse(
+            content_list_path,
+            source_object_key=source_object_key,
+            parsed_document_id=parsed_document_id,
+            document_id=document_id,
+            parser_version=parser_version,
+        )
 
-    v1 documented failure path: the MinerU 3.4.4 pipeline cannot execute on
-    this machine (transformers 5.8.1 removed ``find_pruneable_heads_and_indices``;
-    VNLRAG-20 evidence, re-attempt owned by VNLRAG-97/W3). This wrapper checks
-    the documented blocker deterministically and raises
-    :class:`MinerUEnvironmentError` with the known cause instead of the raw
-    ImportError. Pipeline execution is NOT wired in v1 — the VNLRAG-130 adapter
-    consumes ``content_list.json`` artifacts directly.
+
+def run_mineru(
+    pdf_path: str,
+    output_dir: str,
+    *,
+    method: str = "auto",
+    backend: str = "pipeline",
+    lang: str | None = None,
+    start_page: int | None = None,
+    end_page: int | None = None,
+    timeout_seconds: int = 3600,
+    env_extra: dict[str, str] | None = None,
+) -> str:
+    """Run the REAL MinerU pipeline on ``pdf_path`` via the CLI (VNLRAG-131/#5).
+
+    Executes ``python -m mineru.cli.client`` (the same module entrypoint the
+    ``mineru`` console script wraps; ``python -m mineru`` itself has no
+    ``__main__``) in a subprocess. ``CUDA_VISIBLE_DEVICES=""`` is always set
+    (CPU-only pipeline) and merged with ``env_extra``. Returns the path of the
+    produced flat ``*_content_list.json`` artifact — the format
+    :meth:`MinerUAdapter.parse` consumes.
+
+    The pipeline additionally writes a ``*_content_list_v2.json`` sibling, but
+    that file is a per-page NESTED structure (a list of page-lists whose items
+    carry ``content.paragraph_content`` spans and no ``page_idx``) which is
+    NOT the IR mapping input; the flat ``*_content_list.json`` is returned
+    instead.
+
+    Args:
+        pdf_path: Local path of the PDF to parse.
+        output_dir: Base output directory (the CLI writes
+            ``<output_dir>/<docname>/txt/``).
+        method: ``auto`` | ``txt`` (born-digital) | ``ocr`` (scans).
+        backend: ``pipeline`` (the only backend the VNLRAG-130 mapping is
+            verified against).
+        lang: Optional document language hint (improves OCR accuracy;
+            ``-l``).
+        start_page/end_page: Optional 0-based page range (``-s``/``-e``).
+        timeout_seconds: Subprocess timeout; the first pipeline run downloads
+            models (can take minutes).
+        env_extra: Extra environment variables merged over
+            ``CUDA_VISIBLE_DEVICES=""`` (caller values win).
+
+    Raises:
+        MineruExecutionError: if the ``mineru`` module is not importable, the
+            CLI exits nonzero (message includes the stderr tail), the
+            subprocess times out, or no ``*_content_list.json`` is produced.
     """
-    blocker = _mineru_env_blocker()
-    if blocker is not None:
-        raise MinerUEnvironmentError(blocker)
-    raise RuntimeError(
-        "MinerU pipeline execution is not wired into the ingestion adapter "
-        "(VNLRAG-130 is the JSON→IR mapping layer only). Actual pipeline "
-        "execution is owned by VNLRAG-97 (W3)."
-    )
+    if not _mineru_module_available():
+        raise MineruExecutionError(
+            "MinerU is not installed in this environment "
+            "(pip install 'mineru[pipeline]>=3.4,<3.5'); cannot run the "
+            f"pipeline for {pdf_path!r}"
+        )
 
+    command = [
+        sys.executable,
+        "-m",
+        "mineru.cli.client",
+        "-p",
+        str(pdf_path),
+        "-o",
+        str(output_dir),
+        "-b",
+        backend,
+        "-m",
+        method,
+    ]
+    if lang:
+        command += ["-l", lang]
+    if start_page is not None:
+        command += ["-s", str(start_page)]
+    if end_page is not None:
+        command += ["-e", str(end_page)]
 
-def _mineru_env_blocker() -> str | None:
-    """Return the documented environment blocker message, or None if the env is OK."""
-    import importlib
+    env = dict(os.environ)
+    env["CUDA_VISIBLE_DEVICES"] = ""
+    if env_extra:
+        env.update(env_extra)
 
     try:
-        pytorch_utils = importlib.import_module("transformers.pytorch_utils")
-    except ImportError:
-        return MINERU_ENV_ERROR_MESSAGE
-    if getattr(pytorch_utils, "find_pruneable_heads_and_indices", None) is None:
-        return MINERU_ENV_ERROR_MESSAGE
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=timeout_seconds,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise MineruExecutionError(
+            f"mineru pipeline timed out after {timeout_seconds}s for {pdf_path!r}"
+        ) from exc
+
+    if completed.returncode != 0:
+        raise MineruExecutionError(
+            f"mineru pipeline failed (rc={completed.returncode}): {_stderr_tail(completed.stderr)}"
+        )
+
+    content_list = _find_content_list_path(pdf_path, output_dir)
+    if content_list is None:
+        raise MineruExecutionError(
+            f"no content_list JSON produced under {output_dir!r} for {pdf_path!r}"
+        )
+    return str(content_list)
+
+
+def _mineru_module_available() -> bool:
+    """True when the ``mineru`` package is importable in this environment.
+
+    Lazy import probe so the adapter module still imports (and the pure
+    mapping layer stays testable) when MinerU is not installed.
+    """
+    import importlib.util
+
+    return importlib.util.find_spec("mineru") is not None
+
+
+def _find_content_list_path(pdf_path: str, output_dir: str) -> Path | None:
+    """Resolve the flat ``*_content_list.json`` the CLI wrote for ``pdf_path``.
+
+    MinerU writes ``<output_dir>/<pdf_stem>/txt/<pdf_stem>_content_list.json``
+    (verified on the real 3.4.4 pipeline, 2026-08-09), so the artifact is
+    resolved from the INPUT PDF STEM — never from a lexicographically-first
+    glob, which could return an old or unrelated document's output when the
+    output dir is reused or shared with concurrent runs.
+
+    Resolution order:
+      1. the exact derived path ``<output_dir>/<pdf_stem>/txt/<pdf_stem>_content_list.json``;
+      2. a recursive fallback glob of ``*_content_list.json`` filtered to files
+         whose stem matches the input PDF stem (covers a changed docname
+         directory layout while still refusing unrelated documents);
+      3. None — the caller raises :class:`MineruExecutionError`.
+
+    The ``<stem>_content_list_v2.json`` sibling is a per-page NESTED structure
+    (list of page-lists, items carry ``content.*_content`` spans and no
+    ``page_idx``) which :meth:`MinerUAdapter.parse` does not consume — it is
+    deliberately ignored (and never collides with the ``*_content_list.json``
+    glob).
+    """
+    pdf_stem = Path(pdf_path).stem
+    derived = Path(output_dir) / pdf_stem / "txt" / f"{pdf_stem}_content_list.json"
+    if derived.is_file():
+        return derived
+    prefix = f"{pdf_stem}_content_list.json"
+    for match in sorted(Path(output_dir).rglob("*_content_list.json")):
+        if match.name.startswith(prefix):
+            return match
     return None
+
+
+def _stderr_tail(stderr: str) -> str:
+    """Last non-empty stderr lines (diagnostics tail), capped at 2000 chars."""
+    lines = [line for line in stderr.splitlines() if line.strip()]
+    return "\n".join(lines[-20:])[:2000] or "(no stderr output)"
 
 
 def _mineru_version() -> str:

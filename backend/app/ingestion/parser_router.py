@@ -19,11 +19,12 @@ table-count estimate; threshold is a W2 heuristic, documented in
 :data:`COMPLEX_TABLE_COUNT_THRESHOLD`).
 
 W2 scope: routing + Group A gates are OPERATIONAL; Group B gates are a typed
-contract (:mod:`app.ingestion.quality_gates`). MinerU execution is
-environment-blocked (``mineru_adapter.MINERU_ENV_ERROR_MESSAGE``), so parses
-are injected lazily at the :meth:`ParserRouter.route_and_gate` boundary as
-``primary_runner`` / ``alternate_runner`` callables — the ingestion pipeline
-(another ticket) wires the real adapters. No parser mixing: a single
+contract (:mod:`app.ingestion.quality_gates`). Parses are injected lazily at the
+:meth:`ParserRouter.route_and_gate` boundary as ``primary_runner`` /
+``alternate_runner`` callables — the ingestion pipeline (another ticket) wires
+the real adapters (:mod:`app.ingestion.adapters.docling_adapter`,
+:mod:`app.ingestion.adapters.mineru_adapter`, the latter running the real
+MinerU pipeline via ``mineru.cli.client``). No parser mixing: a single
 ``source_parser`` per document in every outcome.
 """
 
@@ -376,8 +377,24 @@ class ParserRouter:
         primary's (single ``source_parser``, no mixing); if both fail, the
         document routes to review — never auto-index partial output
         (doc 03 §3.7.3, Suite A §7).
+
+        A document whose ``quality_report["conversion_status"] ==
+        "PARTIAL_SUCCESS"`` (docling page-timeout) is never accepted: the Group
+        A verdict is forced to ``failed`` so the alternate fallback decides;
+        with no alternate available the document routes to review — partial
+        legal output is never silently accepted nor discarded (finding #4).
         """
         thresholds = group_a_thresholds or self._default_group_a_thresholds()
+
+        # Docling PARTIAL_SUCCESS (e.g. page-timeout) means usable-but-incomplete
+        # output: never accept it silently. The adapter records the conversion
+        # status on quality_report; here we force the Group A verdict to failed so
+        # the alternate fallback (or review) decides (finding #4).
+        partial_conversion = doc.quality_report.get("conversion_status") == "PARTIAL_SUCCESS"
+        partial_note = "PARTIAL_SUCCESS: " if partial_conversion else ""
+
+        def reason(message: str) -> str:
+            return partial_note + message if partial_conversion else message
 
         primary_problems = self._validate_single_source_parser(doc, selected_parser)
         if primary_problems:
@@ -393,6 +410,8 @@ class ParserRouter:
         primary_result = evaluate_group_a(
             doc, thresholds=thresholds, expected_tables=expected_tables
         )
+        if partial_conversion:
+            primary_result = primary_result.model_copy(update={"verdict": "failed"})
 
         if primary_result.verdict == "passed":
             return GateOutcome(
@@ -410,7 +429,7 @@ class ParserRouter:
                 selected_parser=selected_parser,
                 group_a=primary_result,
                 terminal_outcome="needs_review",
-                reason=(
+                reason=reason(
                     f"Group A {primary_result.verdict}; fallback disabled for this route "
                     "(expected_fallback=None, e.g. P0 non-PDF) -> route to review"
                 ),
@@ -424,7 +443,7 @@ class ParserRouter:
                 selected_parser=selected_parser,
                 group_a=primary_result,
                 terminal_outcome="needs_review",
-                reason=(
+                reason=reason(
                     f"Group A {primary_result.verdict}; policy "
                     f"{self.config.fallback_policy.on_parser_gate_fail!r} does not rerun "
                     "the alternate parser -> route to review"
@@ -434,6 +453,21 @@ class ParserRouter:
             )
 
         if fallback_runner is None:
+            if partial_conversion:
+                # PARTIAL_SUCCESS with no alternate: never silently accept nor
+                # discard partial output — the review decides (finding #4).
+                return GateOutcome(
+                    document_id=doc.document_id,
+                    selected_parser=selected_parser,
+                    group_a=primary_result,
+                    terminal_outcome="needs_review",
+                    reason=reason(
+                        "docling reported a partial conversion (usable-but-incomplete "
+                        "output) and no alternate fallback is available -> route to review"
+                    ),
+                    source_parser=None,
+                    routed_to_review=True,
+                )
             return GateOutcome(
                 document_id=doc.document_id,
                 selected_parser=selected_parser,
@@ -456,7 +490,7 @@ class ParserRouter:
                 fallback_attempted=True,
                 fallback_parser=fallback_parser,
                 terminal_outcome="failed",
-                reason=f"FALLBACK_PARSE_FAILED: {exc}",
+                reason=reason(f"FALLBACK_PARSE_FAILED: {exc}"),
                 source_parser=None,
             )
 
@@ -469,7 +503,7 @@ class ParserRouter:
                 fallback_attempted=True,
                 fallback_parser=fallback_parser,
                 terminal_outcome="needs_review",
-                reason="PROVENANCE_MISMATCH: " + "; ".join(alternate_problems),
+                reason=reason("PROVENANCE_MISMATCH: " + "; ".join(alternate_problems)),
                 source_parser=None,
                 routed_to_review=True,
             )
@@ -486,7 +520,7 @@ class ParserRouter:
                 fallback_parser=fallback_parser,
                 fallback_result=fallback_result,
                 terminal_outcome="accepted",
-                reason=(
+                reason=reason(
                     "alternate parser passed Group A and supersedes the primary's "
                     "artifacts (no parser mixing)"
                 ),
@@ -501,7 +535,7 @@ class ParserRouter:
             fallback_parser=fallback_parser,
             fallback_result=fallback_result,
             terminal_outcome="needs_review",
-            reason=(
+            reason=reason(
                 "BOTH_PARSERS_FAILED: primary and alternate both failed Group A -> "
                 "route to review, never auto-index partial output (doc 03 §3.7.3)"
             ),
@@ -566,6 +600,14 @@ class ParserRouter:
             the losing parser's artifacts were produced);
           * both fail / alternate unavailable and primary fails -> needs_review
             (never auto-index partial output).
+        A doc carrying ``quality_report["conversion_status"] ==
+        "PARTIAL_SUCCESS"`` (finding #4, ora-3) is never accepted as a winner:
+        its Group A verdict is forced to ``failed``, so a partial primary lets
+        the alternate's result decide (or routes to review when the alternate
+        fails/is unavailable) and a partial alternate can never win — if it
+        would have won by default the comparison routes to review. The partial
+        flags are recorded on ``outcome.comparison`` (``primary_partial`` /
+        ``alternate_partial``).
         The full comparison (both Group A results, pick + rule) is recorded in
         ``outcome.comparison`` for the ``parser_routing`` record.
         """
@@ -585,6 +627,14 @@ class ParserRouter:
         primary_result = evaluate_group_a(
             primary_doc, thresholds=thresholds, expected_tables=expected_tables
         )
+        # Finding #4 (ora-3): a PARTIAL_SUCCESS doc is usable-but-incomplete and
+        # must never win a comparison. Force the primary's Group A verdict to
+        # failed so the alternate's result decides (or review when it fails or
+        # is unavailable) — same treatment execute_and_gate applies on the
+        # normal path.
+        primary_partial = primary_doc.quality_report.get("conversion_status") == "PARTIAL_SUCCESS"
+        if primary_partial:
+            primary_result = primary_result.model_copy(update={"verdict": "failed"})
 
         alternate_result: GroupAResult | None = None
         alternate_problems: list[str] = []
@@ -596,6 +646,18 @@ class ParserRouter:
                 alternate_result = evaluate_group_a(
                     alternate_doc, thresholds=thresholds, expected_tables=expected_tables
                 )
+        # Symmetric: a partial alternate never wins; if it would win by default
+        # (healthy primary failed), the comparison routes to review instead.
+        alternate_partial = bool(
+            alternate_doc is not None
+            and alternate_doc.quality_report.get("conversion_status") == "PARTIAL_SUCCESS"
+        )
+        if alternate_result is not None and alternate_partial:
+            alternate_result = alternate_result.model_copy(update={"verdict": "failed"})
+        partial_note = "PARTIAL_SUCCESS: " if (primary_partial or alternate_partial) else ""
+
+        def reason(message: str) -> str:
+            return partial_note + message if (primary_partial or alternate_partial) else message
 
         comparison: dict[str, Any] = {
             "mode": "compare_complex_tables",
@@ -605,6 +667,8 @@ class ParserRouter:
             "alternate_group_a": (
                 alternate_result.model_dump(mode="json") if alternate_result is not None else None
             ),
+            "primary_partial": primary_partial,
+            "alternate_partial": alternate_partial,
             "alternate_error": alternate_error,
             "alternate_provenance_problems": alternate_problems or None,
             "pick": None,
@@ -634,7 +698,7 @@ class ParserRouter:
                 selected_parser=primary_parser,
                 group_a=primary_result,
                 terminal_outcome="needs_review",
-                reason=(
+                reason=reason(
                     "compare mode: alternate unavailable and primary failed Group A -> "
                     "route to review"
                 ),
@@ -667,7 +731,7 @@ class ParserRouter:
                 selected_parser=primary_parser,
                 group_a=primary_result,
                 terminal_outcome="accepted",
-                reason="compare mode: only primary passed Group A -> accepted",
+                reason=reason("compare mode: only primary passed Group A -> accepted"),
                 source_parser=primary_parser,
                 superseded_old_artifacts=self.config.fallback_policy.supersede_old_artifacts,
                 comparison=comparison,
@@ -680,7 +744,7 @@ class ParserRouter:
                 selected_parser=primary_parser,
                 group_a=alternate_result,
                 terminal_outcome="accepted",
-                reason="compare mode: only alternate passed Group A -> accepted",
+                reason=reason("compare mode: only alternate passed Group A -> accepted"),
                 source_parser=alternate_parser,
                 superseded_old_artifacts=self.config.fallback_policy.supersede_old_artifacts,
                 comparison=comparison,
@@ -691,7 +755,7 @@ class ParserRouter:
             selected_parser=primary_parser,
             group_a=primary_result,
             terminal_outcome="needs_review",
-            reason="compare mode: BOTH_PARSERS_FAILED -> route to review (doc 03 §3.7.1)",
+            reason=reason("compare mode: BOTH_PARSERS_FAILED -> route to review (doc 03 §3.7.1)"),
             source_parser=None,
             routed_to_review=True,
             comparison=comparison,
@@ -741,14 +805,21 @@ class ParserRouter:
         ``primary_runner`` lazily produces the selected parser's
         :class:`ParsedDocument` (wrapping the adapter parse, including any
         OCR); ``alternate_runner`` lazily produces the alternate parser's
-        document. Both are invoked ONLY after the OCR fail-fast guard passes,
-        so a scan whose OCR is not ready never triggers any parse.
+        document. A scan whose OCR is not ready never triggers the primary
+        parse, and a crashing primary never yields a hard ``failed`` while an
+        alternate is available (finding #4).
 
         (a) ``decide(inputs)`` — pure routing (side-effect-free);
         (b) if the route requires OCR (scan) -> ``ensure_ocr_ready()`` FIRST
-            and, on problems, return the terminal ``failed``/``OCR_NOT_READY``
-            outcome WITHOUT invoking ``primary_runner`` or ``alternate_runner``;
-        (c) otherwise invoke ``primary_runner()`` and dispatch:
+            and, on problems, when an alternate is a real option for this route
+            (``alternate_runner`` given AND ``expected_fallback`` set) run and
+            gate the alternate instead of failing (reason ``OCR_NOT_READY``);
+            with no alternate -> the terminal ``failed``/``OCR_NOT_READY``
+            outcome WITHOUT invoking any runner;
+        (c) otherwise invoke ``primary_runner()``: if it raises and an
+            alternate is available, run and gate the alternate (reason
+            ``PRIMARY_PARSE_FAILED``); only with no alternate -> the terminal
+            ``failed``/``PRIMARY_PARSE_FAILED`` outcome. Dispatch on success:
             ``compare_complex_tables`` -> :meth:`compare_and_pick` (also
             invokes ``alternate_runner()``); every other route ->
             :meth:`execute_and_gate` (``alternate_runner`` is passed through
@@ -756,9 +827,24 @@ class ParserRouter:
             the decision's ``expected_fallback``).
         """
         decision = self.decide(inputs)
+
         if decision.ocr_required:
             problems = self.ensure_ocr_ready()
             if problems:
+                if alternate_runner is not None and decision.expected_fallback is not None:
+                    # OCR is not ready but the alternate parser is a real option for
+                    # this route: run the alternate (lazy) and gate it — the alternate
+                    # is most valuable exactly when the OCR primary cannot run
+                    # (finding #4). Never accept a doc whose provenance fails.
+                    return decision, self._primary_failure_fallback_outcome(
+                        inputs,
+                        decision,
+                        decision.expected_fallback,
+                        alternate_runner,
+                        primary_failure="OCR_NOT_READY: " + "; ".join(problems),
+                        group_a_thresholds=group_a_thresholds,
+                        expected_tables=expected_tables,
+                    )
                 return decision, self.ocr_route_terminal_outcome(inputs, problems)
 
         fallback_parser = decision.expected_fallback or self.config.fallback
@@ -779,6 +865,18 @@ class ParserRouter:
             try:
                 primary_doc = primary_runner()
             except Exception as exc:  # noqa: BLE001 - parse failures become terminal
+                if alternate_runner is not None and decision.expected_fallback is not None:
+                    # The primary (Docling) crashed: fall back to the alternate and
+                    # gate its output instead of failing hard (finding #4).
+                    return decision, self._primary_failure_fallback_outcome(
+                        inputs,
+                        decision,
+                        fallback_parser,
+                        alternate_runner,
+                        primary_failure=f"PRIMARY_PARSE_FAILED: {exc}",
+                        group_a_thresholds=group_a_thresholds,
+                        expected_tables=expected_tables,
+                    )
                 return decision, self._primary_parse_failed_outcome(inputs, decision, exc)
             alternate_error: str | None
             try:
@@ -802,6 +900,18 @@ class ParserRouter:
         try:
             primary_doc = primary_runner()
         except Exception as exc:  # noqa: BLE001 - parse failures become terminal
+            if alternate_runner is not None and decision.expected_fallback is not None:
+                # The primary (Docling) crashed: fall back to the alternate and
+                # gate its output instead of failing hard (finding #4).
+                return decision, self._primary_failure_fallback_outcome(
+                    inputs,
+                    decision,
+                    fallback_parser,
+                    alternate_runner,
+                    primary_failure=f"PRIMARY_PARSE_FAILED: {exc}",
+                    group_a_thresholds=group_a_thresholds,
+                    expected_tables=expected_tables,
+                )
             return decision, self._primary_parse_failed_outcome(inputs, decision, exc)
 
         return decision, self.execute_and_gate(
@@ -825,6 +935,95 @@ class ParserRouter:
             terminal_outcome="failed",
             reason=f"PRIMARY_PARSE_FAILED: {exc}",
             source_parser=None,
+        )
+
+    def _primary_failure_fallback_outcome(
+        self,
+        inputs: RoutingInputs,
+        decision: RoutingDecision,
+        fallback_parser: str,
+        alternate_runner: Callable[[], ParsedDocument],
+        *,
+        primary_failure: str,
+        group_a_thresholds: GroupAThresholds | None = None,
+        expected_tables: int | None = None,
+    ) -> GateOutcome:
+        """Gate the alternate parser's output when the primary could not run.
+
+        Used when OCR is not ready or ``primary_runner`` raises: the alternate
+        is most valuable exactly when the primary CANNOT run (finding #4). The
+        alternate doc is gated with Group A — accepted (``source_parser`` =
+        alternate, superseding) when it passes, needs_review when it fails
+        Group A or its provenance is wrong, failed when the alternate itself
+        raises. ``primary_failure`` records why the primary did not run (e.g.
+        ``"OCR_NOT_READY: ..."`` / ``"PRIMARY_PARSE_FAILED: ..."``) on the
+        outcome reason and is never dropped.
+        """
+        thresholds = group_a_thresholds or self._default_group_a_thresholds()
+
+        try:
+            alternate_doc = alternate_runner()
+        except Exception as exc:  # noqa: BLE001 - alternate-parse failures become terminal
+            return GateOutcome(
+                document_id=inputs.document_id,
+                selected_parser=decision.selected_parser,
+                group_a=_na_group_a_result(),
+                fallback_attempted=True,
+                fallback_parser=fallback_parser,
+                terminal_outcome="failed",
+                reason=f"{primary_failure}; ALTERNATE_PARSE_FAILED: {exc}",
+                source_parser=None,
+            )
+
+        # Never accept a doc whose provenance fails the single-source invariant
+        # (the alternate output must be genuine alternate-parser IR).
+        alternate_problems = self._validate_single_source_parser(alternate_doc, fallback_parser)
+        if alternate_problems:
+            return GateOutcome(
+                document_id=inputs.document_id,
+                selected_parser=decision.selected_parser,
+                group_a=_na_group_a_result(),
+                fallback_attempted=True,
+                fallback_parser=fallback_parser,
+                terminal_outcome="needs_review",
+                reason=f"{primary_failure}; PROVENANCE_MISMATCH: " + "; ".join(alternate_problems),
+                source_parser=None,
+                routed_to_review=True,
+            )
+
+        alternate_result = evaluate_group_a(
+            alternate_doc, thresholds=thresholds, expected_tables=expected_tables
+        )
+        if alternate_result.verdict == "passed":
+            return GateOutcome(
+                document_id=inputs.document_id,
+                selected_parser=decision.selected_parser,
+                group_a=alternate_result,
+                fallback_attempted=True,
+                fallback_parser=fallback_parser,
+                fallback_result=alternate_result,
+                terminal_outcome="accepted",
+                reason=(
+                    f"{primary_failure}; alternate parser passed Group A and supersedes "
+                    "the primary's artifacts (no parser mixing)"
+                ),
+                source_parser=fallback_parser,
+                superseded_old_artifacts=self.config.fallback_policy.supersede_old_artifacts,
+            )
+        return GateOutcome(
+            document_id=inputs.document_id,
+            selected_parser=decision.selected_parser,
+            group_a=alternate_result,
+            fallback_attempted=True,
+            fallback_parser=fallback_parser,
+            fallback_result=alternate_result,
+            terminal_outcome="needs_review",
+            reason=(
+                f"{primary_failure}; alternate parser failed Group A -> route to review, "
+                "never auto-index partial output (doc 03 §3.7.3)"
+            ),
+            source_parser=None,
+            routed_to_review=True,
         )
 
     # ── decision record ──────────────────────────────────────────────────────

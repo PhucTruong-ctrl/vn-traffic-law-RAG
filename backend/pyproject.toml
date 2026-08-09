@@ -57,3 +57,6 @@ warn_unused_ignores = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--cov=app --cov-report=term-missing --cov-fail-under=80"
+markers = [
+    "integration: real external-tool integration tests (require MINERU_INTEGRATION=1)",
+]

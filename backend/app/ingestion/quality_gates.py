@@ -27,10 +27,14 @@ Formula decisions (documented, tested):
   ``strip()`` (Suite A metric 1 rule).
 * ``table_detection_rate`` is N/A (None, never 0) when no expected table count
   is supplied — a gate cannot assert on expectations it does not have.
-* ``layout_coherence`` reuses Suite A metric 6's deterministic rule
-  (reading_order strictly ``+1`` contiguous, tolerance 0 gaps; every page has
-  ≥1 element) but is implemented locally — the ingestion package must not
-  import the evaluation package.
+* ``layout_coherence`` measures spatial-progression coherence (user finding
+  #7): the share of element pairs whose ``reading_order`` agrees with a
+  row-major spatial path (``round(bbox.top, 2)`` then ``bbox.left``). The old
+  rule asserted the adapter-assigned ``reading_order`` was strictly ``+1``
+  contiguous — since both adapters number elements by global iteration index,
+  that passed by construction and measured adapter numbering, not parser
+  layout quality. Implemented locally — the ingestion package must not import
+  the evaluation package (same rule in ``app/evaluation/suites/suite_a.py``).
 
 All fraction-returning functions use ``None`` to mean N/A (cannot compute), so
 an empty document never produces a fabricated 0.0 that would spuriously fail a
@@ -40,7 +44,6 @@ gate.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from itertools import pairwise
 from typing import Any, Literal, NoReturn
 
 from pydantic import BaseModel
@@ -114,24 +117,71 @@ def table_detection_rate(doc: ParsedDocument, expected_tables: int | None) -> fl
     return detected / expected_tables
 
 
-def layout_coherence(doc: ParsedDocument) -> float:
-    """Deterministic layout-coherence rule -> 1.0 or 0.0.
+def _page_layout_score(elements: list[DocumentElement]) -> float:
+    """Share of spatial pairs on one page that agree with ``reading_order``.
 
-    Rule (identical to Suite A metric 6, duplicated locally — ingestion must
-    not import the evaluation package):
-      (a) reading-order continuity: in document order, ``reading_order`` must
-          be strictly ``+1`` contiguous (tolerance = 0 gaps) — the adapters
-          assign the parser's item iteration index, so a duplicated or
-          skipped index fails the rule;
-      (b) every page must carry at least one element (pages with zero elements
-          are flagged as empty).
-
-    An empty document is vacuously coherent (1.0), matching Suite A.
+    Only elements carrying a bbox participate. A pair is *comparable* when its
+    two elements have distinct spatial keys ``(round(top, 2), round(left, 2))``
+    AND distinct ``reading_order`` — equal keys mean no spatial discrimination
+    (e.g. overlapping/stacked boxes) and equal orders mean no claimed order, so
+    neither can be judged. A comparable pair *agrees* when the relative spatial
+    order (row-major: top-down, then left-to-right) matches the relative
+    ``reading_order``. Pages with <2 bbox'd elements have no pairs and are
+    trivially coherent (1.0). Deterministic — no scipy, pure integer/float
+    comparisons.
     """
-    orders = [element.reading_order for element in _elements(doc)]
-    contiguous = all(b == a + 1 for a, b in pairwise(orders))
-    empty_pages = [page.page_number for page in doc.pages if not page.elements]
-    return 1.0 if contiguous and not empty_pages else 0.0
+    keys: list[tuple[float, float]] = []
+    orders: list[int] = []
+    for element in elements:
+        bbox = element.bbox
+        if bbox is None:
+            continue
+        keys.append((round(bbox.top, 2), round(bbox.left, 2)))
+        orders.append(element.reading_order)
+    comparable = 0
+    agreeing = 0
+    for i in range(len(keys)):
+        for j in range(i + 1, len(keys)):
+            if keys[i] == keys[j] or orders[i] == orders[j]:
+                continue
+            comparable += 1
+            if (keys[i] < keys[j]) == (orders[i] < orders[j]):
+                agreeing += 1
+    return 1.0 if comparable == 0 else agreeing / comparable
+
+
+def layout_coherence(doc: ParsedDocument) -> float | None:
+    """Spatial-progression coherence — does the parser read a plausible path?
+
+    Rule (user finding #7; identical to Suite A metric 6, duplicated locally —
+    ingestion must not import the evaluation package): for each page, compare
+    the adapter-assigned ``reading_order`` against a row-major spatial path
+    derived from element bboxes — an element's spatial key is
+    ``(round(bbox.top, 2), round(bbox.left, 2))`` (top=0 at the page top, so
+    smaller ``top`` is earlier; within a row band, smaller ``left`` is
+    earlier). The page score is the fraction of element pairs whose relative
+    ``reading_order`` matches their relative spatial order
+    (:func:`_page_layout_score`); the document score is the mean across pages
+    carrying at least one bbox'd element. A parser that emits an element before
+    the element physically above it (bottom-before-top, wrong column order in a
+    multi-column layout) scores < 1.0.
+
+    Pages with no bbox'd element contribute no spatial signal and are excluded
+    from the mean (``provenance_coverage`` is the gate that asserts bbox
+    presence). Returns ``None`` (N/A) when no page carries a bbox'd element —
+    layout plausibility cannot be measured without any spatial signal — and
+    1.0 vacuously for an empty document.
+    """
+    page_scores: list[float] = []
+    for page in doc.pages:
+        bboxed = [element for element in page.elements if element.bbox is not None]
+        if bboxed:
+            page_scores.append(_page_layout_score(bboxed))
+    if not page_scores:
+        if not _elements(doc):
+            return 1.0  # no elements at all -> vacuously coherent
+        return None  # elements exist but no bbox anywhere -> N/A (no signal)
+    return sum(page_scores) / len(page_scores)
 
 
 class GroupAThresholds(BaseModel):
@@ -250,7 +300,12 @@ def evaluate_group_a(
             "layout_coherence",
             layout,
             config.min_layout_coherence,
-            {"formula": "reading_order +1 contiguous (tolerance 0); every page has >=1 element"},
+            {
+                "formula": (
+                    "share of pairs whose reading_order matches row-major bbox "
+                    "order (round(top,2), left); N/A without bbox"
+                )
+            },
         ),
     ]
     return GroupAResult(

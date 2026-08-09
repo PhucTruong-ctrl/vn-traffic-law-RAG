@@ -191,44 +191,90 @@ def test_table_detection_rate_no_expectations_is_na_never_zero() -> None:
 
 
 # ────────────────────────────────────────────────────────────────────────────
-# Group A — layout coherence (deterministic rule)
+# Group A — layout coherence (spatial-progression rule, user finding #7)
 # ────────────────────────────────────────────────────────────────────────────
 
 
-def test_layout_coherence_contiguous_and_all_pages_non_empty() -> None:
-    assert layout_coherence(_passing_doc()) == 1.0
+def _box_at(top: float, left: float = 0.1) -> BoundingBox:
+    # v2: NORMALIZED_PAGE (0..1) — values must stay in the unit interval.
+    return BoundingBox(left=left, top=top, right=min(left + 0.2, 1.0), bottom=min(top + 0.1, 1.0))
 
 
-def test_layout_coherence_reading_order_gap_fails() -> None:
-    # reading_order jumps 0 -> 2 (a skipped index): rule (a) fails.
-    doc = _document([_page(1, [_element(0, bbox=_box()), _element(2, bbox=_box())])])
-    assert layout_coherence(doc) == 0.0
+def _spatial_doc(pages: list[list[tuple[int, float, float]]]) -> ParsedDocument:
+    """Build a doc from per-page ``(reading_order, top, left)`` triples.
 
-
-def test_layout_coherence_duplicate_reading_order_fails() -> None:
-    # v2 requires unique element_id, so the two duplicate-reading_order elements
-    # carry distinct ids while keeping the same reading_order.
-    doc = _document(
+    ``reading_order`` is kept globally unique (as the adapters assign it), so
+    ``element_id`` stays unique across pages.
+    """
+    return _document(
         [
             _page(
-                1,
+                page_number,
                 [
-                    _element(1, bbox=_box(), element_id="e1"),
-                    _element(1, bbox=_box(), element_id="e2"),
+                    _element(order, bbox=_box_at(top, left), element_id=f"e{order}")
+                    for order, top, left in triples
                 ],
             )
+            for page_number, triples in enumerate(pages, start=1)
         ]
     )
+
+
+def test_layout_coherence_in_order_rows_is_1() -> None:
+    # Top-to-bottom rows, each read before the next: plausible reading path.
+    doc = _spatial_doc([[(0, 0.1, 0.1), (1, 0.2, 0.1), (2, 0.4, 0.1), (3, 0.5, 0.1)]])
+    assert layout_coherence(doc) == 1.0
+
+
+def test_layout_coherence_bottom_before_top_scores_below_1() -> None:
+    # reading_order is adapter-contiguous (0,1,2,3) yet the spatial path is
+    # bottom-up — a real layout bug that the old tautological rule could not
+    # catch. Every pair is spatially inverted -> 0.0.
+    doc = _spatial_doc([[(0, 0.9, 0.1), (1, 0.7, 0.1), (2, 0.4, 0.1), (3, 0.2, 0.1)]])
     assert layout_coherence(doc) == 0.0
 
 
-def test_layout_coherence_empty_page_fails() -> None:
-    doc = _document([_page(1, [_element(0, bbox=_box())]), _page(2, [])])
+def test_layout_coherence_bottom_to_top_pair_scores_zero() -> None:
+    # Minimal non-tautology proof: contiguous reading_order 0,1 with the
+    # second element physically ABOVE the first -> 0.0, never 1.0.
+    doc = _spatial_doc([[(0, 0.8, 0.1), (1, 0.2, 0.1)]])
     assert layout_coherence(doc) == 0.0
+
+
+def test_layout_coherence_single_element_is_1() -> None:
+    doc = _spatial_doc([[(0, 0.2, 0.1)]])
+    assert layout_coherence(doc) == 1.0
 
 
 def test_layout_coherence_empty_document_vacuously_coherent() -> None:
     assert layout_coherence(_document([])) == 1.0
+
+
+def test_layout_coherence_multi_row_mixed_partial_agreement() -> None:
+    # Three rows top/mid/bottom; reading_order swaps the bottom two rows ->
+    # one of three pairs disagrees -> 2/3 (partial, not binary).
+    doc = _spatial_doc([[(0, 0.1, 0.1), (2, 0.4, 0.1), (1, 0.7, 0.1)]])
+    assert layout_coherence(doc) == pytest.approx(2 / 3)
+
+
+def test_layout_coherence_within_row_left_to_right_disorder_scores_zero() -> None:
+    # Two-column-ish page: same row band, right column read before left — a
+    # multi-column layout bug row-band monotonicity alone would NOT catch.
+    doc = _spatial_doc([[(0, 0.1, 0.6), (1, 0.1, 0.1)]])
+    assert layout_coherence(doc) == 0.0
+
+
+def test_layout_coherence_no_bbox_signal_is_na() -> None:
+    # Elements exist but carry no bbox -> no spatial signal -> N/A (None),
+    # never a fabricated 0.0/1.0.
+    doc = _document([_page(1, [_element(0), _element(1)])])
+    assert layout_coherence(doc) is None
+
+
+def test_layout_coherence_identical_boxes_no_spatial_signal_is_1() -> None:
+    # All elements share one bbox (fixture artifact): every pair is
+    # non-comparable (identical spatial keys) -> trivially coherent.
+    assert layout_coherence(_passing_doc()) == 1.0
 
 
 # ────────────────────────────────────────────────────────────────────────────

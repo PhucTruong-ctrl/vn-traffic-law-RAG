@@ -189,6 +189,36 @@ def _flag_runner(flags: list[str], label: str, doc: ParsedDocument) -> Callable[
     return runner
 
 
+def _flag_boom_runner(flags: list[str], label: str, message: str) -> Callable[[], ParsedDocument]:
+    """Lazy runner that records ``label`` then raises — a primary-crash simulation."""
+
+    def runner() -> ParsedDocument:
+        flags.append(label)
+        raise RuntimeError(message)
+
+    return runner
+
+
+def _partial_passing_doc() -> ParsedDocument:
+    """A doc that would PASS Group A but carries docling PARTIAL_SUCCESS.
+
+    Group A metrics are all green, so accepting it silently is exactly the
+    bug finding #4 targets — the router must force the gate to failed.
+    """
+    doc = _passing_doc()
+    doc.quality_report["conversion_status"] = "PARTIAL_SUCCESS"
+    doc.quality_report["conversion_errors"] = ["page 3 conversion timed out"]
+    return doc
+
+
+def _partial_mineru_passing_doc() -> ParsedDocument:
+    """A genuine MINERU doc that would PASS Group A but carries PARTIAL_SUCCESS."""
+    doc = _mineru_passing_doc()
+    doc.quality_report["conversion_status"] = "PARTIAL_SUCCESS"
+    doc.quality_report["conversion_errors"] = ["mineru page 3 conversion timed out"]
+    return doc
+
+
 def _pdf_inputs(**overrides: Any) -> RoutingInputs:
     defaults: dict[str, Any] = {
         "document_id": "nd-168-2024",
@@ -530,6 +560,78 @@ def test_execute_and_gate_explicit_thresholds_override_config() -> None:
     assert outcome.source_parser == "docling"
 
 
+def test_execute_and_gate_partial_success_falls_back_to_alternate() -> None:
+    """Finding #4: a PARTIAL_SUCCESS doc (Group A metrics all green) must NOT be
+    accepted — the gate is forced to failed and the alternate fallback decides."""
+    router = ParserRouter()
+    outcome = router.execute_and_gate(
+        _partial_passing_doc(),
+        "docling",
+        "mineru",
+        fallback_runner=lambda: _mineru_passing_doc(),
+    )
+    # The gate was forced to failed even though the raw metrics would pass.
+    assert outcome.group_a.verdict == "failed"
+    assert outcome.terminal_outcome == "accepted"  # via the alternate
+    assert outcome.fallback_attempted is True
+    assert outcome.fallback_parser == "mineru"
+    assert outcome.source_parser == "mineru"  # genuine alternate IR, no mixing
+    assert outcome.superseded_old_artifacts is True
+    assert outcome.reason is not None
+    assert "PARTIAL_SUCCESS" in outcome.reason
+
+
+def test_execute_and_gate_partial_success_no_alternate_routes_to_review() -> None:
+    """Finding #4: PARTIAL_SUCCESS with no alternate -> needs_review (never
+    silently accepted, never discarded — the review decides)."""
+    outcome = ParserRouter().execute_and_gate(_partial_passing_doc(), "docling", "mineru")
+    assert outcome.terminal_outcome == "needs_review"
+    assert outcome.routed_to_review is True
+    assert outcome.source_parser is None
+    assert outcome.reason is not None
+    assert "PARTIAL_SUCCESS" in outcome.reason
+
+
+def test_route_and_gate_partial_success_primary_falls_back_to_alternate() -> None:
+    """Finding #4 end-to-end via route_and_gate: a PARTIAL_SUCCESS primary
+    parse is gated-failed and the alternate supersedes."""
+    router = ParserRouter()
+    calls: list[str] = []
+    primary_runner = _flag_runner(calls, "primary", _partial_passing_doc())
+    alternate_runner = _flag_runner(calls, "alternate", _mineru_passing_doc())
+
+    decision, outcome = router.route_and_gate(
+        _pdf_inputs(), primary_runner, alternate_runner=alternate_runner
+    )
+    assert decision.route == "docling_text"
+    assert calls == ["primary", "alternate"]
+    assert outcome.terminal_outcome == "accepted"
+    assert outcome.source_parser == "mineru"
+    assert outcome.fallback_attempted is True
+    assert outcome.reason is not None
+    assert "PARTIAL_SUCCESS" in outcome.reason
+
+
+def test_compare_mode_primary_raises_runs_alternate() -> None:
+    """Finding #4 in compare mode: a crashing primary (Docling) must not fail
+    hard when the alternate is available — its output is gated instead."""
+    router = ParserRouter()
+    calls: list[str] = []
+    primary_runner = _flag_boom_runner(calls, "primary", "docling pipeline blocked")
+    alternate_runner = _flag_runner(calls, "alternate", _mineru_passing_doc())
+
+    decision, outcome = router.route_and_gate(
+        _compare_inputs(), primary_runner, alternate_runner=alternate_runner
+    )
+    assert decision.route == "compare_complex_tables"
+    assert calls == ["primary", "alternate"]
+    assert outcome.terminal_outcome == "accepted"
+    assert outcome.fallback_attempted is True
+    assert outcome.source_parser == "mineru"
+    assert outcome.reason is not None
+    assert outcome.reason.startswith("PRIMARY_PARSE_FAILED")
+
+
 # ────────────────────────────────────────────────────────────────────────────
 # OCR fail-fast
 # ────────────────────────────────────────────────────────────────────────────
@@ -571,6 +673,9 @@ def test_scan_route_ocr_not_ready_terminal_outcome(
 def test_route_and_gate_ocr_not_ready_invokes_no_parser(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # Variant: OCR not ready AND no alternate available -> failed/OCR_NOT_READY
+    # with no parser invoked (the alternate-available path is covered by
+    # test_route_and_gate_ocr_not_ready_runs_alternate_when_available).
     problems = ["tesseract executable not found: '/usr/bin/tesseract'"]
     monkeypatch.setattr(parser_router, "check_ocr_readiness", lambda **kwargs: problems)
 
@@ -578,17 +683,14 @@ def test_route_and_gate_ocr_not_ready_invokes_no_parser(
     inputs = _pdf_inputs(has_text_layer=False)
     calls: list[str] = []
     primary_runner = _flag_runner(calls, "primary", _passing_doc())
-    alternate_runner = _flag_runner(calls, "alternate", _mineru_passing_doc())
 
-    decision, outcome = router.route_and_gate(
-        inputs, primary_runner, alternate_runner=alternate_runner
-    )
+    decision, outcome = router.route_and_gate(inputs, primary_runner)
     assert decision.route == "docling_ocr"
     assert outcome.terminal_outcome == "failed"
     assert outcome.reason is not None
     assert outcome.reason.startswith("OCR_NOT_READY")
     assert outcome.source_parser is None
-    # Genuine fail-fast: neither the primary parse nor the alternate ran.
+    # Genuine fail-fast: no alternate available -> neither parser ran.
     assert calls == []
 
 
@@ -618,6 +720,104 @@ def test_route_and_gate_primary_runner_raises_terminal_failure() -> None:
     assert outcome.reason is not None
     assert outcome.reason.startswith("PRIMARY_PARSE_FAILED")
     assert outcome.source_parser is None
+
+
+def test_route_and_gate_primary_runner_raises_runs_alternate_accepted() -> None:
+    """Finding #4: primary crash must NOT fail hard when an alternate is
+    available — the alternate runs, gates Group A, and supersedes."""
+    router = ParserRouter()
+    calls: list[str] = []
+    primary_runner = _flag_boom_runner(calls, "primary", "docling pipeline blocked")
+    alternate_runner = _flag_runner(calls, "alternate", _mineru_passing_doc())
+
+    decision, outcome = router.route_and_gate(
+        _pdf_inputs(), primary_runner, alternate_runner=alternate_runner
+    )
+    assert decision.route == "docling_text"
+    # Both runners actually invoked: primary crashed, alternate fell back.
+    assert calls == ["primary", "alternate"]
+    assert outcome.terminal_outcome == "accepted"
+    assert outcome.fallback_attempted is True
+    assert outcome.fallback_parser == "mineru"
+    assert outcome.source_parser == "mineru"  # genuine alternate IR, no mixing
+    assert outcome.superseded_old_artifacts is True
+    assert outcome.reason is not None
+    assert outcome.reason.startswith("PRIMARY_PARSE_FAILED")
+    assert "docling pipeline blocked" in outcome.reason
+
+
+def test_route_and_gate_primary_runner_raises_alternate_fails_gate_to_review() -> None:
+    """Primary crash + alternate runs but fails Group A -> needs_review."""
+    router = ParserRouter()
+    calls: list[str] = []
+    primary_runner = _flag_boom_runner(calls, "primary", "docling pipeline blocked")
+    alternate_runner = _flag_runner(calls, "alternate", _mineru_failing_doc())
+
+    decision, outcome = router.route_and_gate(
+        _pdf_inputs(), primary_runner, alternate_runner=alternate_runner
+    )
+    assert calls == ["primary", "alternate"]
+    assert outcome.terminal_outcome == "needs_review"
+    assert outcome.routed_to_review is True
+    assert outcome.fallback_attempted is True
+    assert outcome.source_parser is None
+    assert outcome.reason is not None
+    assert outcome.reason.startswith("PRIMARY_PARSE_FAILED")
+
+
+def test_route_and_gate_ocr_not_ready_runs_alternate_when_available(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Finding #4: OCR unavailable must NOT fail hard when the alternate is a
+    real option for the route — the alternate runs and gates Group A."""
+    problems = ["tesseract executable not found: '/usr/bin/tesseract'"]
+    monkeypatch.setattr(parser_router, "check_ocr_readiness", lambda **kwargs: problems)
+
+    router = ParserRouter()
+    inputs = _pdf_inputs(has_text_layer=False)
+    calls: list[str] = []
+    primary_runner = _flag_runner(calls, "primary", _passing_doc())
+    alternate_runner = _flag_runner(calls, "alternate", _mineru_passing_doc())
+
+    decision, outcome = router.route_and_gate(
+        inputs, primary_runner, alternate_runner=alternate_runner
+    )
+    assert decision.route == "docling_ocr"
+    # OCR not ready -> primary never ran; the alternate was attempted instead.
+    assert calls == ["alternate"]
+    assert outcome.terminal_outcome == "accepted"
+    assert outcome.fallback_attempted is True
+    assert outcome.fallback_parser == "mineru"
+    assert outcome.source_parser == "mineru"  # single parser, no mixing
+    assert outcome.reason is not None
+    assert outcome.reason.startswith("OCR_NOT_READY")
+    assert "tesseract executable not found" in outcome.reason
+
+
+def test_route_and_gate_ocr_not_ready_alternate_fails_gate_to_review(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """OCR unavailable + alternate runs but fails Group A -> needs_review."""
+    problems = ["tesseract executable not found: '/usr/bin/tesseract'"]
+    monkeypatch.setattr(parser_router, "check_ocr_readiness", lambda **kwargs: problems)
+
+    router = ParserRouter()
+    inputs = _pdf_inputs(has_text_layer=False)
+    calls: list[str] = []
+    primary_runner = _flag_runner(calls, "primary", _passing_doc())
+    alternate_runner = _flag_runner(calls, "alternate", _mineru_failing_doc())
+
+    decision, outcome = router.route_and_gate(
+        inputs, primary_runner, alternate_runner=alternate_runner
+    )
+    assert decision.route == "docling_ocr"
+    assert calls == ["alternate"]
+    assert outcome.terminal_outcome == "needs_review"
+    assert outcome.routed_to_review is True
+    assert outcome.fallback_attempted is True
+    assert outcome.source_parser is None
+    assert outcome.reason is not None
+    assert outcome.reason.startswith("OCR_NOT_READY")
 
 
 def test_route_and_gate_non_pdf_no_fallback_on_gate_fail() -> None:
@@ -734,6 +934,84 @@ def test_compare_both_fail_routes_to_review() -> None:
     assert outcome.comparison["pick"] is None
 
 
+def test_compare_partial_primary_failing_alternate_routes_to_review() -> None:
+    """Ora-3: a PARTIAL_SUCCESS primary (Group A metrics green) must NOT be
+    accepted in compare mode — with a failing alternate -> needs_review."""
+    outcome = ParserRouter().compare_and_pick(
+        _partial_passing_doc(),
+        _mineru_failing_doc(),
+        "docling",
+        "mineru",
+    )
+    assert outcome.terminal_outcome == "needs_review"
+    assert outcome.routed_to_review is True
+    assert outcome.source_parser is None
+    assert outcome.comparison is not None
+    assert outcome.comparison["primary_partial"] is True
+    assert outcome.comparison["pick"] is None
+    assert outcome.reason is not None
+    assert "PARTIAL_SUCCESS" in outcome.reason
+
+
+def test_compare_partial_primary_unavailable_alternate_routes_to_review() -> None:
+    """Ora-3: partial primary + unavailable alternate -> needs_review (never
+    accepted by default when the alternate cannot compete)."""
+    outcome = ParserRouter().compare_and_pick(
+        _partial_passing_doc(),
+        None,
+        "docling",
+        "mineru",
+        alternate_error="mineru pipeline blocked",
+    )
+    assert outcome.terminal_outcome == "needs_review"
+    assert outcome.routed_to_review is True
+    assert outcome.source_parser is None
+    assert outcome.comparison is not None
+    assert outcome.comparison["primary_partial"] is True
+    assert outcome.comparison["alternate_partial"] is False
+    assert outcome.comparison["pick"] is None
+    assert outcome.reason is not None
+    assert "PARTIAL_SUCCESS" in outcome.reason
+
+
+def test_compare_partial_alternate_never_wins_healthy_primary_accepted() -> None:
+    """Ora-3: a PARTIAL_SUCCESS alternate must never win — the healthy primary
+    is accepted instead (partial never supersedes)."""
+    outcome = ParserRouter().compare_and_pick(
+        _passing_doc(),
+        _partial_mineru_passing_doc(),
+        "docling",
+        "mineru",
+    )
+    assert outcome.terminal_outcome == "accepted"
+    assert outcome.source_parser == "docling"
+    assert outcome.comparison is not None
+    assert outcome.comparison["primary_partial"] is False
+    assert outcome.comparison["alternate_partial"] is True
+    assert outcome.comparison["pick"] == "docling"
+    assert outcome.reason is not None
+    assert "PARTIAL_SUCCESS" in outcome.reason
+
+
+def test_compare_both_partial_routes_to_review() -> None:
+    """Ora-3: both parsers partial -> needs_review (neither can win)."""
+    outcome = ParserRouter().compare_and_pick(
+        _partial_passing_doc(),
+        _partial_mineru_passing_doc(),
+        "docling",
+        "mineru",
+    )
+    assert outcome.terminal_outcome == "needs_review"
+    assert outcome.routed_to_review is True
+    assert outcome.source_parser is None
+    assert outcome.comparison is not None
+    assert outcome.comparison["primary_partial"] is True
+    assert outcome.comparison["alternate_partial"] is True
+    assert outcome.comparison["pick"] is None
+    assert outcome.reason is not None
+    assert "PARTIAL_SUCCESS" in outcome.reason
+
+
 def test_compare_alternate_unavailable_primary_passes() -> None:
     router = ParserRouter()
     calls: list[str] = []
@@ -782,6 +1060,8 @@ def test_compare_not_available_without_runner() -> None:
 def test_compare_scan_route_ocr_not_ready_blocks_compare(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # Compare is blocked (both parsers needed) but the OCR primary cannot run
+    # and no alternate_runner is supplied -> terminal failed/OCR_NOT_READY.
     problems = ["tesseract executable not found: '/usr/bin/tesseract'"]
     monkeypatch.setattr(parser_router, "check_ocr_readiness", lambda **kwargs: problems)
 
@@ -789,11 +1069,8 @@ def test_compare_scan_route_ocr_not_ready_blocks_compare(
     inputs = _pdf_inputs(has_text_layer=False, layout_complexity=6)  # compare + scan
     calls: list[str] = []
     primary_runner = _flag_runner(calls, "primary", _passing_doc())
-    alternate_runner = _flag_runner(calls, "alternate", _mineru_passing_doc())
 
-    decision, outcome = router.route_and_gate(
-        inputs, primary_runner, alternate_runner=alternate_runner
-    )
+    decision, outcome = router.route_and_gate(inputs, primary_runner)
     assert decision.route == "compare_complex_tables"
     assert decision.ocr_required is True
     assert outcome.terminal_outcome == "failed"

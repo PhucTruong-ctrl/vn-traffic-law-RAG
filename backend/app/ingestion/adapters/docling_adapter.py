@@ -377,6 +377,24 @@ def docling_document_to_ir(
     )
 
 
+def _conversion_error_strings(result: Any) -> list[str]:
+    """Human-readable conversion error messages from a docling conversion result.
+
+    Docling's ``ConversionResult.errors`` is a list of ``ErrorItem`` models
+    (``error_message``); fake/synthetic results in tests may carry plain
+    strings, so each entry falls back to ``str`` when no ``error_message``
+    attribute exists.
+    """
+    errors = getattr(result, "errors", None)
+    if not errors:
+        return []
+    messages: list[str] = []
+    for error in errors:
+        message = getattr(error, "error_message", None)
+        messages.append(str(message) if isinstance(message, str) and message else str(error))
+    return messages
+
+
 def _build_pipeline_options(
     *,
     ocr_enabled: bool,
@@ -460,12 +478,21 @@ class DoclingAdapter:
 
         started_at = datetime.now(UTC)
         result = converter.convert(pdf_path)
-        if result.status != ConversionStatus.SUCCESS:
+        if result.status == ConversionStatus.FAILURE:
             raise RuntimeError(f"docling conversion failed for {pdf_path}: {result.status}")
-        return docling_document_to_ir(
+        parsed = docling_document_to_ir(
             doc=result.document,
             source_object_key=source_object_key,
             parsed_document_id=parsed_document_id,
             document_id=document_id,
             parse_started_at=started_at,
         )
+        if result.status == ConversionStatus.PARTIAL_SUCCESS:
+            # PARTIAL_SUCCESS (e.g. a page-timeout) yields usable output but the
+            # document is incomplete. Never silently accept partial legal output:
+            # record the conversion status + errors on the document's quality_report
+            # so the Parser Router forces the Group A gate to failed and falls back
+            # to the alternate parser / review (finding #4).
+            parsed.quality_report["conversion_status"] = "PARTIAL_SUCCESS"
+            parsed.quality_report["conversion_errors"] = _conversion_error_strings(result)
+        return parsed
