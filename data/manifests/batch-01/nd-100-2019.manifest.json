@@ -1,0 +1,17 @@
+{
+  "document_id": "nd-100-2019",
+  "source_url": "https://datafiles.chinhphu.vn/cpp/files/vbpq/2019/12/100.signed_01.pdf",
+  "downloaded_at": "2026-08-09T09:05:00+07:00",
+  "file_hash": "88b22a309498b633777f8290a1ed51953887da12dbabdcfc640797f5b42e1f57",
+  "document_number": "100/2019/NĐ-CP",
+  "document_type": "DECREE",
+  "issuer": "Chính phủ",
+  "issued_date": "2019-12-30",
+  "effective_from": "2020-01-01",
+  "effective_to": null,
+  "status": "PARTIALLY_EFFECTIVE",
+  "relation_notes": "Nghị định 100/2019/NĐ-CP (xử phạt VPHC giao thông đường bộ và đường sắt) — HISTORICAL cho phần đường bộ: quy định xử phạt TTATGT đường bộ bị bãi bỏ từ 01/01/2025 bởi NĐ 168/2024 (Điều 52.8); phần đường sắt còn hiệu lực nên document-level status = PARTIALLY_EFFECTIVE, effective_to = null. Khoảng [2020-01-01, 2025-01-01) áp cho các provision đường bộ tại tầng temporal resolution. PDF nguồn chính thức 2 phần (datafiles.chinhphu.vn/vbpq/2019/12/100.signed_01.pdf + 100_2.pdf) đã merge thành data/nd-100-2019/source/nd-100-2019.pdf; file_hash = SHA-256 của file merged đầy đủ.",
+  "review_status": "ACCEPTED",
+  "reviewed_by": "corpus-reviewer-01",
+  "reviewed_at": "2026-08-09T10:05:00+07:00"
+}
