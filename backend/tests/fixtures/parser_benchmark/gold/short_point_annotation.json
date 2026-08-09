@@ -1,0 +1,48 @@
+{
+  "schema_version": "short-point-annotation-v1",
+  "description": "Short-Point retention: Điểm ngắn nhưng hợp lệ vẫn là provision hợp lệ, KHÔNG bị loại theo độ dài (docs/03 §3.8.5:1052-1054; docs/06:197,2267).",
+  "policy": {
+    "token_length_threshold": null,
+    "rule": "Không có ngưỡng loại bỏ theo độ dài token; short-Point hợp lệ phải được giữ (retained = true)."
+  },
+  "short_points": [
+    {
+      "provision_id": "luat-36-2024__dieu-8__khoan-1__diem-a",
+      "source_text": "a) Đường cao tốc",
+      "expected_retained": true,
+      "note": "Điểm ngắn 3 từ — vẫn là provision hợp lệ"
+    },
+    {
+      "provision_id": "luat-36-2024__dieu-8__khoan-1__diem-d",
+      "source_text": "d) Đường huyện",
+      "expected_retained": true,
+      "note": "Điểm ngắn + nhãn d) — giữ"
+    },
+    {
+      "provision_id": "luat-36-2024__dieu-8__khoan-1__diem-đ",
+      "source_text": "đ) Đường xã",
+      "expected_retained": true,
+      "note": "Điểm ngắn + nhãn đ) — giữ, phân biệt với d)"
+    },
+    {
+      "provision_id": "nd-168-2024__dieu-7__khoan-4__diem-a",
+      "source_text": "a) Điều khiển xe lạng lách, đánh võng trên đường bộ",
+      "expected_retained": true
+    },
+    {
+      "provision_id": "nd-168-2024__dieu-9__khoan-2__diem-d",
+      "source_text": "d) Lạng lách, đánh võng trên đường bộ",
+      "expected_retained": true
+    },
+    {
+      "provision_id": "nd-168-2024__dieu-9__khoan-3__diem-c",
+      "source_text": "c) Điều khiển xe gây tai nạn giao thông rồi bỏ trốn",
+      "expected_retained": true
+    },
+    {
+      "provision_id": "tt-24-2024__dieu-7__khoan-1__diem-a",
+      "source_text": "a) Phần lý thuyết bao gồm kiến thức pháp luật về giao thông đường bộ, cấu tạo và sửa chữa thông thường, nghiệp vụ vận tải",
+      "expected_retained": true
+    }
+  ]
+}

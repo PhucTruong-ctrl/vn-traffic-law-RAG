@@ -1,0 +1,32 @@
+{
+  "schema_version": "parent-context-annotation-v1",
+  "description": "Parent-context: retrieval_text có thể kế thừa ngữ cảnh cha (đầu Khoản + tiêu đề Điều) trong khi citation trỏ tới provision thực tế (docs/00 §8.3:394-395, 408-410; docs/06:2269).",
+  "annotations": [
+    {
+      "provision_id": "nd-168-2024__dieu-7__khoan-4__diem-a",
+      "source_text": "a) Điều khiển xe lạng lách, đánh võng trên đường bộ",
+      "retrieval_text_expected": "Khoản 4. Phạt tiền từ 14.000.000 đồng đến 16.000.000 đồng đối với người điều khiển xe thực hiện hành vi vi phạm sau đây: a) Điều khiển xe lạng lách, đánh võng trên đường bộ",
+      "parent_context": "Khoản 4. Xử phạt người điều khiển xe mô tô, xe gắn máy vi phạm quy tắc giao thông đường bộ",
+      "citation_target": "Điểm a) Khoản 4 Điều 7"
+    },
+    {
+      "provision_id": "nd-168-2024__dieu-5__khoan-1__diem-đ",
+      "source_text": "đ) Lùi xe không quan sát phía sau, gây nguy hiểm cho người và phương tiện",
+      "retrieval_text_expected": "Khoản 1. Phạt tiền từ 800.000 đồng đến 1.000.000 đồng đối với người điều khiển xe thực hiện một trong các hành vi vi phạm sau đây: đ) Lùi xe không quan sát phía sau, gây nguy hiểm cho người và phương tiện",
+      "parent_context": "Khoản 1. Xử phạt người điều khiển xe ô tô vi phạm quy tắc giao thông đường bộ",
+      "citation_target": "Điểm đ) Khoản 1 Điều 5"
+    },
+    {
+      "provision_id": "luat-36-2024__dieu-3__khoan-1__diem-đ",
+      "source_text": "đ) Người đi bộ là người đi bộ trên đường bộ, bao gồm cả người đi bộ qua đường",
+      "retrieval_text_expected": "Khoản 1. Trong Luật này, các từ ngữ dưới đây được hiểu như sau: đ) Người đi bộ là người đi bộ trên đường bộ, bao gồm cả người đi bộ qua đường",
+      "parent_context": "Khoản 1. Giải thích từ ngữ",
+      "citation_target": "Điểm đ) Khoản 1 Điều 3"
+    }
+  ],
+  "rules": {
+    "source_text_immutable": true,
+    "retrieval_text_may_inherit_parent_context": true,
+    "citation_points_to_actual_provision": true
+  }
+}

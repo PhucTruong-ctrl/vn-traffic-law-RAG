@@ -1,0 +1,17 @@
+{
+  "schema_version": "legal-provision-v1",
+  "document_id": "nd-168-2024",
+  "fixture": "documents/nd/nd-168-2024-fixture.pdf.txt",
+  "description": "Golden fixture stable-ID: chứng minh diem-d và diem-đ là hai provision_id riêng biệt, không va chạm (docs/05 W1 25/07 :203; docs/03 §3.8.5:1041,1050; FR-03).",
+  "stable_ids": {
+    "diem_d": "nd-168-2024__dieu-7__khoan-4__diem-d",
+    "diem_d_da": "nd-168-2024__dieu-7__khoan-4__diem-đ"
+  },
+  "assertions": {
+    "distinct": true,
+    "id_d_equals_id_dd": false,
+    "both_valid_under_schema": true,
+    "diem_da_keeps_đ_character": true,
+    "note": "Chữ đ được giữ nguyên trong ID (không strip diacritics); d và đ là hai ký tự khác nhau"
+  }
+}

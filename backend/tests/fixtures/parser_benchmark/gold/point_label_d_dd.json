@@ -1,0 +1,43 @@
+{
+  "schema_version": "point-label-v1",
+  "description": "Nhãn Điểm tiếng Việt: d) vs đ) phải được phân biệt (docs/03 §3.8.5:1041-1050; docs/06:2267).",
+  "labels": [
+    {
+      "label": "a)",
+      "normalized": "diem-a",
+      "example": "Điểm a) Không chấp hành hiệu lệnh của đèn tín hiệu giao thông"
+    },
+    {
+      "label": "b)",
+      "normalized": "diem-b",
+      "example": "Điểm b) Điều khiển xe đi ngược chiều"
+    },
+    {
+      "label": "c)",
+      "normalized": "diem-c",
+      "example": "Điểm c) Dừng xe, đỗ xe tại nơi có biển cấm"
+    },
+    {
+      "label": "d)",
+      "normalized": "diem-d",
+      "example": "Điểm d) Không giữ khoảng cách an toàn với xe chạy liền trước",
+      "note": "d) (chữ d thường) -> diem-d — KHÔNG va chạm với đ)"
+    },
+    {
+      "label": "đ)",
+      "normalized": "diem-đ",
+      "example": "Điểm đ) Lùi xe không quan sát phía sau",
+      "note": "đ) (chữ đ có dấu) -> diem-đ — giữ nguyên ký tự đ trong ID, distinct khỏi diem-d"
+    },
+    {
+      "label": "e)",
+      "normalized": "diem-e",
+      "example": "Điểm e) Vượt xe trong các trường hợp không được vượt"
+    }
+  ],
+  "assertions": {
+    "diem_d_equals_diem_d_da": false,
+    "both_labels_distinct": true,
+    "diem_da_keeps_đ_character": true
+  }
+}
