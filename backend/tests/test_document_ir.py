@@ -1,14 +1,23 @@
 # ruff: noqa: E501
 # E501 is disabled file-wide because the byte-verbatim §7 JSON constant below
-# contains a 105-char line (p12-e4 "text"); a per-line # noqa cannot be embedded
-# inside a string literal, and verbatim fidelity wins per the frozen contract.
+# contains over-long lines (the p12-e4 "text" line and the normalized bbox
+# lines with coordinate_space); a per-line # noqa cannot be embedded inside a
+# string literal, and verbatim fidelity wins per the frozen contract.
 
-"""Tests for the canonical Document IR schema (VNLRAG-128).
+"""Tests for the canonical Document IR schema (VNLRAG-128), v2.
 
 Contract frozen at ``docs/canonical-document-ir-design.md`` (M0 scope
-baseline). The §7 JSON example is illustrative, not a complete
-ParsedDocument (page-level "text" is omitted); the valid fixtures used here
-are complete documents matching that shape.
+baseline; ``ir_schema_version = "document-ir-v2"``). The §7 JSON example is
+illustrative, not a complete ParsedDocument (page-level "text" is omitted); the
+valid fixtures used here are complete documents matching that shape.
+
+v2 (user blocker review #2/#3): bbox coordinates are page-normalized
+(``coordinate_space = "NORMALIZED_PAGE"``, 0..1) and parser-independent
+validation invariants are enforced at the schema boundary — page_number >= 1,
+reading_order >= 0, parser_confidence in [0, 1], non-empty parser_version,
+bbox bounds/ordering, unique element_id, element↔page number match, and parse
+time ordering. The old permissive behavior (accept anything) is a fixed MEDIUM
+finding, so the tests that asserted it now assert rejection.
 """
 
 import json
@@ -27,18 +36,18 @@ from app.ingestion.document_ir import (
 
 _PARSED_DOCUMENT_ID = "9f1c2e0a-4b3c-4d5e-8f90-1234567890ab"
 _DOCUMENT_ID = "nd-168-2024"
+_IR_SCHEMA_VERSION = "document-ir-v2"
 
 # Byte-verbatim JSON example from docs/canonical-document-ir-design.md §7
-# (the block between the ```json fences at lines 153-200): 1598 characters
-# (1631 UTF-8 bytes). It is illustrative, not a complete ParsedDocument:
-# page-level "text" (and the parse timestamps) are omitted, so it must NOT be
-# model-validated as-is.
+# (the block between the ```json fences). It is illustrative, not a complete
+# ParsedDocument: page-level "text" (and the parse timestamps) are omitted, so
+# it must NOT be model-validated as-is.
 _FROZEN_JSON_EXAMPLE = """{
   "parsed_document_id": "9f1c2e0a-4b3c-4d5e-8f90-1234567890ab",
   "document_id": "nd-168-2024",
   "parser": "DOCLING",
   "parser_version": "docling-2.1.0",
-  "ir_schema_version": "document-ir-v1",
+  "ir_schema_version": "document-ir-v2",
   "source_object_key": "documents/nd-168-2024/source/<sha256>.pdf",
   "pages": [
     {
@@ -51,7 +60,7 @@ _FROZEN_JSON_EXAMPLE = """{
           "element_type": "heading",
           "text": "Điều 7. Các hành vi xử phạt ...",
           "page_number": 12,
-          "bbox": {"left": 60.0, "top": 80.0, "right": 540.0, "bottom": 100.0},
+          "bbox": {"left": 0.1, "top": 0.1, "right": 0.9, "bottom": 0.12, "coordinate_space": "NORMALIZED_PAGE"},
           "reading_order": 40,
           "parent_element_id": null,
           "table_html": null,
@@ -65,7 +74,7 @@ _FROZEN_JSON_EXAMPLE = """{
           "element_type": "paragraph",
           "text": "4. Phạt tiền từ 4.000.000 đồng đến 6.000.000 đồng đối với một trong các hành vi sau:",
           "page_number": 12,
-          "bbox": {"left": 60.0, "top": 105.0, "right": 540.0, "bottom": 135.0},
+          "bbox": {"left": 0.1, "top": 0.12, "right": 0.9, "bottom": 0.16, "coordinate_space": "NORMALIZED_PAGE"},
           "reading_order": 41,
           "parent_element_id": "p12-e3",
           "table_html": null,
@@ -80,6 +89,10 @@ _FROZEN_JSON_EXAMPLE = """{
   "quality_report": {}
 }"""
 
+#: The two normalized bbox payloads from the §7 example (595x842 A4 page).
+_BBOX_E3 = {"left": 0.1, "top": 0.1, "right": 0.9, "bottom": 0.12}
+_BBOX_E4 = {"left": 0.1, "top": 0.12, "right": 0.9, "bottom": 0.16}
+
 
 def make_element(**overrides: object) -> dict:
     """Default element mirrors the frozen contract §7 example (p12-e3)."""
@@ -88,7 +101,7 @@ def make_element(**overrides: object) -> dict:
         "element_type": "heading",
         "text": "Điều 7. Các hành vi xử phạt ...",
         "page_number": 12,
-        "bbox": {"left": 60.0, "top": 80.0, "right": 540.0, "bottom": 100.0},
+        "bbox": {**_BBOX_E3, "coordinate_space": "NORMALIZED_PAGE"},
         "reading_order": 40,
         "parent_element_id": None,
         "table_html": None,
@@ -120,7 +133,7 @@ def make_document(**overrides: object) -> dict:
         "document_id": _DOCUMENT_ID,
         "parser": "DOCLING",
         "parser_version": "docling-2.1.0",
-        "ir_schema_version": "document-ir-v1",
+        "ir_schema_version": _IR_SCHEMA_VERSION,
         "source_object_key": "documents/nd-168-2024/source/<sha256>.pdf",
         "pages": [
             {
@@ -137,7 +150,7 @@ def make_document(**overrides: object) -> dict:
                             "4. Phạt tiền từ 4.000.000 đồng đến 6.000.000 đồng đối với một "
                             "trong các hành vi sau:"
                         ),
-                        bbox={"left": 60.0, "top": 105.0, "right": 540.0, "bottom": 135.0},
+                        bbox={**_BBOX_E4, "coordinate_space": "NORMALIZED_PAGE"},
                         reading_order=41,
                         parent_element_id="p12-e3",
                         parser_confidence=0.98,
@@ -162,8 +175,8 @@ def test_valid_document_round_trips_through_json() -> None:
 
 
 def test_frozen_json_example_is_illustrative_not_model_valid() -> None:
-    """The contract §7 example (docs/canonical-document-ir-design.md lines 153-200)
-    is illustrative, not a complete ParsedDocument: page-level "text" is omitted.
+    """The contract §7 example (docs/canonical-document-ir-design.md) is
+    illustrative, not a complete ParsedDocument: page-level "text" is omitted.
     Assert the intended omission on the raw JSON — do NOT model-validate it.
     """
     payload = json.loads(_FROZEN_JSON_EXAMPLE)
@@ -199,16 +212,15 @@ def test_missing_parser_version_rejected() -> None:
 
 
 @pytest.mark.parametrize("parser_version", ["", "   "])
-def test_parser_version_accepts_any_string(parser_version: str) -> None:
-    """parser_version is typed str only per the frozen contract — empty/whitespace
-    values are accepted (requiredness, not content, is enforced)."""
-    element = DocumentElement.model_validate(make_element(parser_version=parser_version))
-    assert element.parser_version == parser_version
+def test_parser_version_rejects_empty_string(parser_version: str) -> None:
+    """v2: empty/whitespace parser_version is REJECTED (old permissive test flipped)."""
+    with pytest.raises(ValidationError):
+        DocumentElement.model_validate(make_element(parser_version=parser_version))
 
 
-def test_document_parser_version_accepts_any_string() -> None:
-    document = ParsedDocument.model_validate(make_document(parser_version=""))
-    assert document.parser_version == ""
+def test_document_parser_version_rejects_empty_string() -> None:
+    with pytest.raises(ValidationError):
+        ParsedDocument.model_validate(make_document(parser_version=""))
 
 
 def test_omitted_parser_confidence_rejected() -> None:
@@ -223,10 +235,17 @@ def test_explicit_null_parser_confidence_accepted() -> None:
     assert element.parser_confidence is None
 
 
-def test_parser_confidence_accepts_out_of_range_float() -> None:
-    """No range constraint per the frozen contract — any float is accepted."""
-    element = DocumentElement.model_validate(make_element(parser_confidence=1.5))
-    assert element.parser_confidence == 1.5
+@pytest.mark.parametrize("confidence", [1.5, -0.1])
+def test_parser_confidence_out_of_range_rejected(confidence: float) -> None:
+    """v2: parser_confidence must be in [0, 1] when present (old test flipped)."""
+    with pytest.raises(ValidationError):
+        DocumentElement.model_validate(make_element(parser_confidence=confidence))
+
+
+@pytest.mark.parametrize("confidence", [0.0, 1.0, 0.5])
+def test_parser_confidence_boundaries_accepted(confidence: float) -> None:
+    element = DocumentElement.model_validate(make_element(parser_confidence=confidence))
+    assert element.parser_confidence == confidence
 
 
 def test_missing_raw_reference_rejected() -> None:
@@ -256,7 +275,7 @@ def test_extra_fields_rejected() -> None:
         DocumentElement.model_validate(make_element(extra_field="nope"))
     with pytest.raises(ValidationError):
         BoundingBox.model_validate(
-            {"left": 1.0, "top": 2.0, "right": 3.0, "bottom": 4.0, "extra": 1}
+            {"left": 0.1, "top": 0.2, "right": 0.3, "bottom": 0.4, "extra": 1}
         )
 
 
@@ -297,16 +316,33 @@ def test_omitted_quality_report_rejected() -> None:
         ParsedDocument.model_validate(data)
 
 
-def test_reading_order_accepts_any_int() -> None:
-    """reading_order is a plain int per the frozen contract — no ge=0 bound."""
-    assert DocumentElement.model_validate(make_element(reading_order=-1)).reading_order == -1
+def test_reading_order_accepts_zero() -> None:
     assert DocumentElement.model_validate(make_element(reading_order=0)).reading_order == 0
 
 
-def test_page_number_accepts_any_int() -> None:
-    """page_number is a plain int per the frozen contract — no ge=1 bound."""
-    assert DocumentElement.model_validate(make_element(page_number=0)).page_number == 0
-    assert ParsedPage.model_validate(make_page(page_number=0)).page_number == 0
+def test_reading_order_negative_rejected() -> None:
+    """v2: reading_order < 0 is REJECTED (old permissive test flipped)."""
+    with pytest.raises(ValidationError):
+        DocumentElement.model_validate(make_element(reading_order=-1))
+
+
+@pytest.mark.parametrize("page_number", [0, -1, -100])
+def test_element_page_number_lt_1_rejected(page_number: int) -> None:
+    """v2: page_number must be >= 1 (old permissive test flipped)."""
+    with pytest.raises(ValidationError):
+        DocumentElement.model_validate(make_element(page_number=page_number))
+
+
+@pytest.mark.parametrize("page_number", [0, -1])
+def test_page_page_number_lt_1_rejected(page_number: int) -> None:
+    with pytest.raises(ValidationError):
+        ParsedPage.model_validate(make_page(page_number=page_number))
+
+
+def test_page_number_one_accepted() -> None:
+    assert DocumentElement.model_validate(make_element(page_number=1)).page_number == 1
+    page = make_page(page_number=1, elements=[make_element(page_number=1)])
+    assert ParsedPage.model_validate(page).page_number == 1
 
 
 @pytest.mark.parametrize("field", ["width", "height", "text"])
@@ -328,3 +364,129 @@ def test_element_references_its_page_number() -> None:
     document = ParsedDocument.model_validate(make_document())
     for page in document.pages:
         assert all(element.page_number == page.page_number for element in page.elements)
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# v2 bbox invariants — NORMALIZED_PAGE, 0..1, TOPLEFT ordering
+# ────────────────────────────────────────────────────────────────────────────
+
+
+def test_bbox_default_coordinate_space_is_normalized_page() -> None:
+    box = BoundingBox.model_validate({**_BBOX_E3})
+    assert box.coordinate_space == "NORMALIZED_PAGE"
+    element = DocumentElement.model_validate(make_element())
+    assert element.bbox is not None
+    assert element.bbox.coordinate_space == "NORMALIZED_PAGE"
+
+
+def test_bbox_coordinate_space_rejects_other_values() -> None:
+    with pytest.raises(ValidationError):
+        BoundingBox.model_validate({**_BBOX_E3, "coordinate_space": "PDF_POINTS"})
+    with pytest.raises(ValidationError):
+        BoundingBox.model_validate({**_BBOX_E3, "coordinate_space": "PERMILLE"})
+
+
+@pytest.mark.parametrize("field", ["left", "top", "right", "bottom"])
+@pytest.mark.parametrize("value", [-0.01, 1.01, 42.0])
+def test_bbox_out_of_unit_interval_rejected(field: str, value: float) -> None:
+    payload = dict(_BBOX_E3)
+    payload[field] = value
+    with pytest.raises(ValidationError):
+        BoundingBox.model_validate(payload)
+
+
+@pytest.mark.parametrize("field", ["left", "top", "right", "bottom"])
+def test_bbox_unit_interval_boundaries_accepted(field: str) -> None:
+    payload = {"left": 0.0, "top": 0.0, "right": 1.0, "bottom": 1.0}
+    box = BoundingBox.model_validate(payload)
+    assert getattr(box, field) is not None
+
+
+def test_bbox_inverted_ordering_rejected() -> None:
+    # right < left
+    with pytest.raises(ValidationError):
+        BoundingBox.model_validate({"left": 0.9, "top": 0.1, "right": 0.1, "bottom": 0.2})
+    # bottom < top (BOTTOMLEFT origin leaked into the IR)
+    with pytest.raises(ValidationError):
+        BoundingBox.model_validate({"left": 0.1, "top": 0.9, "right": 0.2, "bottom": 0.1})
+
+
+def test_bbox_degenerate_zero_area_accepted() -> None:
+    """right == left and/or bottom == top is allowed (ordering is >=, not >)."""
+    box = BoundingBox.model_validate({"left": 0.5, "top": 0.5, "right": 0.5, "bottom": 0.5})
+    assert box.right == box.left and box.bottom == box.top
+
+
+def test_bbox_page_dims_optional_or_positive() -> None:
+    box = BoundingBox.model_validate({**_BBOX_E3, "page_height": None, "page_width": None})
+    assert box.page_height is None and box.page_width is None
+    box = BoundingBox.model_validate({**_BBOX_E3, "page_height": 842.0, "page_width": 595.0})
+    assert box.page_height == 842.0 and box.page_width == 595.0
+    with pytest.raises(ValidationError):
+        BoundingBox.model_validate({**_BBOX_E3, "page_height": 0.0})
+    with pytest.raises(ValidationError):
+        BoundingBox.model_validate({**_BBOX_E3, "page_width": -5.0})
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# v2 document-level invariants
+# ────────────────────────────────────────────────────────────────────────────
+
+
+def test_duplicate_element_id_across_pages_rejected() -> None:
+    data = make_document()
+    data["pages"].append(
+        {
+            "page_number": 13,
+            "width": 595.0,
+            "height": 842.0,
+            "text": None,
+            "elements": [
+                make_element(
+                    element_id="p12-e3",  # collides with the element on page 12
+                    page_number=13,
+                )
+            ],
+        }
+    )
+    with pytest.raises(ValidationError):
+        ParsedDocument.model_validate(data)
+
+
+def test_duplicate_element_id_within_page_rejected() -> None:
+    data = make_document()
+    data["pages"] = [
+        {
+            "page_number": 12,
+            "width": 595.0,
+            "height": 842.0,
+            "text": None,
+            "elements": [make_element(), make_element(element_id="p12-e3")],
+        }
+    ]
+    with pytest.raises(ValidationError):
+        ParsedDocument.model_validate(data)
+
+
+def test_element_page_number_mismatch_rejected() -> None:
+    """element.page_number must equal its ParsedPage.page_number (v2)."""
+    with pytest.raises(ValidationError):
+        ParsedPage.model_validate(make_page(elements=[make_element(page_number=13)]))
+
+
+def test_parse_completed_before_started_rejected() -> None:
+    data = make_document(
+        parse_started_at="2024-08-01T00:00:02Z",
+        parse_completed_at="2024-08-01T00:00:01Z",
+    )
+    with pytest.raises(ValidationError):
+        ParsedDocument.model_validate(data)
+
+
+def test_parse_completed_equal_started_accepted() -> None:
+    data = make_document(
+        parse_started_at="2024-08-01T00:00:00Z",
+        parse_completed_at="2024-08-01T00:00:00Z",
+    )
+    document = ParsedDocument.model_validate(data)
+    assert document.parse_completed_at >= document.parse_started_at

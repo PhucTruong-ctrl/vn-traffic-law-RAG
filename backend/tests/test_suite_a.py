@@ -27,6 +27,7 @@ from app.evaluation.suites.suite_a import (
     create_run_root,
     header_footer_leakage,
     layout_coherence,
+    parse_with_docling,
     provenance_coverage,
     run_ocr_dpi_benchmark,
     run_suite,
@@ -43,7 +44,7 @@ def _element(**overrides: Any) -> dict[str, Any]:
         "element_type": "paragraph",
         "text": "Nội dung đoạn văn.",
         "page_number": 1,
-        "bbox": {"left": 1.0, "top": 2.0, "right": 3.0, "bottom": 4.0},
+        "bbox": {"left": 0.1, "top": 0.2, "right": 0.3, "bottom": 0.4},
         "reading_order": 0,
         "parent_element_id": None,
         "table_html": None,
@@ -62,6 +63,9 @@ def _page(page_number: int, elements: list[dict[str, Any]], text: str | None = N
         if text is not None
         else ("\n".join(e["text"] for e in elements if e["text"].strip()) or None)
     )
+    # v2: element.page_number must equal the page's number (cross-level check).
+    for element in elements:
+        element["page_number"] = page_number
     return ParsedPage(
         page_number=page_number,
         width=595.0,
@@ -72,16 +76,17 @@ def _page(page_number: int, elements: list[dict[str, Any]], text: str | None = N
 
 
 def _document(pages: list[ParsedPage]) -> ParsedDocument:
+    started_at = datetime.now(UTC)
     return ParsedDocument(
         parsed_document_id="9f1c2e0a-4b3c-4d5e-8f90-1234567890ab",
         document_id="luat-36-2024-qh15",
         parser="DOCLING",
         parser_version="docling-2.118.1",
-        ir_schema_version="document-ir-v1",
+        ir_schema_version=IR_SCHEMA_VERSION,
         source_object_key="fixtures/luat.pdf",
         pages=pages,
-        parse_started_at=datetime.now(UTC),
-        parse_completed_at=datetime.now(UTC),
+        parse_started_at=started_at,
+        parse_completed_at=started_at,  # v2: completed >= started
         quality_report={},
     )
 
@@ -92,7 +97,7 @@ def _document(pages: list[ParsedPage]) -> ParsedDocument:
 
 
 def test_text_extraction_rate_all_pages_have_text() -> None:
-    doc = _document([_page(1, [_element()]), _page(2, [_element()])])
+    doc = _document([_page(1, [_element()]), _page(2, [_element(element_id="e1", page_number=2)])])
     result = text_extraction_rate(doc)
     assert result.status == "computed"
     assert result.value == 1.0
@@ -104,7 +109,7 @@ def test_text_extraction_rate_mixed_pages() -> None:
     doc = _document(
         [
             _page(1, [_element()], text="non-empty text"),
-            _page(2, [_element(text="")], text="   "),  # whitespace-only page
+            _page(2, [_element(element_id="e1", text="")], text="   "),  # whitespace-only page
             _page(3, [], text=None),  # no extracted text at all
         ]
     )
@@ -124,7 +129,7 @@ def test_provenance_coverage_page_number_schema_guaranteed() -> None:
     doc = _document([_page(1, [_element(), _element(element_id="e1", reading_order=1)])])
     result = provenance_coverage(doc)
     assert result.status == "computed"
-    # page_number is schema-required in document-ir-v1 §6 -> always present
+    # page_number is schema-required in document-ir-v2 §6 -> always present
     assert result.value == 1.0
     assert result.detail["bbox_share"] == 1.0
 
@@ -378,7 +383,7 @@ def test_run_metadata_json_shape() -> None:
     )
     dumped = metadata.model_dump(mode="json")
     assert dumped["status"] == "RUNNING"
-    assert dumped["ir_schema_version"] == "document-ir-v1"
+    assert dumped["ir_schema_version"] == IR_SCHEMA_VERSION
     assert dumped["suite"] == "suite-a"
     assert dumped["p3_parser_router"].startswith("PENDING")
 
@@ -581,5 +586,63 @@ def test_bench_ocr_dpi_failure_marks_failed(
     assert "simulated converter failure" in run_json["error"]
     # ora-22: parser versions are recorded at run start, so even a FAILED
     # benchmark run is reproducible.
-    assert run_json["ir_schema_version"] == "document-ir-v1"
+    assert run_json["ir_schema_version"] == IR_SCHEMA_VERSION
     assert set(run_json["parser_versions"]) >= {"docling", "mineru", "tesseract"}
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Oracle blocker 1 — suite_a docling→IR mapping must persist raw bbox points
+# ────────────────────────────────────────────────────────────────────────────
+
+
+def test_parse_with_docling_persists_raw_bbox_points() -> None:
+    """Oracle blocker 1: the suite_a docling→IR mapping (parse_with_docling)
+    must persist the raw PDF-point box under raw_reference["bbox_points"]
+    alongside the normalized NORMALIZED_PAGE canonical bbox — mirroring the
+    production docling_adapter so parser-native coordinates are never lost in
+    the P1 benchmark artifacts."""
+    pytest.importorskip("docling")
+    from docling.datamodel.base_models import ConversionStatus
+    from docling.datamodel.document import DoclingDocument
+    from docling_core.types.doc.base import BoundingBox, CoordOrigin, Size
+    from docling_core.types.doc.common.reference import ProvenanceItem
+    from docling_core.types.doc.document import DocItemLabel
+
+    doc = DoclingDocument(name="suite-a-bbox-provenance")
+    doc.add_page(page_no=1, size=Size(width=595.28, height=841.89))
+    prov = ProvenanceItem(
+        page_no=1,
+        bbox=BoundingBox(l=50.0, t=700.0, r=550.0, b=800.0, coord_origin=CoordOrigin.TOPLEFT),
+        charspan=(0, 5),
+    )
+    doc.add_text(label=DocItemLabel.TEXT, text="abcde", prov=prov)
+
+    class _FakeResult:
+        status = ConversionStatus.SUCCESS
+        document = doc
+
+    class _FakeConverter:
+        def convert(self, pdf_path: str) -> _FakeResult:
+            del pdf_path  # converter stub ignores the path
+            return _FakeResult()
+
+    parsed = parse_with_docling(
+        Path("/tmp/nonexistent-suite-a.pdf"), "fixture-doc", _FakeConverter()
+    )
+
+    # The text item carries both the normalized canonical bbox and the raw
+    # PDF-point box.
+    text_element = parsed.pages[0].elements[-1]
+    assert text_element.bbox is not None
+    assert text_element.bbox.coordinate_space == "NORMALIZED_PAGE"
+    assert 0.0 <= text_element.bbox.left <= 1.0
+    assert 0.0 <= text_element.bbox.top <= 1.0
+    assert 0.0 <= text_element.bbox.right <= 1.0
+    assert 0.0 <= text_element.bbox.bottom <= 1.0
+    points = text_element.raw_reference["bbox_points"]
+    assert len(points) == 4
+    assert all(isinstance(value, (int, float)) for value in points)
+    assert points == [50.0, 700.0, 550.0, 800.0]
+    # The parser-native keys are preserved alongside bbox_points.
+    assert text_element.raw_reference["docling_item_type"] == "TextItem"
+    assert text_element.raw_reference["prov_page_no"] == 1

@@ -34,9 +34,10 @@ def _element(
     bbox: BoundingBox | None = None,
     text: str = "Nội dung đoạn văn.",
     element_type: str = "paragraph",
+    element_id: str | None = None,
 ) -> DocumentElement:
     return DocumentElement(
-        element_id=f"e{reading_order}",
+        element_id=element_id if element_id is not None else f"e{reading_order}",
         element_type=element_type,
         text=text,
         page_number=1,
@@ -52,7 +53,8 @@ def _element(
 
 
 def _box() -> BoundingBox:
-    return BoundingBox(left=1.0, top=2.0, right=3.0, bottom=4.0)
+    # v2: NORMALIZED_PAGE (0..1) — values must stay in the unit interval.
+    return BoundingBox(left=0.1, top=0.2, right=0.3, bottom=0.4)
 
 
 def _page(page_number: int, elements: list[DocumentElement], text: str | None = None) -> ParsedPage:
@@ -61,6 +63,9 @@ def _page(page_number: int, elements: list[DocumentElement], text: str | None = 
         if text is not None
         else ("\n".join(e.text for e in elements if e.text.strip()) or None)
     )
+    # v2: element.page_number must equal the page's number (cross-level check).
+    for element in elements:
+        element.page_number = page_number
     return ParsedPage(
         page_number=page_number,
         width=595.0,
@@ -71,16 +76,17 @@ def _page(page_number: int, elements: list[DocumentElement], text: str | None = 
 
 
 def _document(pages: list[ParsedPage], document_id: str = "nd-168-2024") -> ParsedDocument:
+    started_at = datetime.now(UTC)
     return ParsedDocument(
         parsed_document_id=_PARSED_DOCUMENT_ID,
         document_id=document_id,
         parser="DOCLING",
         parser_version="docling-2.118.1",
-        ir_schema_version="document-ir-v1",
+        ir_schema_version="document-ir-v2",
         source_object_key="fixtures/nd-168-2024.pdf",
         pages=pages,
-        parse_started_at=datetime.now(UTC),
-        parse_completed_at=datetime.now(UTC),
+        parse_started_at=started_at,
+        parse_completed_at=started_at,  # v2: completed >= started
         quality_report={},
     )
 
@@ -200,7 +206,19 @@ def test_layout_coherence_reading_order_gap_fails() -> None:
 
 
 def test_layout_coherence_duplicate_reading_order_fails() -> None:
-    doc = _document([_page(1, [_element(1, bbox=_box()), _element(1, bbox=_box())])])
+    # v2 requires unique element_id, so the two duplicate-reading_order elements
+    # carry distinct ids while keeping the same reading_order.
+    doc = _document(
+        [
+            _page(
+                1,
+                [
+                    _element(1, bbox=_box(), element_id="e1"),
+                    _element(1, bbox=_box(), element_id="e2"),
+                ],
+            )
+        ]
+    )
     assert layout_coherence(doc) == 0.0
 
 

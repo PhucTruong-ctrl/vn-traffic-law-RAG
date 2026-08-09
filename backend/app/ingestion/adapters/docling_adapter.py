@@ -1,15 +1,17 @@
 """Production Docling → canonical Document IR adapter (VNLRAG-129).
 
 Maps a parsed :class:`docling_core.types.doc.document.DoclingDocument` onto the
-frozen canonical IR (``app/ingestion/document_ir.py``, ``document-ir-v1``).
+frozen canonical IR (``app/ingestion/document_ir.py``, ``document-ir-v2``).
 Incorporates all nine VNLRAG-21 spike findings
 (``docs/spike-vnlrag-21-ir-provenance-contract.md``) that the VNLRAG-20 bench
 adapter (``app/evaluation/suites/suite_a.py``) did not address:
 
 1. bbox coordinate normalization: PDF text-layer provenance is BOTTOMLEFT
    (``top > bottom``); OCR provenance is TOPLEFT. Every bbox is normalized to
-   TOPLEFT via ``BoundingBox.to_top_left_origin(page_height)`` so IR
-   coordinates are origin-consistent regardless of route.
+   TOPLEFT via ``BoundingBox.to_top_left_origin(page_height)`` AND scaled to
+   the canonical NORMALIZED_PAGE space (0..1 of page width/height, v2) so IR
+   coordinates are origin- and unit-consistent regardless of route. The raw
+   PDF-point box is preserved under ``raw_reference["bbox_points"]``.
 2. explicit docling label → IR ``element_type`` mapping (module-level dict);
    labels outside the table pass through verbatim.
 3. ``raw_reference`` carries the stable ``docling_self_ref`` JSON pointer plus
@@ -42,12 +44,12 @@ from typing import Any
 
 from app.ingestion.document_ir import BoundingBox, DocumentElement, ParsedDocument, ParsedPage
 
-IR_SCHEMA_VERSION = "document-ir-v1"
+IR_SCHEMA_VERSION = "document-ir-v2"
 PARSER_NAME = "DOCLING"
 OCR_PSM = 3
 
 # Explicit docling label -> IR element_type mapping (VNLRAG-21 spike gap #2).
-# Keep docling-native values for v1 EXCEPT where the contract vocabulary is the
+# Keep docling-native values for v2 EXCEPT where the contract vocabulary is the
 # better name. ``text -> paragraph`` is deliberately NOT mapped: it is a lossy
 # choice (the PDF route classifies most body prose as ``text``), so the label
 # passes through verbatim and consumers must not rely on ``element_type ==
@@ -182,30 +184,54 @@ def _item_page_no(item: Any, nodes_by_ref: dict[str, Any]) -> int:
     return _node_page_no(item, nodes_by_ref) or 1
 
 
-def _item_bbox(item: Any, doc: Any, page_no: int) -> BoundingBox | None:
-    """Normalized TOPLEFT bbox for ``item`` (prov[0]), or None.
+def _item_bbox(
+    item: Any, doc: Any, page_no: int
+) -> tuple[BoundingBox | None, list[float] | None, str | None]:
+    """Normalized NORMALIZED_PAGE bbox for ``item`` (prov[0]).
 
-    Docling PDF text-layer provenance is BOTTOMLEFT (top > bottom); OCR boxes
-    are TOPLEFT. ``BoundingBox.to_top_left_origin(page_height)`` normalizes
-    both routes to a single TOPLEFT convention (spike gap #1) so the IR
-    invariant ``top < bottom`` holds for every element with a bbox.
+    Returns ``(bbox, raw_points, normalization_flag)``:
+    * ``bbox`` — the canonical v2 box: TOPLEFT origin (via
+      ``BoundingBox.to_top_left_origin(page_height)``, spike gap #1) scaled to
+      0..1 of page width/height. None when the item carries no bbox provenance
+      OR when page dimensions are missing/zero/negative — raw coordinates must
+      never enter the canonical bbox (v2 rule);
+    * ``raw_points`` — the raw PDF-point box ``[left, top, right, bottom]``
+      (docling native, pre-normalization) for ``raw_reference["bbox_points"]``;
+    * ``normalization_flag`` — None when normalized cleanly;
+      ``"MISSING_PAGE_DIMS"`` when page dims are missing/zero/negative (a
+      defensive path — docling pages always carry size): the element keeps a
+      null bbox, the raw box is still preserved under ``bbox_points``, and the
+      flag is recorded in ``raw_reference["bbox_normalization"]``.
+
+    ``bbox``, ``raw_points`` and the flag are all None when the item carries
+    no bbox provenance.
     """
     prov = getattr(item, "prov", None)
     if not prov or prov[0].bbox is None:
-        return None
+        return None, None, None
     page_model = doc.pages.get(page_no)
     page_height = page_model.size.height if page_model is not None else None
     page_width = page_model.size.width if page_model is not None else None
-    if page_height is None:
-        return None  # cannot normalize without page height
-    normalized = prov[0].bbox.to_top_left_origin(page_height)
-    return BoundingBox(
-        left=normalized.l,
-        top=normalized.t,
-        right=normalized.r,
-        bottom=normalized.b,
-        page_height=page_height,
-        page_width=page_width,
+    raw = prov[0].bbox
+    raw_points = [raw.l, raw.t, raw.r, raw.b]
+    if page_height is None or page_width is None or page_height <= 0 or page_width <= 0:
+        # v2 (oracle blocker 2): without page dims we cannot scale to 0..1, so
+        # the element keeps a null bbox — raw PDF-point values must never be
+        # emitted as canonical coordinates. Preserve them under bbox_points and
+        # flag the degraded path for diagnostics.
+        return None, raw_points, "MISSING_PAGE_DIMS"
+    normalized = raw.to_top_left_origin(page_height)
+    return (
+        BoundingBox(
+            left=normalized.l / page_width,
+            top=normalized.t / page_height,
+            right=normalized.r / page_width,
+            bottom=normalized.b / page_height,
+            page_height=page_height,
+            page_width=page_width,
+        ),
+        raw_points,
+        None,
     )
 
 
@@ -231,16 +257,24 @@ def _item_table_html(item: Any, doc: Any) -> str | None:
 
 
 def _item_raw_reference(
-    item: Any, index: int, page_no: int, prov_list: list[Any]
+    item: Any,
+    index: int,
+    page_no: int,
+    prov_list: list[Any],
+    bbox_points: list[float] | None = None,
+    bbox_normalization: str | None = None,
 ) -> dict[str, Any]:
     """Provenance record for one element (gaps #3 and #6).
 
     ``docling_self_ref`` is the stable JSON-pointer id; ``prov[0]`` drives the
     IR page/bbox while ``prov_count``/``prov_pages`` record the full
     provenance span so multi-prov items are never silently truncated.
+    ``bbox_points`` preserves the raw PDF-point box (v2: canonical bbox is
+    page-normalized; the raw parser coordinates live here); ``bbox_normalization``
+    flags the defensive non-normalized fallback path (v2).
     """
     prov = prov_list[0] if prov_list else None
-    return {
+    reference: dict[str, Any] = {
         "docling_self_ref": item.self_ref,
         "docling_item_index": index,
         "docling_item_type": type(item).__name__,
@@ -250,6 +284,11 @@ def _item_raw_reference(
         "prov_count": len(prov_list),
         "prov_pages": sorted({p.page_no for p in prov_list}),
     }
+    if bbox_points is not None:
+        reference["bbox_points"] = bbox_points
+    if bbox_normalization is not None:
+        reference["bbox_normalization"] = bbox_normalization
+    return reference
 
 
 def docling_document_to_ir(
@@ -286,19 +325,27 @@ def docling_document_to_ir(
         is_table_item = hasattr(item, "export_to_html")
         parent = item.parent
         parent_element_id = element_id_by_ref.get(parent.cref) if parent is not None else None
+        bbox, bbox_points, bbox_normalization = _item_bbox(item, doc, page_no)
         element = DocumentElement(
             element_id=element_id,
             element_type=map_label_to_ir_type(label or "text", is_table_item=is_table_item),
             text=_item_text(item),
             page_number=page_no,
-            bbox=_item_bbox(item, doc, page_no),
+            bbox=bbox,
             reading_order=index,
             parent_element_id=parent_element_id,
             table_html=_item_table_html(item, doc),
             source_parser=PARSER_NAME,
             parser_version=parser_version,
             parser_confidence=None,
-            raw_reference=_item_raw_reference(item, index, page_no, prov_list),
+            raw_reference=_item_raw_reference(
+                item,
+                index,
+                page_no,
+                prov_list,
+                bbox_points=bbox_points,
+                bbox_normalization=bbox_normalization,
+            ),
         )
         elements_by_page.setdefault(page_no, []).append(element)
 

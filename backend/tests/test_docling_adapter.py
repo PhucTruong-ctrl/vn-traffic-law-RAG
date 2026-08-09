@@ -25,6 +25,7 @@ from app.ingestion.adapters.docling_adapter import (
     DOCLING_LABEL_TO_IR_TYPE,
     DoclingAdapter,
     _build_pipeline_options,
+    _item_bbox,
     check_ocr_readiness,
     docling_document_to_ir,
     map_label_to_ir_type,
@@ -167,7 +168,7 @@ def test_nd_full_parse_contract(parsed_fixtures: dict[str, ParsedDocument]) -> N
     doc = parsed_fixtures["nd"]
     assert doc.parser == "DOCLING"
     assert doc.parser_version == "docling-2.118.1"
-    assert doc.ir_schema_version == "document-ir-v1"
+    assert doc.ir_schema_version == "document-ir-v2"
     assert doc.source_object_key.startswith("documents/nd/")
     assert doc.quality_report == {}
     assert doc.parse_started_at < doc.parse_completed_at
@@ -203,25 +204,51 @@ def test_round_trip_json_equality(parsed_fixtures: dict[str, ParsedDocument]) ->
 
 
 # ────────────────────────────────────────────────────────────────────────────
-# bbox normalization (VNLRAG-21 spike gap #1, HIGHEST)
+# bbox normalization (VNLRAG-21 spike gap #1 + v2 NORMALIZED_PAGE)
 # ────────────────────────────────────────────────────────────────────────────
 
 
-def test_bbox_normalized_to_top_left(parsed_fixtures: dict[str, ParsedDocument]) -> None:
-    """Empirical origin check: after normalization top < bottom on EVERY bbox."""
+def test_bbox_normalized_to_top_left_and_unit_interval(
+    parsed_fixtures: dict[str, ParsedDocument],
+) -> None:
+    """v2 empirical check: EVERY bbox is NORMALIZED_PAGE (0..1, TOPLEFT origin),
+    so ``top < bottom`` and ``0 <= left/right/top/bottom <= 1``; the raw
+    PDF-point box is preserved under ``raw_reference["bbox_points"]``."""
     checked = 0
     for doc in parsed_fixtures.values():
         for element in _elements(doc):
             if element.bbox is None:
                 continue
             checked += 1
-            assert element.bbox.top < element.bbox.bottom, (
-                f"{doc.document_id} {element.element_id}: "
-                f"top={element.bbox.top} !< bottom={element.bbox.bottom}"
+            box = element.bbox
+            assert box.coordinate_space == "NORMALIZED_PAGE"
+            assert 0.0 <= box.left <= 1.0, (
+                f"{doc.document_id} {element.element_id}: left={box.left} not in [0, 1]"
             )
-            assert element.bbox.left < element.bbox.right
-            assert element.bbox.page_height is not None
-            assert element.bbox.page_width is not None
+            assert 0.0 <= box.right <= 1.0
+            assert 0.0 <= box.top <= 1.0
+            assert 0.0 <= box.bottom <= 1.0
+            assert box.top < box.bottom, (
+                f"{doc.document_id} {element.element_id}: top={box.top} !< bottom={box.bottom}"
+            )
+            assert box.left < box.right
+            assert box.page_height is not None
+            assert box.page_width is not None
+            # v2: raw PDF-point coordinates preserved for provenance. The raw
+            # y-axis may be BOTTOMLEFT (born-digital text layer); applying
+            # to_top_left_origin (page_height - y) back-projects the normalized
+            # box to the raw values, so either raw or its flip must match.
+            raw_l, raw_t, raw_r, raw_b = element.raw_reference["bbox_points"]
+            assert raw_l == pytest.approx(box.left * box.page_width, rel=1e-3)
+            assert raw_r == pytest.approx(box.right * box.page_width, rel=1e-3)
+            assert box.top * box.page_height in (
+                pytest.approx(raw_t),
+                pytest.approx(box.page_height - raw_t),
+            )
+            assert box.bottom * box.page_height in (
+                pytest.approx(raw_b),
+                pytest.approx(box.page_height - raw_b),
+            )
     assert checked > 0, "fixtures must carry bbox provenance"
 
 
@@ -452,3 +479,106 @@ def test_all_fixtures_validate_as_parsed_document(
         # every element belongs to a page carrying its page_number
         for page in doc.pages:
             assert all(element.page_number == page.page_number for element in page.elements)
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# MISSING_PAGE_DIMS (oracle blocker 2) — raw coords must never become the
+# canonical bbox
+# ────────────────────────────────────────────────────────────────────────────
+
+
+class _FakeSize:
+    def __init__(self, width: float, height: float) -> None:
+        self.width = width
+        self.height = height
+
+
+class _FakePageModel:
+    def __init__(self, width: float, height: float) -> None:
+        self.size = _FakeSize(width, height)
+
+
+class _FakeDoc:
+    def __init__(self, pages: dict[int, Any]) -> None:
+        self.pages = pages
+
+
+class _FakeProv:
+    def __init__(self, bbox: Any) -> None:
+        self.bbox = bbox
+
+
+class _FakeItem:
+    def __init__(self, prov: list[Any]) -> None:
+        self.prov = prov
+
+
+def _raw_pdf_point_box() -> Any:
+    """Real docling BoundingBox with PDF-point coords ALL outside [0, 1] (the
+    case that previously raised ValidationError when emitted as the canonical
+    bbox)."""
+    from docling_core.types.doc.base import BoundingBox, CoordOrigin
+
+    return BoundingBox(l=50.0, t=700.0, r=550.0, b=800.0, coord_origin=CoordOrigin.TOPLEFT)
+
+
+@pytest.mark.parametrize(
+    "doc",
+    [
+        _FakeDoc({}),  # page absent from doc.pages -> dims missing
+        _FakeDoc({1: _FakePageModel(0.0, 0.0)}),  # zero dims
+        _FakeDoc({1: _FakePageModel(-5.0, -5.0)}),  # negative dims
+        _FakeDoc({1: _FakePageModel(595.0, 0.0)}),  # height zero
+        _FakeDoc({1: _FakePageModel(0.0, 842.0)}),  # width zero
+    ],
+)
+def test_bbox_invalid_page_dims_yields_null_bbox(doc: _FakeDoc) -> None:
+    """Oracle blocker 2: with missing/zero/negative page dims, _item_bbox must
+    NOT emit the raw PDF-point box as the canonical bbox (it is outside [0,1]
+    and would raise ValidationError). The element keeps a null bbox; the raw
+    points + MISSING_PAGE_DIMS flag are returned for raw_reference."""
+    item = _FakeItem([_FakeProv(_raw_pdf_point_box())])
+    bbox, raw_points, normalization_flag = _item_bbox(item, doc, 1)
+    assert bbox is None  # raw coords never enter the canonical bbox
+    assert raw_points == [50.0, 700.0, 550.0, 800.0]
+    assert normalization_flag == "MISSING_PAGE_DIMS"
+
+
+def test_document_to_ir_invalid_page_dims_keeps_null_bbox_and_flags() -> None:
+    """Oracle blocker 2 end-to-end: a synthetic doc with zero/negative page
+    dimensions parses WITHOUT ValidationError; the text element keeps a null
+    bbox while raw_reference preserves bbox_points + the MISSING_PAGE_DIMS
+    flag."""
+    for width, height in ((0.0, 0.0), (-5.0, -5.0), (595.0, 0.0)):
+        doc = _synthetic_doc_with_page_size(width=width, height=height)
+        parsed = docling_document_to_ir(
+            doc=doc,
+            source_object_key="documents/synthetic/source/x.pdf",
+            parsed_document_id=str(uuid.uuid4()),
+            document_id="dims-doc",
+            parse_started_at=datetime.now(UTC),
+        )
+        text_element = next(
+            element for element in _elements(parsed) if "bbox_points" in element.raw_reference
+        )
+        assert text_element.bbox is None
+        assert text_element.raw_reference["bbox_points"] == [50.0, 700.0, 550.0, 800.0]
+        assert text_element.raw_reference["bbox_normalization"] == "MISSING_PAGE_DIMS"
+
+
+def _synthetic_doc_with_page_size(*, width: float, height: float) -> Any:
+    """Minimal synthetic DoclingDocument: one page (custom size) + one text item."""
+    from docling.datamodel.document import DoclingDocument
+    from docling_core.types.doc.base import BoundingBox, CoordOrigin, Size
+    from docling_core.types.doc.common.reference import ProvenanceItem
+    from docling_core.types.doc.document import DocItemLabel
+
+    doc = DoclingDocument(name="dims-test")
+    doc.add_page(page_no=1, size=Size(width=width, height=height))
+    prov = ProvenanceItem(
+        page_no=1,
+        bbox=BoundingBox(l=50.0, t=700.0, r=550.0, b=800.0, coord_origin=CoordOrigin.TOPLEFT),
+        charspan=(0, 5),
+    )
+    doc.add_text(label=DocItemLabel.TEXT, text="abcde", prov=prov)
+    return doc

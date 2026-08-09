@@ -21,13 +21,20 @@ Input schema (verified against the installed mineru 3.4.4 sources, 2026-08-09):
     lists; images carry ``img_path`` plus ``image_caption``/``image_footnote``
     lists; lists carry ``list_items``.
 
-Coordinate-origin assumption (stated): MinerU ``bbox``/``box`` values are
-TOPLEFT-origin ``[x0, y0, x1, y1]`` (``top < bottom``) — verified in
-``_build_bbox`` (``int(x0*1000/page_width), int(y0*1000/page_height), ...``;
-layout-model pixel space is top-left), so the Docling adapter's recommended
-TOPLEFT normalization is a no-op here. Values are passed through as-is. Note
-the IR ``BoundingBox`` makes no unit guarantee; MinerU content_list items carry
-no page size, so ``page_height``/``page_width`` are None.
+  Real MinerU 3.4.4 JSON quirk (verified on real output, 2026-08-09): ``bbox``
+  and ``page_idx`` are serialized as STRINGS (``"bbox": "[89, 53, 877, 85]"``,
+  ``"page_idx": "0"``). Both the list/tuple form and the string form are
+  accepted.
+
+Coordinate-origin and unit assumption (stated): MinerU ``bbox``/``box`` values
+are TOPLEFT-origin ``[x0, y0, x1, y1]`` page-PERMILLE (0..1000)
+(``top < bottom``) — verified in ``_build_bbox``
+(``int(x0*1000/page_width), int(y0*1000/page_height), ...``; layout-model pixel
+space is top-left), so the Docling adapter's recommended TOPLEFT normalization
+is a no-op here. The v2 canonical IR requires NORMALIZED_PAGE coordinates, so
+every bbox is scaled by ``/1000`` into 0..1 and the raw permille values are
+preserved under ``raw_reference["bbox_permille"]``. MinerU content_list items
+carry no page size, so ``page_height``/``page_width`` are None.
 
 Conventions shared with the Docling adapter (spike VNLRAG-21):
   * ``element_id`` = ``p{page}-e{global-index}``; ``reading_order`` = global
@@ -44,6 +51,7 @@ Conventions shared with the Docling adapter (spike VNLRAG-21):
     → injected ``parser_version`` → ``"mineru-unknown"``.
 """
 
+import ast
 import json
 from datetime import UTC, datetime
 from html import escape
@@ -52,7 +60,7 @@ from typing import Any
 
 from app.ingestion.document_ir import BoundingBox, DocumentElement, ParsedDocument, ParsedPage
 
-IR_SCHEMA_VERSION = "document-ir-v1"
+IR_SCHEMA_VERSION = "document-ir-v2"
 
 # Known environment blocker (VNLRAG-20 evidence): the MinerU 3.4.4 pipeline
 # backend calls transformers.pytorch_utils.find_pruneable_heads_and_indices,
@@ -151,19 +159,20 @@ class MinerUAdapter:
         for index, item in enumerate(items):
             page_no = _item_page_number(item)
             element_type = _map_element_type(item)
+            bbox, bbox_permille = _item_bbox(item)
             element = DocumentElement(
                 element_id=f"p{page_no}-e{index}",
                 element_type=element_type,
                 text=_item_text(item),
                 page_number=page_no,
-                bbox=_item_bbox(item),
+                bbox=bbox,
                 reading_order=index,
                 parent_element_id=None,
                 table_html=_item_table_html(item),
                 source_parser="MINERU",
                 parser_version=resolved_parser_version,
                 parser_confidence=None,
-                raw_reference=_item_raw_reference(item, index),
+                raw_reference=_item_raw_reference(item, index, bbox_permille=bbox_permille),
             )
             elements_by_page.setdefault(page_no, []).append(element)
 
@@ -320,15 +329,47 @@ def _item_text(item: dict[str, Any]) -> str:
     return "\n".join(parts)
 
 
-def _item_bbox(item: dict[str, Any]) -> BoundingBox | None:
-    raw = item.get("bbox") if item.get("bbox") is not None else item.get("box")
+def _parse_bbox_coords(raw: Any) -> list[float] | None:
+    """Parse a MinerU ``bbox``/``box`` value into ``[x0, y0, x1, y1]`` floats.
+
+    Real MinerU 3.4.4 JSON serializes ``bbox`` as a STRING
+    (``"[89, 53, 877, 85]"``); the list/tuple form is accepted too. Returns
+    None for anything unparseable.
+    """
+    if isinstance(raw, str):
+        text = raw.strip()
+        if not (text.startswith("[") and text.endswith("]")):
+            return None
+        try:
+            values = ast.literal_eval(text)
+        except (ValueError, SyntaxError):
+            return None
+        if not isinstance(values, (list, tuple)):
+            return None
+        raw = values
     if not isinstance(raw, (list, tuple)) or len(raw) < 4:
         return None
     try:
-        left, top, right, bottom = (float(value) for value in raw[:4])
+        return [float(value) for value in raw[:4]]
     except (TypeError, ValueError):
         return None
-    return BoundingBox(left=left, top=top, right=right, bottom=bottom)
+
+
+def _item_bbox(item: dict[str, Any]) -> tuple[BoundingBox | None, list[float] | None]:
+    """Normalized NORMALIZED_PAGE bbox + raw permille coords for ``item``.
+
+    MinerU emits TOPLEFT-origin page-PERMILLE (0..1000) coordinates; v2
+    requires NORMALIZED_PAGE (0..1), so each value is scaled by ``/1000``. The
+    raw permille ``[x0, y0, x1, y1]`` is returned for
+    ``raw_reference["bbox_permille"]``. ``(None, None)`` when the item carries
+    no parseable bbox.
+    """
+    raw = item.get("bbox") if item.get("bbox") is not None else item.get("box")
+    coords = _parse_bbox_coords(raw)
+    if coords is None:
+        return None, None
+    left, top, right, bottom = (value / 1000.0 for value in coords)
+    return BoundingBox(left=left, top=top, right=right, bottom=bottom), coords
 
 
 def _item_table_html(item: dict[str, Any]) -> str | None:
@@ -359,12 +400,18 @@ def _escape_cell(cell: Any) -> str:
     return escape(str(cell), quote=True)
 
 
-def _item_raw_reference(item: dict[str, Any], index: int) -> dict[str, Any]:
-    reference = {
+def _item_raw_reference(
+    item: dict[str, Any], index: int, bbox_permille: list[float] | None = None
+) -> dict[str, Any]:
+    reference: dict[str, Any] = {
         "mineru_item_index": index,
         "mineru_item_type": item.get("type"),
         "mineru_page_idx": item.get("page_idx"),
     }
+    if bbox_permille is not None:
+        # v2: canonical bbox is NORMALIZED_PAGE (0..1); the raw page-permille
+        # coordinates are preserved here for provenance/traceability.
+        reference["bbox_permille"] = bbox_permille
     line_idx = item.get("line_idx")
     if line_idx is not None:
         reference["mineru_line_idx"] = line_idx

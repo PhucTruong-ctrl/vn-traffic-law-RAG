@@ -40,7 +40,7 @@ class ParsedDocument(BaseModel):
     document_id: str                   # document_id pháp lý từ manifest
     parser: str                        # "DOCLING" | "MINERU"
     parser_version: str                # pin version, ví dụ "docling-2.1.x"
-    ir_schema_version: str             # ví dụ "document-ir-v1"
+    ir_schema_version: str             # "document-ir-v2" (baseline v2)
     source_object_key: str             # object key PDF nguồn trong MinIO
     pages: list["ParsedPage"]
     parse_started_at: datetime
@@ -54,12 +54,14 @@ class ParsedDocument(BaseModel):
 | `document_id` | `str` | `document_id` pháp lý lấy từ manifest |
 | `parser` | `str` | `"DOCLING" \| "MINERU"` |
 | `parser_version` | `str` | Pin version, ví dụ `"docling-2.1.x"` |
-| `ir_schema_version` | `str` | Ví dụ `"document-ir-v1"` |
+| `ir_schema_version` | `str` | `"document-ir-v2"` (baseline v2; xem mục 8) |
 | `source_object_key` | `str` | Object key PDF nguồn trong MinIO |
 | `pages` | `list["ParsedPage"]` | Danh sách trang |
 | `parse_started_at` | `datetime` | Thời điểm bắt đầu parse |
 | `parse_completed_at` | `datetime` | Thời điểm hoàn tất parse |
 | `quality_report` | `dict` | Kết quả quality gate cấp tài liệu |
+
+**Bất biến v2 (parser-independent, enforced by schema):** `parse_completed_at >= parse_started_at`; `element_id` duy nhất trên toàn bộ tài liệu (mọi trang); mọi `DocumentElement` trên một trang có `page_number` bằng `page_number` của trang đó; `parser_version` không rỗng.
 
 ## 4. ParsedPage
 
@@ -78,15 +80,17 @@ class ParsedPage(BaseModel):
 
 | Field | Kiểu | Mô tả |
 |---|---|---|
-| `page_number` | `int` | Số trang **1-based** theo PDF |
+| `page_number` | `int` | Số trang **1-based** theo PDF (**bất biến v2: >= 1**) |
 | `width` | `float \| None` | Chiều rộng trang (khi parser cung cấp) |
 | `height` | `float \| None` | Chiều cao trang (khi parser cung cấp) |
 | `text` | `str \| None` | Văn bản toàn trang (khi parser cung cấp) |
 | `elements` | `list["DocumentElement"]` | Danh sách element trên trang |
 
+**Bất biến v2 (parser-independent, enforced by schema):** `page_number >= 1`; mọi element trong trang có `element.page_number == page.page_number`.
+
 ## 5. BoundingBox
 
-Từ doc 03 §3.6.4 (dòng 836-844). Model gốc:
+Từ doc 03 §3.6.4 (dòng 836-844), **mở rộng v2**. Model gốc:
 
 ```python
 class BoundingBox(BaseModel):
@@ -96,18 +100,22 @@ class BoundingBox(BaseModel):
     top: float
     right: float
     bottom: float
+    coordinate_space: Literal["NORMALIZED_PAGE"] = "NORMALIZED_PAGE"
     page_height: float | None = None
     page_width: float | None = None
 ```
 
 | Field | Kiểu | Mô tả |
 |---|---|---|
-| `left` | `float` | Tọa độ trái |
-| `top` | `float` | Tọa độ trên |
-| `right` | `float` | Tọa độ phải |
-| `bottom` | `float` | Tọa độ dưới |
-| `page_height` | `float \| None` | Chiều cao trang (mặc định `None`) |
-| `page_width` | `float \| None` | Chiều rộng trang (mặc định `None`) |
+| `left` | `float` | Tọa độ trái, **0..1** của chiều rộng trang |
+| `top` | `float` | Tọa độ trên, **0..1** của chiều cao trang |
+| `right` | `float` | Tọa độ phải, **0..1** của chiều rộng trang |
+| `bottom` | `float` | Tọa độ dưới, **0..1** của chiều cao trang |
+| `coordinate_space` | `Literal["NORMALIZED_PAGE"]` | **v2 (bắt buộc, mặc định `NORMALIZED_PAGE`)** — không gian tọa độ canonical duy nhất của v2 |
+| `page_height` | `float \| None` | Chiều cao trang (mặc định `None`, chỉ mang tính thông tin — không còn dùng cho toán chuẩn hóa) |
+| `page_width` | `float \| None` | Chiều rộng trang (mặc định `None`, chỉ mang tính thông tin) |
+
+**Ngữ nghĩa v2 (user blocker review #2 — normalize bbox semantics):** mọi bbox trong IR là **NORMALIZED_PAGE**: tọa độ theo đơn vị tỷ lệ trang, gốc **TOPLEFT** (`top < bottom`), `left`/`right` trong [0, 1] của chiều rộng trang, `top`/`bottom` trong [0, 1] của chiều cao trang. Bất biến enforced by schema: `right >= left`, `bottom >= top`, mọi tọa độ trong [0, 1], `page_height`/`page_width` khi có giá trị phải `> 0`. **Tọa độ gốc của parser (Docling = PDF points, MinerU = page-permille 0..1000) KHÔNG được ghi vào bbox canonical** — chúng sống trong `raw_reference` của element (`bbox_points` cho Docling, `bbox_permille` cho MinerU). Một parser dùng không gian tọa độ khác phải chuyển đổi tại adapter và phải bump schema version.
 
 ## 6. DocumentElement
 
@@ -146,6 +154,8 @@ class DocumentElement(BaseModel):
 | `parser_confidence` | `float \| None` | Confidence parser nếu cung cấp |
 | `raw_reference` | `dict` | Tham chiếu trở lại đầu ra parser gốc |
 
+**Bất biến v2 (parser-independent, enforced by schema — user blocker review #3):** `page_number >= 1`, `reading_order >= 0`, `parser_confidence` khi có giá trị phải nằm trong [0, 1], `parser_version` không rỗng, `element_id` duy nhất trên toàn tài liệu.
+
 ## 7. Ví dụ JSON
 
 Reproduce nguyên văn từ doc 03 §3.6.5 (dòng 866-913):
@@ -156,7 +166,7 @@ Reproduce nguyên văn từ doc 03 §3.6.5 (dòng 866-913):
   "document_id": "nd-168-2024",
   "parser": "DOCLING",
   "parser_version": "docling-2.1.0",
-  "ir_schema_version": "document-ir-v1",
+  "ir_schema_version": "document-ir-v2",
   "source_object_key": "documents/nd-168-2024/source/<sha256>.pdf",
   "pages": [
     {
@@ -169,7 +179,7 @@ Reproduce nguyên văn từ doc 03 §3.6.5 (dòng 866-913):
           "element_type": "heading",
           "text": "Điều 7. Các hành vi xử phạt ...",
           "page_number": 12,
-          "bbox": {"left": 60.0, "top": 80.0, "right": 540.0, "bottom": 100.0},
+          "bbox": {"left": 0.1, "top": 0.1, "right": 0.9, "bottom": 0.12, "coordinate_space": "NORMALIZED_PAGE"},
           "reading_order": 40,
           "parent_element_id": null,
           "table_html": null,
@@ -183,7 +193,7 @@ Reproduce nguyên văn từ doc 03 §3.6.5 (dòng 866-913):
           "element_type": "paragraph",
           "text": "4. Phạt tiền từ 4.000.000 đồng đến 6.000.000 đồng đối với một trong các hành vi sau:",
           "page_number": 12,
-          "bbox": {"left": 60.0, "top": 105.0, "right": 540.0, "bottom": 135.0},
+          "bbox": {"left": 0.1, "top": 0.12, "right": 0.9, "bottom": 0.16, "coordinate_space": "NORMALIZED_PAGE"},
           "reading_order": 41,
           "parent_element_id": "p12-e3",
           "table_html": null,
@@ -201,15 +211,24 @@ Reproduce nguyên văn từ doc 03 §3.6.5 (dòng 866-913):
 
 > Ví dụ mang tính minh họa cấu trúc dữ liệu; con số trong nội dung không phải khẳng định về văn bản thực tế.
 
+> **v2:** giá trị bbox trong ví dụ là **NORMALIZED_PAGE** (0..1) — với trang A4 595x842, bbox gốc của parser (ví dụ `[60, 80, 540, 100]` PDF points từ Docling) đã được adapter chuẩn hóa về `left=60/595≈0.1`, `top=80/842≈0.1`, `right=540/595≈0.9`, `bottom=100/842≈0.12`; tọa độ gốc được giữ trong `raw_reference` (ví dụ `"bbox_points": [60, 80, 540, 100]`).
+
 ## 8. Versioning
 
-IR được version hóa qua field `ir_schema_version` trên `ParsedDocument` (doc 03 §3.6.2; doc 08 §8.3.6, §8.4.5). Baseline hiện tại: `document-ir-v1` (doc 04, dòng 74).
+IR được version hóa qua field `ir_schema_version` trên `ParsedDocument` (doc 03 §3.6.2; doc 08 §8.3.6, §8.4.5). Baseline hiện tại: `document-ir-v2`.
 
 **Quy tắc bump** (doc 08 §8.3.6, §8.4.5):
 
 - Khi parsing pipeline thay đổi cấu trúc IR (thêm/bớt field, đổi semantics của `DocumentElement`), `ir_schema_version` phải bump (ví dụ `document-ir-v2`).
 - `DocumentElement` fields được version hóa qua `ir_schema_version` trên `ParsedDocument`.
 - Bất kỳ thay đổi field, kiểu field hoặc semantics của IR làm thay đổi cách Legal Structure Extractor đọc dữ liệu đều phải bump.
+
+**Bump v1 → v2 (user blocker review #2/#3):** `document-ir-v1` trộn hai không gian tọa độ bbox (Docling = PDF points, MinerU = page-permille 0..1000) nên consumer không biết cách render — mất parser-neutrality. v2:
+
+- Chuẩn hóa **một không gian tọa độ canonical duy nhất**: `BoundingBox.coordinate_space = "NORMALIZED_PAGE"` (0..1, gốc TOPLEFT); tọa độ gốc của parser sống trong `raw_reference` (`bbox_points` / `bbox_permille`).
+- Tăng cường **bất biến validation parser-independent** (enforced by schema): bbox bounds 0..1 + `right >= left` + `bottom >= top`; `page_number >= 1`; `reading_order >= 0`; `parser_confidence` trong [0, 1]; `parser_version` không rỗng; `element_id` duy nhất; `element.page_number == page.page_number`; `parse_completed_at >= parse_started_at`. Những giá trị trước đây được chấp nhận (page_number 0, confidence 1.5, bbox đảo, ...) nay **bị từ chối** tại schema boundary.
+
+Artifacts `document-ir-v1` phải được **re-normalize** theo quy trình bên dưới (đọc artifact parser gốc từ `parser-outputs`, chạy adapter hiện hành sang v2) — không cần re-parse.
 
 **Re-normalization procedure** (doc 08 §8.3.6, §8.4.5):
 

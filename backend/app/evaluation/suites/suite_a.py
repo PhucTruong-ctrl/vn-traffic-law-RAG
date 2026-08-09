@@ -50,7 +50,7 @@ from app.ingestion.document_ir import (
     ParsedPage,
 )
 
-IR_SCHEMA_VERSION = "document-ir-v1"
+IR_SCHEMA_VERSION = "document-ir-v2"
 SUITE_NAME = "suite-a"
 PHASE_DIR = {"docling": "p1-docling", "mineru": "p2-mineru"}
 OCR_ENGINE = "tesseract"
@@ -309,7 +309,7 @@ def text_extraction_rate(doc: ParsedDocument) -> MetricResult:
 def provenance_coverage(doc: ParsedDocument) -> MetricResult:
     """Metric 2 — share of DocumentElements with page_number; bbox separately.
 
-    ``page_number`` is required by the frozen IR schema (document-ir-v1 §6), so
+    ``page_number`` is required by the frozen IR schema (document-ir-v2 §6), so
     its share is 1.0 by construction; ``bbox`` is optional and its share is the
     informative parser-provenance signal.
     """
@@ -584,21 +584,40 @@ def _item_text(item: Any) -> str:
     return text if isinstance(text, str) else ""
 
 
-def _item_bbox(item: Any, doc: Any, page_no: int) -> BoundingBox | None:
+def _item_bbox(item: Any, doc: Any, page_no: int) -> tuple[BoundingBox | None, list[float] | None]:
+    """Canonical NORMALIZED_PAGE bbox + raw PDF-point box for ``item`` (prov[0]).
+
+    Mirrors the production docling adapter exactly (v2 / oracle blocker 1): the
+    raw Docling box is normalized to TOPLEFT origin (PDF text-layer provenance
+    is BOTTOMLEFT) and scaled to 0..1 of page width/height so the IR bbox is
+    origin- and unit-consistent with every other parser; the raw PDF-point box
+    (docling native, pre-normalization) is returned for
+    ``raw_reference["bbox_points"]`` so parser-native coordinates are never
+    lost. ``(None, None)`` when the item carries no bbox provenance or page
+    dimensions are missing/zero/negative.
+    """
     prov = item.prov[0] if item.prov else None
     if prov is None or prov.bbox is None:
-        return None
-    bbox = prov.bbox
+        return None, None
+    raw = prov.bbox
+    raw_points = [raw.l, raw.t, raw.r, raw.b]
     page_model = doc.pages.get(page_no)
     page_height = page_model.size.height if page_model is not None else None
     page_width = page_model.size.width if page_model is not None else None
-    return BoundingBox(
-        left=bbox.l,
-        top=bbox.t,
-        right=bbox.r,
-        bottom=bbox.b,
-        page_height=page_height,
-        page_width=page_width,
+    if page_height is None or page_width is None or page_height <= 0 or page_width <= 0:
+        return None, raw_points
+    normalized = raw.to_top_left_origin(page_height)
+    return (
+        BoundingBox(
+            left=normalized.l / page_width,
+            top=normalized.t / page_height,
+            right=normalized.r / page_width,
+            bottom=normalized.b / page_height,
+            coordinate_space="NORMALIZED_PAGE",
+            page_height=page_height,
+            page_width=page_width,
+        ),
+        raw_points,
     )
 
 
@@ -612,15 +631,22 @@ def _item_table_html(item: Any, doc: Any) -> str | None:
     return exported if exported.strip() else None
 
 
-def _item_raw_reference(item: Any, index: int, page_no: int) -> dict[str, Any]:
+def _item_raw_reference(
+    item: Any, index: int, page_no: int, bbox_points: list[float] | None = None
+) -> dict[str, Any]:
     prov = item.prov[0] if item.prov else None
-    return {
+    reference: dict[str, Any] = {
         "docling_item_index": index,
         "docling_item_type": type(item).__name__,
         "docling_label": item.label.value if item.label is not None else None,
         "prov_page_no": page_no,
         "charspan": list(prov.charspan) if prov is not None and prov.charspan else None,
     }
+    if bbox_points is not None:
+        # v2: canonical bbox is NORMALIZED_PAGE (0..1); the raw PDF-point box
+        # is preserved here for provenance/traceability (mirrors docling_adapter).
+        reference["bbox_points"] = bbox_points
+    return reference
 
 
 def parse_with_docling(
@@ -650,19 +676,20 @@ def parse_with_docling(
         prov = item.prov[0] if item.prov else None
         page_no = prov.page_no if prov is not None else 1
         element_type = item.label.value if item.label is not None else "text"
+        bbox, bbox_points = _item_bbox(item, doc, page_no)
         element = DocumentElement(
             element_id=f"p{page_no}-e{index}",
             element_type=element_type,
             text=_item_text(item),
             page_number=page_no,
-            bbox=_item_bbox(item, doc, page_no),
+            bbox=bbox,
             reading_order=index,
             parent_element_id=None,
             table_html=_item_table_html(item, doc),
             source_parser="DOCLING",
             parser_version=parser_version,
             parser_confidence=None,
-            raw_reference=_item_raw_reference(item, index, page_no),
+            raw_reference=_item_raw_reference(item, index, page_no, bbox_points=bbox_points),
         )
         elements_by_page.setdefault(page_no, []).append(element)
 

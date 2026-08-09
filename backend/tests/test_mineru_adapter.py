@@ -126,16 +126,27 @@ def test_parse_maps_types_pages_and_provenance() -> None:
         assert all(element.page_number == page.page_number for element in page.elements)
 
 
-def test_parse_bbox_origin_is_top_left() -> None:
+def test_parse_bbox_normalized_to_unit_interval() -> None:
     doc = parse_default(make_content_list())
     title_element = doc.pages[0].elements[0]
-    assert title_element.bbox == BoundingBox(left=10.0, top=20.0, right=500.0, bottom=40.0)
-    # TOPLEFT-origin convention: top < bottom and left < right on every box.
+    # v2: permille (0..1000) -> NORMALIZED_PAGE (0..1) by /1000.
+    assert title_element.bbox == BoundingBox(
+        left=0.01, top=0.02, right=0.5, bottom=0.04, coordinate_space="NORMALIZED_PAGE"
+    )
+    # Raw permille coordinates preserved in raw_reference (v2 provenance).
+    assert title_element.raw_reference["bbox_permille"] == [10.0, 20.0, 500.0, 40.0]
+    # TOPLEFT-origin convention + unit interval on every box.
     for page in doc.pages:
         for element in page.elements:
             assert element.bbox is not None
+            assert element.bbox.coordinate_space == "NORMALIZED_PAGE"
             assert element.bbox.left < element.bbox.right
             assert element.bbox.top < element.bbox.bottom
+            assert 0.0 <= element.bbox.left <= 1.0
+            assert 0.0 <= element.bbox.top <= 1.0
+            assert 0.0 <= element.bbox.right <= 1.0
+            assert 0.0 <= element.bbox.bottom <= 1.0
+            assert element.raw_reference["bbox_permille"] is not None
 
 
 def test_parse_table_html_captured() -> None:
@@ -155,18 +166,21 @@ def test_parse_table_html_captured() -> None:
 def test_parse_raw_reference_shape() -> None:
     doc = parse_default(make_content_list())
     elements = doc.pages[0].elements
-    # text_span item: line_idx is carried through when present.
+    # text_span item: line_idx is carried through when present; bbox_permille
+    # preserves the raw permille coordinates (v2).
     assert elements[1].raw_reference == {
         "mineru_item_index": 1,
         "mineru_item_type": "text_span",
         "mineru_page_idx": 0,
         "mineru_line_idx": 0,
+        "bbox_permille": [10.0, 45.0, 500.0, 60.0],
     }
-    # title item: only the three always-present keys.
+    # title item: only the always-present keys + raw bbox.
     assert elements[0].raw_reference == {
         "mineru_item_index": 0,
         "mineru_item_type": "title",
         "mineru_page_idx": 0,
+        "bbox_permille": [10.0, 20.0, 500.0, 40.0],
     }
     # stable id is carried through when the JSON carries one.
     items = make_content_list()
@@ -253,9 +267,62 @@ def test_parse_box_alias_and_missing_bbox() -> None:
         {"type": "text", "text": "bbox hỏng", "bbox": "nope", "page_idx": 0},
     ]
     elements = parse_default(items).pages[0].elements
-    assert elements[0].bbox == BoundingBox(left=1.0, top=2.0, right=3.0, bottom=4.0)
+    assert elements[0].bbox == BoundingBox(
+        left=0.001, top=0.002, right=0.003, bottom=0.004, coordinate_space="NORMALIZED_PAGE"
+    )
+    assert elements[0].raw_reference["bbox_permille"] == [1.0, 2.0, 3.0, 4.0]
     assert elements[1].bbox is None
     assert elements[2].bbox is None
+
+
+def test_parse_real_mineru_string_bbox_and_page_idx() -> None:
+    """Real MinerU 3.4.4 JSON serializes bbox/page_idx as STRINGS (verified on
+    real output, 2026-08-09): ``"bbox": "[89, 53, 877, 85]"``,
+    ``"page_idx": "0"``. Both must be parsed and the bbox normalized /1000."""
+    items = [
+        {
+            "type": "text",
+            "text": "Điều 1. Phạm vi điều chỉnh",
+            "bbox": "[89, 53, 877, 85]",
+            "page_idx": "0",
+        },
+        {
+            "type": "text",
+            "text": "Luật này quy định phạm vi điều chỉnh.",
+            "bbox": "[0, 100, 1000, 150]",
+            "page_idx": "1",
+        },
+    ]
+    doc = parse_default(items)
+    assert [page.page_number for page in doc.pages] == [1, 2]
+    first = doc.pages[0].elements[0]
+    assert first.page_number == 1
+    assert first.bbox == BoundingBox(
+        left=0.089, top=0.053, right=0.877, bottom=0.085, coordinate_space="NORMALIZED_PAGE"
+    )
+    # Raw JSON values preserved verbatim in raw_reference.
+    assert first.raw_reference["mineru_page_idx"] == "0"
+    assert first.raw_reference["bbox_permille"] == [89.0, 53.0, 877.0, 85.0]
+    second = doc.pages[1].elements[0]
+    assert second.page_number == 2
+    assert second.bbox == BoundingBox(
+        left=0.0, top=0.1, right=1.0, bottom=0.15, coordinate_space="NORMALIZED_PAGE"
+    )
+
+
+def test_parse_malformed_string_bbox_yields_none() -> None:
+    items = [
+        {"type": "text", "text": "x", "bbox": "[89, 53", "page_idx": 0},
+        {"type": "text", "text": "y", "bbox": "[not, a, list]", "page_idx": 0},
+        {"type": "text", "text": "z", "bbox": "[1, 2, 3, 4, 5]", "page_idx": 0},
+    ]
+    elements = parse_default(items).pages[0].elements
+    assert elements[0].bbox is None  # unterminated list
+    assert elements[1].bbox is None  # non-numeric literal
+    # Over-long list is parsed but only the first four values are used.
+    assert elements[2].bbox == BoundingBox(
+        left=0.001, top=0.002, right=0.003, bottom=0.004, coordinate_space="NORMALIZED_PAGE"
+    )
 
 
 def test_parse_table_html_from_cells() -> None:

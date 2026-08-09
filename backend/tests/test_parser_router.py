@@ -38,7 +38,8 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _box() -> BoundingBox:
-    return BoundingBox(left=1.0, top=2.0, right=3.0, bottom=4.0)
+    # v2: NORMALIZED_PAGE (0..1) — values must stay in the unit interval.
+    return BoundingBox(left=0.1, top=0.2, right=0.3, bottom=0.4)
 
 
 def _element(
@@ -66,6 +67,9 @@ def _element(
 
 def _page(page_number: int, elements: list[DocumentElement]) -> ParsedPage:
     page_text = "\n".join(e.text for e in elements if e.text.strip()) or None
+    # v2: element.page_number must equal the page's number (cross-level check).
+    for element in elements:
+        element.page_number = page_number
     return ParsedPage(
         page_number=page_number,
         width=595.0,
@@ -80,16 +84,17 @@ def _document(
     document_id: str = "nd-168-2024",
     parser: str = "DOCLING",
 ) -> ParsedDocument:
+    started_at = datetime.now(UTC)
     return ParsedDocument(
         parsed_document_id="a1b2c3d4-0000-4000-8000-000000000000",
         document_id=document_id,
         parser=parser,
         parser_version="docling-2.118.1",
-        ir_schema_version="document-ir-v1",
+        ir_schema_version="document-ir-v2",
         source_object_key="fixtures/nd-168-2024.pdf",
         pages=pages,
-        parse_started_at=datetime.now(UTC),
-        parse_completed_at=datetime.now(UTC),
+        parse_started_at=started_at,
+        parse_completed_at=started_at,  # v2: completed >= started
         quality_report={},
     )
 
