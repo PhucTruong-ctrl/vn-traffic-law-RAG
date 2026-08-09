@@ -1,0 +1,173 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vnlaw.example/schemas/corpus-manifest.schema.json",
+  "title": "CorpusDocumentManifest",
+  "description": "Manifest for a single corpus document. 15 fields per docs/00-scope-and-decisions.md §10.2; enums per docs/03-thiet-ke-he-thong.md §3.9.1; validation rules per docs/06-test-evaluation.md §6.2.1.1. reviewed_by/reviewed_at are required only when review_status is ACCEPTED or REJECTED (docs/03 §3.9.3 / DB DDL 3.10.4: nullable columns, review_status defaults to PENDING; docs/00 §10.2 review-bat-buoc). effective_to > effective_from is enforced by the validator script because draft-07 cannot express cross-field date comparison.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "document_id",
+    "source_url",
+    "downloaded_at",
+    "file_hash",
+    "document_number",
+    "document_type",
+    "issuer",
+    "issued_date",
+    "effective_from",
+    "effective_to",
+    "status",
+    "relation_notes",
+    "review_status"
+  ],
+  "properties": {
+    "document_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+-[a-z0-9-]*[a-z0-9]+$",
+      "description": "Legal document id, e.g. nd-168-2024."
+    },
+    "source_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Official source URL of the document."
+    },
+    "downloaded_at": {
+      "type": "string",
+      "anyOf": [
+        { "format": "date" },
+        { "format": "date-time" }
+      ],
+      "description": "ISO 8601 download timestamp (date-only allowed)."
+    },
+    "file_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 hex digest (lowercase) of the downloaded source file."
+    },
+    "document_number": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Official document number, e.g. 168/2024/ND-CP."
+    },
+    "document_type": {
+      "type": "string",
+      "enum": ["LAW", "DECREE", "CIRCULAR", "RESOLUTION", "DECISION", "OTHER"]
+    },
+    "issuer": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Issuing authority."
+    },
+    "issued_date": {
+      "type": "string",
+      "anyOf": [
+        { "format": "date" },
+        { "format": "date-time" }
+      ],
+      "description": "ISO 8601 issuance date (date-only allowed)."
+    },
+    "effective_from": {
+      "type": ["string", "null"],
+      "anyOf": [
+        { "format": "date" },
+        { "format": "date-time" },
+        { "type": "null" }
+      ],
+      "description": "ISO 8601 effective start date (date-only allowed). Nullable when effectiveness is not yet determined (e.g. PENDING review); required once review_status is ACCEPTED (docs/03 §3.10.4)."
+    },
+    "effective_to": {
+      "type": ["string", "null"],
+      "anyOf": [
+        { "format": "date" },
+        { "format": "date-time" },
+        { "type": "null" }
+      ],
+      "description": "ISO 8601 effective end date (date-only allowed). Nullable for currently effective documents; must be strictly after effective_from when both are present."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["NOT_YET_EFFECTIVE", "EFFECTIVE", "PARTIALLY_EFFECTIVE", "EXPIRED", "UNKNOWN"]
+    },
+    "relation_notes": {
+      "type": "string",
+      "description": "Free-text notes on legal relations (amendment/replacement/repeal); may be empty."
+    },
+    "review_status": {
+      "type": "string",
+      "enum": ["PENDING", "ACCEPTED", "REJECTED", "DROPPED"]
+    },
+    "reviewed_by": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Reviewer identity; required when review_status is ACCEPTED or REJECTED."
+    },
+    "reviewed_at": {
+      "type": "string",
+      "anyOf": [
+        { "format": "date" },
+        { "format": "date-time" }
+      ],
+      "description": "ISO 8601 review timestamp; required when review_status is ACCEPTED or REJECTED."
+    }
+  },
+  "allOf": [
+    {
+      "description": "reviewed_by/reviewed_at become required once a reviewer decision (ACCEPTED/REJECTED) is recorded.",
+      "if": {
+        "properties": {
+          "review_status": { "enum": ["ACCEPTED", "REJECTED"] }
+        },
+        "required": ["review_status"]
+      },
+      "then": {
+        "required": ["reviewed_by", "reviewed_at"]
+      }
+    },
+    {
+      "description": "An ACCEPTED manifest must have a determinate effective start (effective_from non-null, valid date) per docs/03 §3.10.4.",
+      "if": {
+        "properties": {
+          "review_status": { "const": "ACCEPTED" }
+        },
+        "required": ["review_status"]
+      },
+      "then": {
+        "properties": {
+          "effective_from": {
+            "type": "string",
+            "anyOf": [
+              { "format": "date" },
+              { "format": "date-time" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "When both effective_from and effective_to are present, effective_to must be strictly after effective_from. JSON Schema draft-07 cannot express the date ordering natively; the validator script enforces it.",
+      "if": {
+        "properties": {
+          "effective_from": { "type": "string" },
+          "effective_to": { "type": "string" }
+        },
+        "required": ["effective_from", "effective_to"]
+      },
+      "then": {
+        "properties": {
+          "effective_from": {
+            "anyOf": [
+              { "format": "date" },
+              { "format": "date-time" }
+            ]
+          },
+          "effective_to": {
+            "anyOf": [
+              { "format": "date" },
+              { "format": "date-time" }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}
