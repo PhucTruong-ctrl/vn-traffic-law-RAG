@@ -44,8 +44,13 @@
 # - Group A text_extraction_rate >= 0.8 chỉ là quantity-only, không đủ cho
 #   legal correctness; Group B (d/đ, hierarchy, short-point) giữ vai trò
 #   correctness gate.
-# - OCR engine = tesseract vie (CER 1.2% / WER 3.8%), CPU-only; 600 DPI
-#   scan-only conditional (theo benchmark); không force_backend_text cho scan.
+# - OCR engine = tesseract vie (chosen by empirical spike — Suite A first pass:
+#   đúng diacritics VN; 300 DPI avg 29.78 s/page; phrase hit rate 0.5834 trên
+#   NĐ 168 1-bit CCITT scan benchmark; xem data/evaluation/ocr-dpi-benchmark/
+#   run-20260809-120116-24f592/ + docs/evaluation/suite-a-first-pass-report.md
+#   §5). CER/WER chưa được đo trong first pass — sẽ đo trong VNLRAG-97 (Suite A
+#   finalization) với human transcription.
+# - 600 DPI scan-only conditional (theo benchmark); không force_backend_text cho scan.
 # =============================================================================
 
 parser_router:

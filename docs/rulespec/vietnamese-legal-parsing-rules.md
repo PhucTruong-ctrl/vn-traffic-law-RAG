@@ -114,7 +114,7 @@ Bảng regex đã được validate trên 3 fixtures born-digital (luat-36-2024-
 
 ## 9. Quy tắc OCR variants (scan route)
 
-- Dùng **tesseract vie** (psm 3): CER 1.2% / WER 3.8% trên born-digital; benchmark 300 DPI 29s/page hit 0.5834 — **600 DPI không cải thiện trên 1-bit CCITT, giữ 300** (suite-a-first-pass-report.md).
+- Dùng **tesseract vie** (psm 3): đúng diacritics VN; benchmark 300 DPI ~29.78 s/page, phrase hit 0.5834 trên NĐ 168 1-bit CCITT scan — **600 DPI không cải thiện chất lượng, giữ 300** (suite-a-first-pass-report.md §5; data/evaluation/ocr-dpi-benchmark/run-20260809-120116-24f592/). **CER/WER chưa được đo trong first pass** — sẽ đo trong VNLRAG-97 (Suite A finalization) với human transcription.
 - Xử lý (doc 03:1056-1064):
   - khoảng trắng/thụt lề bất thường;
   - nhãn bị dính (`a)Điều` thay vì `a) Điều`): trên text OCR-derived dùng regex **`^([a-zđ])\)\s*`** (khoảng trắng optional — label ngay sau `)` không có space vẫn là điểm bắt đầu hợp lệ, doc 03:1059); trên born-digital text-layer dùng dạng strict `^([a-zđ])\)\s` (§3);
