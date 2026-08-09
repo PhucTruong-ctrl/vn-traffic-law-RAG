@@ -4,12 +4,11 @@
   // ===========================================================================
   // Precedence: built-in < user-global (~/.config/opencode/oh-my-opencode-slim.json)
   //             < THIS project file < env preset override < active preset < agents.*
-  // This file is repo-committed so every contributor inherits the same set.
-  // Skill ids reference folders already installed globally at
-  // ~/.config/opencode/skills/<id>/SKILL.md (105 skills installed 2026-08-08).
+  // Skill set: 47 grants selected by oracle review (full, project-appropriate).
+  // All skill ids verified present in ~/.config/opencode/skills/.
   // Stack: Python 3.11 + uv, FastAPI + Pydantic v2, LangGraph, PostgreSQL 18,
-  // Qdrant, Redis/Dramatiq, MinIO, Docker Compose, Next.js 16 (TS) frontend,
-  // pytest + Playwright, commitlint/husky. Docs-first repo (docs/00-08, ADRs).
+  // Qdrant, Redis/Dramatiq, MinIO, Docker Compose, Next.js 16 (TS), pytest +
+  // Playwright, Langfuse, commitlint/husky. Docs-first (docs/00-08, ADRs).
   "$schema": "https://unpkg.com/oh-my-opencode-slim@latest/oh-my-opencode-slim.schema.json",
   "preset": "vnlaw",
   "presets": {
@@ -18,15 +17,17 @@
         "model": "opencode-go/deepseek-v4-flash",
         "variant": "max",
         "skills": [
-          "architecture-designer",
-          "verification-planning",
-          "simplify",
-          "loop-engineering",
-          "full-output-enforcement",
+          "oh-my-opencode-slim",
           "deepwork",
+          "verification-planning",
           "worktrees",
           "clonedeps",
-          "reflect"
+          "reflect",
+          "loop-engineering",
+          "full-output-enforcement",
+          "karpathy-guidelines",
+          "stop-slop",
+          "atlassian-mcp"
         ],
         "mcps": [
           "codegraph",
@@ -44,13 +45,14 @@
         "skills": [
           "architecture-designer",
           "code-reviewer",
-          "secure-code-guardian",
+          "security-reviewer",
+          "rag-architect",
+          "api-designer",
+          "code-documenter",
+          "spec-miner",
           "debugging-wizard",
           "simplify",
-          "verification-before-completion",
-          "api-designer",
-          "rag-architect",
-          "database-optimizer"
+          "verification-before-completion"
         ],
         "mcps": [
           "codegraph",
@@ -64,12 +66,8 @@
         "model": "opencode-go/deepseek-v4-flash",
         "variant": "high",
         "skills": [
-          "code-documenter",
-          "find-skills",
-          "spec-miner",
-          "codemap",
-          "rag-architect",
-          "prompt-engineer"
+          "last30days",
+          "find-skills"
         ],
         "mcps": [
           "websearch",
@@ -82,9 +80,11 @@
         "model": "opencode-go/deepseek-v4-flash",
         "variant": "high",
         "skills": [
-          "cartography",
           "codemap",
+          "cartography",
           "understand",
+          "understand-domain",
+          "understand-onboard",
           "understand-diff"
         ],
         "mcps": [
@@ -97,12 +97,9 @@
         "model": "openai/gpt-5.6-luna",
         "variant": "medium",
         "skills": [
-          "agent-browser",
-          "high-end-visual-design",
           "minimalist-ui",
           "ui-ux-pro-max",
-          "web-design-guidelines",
-          "brandkit"
+          "web-design-guidelines"
         ],
         "mcps": [
           "websearch",
@@ -118,17 +115,16 @@
           "python-pro",
           "fastapi-expert",
           "postgres-pro",
-          "typescript-pro",
-          "nextjs-developer",
-          "react-expert",
-          "test-master",
-          "playwright-expert",
           "devops-engineer",
-          "database-optimizer",
-          "ml-pipeline",
+          "monitoring-expert",
+          "cli-developer",
+          "fullstack-guardian",
+          "nextjs-developer",
+          "typescript-pro",
+          "langfuse",
+          "prompt-engineer",
           "secure-code-guardian",
-          "debugging-wizard",
-          "simplify"
+          "pandas-pro"
         ],
         "mcps": [
           "codegraph",
@@ -146,10 +142,7 @@
       "displayName": "QA",
       "skills": [
         "test-master",
-        "playwright-expert",
-        "debugging-wizard",
-        "verification-before-completion",
-        "verification-planning"
+        "playwright-expert"
       ],
       "mcps": [
         "codegraph",
