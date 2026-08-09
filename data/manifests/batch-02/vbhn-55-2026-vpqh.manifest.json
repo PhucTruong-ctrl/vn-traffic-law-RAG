@@ -1,0 +1,17 @@
+{
+  "document_id": "vbhn-55-2026-vpqh",
+  "source_url": "https://datafiles.chinhphu.vn/cpp/files/vbpq/2026/3/55-vbhn-vpqh.pdf",
+  "downloaded_at": "2026-08-09T09:35:00+07:00",
+  "file_hash": "9a20c8e616d444e3abe63c765a225d0797b7079c9a18e5fe7da0fc4f46847dac",
+  "document_number": "55/VBHN-VPQH",
+  "document_type": "OTHER",
+  "issuer": "Văn phòng Quốc hội",
+  "issued_date": "2026-03-23",
+  "effective_from": "2026-03-23",
+  "effective_to": null,
+  "status": "EFFECTIVE",
+  "relation_notes": "Văn bản hợp nhất 55/VBHN-VPQH ngày 23/03/2026: bản hợp nhất trực tiếp của Luật Trật tự, an toàn giao thông đường bộ 36/2024/QH15, bao gồm sửa đổi theo Luật 118/2025/QH15 (có hiệu lực 01/07/2026). RELATED_TO luat-36-2024-qh15; là current-text consolidation, không SUPERSEDES luật gốc. Effective windows của provision phải được resolver xác định từ luật gốc/sự kiện sửa đổi.",
+  "review_status": "ACCEPTED",
+  "reviewed_by": "corpus-reviewer-01",
+  "reviewed_at": "2026-08-09T10:35:00+07:00"
+}

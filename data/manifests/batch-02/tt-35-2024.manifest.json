@@ -1,0 +1,17 @@
+{
+  "document_id": "tt-35-2024",
+  "source_url": "https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/12/35-bgtvt.pdf",
+  "downloaded_at": "2026-08-09T09:40:00+07:00",
+  "file_hash": "53491f393dd7e5a268451319c6d3a4e89f1f0e59718717918e71833bace18caf",
+  "document_number": "35/2024/TT-BGTVT",
+  "document_type": "CIRCULAR",
+  "issuer": "Bộ Giao thông vận tải",
+  "issued_date": "2024-11-15",
+  "effective_from": "2025-01-01",
+  "effective_to": null,
+  "status": "EFFECTIVE",
+  "relation_notes": "Thông tư 35/2024/TT-BGTVT về đào tạo, sát hạch, cấp giấy phép lái xe — hiện hành từ 01/01/2025; hướng dẫn thi hành Luật Trật tự, an toàn giao thông đường bộ 36/2024/QH15, quan hệ GUIDES với luat-36-2024-qh15. PDF chính có text layer. Phụ lục kèm theo tại 35-bgtvt-kem.pdf là scan-only, được loại khỏi batch-02 để ưu tiên born-digital text; nội dung phụ lục chưa được corpus bao phủ cho đến khi OCR và review.",
+  "review_status": "ACCEPTED",
+  "reviewed_by": "corpus-reviewer-01",
+  "reviewed_at": "2026-08-09T10:40:00+07:00"
+}
