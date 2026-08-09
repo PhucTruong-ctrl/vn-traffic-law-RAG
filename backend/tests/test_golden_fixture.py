@@ -155,7 +155,7 @@ def test_parent_context_annotations_are_internally_consistent() -> None:
         # Định vị ĐÚNG document sở hữu provision_id (đúng một lần — không được mơ hồ)
         owners = [doc for doc, (ids, _) in gold_by_doc.items() if pid in ids]
         assert len(owners) == 1, (
-            f"parent_context: provision_id {pid} phải thuộc đúng một gold document (tìm thấy {len(owners)})"
+            f"parent_context: {pid} phải thuộc đúng 1 gold doc (tìm thấy {len(owners)})"
         )
         owner_fixture_text = gold_by_doc[owners[0]][1]
         # source_text phải xuất hiện trong fixture của CHÍNH document đó (không phải bất kỳ)
