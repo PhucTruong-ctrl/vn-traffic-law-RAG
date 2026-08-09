@@ -1,95 +1,107 @@
-# 🏛️ VN-Law RAG — Khóa Luận Tốt Nghiệp 2026
+# 🏛️ VN Traffic Law RAG (VNLRAG) — Khóa Luận Tốt Nghiệp 2026
 
-> **Đề tài**: Xây dựng hệ thống RAG hỗ trợ tra cứu pháp luật giao thông Việt Nam dựa trên mô hình ngôn ngữ lớn với pipeline trích dẫn có cấu trúc
+> **Đề tài**: Hệ thống RAG nhận biết cấu trúc và thời gian hiệu lực (structure-aware + temporal) cho pháp luật giao thông Việt Nam, với trích dẫn chính xác (Điều/Khoản/Điểm) và cơ chế **verified-or-abstain** — chỉ trả lời khi mọi bằng chứng đã được kiểm chứng.
 
 ## 📅 Timeline
 
 - **Bắt đầu**: 16/06/2026
-- **Bảo vệ**: 03/08/2026
-- **Tổng thời gian**: 7 tuần (49 ngày)
-
-## 🎯 Mục tiêu
-
-1. Xây dựng hệ thống hỏi đáp tự động về pháp luật giao thông VN
-2. Câu trả lời **luôn có trích dẫn chính xác** (Điều/Khoản/Điểm)
-3. Cơ chế **Human-in-the-Loop** khi cần tìm kiếm web
-4. Đánh giá hệ thống bằng **Custom RAGAS-lite**
-5. So sánh các chiến lược retrieval (Dense / BM25 / Hybrid)
+- **M0 — Scope Freeze**: 19/07/2026
+- **Triển khai v2**: 8 tuần (W1–W8)
+- **Bảo vệ**: 14/09/2026
 
 ## 📚 Tài liệu thiết kế
 
-| # | File | Nội dung | SDLC Phase |
-|---|------|----------|------------|
-| 01 | [01-phan-tich-kha-thi.md](docs/01-phan-tich-kha-thi.md) | Phân tích tính khả thi | 1 |
-| 02 | [02-yeu-cau-he-thong.md](docs/02-yeu-cau-he-thong.md) | Đặc tả yêu cầu + Use Case + Sơ đồ ngữ cảnh | 2 |
-| 03 | [03-thiet-ke-he-thong.md](docs/03-thiet-ke-he-thong.md) | Kiến trúc + Class Diagram + Sequence | 3 |
-| 04 | [04-tech-stack-llm-research.md](docs/04-tech-stack-llm-research.md) | Tech stack + LLM research (Gemini vs OpenAI) | 3 |
-| 05 | [05-ke-hoach-trien-khai.md](docs/05-ke-hoach-trien-khai.md) | Lộ trình 7 tuần | 4 |
-| 06 | [06-test-evaluation.md](docs/06-test-evaluation.md) | Test plan + RAGAS-lite + Ablation | 5 |
-| 07 | [07-deployment.md](docs/07-deployment.md) | Triển khai Docker + CI/CD | 6 |
-| 08 | [08-bao-tri.md](docs/08-bao-tri.md) | Bảo trì + Cập nhật corpus | 7 |
-| - | [REFERENCES.md](docs/REFERENCES.md) | Tài liệu tham khảo | - |
+| # | File | Nội dung |
+|---|------|----------|
+| 00 | [00-scope-and-decisions.md](docs/00-scope-and-decisions.md) | Phạm vi & quyết định thiết kế — **nguồn quyết định cao nhất** |
+| 01 | [01-phan-tich-kha-thi.md](docs/01-phan-tich-kha-thi.md) | Phân tích tính khả thi |
+| 02 | [02-yeu-cau-he-thong.md](docs/02-yeu-cau-he-thong.md) | Đặc tả yêu cầu + Use Case |
+| 03 | [03-thiet-ke-he-thong.md](docs/03-thiet-ke-he-thong.md) | Thiết kế hệ thống (kiến trúc, ADR §3.32) |
+| 04 | [04-tech-stack-llm-research.md](docs/04-tech-stack-llm-research.md) | Tech stack + nghiên cứu LLM |
+| 05 | [05-ke-hoach-trien-khai.md](docs/05-ke-hoach-trien-khai.md) | Kế hoạch triển khai + gate M0–M8 |
+| 06 | [06-test-evaluation.md](docs/06-test-evaluation.md) | Test plan + evaluation (Ragas + metric xác định) |
+| 07 | [07-deployment.md](docs/07-deployment.md) | Triển khai Docker + CI/CD |
+| 08 | [08-bao-tri.md](docs/08-bao-tri.md) | Bảo trì + cập nhật corpus |
 
-## 🛠️ Tech Stack Tóm Tắt
+## 🎯 Scope & Architecture
+
+- [SCOPE.md](SCOPE.md) — baseline phạm vi v2
+- [ARCHITECTURE.md](ARCHITECTURE.md) — kiến trúc tổng quan
+- [docs/parser_router.yaml](docs/parser_router.yaml) — cấu hình Parser Router
+- [docs/canonical-document-ir-design.md](docs/canonical-document-ir-design.md) — contract Canonical Document IR
+- [docs/adr/](docs/adr/) — **20 ADR** đã chốt ([ADR-001](docs/adr/ADR-001.md)..[ADR-020](docs/adr/ADR-020.md))
+
+**M0 — Scope Freeze (19/07/2026)**: scope, kiến trúc, tech stack và kế hoạch được chốt ở mức scope-baseline freeze; các cập nhật nghiên cứu sau freeze có kiểm soát và phải ghi vào change log, không làm thay đổi phạm vi đã chốt. Doc 00 là nguồn quyết định cao nhất; danh mục ADR-001..020 được tài liệu hóa tại `docs/adr/`.
+
+**Mục tiêu chính**:
+
+- Trích dẫn chính xác theo đơn vị pháp lý (Điều/Khoản/Điểm, `provision_id` ổn định), dựng citation từ metadata.
+- Cơ chế **verified-or-abstain**: verification sáu tầng (L1–L6) với bất biến Returned Invalid Citation Rate = 0; thiếu bằng chứng thì từ chối (abstain) thay vì bịa đặt.
+- Không dùng open-web search và không có query-time HITL (ADR-015) — câu trả lời chỉ dựa trên corpus đã kiểm chứng.
+- Evaluation bằng **Ragas + deterministic metrics** (Recall@k, MRR, nDCG, Citation P/R/F1, Temporal Validity Accuracy, Numeric Grounding Accuracy, Evidence Set Recall, Abstention P/R/F1) trên gold set 200 câu.
+- So sánh các chiến lược retrieval (dense / sparse BM25 / RRF hybrid, reranking) qua bốn suite thí nghiệm A–D, kèm RAGFlow baseline bên ngoài.
+
+## 🛠️ Tech Stack
 
 | Thành phần | Công nghệ |
 |------------|-----------|
-| Backend | Python 3.11.15 (pyenv) + FastAPI |
-| | LangGraph (state machine) + uv (package manager) |
-| RAG | LangChain + Hybrid Retrieval (Dense + BM25 + RRF) |
-| Vector DB | ChromaDB (local, không cần Docker) |
-| Embedding | `intfloat/multilingual-e5-small` (384d) |
-| LLM (chính) | **Gemini 2.5 Flash** (Free tier: 250 RPD) |
-| LLM (eval) | **OpenAI GPT-4o-mini** ($5 free credit) |
-| Web Search | DuckDuckGo (free, no API key) |
-| HITL | LangGraph `interrupt_before` + SQLite checkpointer |
-| Frontend | Next.js 14 + TypeScript + Tailwind |
-| DB | SQLite (state, history, eval) |
+| Ngôn ngữ / env | Python 3.11 + uv |
+| API / validation | FastAPI + Pydantic v2 |
+| Workflow | LangGraph 1.x (controlled workflow, **không phải** autonomous agent) |
+| Parser | Docling 2.x (chính) / MinerU 3.4.x (phụ/fallback) qua **Parser Router** |
+| IR trung gian | Canonical Document IR (`document-ir-v1`) |
+| Database | PostgreSQL 18 (nguồn chân lý) + SQLAlchemy 2 + Alembic |
+| Vector DB | Qdrant v1.19 (index dẫn xuất, dense + sparse + RRF fusion) |
+| Background jobs | Redis + Dramatiq 2.x (background ingestion) |
+| Object storage | ObjectStoragePort (S3-compatible); MinIO là ứng viên hiện tại |
+| Observability | Langfuse (ngoài đường tới hạn) |
+| LLM | Gemini 3.5 Flash (generator) + GPT-5.4 mini (judge độc lập) + Jina Reranker v3 |
+| Frontend | Next.js 16 App Router + TypeScript + Tailwind + shadcn/ui |
+| Evaluation | Ragas 0.4.x + deterministic metrics |
+| Testing | pytest + Playwright |
 | Deploy | Docker Compose + GitHub Actions |
 
-## 🏃 Quick Start (sau khi code xong)
+> Embedding và reranker chưa được chốt vĩnh viễn cho tới khi có bằng chứng thực nghiệm (ADR-013, ADR-014); Jina Reranker v3 là ứng viên chính.
 
-> **Cap nhat 17/06**: Dung **uv** thay Poetry; dung **pyenv** de pin Python 3.11.15.
+## 🏃 Quick Start
+
+> Trạng thái W1: tooling + compose skeleton đã sẵn sàng; app code đang được triển khai theo [doc 05](docs/05-ke-hoach-trien-khai.md).
 
 ```bash
-git clone <repo>
-cd vnlaw-agentic-rag
+# 1. Sao chép cấu hình môi trường
+cp .env.example .env
 
-# Python environment
-pyenv local vnlaw-env          # Python 3.11.15
-cp .env.example .env           # them API keys + ADMIN_TOKEN
-
-# Backend
+# 2. Backend — cài dependency bằng uv
 cd backend && uv sync
-python scripts/crawl_pdfs.py   # Crawl 30 van ban vao data/pdfs/
-python scripts/ingest_corpus.py # Parse + embed + index
-uv run uvicorn app.main:app --reload --workers 1
 
-# Frontend
-cd frontend && npm install
-npm run dev
+# 3. Hạ tầng: PostgreSQL, Qdrant, Redis, MinIO (kèm health checks)
+docker compose --env-file .env.example up -d
+docker compose ps   # chờ cả 4 service đạt healthy
+
+# 4. Chạy backend
+uv run uvicorn app.main:app --reload
+
+# 5. Frontend
+cd frontend && npm install && npm run dev
 ```
 
-> **Note**: `--workers 1` bat buoc de tranh ChromaDB concurrency corruption. Xem [03-thiet-ke-he-thong.md](docs/03-thiet-ke-he-thong.md#332-concurrency--thread-safety-post-review-c1).
-
-> **Note (D8 fix)**: Tuan 1 chi ship 5 van ban, scale len 30 trong Tuan 5. Quick Start tren dung de development cuoi cung.
->
-> **Environment (17/06)**: i5-1035G1 19GB RAM, MX330 2GB, Python 3.11.15 (pyenv), uv, Node v26, Docker 29.
+> **Note**: `MAX_INGESTION_WORKERS=1` được enforce trên máy cá nhân (doc 03 §3.2.5) — không chạy song song nhiều job parse.
 
 ## 📊 Tài liệu tham khảo chính
 
 1. **CTU-LinguTechies/VN-Law-Advisor** (91⭐) — github.com/CTU-LinguTechies/VN-Law-Advisor
-   - Tham khảo: Cấu trúc microservices, schema CSDL, PDF crawler
+   - Tham khảo: cấu trúc microservices, schema CSDL, PDF crawler
 
 2. **Viblo - RAG Pháp luật Giao thông** — viblo.asia/p/xay-dung-he-thong-agentic-rag-phap-luat-giao-thong
-   - Tham khảo: LangGraph state machine, Hybrid Retrieval, HITL, RAGAS-lite
+   - Tham khảo: LangGraph state machine, Hybrid Retrieval, đánh giá RAG
 
 ## 📋 Project Management
 
-**Jira Board**: https://quachtruongphuc2004.atlassian.net/jira/software/projects/VLAW/boards/4/backlog
+**Jira**: truongphucwork.atlassian.net — project VNLRAG (8 sprint W1–W8, gate M1→M8)
 
-7 Epics mapped to 7 implementation weeks (VLAW-1 through VLAW-7).
+- Backlog: 8 sprint W1–W8, gate path **M1→M8** (labels `gate-M1`..`gate-M8`)
+- 20 ADR đã chốt (ADR-001..ADR-020) tại `docs/adr/`
 
 ## 📝 License
 
-MIT License — Open source cho muc dich hoc thuat.
+MIT License — Open source cho mục đích học thuật.

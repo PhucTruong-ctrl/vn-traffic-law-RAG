@@ -1,0 +1,120 @@
+# =============================================================================
+# VNLRAG — Docker Compose skeleton (W1, VNLRAG-15)
+# =============================================================================
+# Phạm vi W1: 4 dịch vụ hạ tầng (postgres, qdrant, redis, minio).
+# Full stack (backend/worker/frontend) sẽ được thêm ở VNLRAG-87 —
+# KHÔNG thêm dịch vụ nào khác vào file này trước ticket đó.
+#
+# Cổng W1 = cả 4 dịch vụ đạt trạng thái healthy (xem healthcheck từng service).
+#
+# Giá trị mem_limit KHÔNG được bật ở skeleton W1 — doc 07 yêu cầu đo bằng
+# `docker stats` trước khi giới hạn (tránh false failure); sẽ set ở VNLRAG-87.
+#
+# Các cổng (5432/6333/6334/6379/9000/9001) chỉ expose ở môi trường dev theo
+# doc 07 — KHÔNG dùng cho production.
+#
+# Cách dùng:
+#   cp .env.example .env
+#   docker compose up -d
+#   docker compose ps        # chờ cả 4 service healthy
+#   docker compose down      # dọn dẹp
+# =============================================================================
+
+name: vnlaw-rag
+
+services:
+  postgres:
+    container_name: vnlaw-postgres
+    image: postgres:18.4
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?}
+      POSTGRES_USER: ${POSTGRES_USER:?}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+    ports:
+      - "5432:5432"
+    # postgres 18+ images moved PGDATA to a major-version subdirectory and
+    # REJECT mounting at /var/lib/postgresql/data (docker-library/postgres#1259);
+    # the supported mount point is /var/lib/postgresql (parent).
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - vnlaw-network
+
+  qdrant:
+    container_name: vnlaw-qdrant
+    image: qdrant/qdrant:v1.19.0
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+      - qdrant_snapshots:/qdrant/snapshots
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/6333 && echo ok >&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - vnlaw-network
+
+  redis:
+    container_name: vnlaw-redis
+    image: redis:8.10.0
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vnlaw-network
+
+  minio:
+    container_name: vnlaw-minio
+    # Date-tagged community release — see doc 04/07. Doc 07 uses
+    # RELEASE.2025-05-20T20-30-00Z only as an EXAMPLE ("chọn tag đã test");
+    # that exact tag does not exist in the registry, so this is the newest
+    # available community release (repo archived 2026-04-25 per doc 04).
+    # Object-storage ADR still open, so this is the tested placeholder.
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?}
+    command: ["server", "/data", "--console-address", ":9001"]
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    # curl availability: the minio community image includes curl; if a future
+    # image drops it, fall back to ["CMD-SHELL", "mc ready local || exit 1"].
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - vnlaw-network
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  qdrant_snapshots:
+  redis_data:
+  minio_data:
+
+networks:
+  vnlaw-network:
+    driver: bridge
