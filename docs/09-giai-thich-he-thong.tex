@@ -649,6 +649,8 @@ Chunking quyết định đơn vị được embed và retrieve. Fixed-token chu
 
 Đối với pháp luật, hierarchy tổng quát chưa đủ. Một Điểm có thể phụ thuộc vào lead-in của Khoản; một Khoản có thể phụ thuộc tiêu đề Điều. Ranh giới chunk phải trùng ranh giới trích dẫn. Vì vậy, Legal Structure Extractor của dự án xác định ranh giới pháp lý trước, còn chunking chỉ xử lý provision quá dài theo câu nhưng giữ cùng \code{provision\_id}; Docling chunker không được dùng làm legal structure parser chính.
 
+Việc coi cấu trúc luật là yếu tố quyết định cho retrieval có tiền lệ trực tiếp: Louis và cộng sự chỉ ra rằng ý nghĩa của một điều luật không độc lập mà phụ thuộc vào tổ chức tô-pô của luật, và dense retrieval được hỗ trợ bởi đồ thị cấu trúc cải thiện đáng kể khả năng truy xuất điều luật \cite{louis2023findinglaw}. Dựa trên kết quả đó cho thấy statutory retrieval được hưởng lợi từ phụ thuộc cấu trúc, VNLRAG cụ thể hóa cấu trúc cho phân cấp pháp luật Việt Nam (Chương-Mục-Điều-Khoản-Điểm kèm nhãn \code{d)}/\code{đ)}) và kết hợp nó với temporal validity, exact retrieval và verification.
+
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
@@ -682,6 +684,8 @@ Hệ thống không đưa đầu ra parser trực tiếp vào phân tích pháp 
 Provenance được giữ dưới dạng page number, bounding box và \code{source\_element\_ids} truy vết về IR. Provenance phục vụ ba mục tiêu: review extraction, hiển thị đoạn nguồn và audit khi answer bị phản ánh. Một citation không chỉ trỏ đến văn bản mà còn phải mở được passage cụ thể.
 \end{sloppypar}
 
+Việc biểu diễn văn bản pháp luật như dữ liệu có cấu trúc là thực hành lâu đời trong legal informatics. Akoma Ntoso là chuẩn OASIS cho tài liệu lập pháp máy đọc được, với phân cấp chapter/section/article/clause/paragraph/point, các phần tử chuyển tiếp, vòng đời, sửa đổi, tham chiếu và temporal versioning \cite{akomantoso2018}. LegalHTML biểu diễn article/paragraph/item/references, lịch sử biên tập và pháp lý cũng như các phiên bản hợp nhất tại từng thời điểm (point-in-time) \cite{stellato2023legalhtml}. VNLRAG \textbf{không triển khai} Akoma Ntoso vì các nguồn văn bản pháp luật Việt Nam không có sẵn dưới dạng XML Akoma Ntoso; Akoma Ntoso và LegalHTML chỉ được dùng làm mô hình tham chiếu chứng minh rằng việc biểu diễn phân cấp, vòng đời và sửa đổi pháp luật thành dữ liệu pháp lý có cấu trúc là thực hành đã được xác lập. Điều này củng cố cho mô hình LegalDocument, LegalProvision, quan hệ và khoảng hiệu lực của đề tài.
+
 \section{Temporal data và phiên bản pháp luật}
 
 Một provision hợp lệ tại ngày $d$ khi:
@@ -699,9 +703,32 @@ Khoảng thời gian được biểu diễn theo dạng nửa kín $[\operatorna
 
 Thời gian hiệu lực không phải metadata phụ mà là điều kiện lọc bắt buộc của mọi retrieval: câu trả lời đúng cho một hành vi năm 2023 phải dùng văn bản hợp lệ tại năm 2023, kể cả khi văn bản đó đã bị thay thế. Hệ thống không dùng văn bản hiện hành làm mặc định cho câu hỏi có thể là lịch sử.
 
+Versioning thời gian ở cấp thành phần pháp lý là một mô hình đã được xác lập trong legal informatics: một thành phần pháp lý (điều, khoản, điểm) giữ định danh ổn định, các sửa đổi tạo ra version thời gian mới và các thành phần không thay đổi được tái sử dụng \cite{demartim2025temporal}. Đây là nền tảng lý thuyết cho thiết kế \code{provision\_id} ổn định + version + khoảng \code{[effective\_from, effective\_to)} của VNLRAG. Ngoài ra, LegalRuleML là chuẩn OASIS mã hóa temporal validity và source linkage cho luật lệ \cite{legalruleml2021}. VNLRAG áp dụng mô hình này bằng triển khai quan hệ PostgreSQL và khoảng hiệu lực ở cấp provision.
+
+\section{Structure-aware và temporal legal RAG}
+
+\begin{sloppypar}
+Công trình gần nhất với kiến trúc của đề tài là SAT-Graph RAG, một graph RAG ontology-driven cho chuẩn mực pháp lý với mô hình Item/Version/Action/TextUnit \cite{demartim2025satgraph}. SAT-Graph RAG mô hình hóa phân cấp pháp lý, lịch sử sửa đổi theo thời gian, sự kiện lập pháp có quan hệ nhân quả (Action nodes), truy xuất tại thời điểm cụ thể (point-in-time retrieval) và provenance. Trong mô hình này, thành phần pháp lý có định danh ổn định, sửa đổi tạo version thời gian mới và các thành phần không thay đổi được tái sử dụng. Nguyên tắc thiết kế ``probabilistic discovery sang canonical identifier rồi deterministic operations'' (tìm kiếm ngữ nghĩa tìm ra một định danh pháp lý chuẩn, sau đó truy xuất/tra cứu thời gian/duyệt quan hệ được thực hiện xác định) hỗ trợ trực tiếp thiết kế citation-by-ID của VNLRAG.
+\end{sloppypar}
+
+Cần mô tả trung thực giới hạn của SAT-Graph: đánh giá của nó là một proof-of-concept định tính dựa trên trace trên Hiến pháp Liên bang Brazil, không phải kết quả đo thực nghiệm định lượng; kho lưu trữ chính thức (hmartim/sat-graph-api) là một OpenAPI specification, không phải reference implementation; và quá trình parse/trích xuất tài liệu nguồn không được bao phủ.
+
+Những điểm khác biệt của VNLRAG so với SAT-Graph gồm:
+
+\begin{itemize}
+  \item miền dữ liệu là pháp luật giao thông Việt Nam;
+  \item mô hình quan hệ PostgreSQL thay vì ontology/graph database;
+  \item ingestion tài liệu nguồn tường minh (Parser Router + Docling/MinerU + Canonical Document IR + Legal Structure Extractor) mà SAT-Graph không đề cập;
+  \item retrieval đa tầng (exact + dense + sparse + RRF + rerank + mở rộng theo quan hệ);
+  \item LangGraph controlled workflow thay vì retrieval do agent lập kế hoạch;
+  \item verification L1-L6 kèm numeric grounding;
+  \item Evidence Completeness Gate;
+  \item evaluation định lượng (bốn suite A-D, gold set 200 câu, baseline RAGFlow).
+\end{itemize}
+
 \section{Citation verification và abstention}
 
-LegalBench-RAG nhấn mạnh retrieval chính xác ở các đoạn pháp lý nhỏ thay vì trả cả document dài \cite{pipitone2024legalbenchrag}. Legal RAG Bench tiếp tục chỉ ra retrieval là yếu tố chủ đạo trong hiệu năng end-to-end của legal RAG \cite{butler2026legalragbench}. LegalCiteBench cho thấy citation generation không grounding là một failure mode nghiêm trọng \cite{chen2026legalcitebench}.
+LegalBench-RAG nhấn mạnh retrieval chính xác ở các đoạn pháp lý nhỏ thay vì trả cả document dài \cite{pipitone2024legalbenchrag}. Legal RAG Bench tiếp tục chỉ ra retrieval là yếu tố chủ đạo trong hiệu năng end-to-end của legal RAG \cite{butler2026legalragbench}. LegalCiteBench cho thấy citation generation không grounding là một failure mode nghiêm trọng \cite{chen2026legalcitebench}. ALCE đã xác lập phương pháp đánh giá citation correctness và completeness cho văn bản sinh kèm trích dẫn \cite{gao2023alce}; VNLRAG thích ứng nguyên tắc này với các \code{provision\_id} chuẩn thay vì trích dẫn dạng văn bản tự do, và citation metadata được dựng từ cơ sở dữ liệu.
 
 Từ các kết quả này, hệ thống không yêu cầu LLM viết citation text. Mỗi claim chỉ được chọn \code{provision\_id} từ whitelist context. Tuy nhiên, citation tồn tại là chưa đủ: một trích dẫn hợp lệ về định danh vẫn có thể đi kèm số liệu sai (mức phạt, số điểm trừ) hoặc claim không được passage hỗ trợ. Vì vậy, ngoài kiểm tra ID và hiệu lực, hệ thống còn kiểm tra numeric grounding và claim support. Abstention được coi là hành vi đúng khi evidence không đủ.
 
@@ -711,37 +738,42 @@ Nhiều câu hỏi pháp luật yêu cầu nhiều loại bằng chứng phối 
 
 Bằng chứng cho câu trả lời thường nằm rải rác ở nhiều provision liên quan. Mô hình quan hệ tham chiếu chéo (trình bày trong Chương 4) là cơ sở để mở rộng ngữ cảnh quanh các seed provision mạnh, đồng thời là dữ liệu gold cho metric Cross-reference Resolution Recall và Multi-hop Evidence Completeness.
 
+Đánh giá bằng chứng phân mảnh theo phân cấp và abstention an toàn đã có tiền lệ trong các benchmark statute-centric gần đây. SearchFireSafety đánh giá retrieval nhận biết cấu trúc và an toàn cho legal QA hướng statute, trong đó bằng chứng nằm rải rác khắp phân cấp; nghiên cứu này báo cáo rằng graph-guided retrieval cải thiện hiệu năng nhưng có trade-off về an toàn khi thiếu bằng chứng \cite{chae2026searchfire}. Colombo và cộng sự cũng mô hình hóa hệ thống lập pháp thành property graph gồm cấu trúc, trích dẫn và sửa đổi \cite{colombo2024legislative}. Đóng góp của VNLRAG nằm ở chỗ bổ sung nghiên cứu về temporal validity, verification citation ở cấp provision, numeric grounding, cấu trúc pháp luật Việt Nam và evidence planning đa bằng chứng tường minh trong một pipeline thống nhất.
+
 \section{Đánh giá hệ thống RAG}
 
-RAGAS cung cấp các metric như faithfulness, context precision và context recall \cite{es2024ragas,ragas2026metrics}. Tuy nhiên, metric LLM có thể biến động theo judge và prompt. Vì vậy, khóa luận dùng metric xác định làm headline (Recall@k, MRR, nDCG, Citation P/R/F1, Temporal Validity Accuracy, Numeric Grounding Accuracy, Evidence Set Recall, Abstention P/R/F1), còn Ragas và judge độc lập GPT-5.4 mini chỉ bổ sung đánh giá semantic \cite{openai2026gpt54mini}.
+RAGAS cung cấp các metric như faithfulness, context precision và context recall \cite{es2024ragas,ragas2026metrics}. Tuy nhiên, metric LLM có thể biến động theo judge và prompt. Vì vậy, khóa luận dùng metric xác định làm headline (Recall@k, MRR, nDCG, Citation P/R/F1, Temporal Validity Accuracy, Numeric Grounding Accuracy, Evidence Set Recall, Abstention P/R/F1), còn Ragas và judge độc lập GPT-5.4 mini chỉ bổ sung đánh giá semantic \cite{openai2026gpt54mini}. Triết lý đo từng lớp một cách tách biệt được hỗ trợ bởi RAGChecker, một framework phân rã failure ở cấp claim giữa retrieval và generation trong RAG \cite{ru2024ragchecker}. LexRAG là một tham chiếu cài đặt và đánh giá RAG pháp lý với query rewriting, dense/BM25 retrieval, generation và các metric Recall/MRR/nDCG kèm LLM judge, nhưng không có mô hình temporal \cite{li2025lexrag}.
 
 \section{Khoảng trống nghiên cứu}
 
-Các benchmark pháp luật hiện có chủ yếu dùng tiếng Anh, hợp đồng hoặc án lệ. Đề tài tập trung vào văn bản quy phạm pháp luật giao thông Việt Nam, nơi hierarchy, nhãn Điểm tiếng Việt và hiệu lực theo thời gian là những đặc điểm bắt buộc. Khoảng trống cụ thể gồm:
-
-\begin{itemize}
-  \item chưa có benchmark nhỏ, review được cho current/historical/comparison query tiếng Việt;
-  \item pháp luật Việt Nam chưa được đánh giá trên sự khác biệt giữa parser tổng quát và parser pháp lý chuyên biệt;
-  \item citation ID, temporal validity và numeric grounding thường chưa được kiểm chứng cùng lúc;
-  \item nhiều pipeline trộn web fallback vào answer path, làm giảm khả năng tái lập;
-  \item câu hỏi đa bằng chứng và quan hệ tham chiếu chéo chưa được đánh giá như hạng mục đầu tiên trong legal RAG benchmark.
-\end{itemize}
+\begin{sloppypar}
+Trong phạm vi tài liệu được khảo sát, các nghiên cứu hiện có đã giải quyết từng phần của bài toán: statutory structure-aware retrieval \cite{louis2023findinglaw}, temporal và component-level legal versioning \cite{demartim2025temporal}, deterministic graph-based legal retrieval \cite{demartim2025satgraph}, citation evaluation \cite{gao2023alce} và safe abstention \cite{chae2026searchfire}. Tuy nhiên, chưa xác định được một hệ thống được đánh giá thực nghiệm kết hợp đồng thời việc trích xuất trực tiếp văn bản pháp luật giao thông Việt Nam từ tài liệu nguồn, phân cấp Chương-Mục-Điều-Khoản-Điểm tiếng Việt, quản lý phiên bản hiệu lực ở cấp provision, exact/dense/sparse retrieval, mở rộng bằng chứng theo quan hệ pháp lý, kiểm chứng citation/numeric/claim cấp claim và evaluation tái lập trên current-historical-comparison queries.
+\end{sloppypar}
 
 \begin{table}[H]
-\caption{So sánh định hướng nghiên cứu liên quan}
+\caption{So sánh nghiên cứu liên quan theo năng lực thiết kế}
 \small
-\begin{tabularx}{\textwidth}{p{2.7cm}p{1.8cm}p{2.0cm}p{1.6cm}Y}
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{l c c c c c c}
 \toprule
-\textbf{Công trình} & \textbf{Retrieval} & \textbf{Citation} & \textbf{Temporal} & \textbf{Định hướng chính}\\
+\textbf{Công trình} & \textbf{Structure} & \textbf{Temporal} & \textbf{Cross-ref} & \textbf{Citation safety} & \textbf{Abstention} & \textbf{Raw-doc ingestion}\\
 \midrule
-RAGAS & Có metric & Gián tiếp & Không & Đánh giá RAG tổng quát\\
-LegalBench-RAG & Chính xác & Không là trọng tâm & Không & Retrieval đoạn pháp lý nhỏ\\
-Legal RAG Bench & End-to-end & Độ bám nguồn & Hạn chế & Phân rã lỗi retrieval/reasoning\\
-LegalCiteBench & Closed-book & Trọng tâm & Không & Citation recovery và verification\\
-Đề tài này & Exact + dense + sparse & ID + sáu tầng verifier & Có & Luật giao thông Việt Nam\\
+Finding the Law, 2023 \cite{louis2023findinglaw} & Có & Không & Graph structure & Không & Không & Không\\
+Akoma Ntoso \cite{akomantoso2018} & Có & Có & Có & N/A & N/A & Structured XML\\
+LegalHTML, 2023 \cite{stellato2023legalhtml} & Có & Có & Có & N/A & N/A & Structured HTML\\
+LegalBench-RAG, 2024 \cite{pipitone2024legalbenchrag} & Retrieval unit & Không & Không & Hỗ trợ & Không & Không\\
+SAT-Graph RAG, 2025 \cite{demartim2025satgraph} & Có & Có & Có & Audit/provenance & Không trọng tâm & Không\\
+SearchFireSafety, 2026 \cite{chae2026searchfire} & Có & Không trọng tâm & Multi-evidence & Citation-aware & Có & Không\\
+Legal RAG Bench, 2026 \cite{butler2026legalragbench} & Gián tiếp & Hạn chế & Hạn chế & Groundedness & Có thể đo & Không\\
+LegalCiteBench, 2026 \cite{chen2026legalcitebench} & Không & Không & Không & Trọng tâm & Có & Không\\
+VNLRAG (đề tài này) & Có & Có & Có & L1-L6 & Có & PDF qua Parser Router\\
 \bottomrule
-\end{tabularx}
+\end{tabular}%
+}
 \end{table}
+
+Ghi chú: cột \code{N/A} áp dụng cho các chuẩn/định dạng biểu diễn, nơi khái niệm citation safety và abstention không được áp dụng. Bảng so sánh ở mức năng lực đã công bố/ý định thiết kế, không phải kết quả đo được.
 
 % ============================================================
 \chapter{Phân Tích Yêu Cầu và Phương Pháp Nghiên Cứu}
@@ -1406,7 +1438,7 @@ Frontend Next.js có chat page, search page, citation card dựng từ metadata,
 
 \section{Bảo mật}
 
-Admin endpoint dùng Bearer token trong P0. Upload được kiểm tra MIME, magic bytes, size, filename và SHA-256 duplicate; filename nội bộ do hệ thống sinh để chặn path traversal. PDF text được coi là data, không phải instruction, nhằm giảm prompt injection; nội dung ``ignore previous instructions'' không được làm thay đổi hành vi và claim không được hỗ trợ bị verifier từ chối. API key không được log hoặc đưa vào image. Rate limiting cấu hình theo deployment, không hardcode theo free-tier quota. Hệ thống chỉ mô tả biện pháp giảm thiểu dữ liệu cá nhân, không tuyên bố tuân thủ pháp lý tuyệt đối khi chưa có compliance review \cite{nghidinh13_2023}.
+Admin endpoint dùng Bearer token trong P0. Upload được kiểm tra MIME, magic bytes, size, filename và SHA-256 duplicate; filename nội bộ do hệ thống sinh để chặn path traversal. PDF text được coi là data, không phải instruction, nhằm giảm prompt injection; nội dung ``ignore previous instructions'' không được làm thay đổi hành vi và claim không được hỗ trợ bị verifier từ chối. API key không được log hoặc đưa vào image. Rate limiting cấu hình theo deployment, không hardcode theo free-tier quota. Hệ thống chỉ mô tả biện pháp giảm thiểu dữ liệu cá nhân, không tuyên bố tuân thủ pháp lý tuyệt đối khi chưa có compliance review \cite{luat91_2025,nghidinh356_2025}.
 
 % ============================================================
 \chapter{Cài Đặt và Triển Khai}
