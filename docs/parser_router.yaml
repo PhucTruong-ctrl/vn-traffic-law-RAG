@@ -1,0 +1,56 @@
+# =============================================================================
+# Parser Router — cấu hình draft (VNLRAG-14 / VNLRAG-128)
+# Nguồn: docs/03-thiet-ke-he-thong.md §3.7 — VNLRAG v2 scope freeze M0
+#
+# Chú thích quality gates (doc 03 §3.7.3):
+# - QGA (Group A) = Parser-level gates, chạy SAU IR normalization, trước Legal
+#   Structure Extractor. Chạy trên ParsedDocument/DocumentElement.
+# - QGB (Group B) = Structural gates, chạy SAU Legal Structure Extractor.
+#   Chạy trên LegalProvision[] vì cần kết quả nhận diện cấu trúc.
+# Hai nhóm đặt ở hai thời điểm khác nhau vì dùng các đầu vào khác nhau.
+#
+# Bảng quyết định routing (doc 03 §3.7.1):
+# - PDF searchable (có text layer), layout chuẩn   -> Docling trước;
+#   không cần fallback trừ khi quality gate fail.
+# - PDF scan hoặc layout lỗi                       -> Docling trước
+#   (OCR backend CPU); MinerU nếu quality gate fail.
+# - Bảng phức tạp                                  -> So sánh đầu ra hai
+#   parser khi cần; chọn kết quả theo quality gate hoặc gửi review.
+# - DOCX/HTML/EPUB (ngoài phạm vi P0)              -> Docling; không chủ
+#   động hỗ trợ trong P0; xem xét P1 nếu corpus mở rộng.
+#
+# Đầu vào quyết định routing (doc 03 §3.7.2):
+# - Loại file và MIME;
+# - Sự hiện diện text layer (searchable hay scan);
+# - Số trang, kích thước file;
+# - Tín hiệu chất lượng OCR (nếu đã chạy);
+# - Độ phức tạp layout (số bảng, header/footer, cột);
+# - document_type từ manifest (Luật, Nghị định, Thông tư).
+#
+# Ghi chú chính sách auto-accept (doc 03 §3.7.5):
+# - Confidence score KHÔNG BAO GIỜ được dùng để quyết định sự thật pháp lý
+#   (ngày hiệu lực, quan hệ sửa đổi/thay thế/bãi bỏ). Quyết định pháp lý chỉ
+#   dựa trên nguồn xác định (manifest chính thức, pattern deterministic khớp
+#   tuyệt đối, quyết định reviewer).
+# - Mọi quyết định routing và kết quả quality gate được ghi vào
+#   ingestion_runs.parser_routing và DocumentElement.source_parser
+#   (phục vụ Suite A và corpus QA, NFR-09).
+# =============================================================================
+
+parser_router:
+  primary: docling
+  fallback: mineru
+  compare_on_complex_tables: true
+  quality_gates:
+    parser_level:            # nhóm A - chạy sau IR normalization
+      min_provenance_coverage: 0.9
+      min_text_extraction_rate: 0.8
+      min_table_detection_rate: 0.6
+    structural:              # nhóm B - chạy sau Legal Structure Extractor
+      min_point_label_detection: 0.9
+      min_hierarchy_completeness: 0.9
+  fallback_policy:
+    on_parser_gate_fail: rerun_alternate_parser       # parse mới từ đầu
+    on_structural_gate_fail: full_rerun_alternate     # hủy kết quả structural cũ, chạy lại từ parser khác
+    supersede_old_artifacts: true
+  decision_record: true      # ghi parser_routing vào ingestion run
