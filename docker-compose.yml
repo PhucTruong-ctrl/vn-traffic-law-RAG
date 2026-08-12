@@ -1,9 +1,12 @@
 # =============================================================================
-# VNLRAG — Docker Compose skeleton (W1, VNLRAG-15)
+# VNLRAG — local data-service foundation (VNLRAG-36)
 # =============================================================================
-# Phạm vi W1: 4 dịch vụ hạ tầng (postgres, qdrant, redis, minio).
-# Full stack (backend/worker/frontend) sẽ được thêm ở VNLRAG-87 —
-# KHÔNG thêm dịch vụ nào khác vào file này trước ticket đó.
+# This file owns the four local data services required by the ingestion
+# foundation. Application and worker services are added by later tickets.
+#
+# `docker compose up -d` waits for the MinIO bucket bootstrap to complete
+# before reporting MinIO healthy. All data-service images are version-pinned.
+# =============================================================================
 #
 # Cổng W1 = cả 4 dịch vụ đạt trạng thái healthy (xem healthcheck từng service).
 #
@@ -91,16 +94,37 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?}
-    command: ["server", "/data", "--console-address", ":9001"]
+      MINIO_BUCKETS: ${MINIO_BUCKETS:?}
+    # The server image also contains `mc`; bootstrap buckets in the same
+    # container so MinIO remains a single healthy long-running service.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        rm -f /tmp/minio-buckets-ready
+        minio server /data --console-address ":9001" &
+        minio_pid=$$!
+        cleanup() {
+          kill "$$minio_pid" 2>/dev/null || true
+          wait "$$minio_pid" 2>/dev/null || true
+        }
+        trap cleanup INT TERM EXIT
+        until mc alias set local http://127.0.0.1:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null 2>&1; do
+          kill -0 "$$minio_pid" 2>/dev/null || exit 1
+          sleep 1
+        done
+        for bucket in $$(printf '%s' "$$MINIO_BUCKETS" | tr ',' ' '); do
+          mc mb --ignore-existing "local/$$bucket"
+        done
+        touch /tmp/minio-buckets-ready
+        wait "$$minio_pid"
     ports:
       - "9000:9000"
       - "9001:9001"
     volumes:
       - minio_data:/data
-    # curl availability: the minio community image includes curl; if a future
-    # image drops it, fall back to ["CMD-SHELL", "mc ready local || exit 1"].
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
+      test: ["CMD-SHELL", "test -f /tmp/minio-buckets-ready && curl -f http://127.0.0.1:9000/minio/health/live"]
       interval: 10s
       timeout: 5s
       retries: 5
