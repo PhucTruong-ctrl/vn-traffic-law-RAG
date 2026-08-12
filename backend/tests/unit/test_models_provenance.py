@@ -5,6 +5,7 @@ roles, the physical UUID FKs to the exact version row (``legal_provisions.id``)
 and the source document version (``document_versions.id``), the documented
 index, and the relationship wiring to LegalProvision/DocumentVersion.
 """
+
 from uuid import uuid4
 
 from sqlalchemy import CheckConstraint, Integer, inspect

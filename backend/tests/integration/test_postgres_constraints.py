@@ -488,6 +488,7 @@ def test_unresolved_reference_index_ignores_resolved_rows(
             resolution_status="PENDING_REVIEW",
         )
 
+
 def test_reference_resolution_status_requires_target(
     upgraded_engine: Engine,
 ) -> None:
@@ -504,7 +505,6 @@ def test_reference_resolution_status_requires_target(
                     resolution_status=resolution_status,
                 )
             assert sqlstate(exc.value) == SQLSTATE_CHECK
-
 
 
 def test_resolved_reference_triple_unique(upgraded_engine: Engine) -> None:
