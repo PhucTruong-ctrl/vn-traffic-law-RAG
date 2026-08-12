@@ -6,6 +6,8 @@ the authoritative version table rule ``UNIQUE (provision_id, version)``
 review / article-required CHECKs (§3.10.4).
 """
 
+from uuid import uuid4
+
 from sqlalchemy import CheckConstraint, Date, Integer, String, Text, UniqueConstraint, inspect
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
@@ -212,7 +214,7 @@ def test_legal_provision_relationships_wired() -> None:
 def test_legal_provision_instantiation_and_graph() -> None:
     provision = LegalProvision(
         provision_id="nd-168-2024__dieu-7__khoan-4__diem-b",
-        document_version_id=None,
+        document_version_id=uuid4(),
         source_text="p) Dàn hàng ngang từ 03 xe trở lên",
         retrieval_text="Khoản 4. ... p) Dàn hàng ngang từ 03 xe trở lên",
         status="EFFECTIVE",
@@ -225,14 +227,16 @@ def test_legal_provision_instantiation_and_graph() -> None:
     assert provision.review_status is None  # server default 'PENDING' applies at flush
 
     registry_entry = ProvisionVersion(
-        provision_id=provision.provision_id, version=provision.version, document_version_id=None
+        provision_id=provision.provision_id,
+        version=provision.version,
+        document_version_id=uuid4(),
     )
     provision.version_registry_entries.append(registry_entry)
     assert registry_entry.provision is provision
     assert provision.version_registry_entries == [registry_entry]
 
     reference = ProvisionReference(
-        source_legal_provision_id=None,
+        source_legal_provision_id=uuid4(),
         source_provision_id=provision.provision_id,
         relation_type="REFERS_TO",
         extraction_method="TEXT_PATTERN",

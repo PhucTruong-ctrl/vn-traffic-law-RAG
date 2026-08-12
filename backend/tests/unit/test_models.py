@@ -125,6 +125,8 @@ def test_extension_exclusion_objects_kept_out_of_models() -> None:
     index_names = {i.name for i in provision_references.indexes}
     assert "provision_references_unresolved_pk" not in index_names
     assert not any("normalize_ref_text" in str(i.expressions) for i in provision_references.indexes)
+    reference_constraints = {c.name for c in provision_references.constraints}
+    assert "provision_references_target_resolution_check" in reference_constraints
 
 
 def test_no_undocumented_tables_or_functions() -> None:

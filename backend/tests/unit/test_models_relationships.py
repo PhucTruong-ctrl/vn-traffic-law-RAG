@@ -8,6 +8,7 @@ legal_effect_events) are verified via their join conditions.
 """
 
 from datetime import date
+from uuid import uuid4
 
 from sqlalchemy import Integer, inspect
 
@@ -186,7 +187,7 @@ def test_all_models_instantiate_with_required_fields() -> None:
     DocumentVersion(document_id="nd-168-2024", version=1, manifest_json={"x": 1}, content_hash="c")
     LegalProvision(
         provision_id="nd-168-2024__dieu-7",
-        document_version_id=None,
+        document_version_id=uuid4(),
         source_text="s",
         retrieval_text="r",
         status="EFFECTIVE",
@@ -194,16 +195,20 @@ def test_all_models_instantiate_with_required_fields() -> None:
         content_hash="c",
         version=1,
     )
-    ProvisionVersion(provision_id="nd-168-2024__dieu-7", version=1, document_version_id=None)
+    ProvisionVersion(
+        provision_id="nd-168-2024__dieu-7",
+        version=1,
+        document_version_id=uuid4(),
+    )
     ProvisionProvenance(
-        provision_version_row_id=None,
-        source_document_version_id=None,
+        provision_version_row_id=uuid4(),
+        source_document_version_id=uuid4(),
         source_element_id="e1",
         page_number=3,
         role="BASE_TEXT",
     )
     ProvisionReference(
-        source_legal_provision_id=None,
+        source_legal_provision_id=uuid4(),
         source_provision_id="nd-168-2024__dieu-7",
         relation_type="REFERS_TO",
         extraction_method="TEXT_PATTERN",
@@ -326,7 +331,7 @@ def test_relationship_object_graph_wiring() -> None:
     )
     provision = LegalProvision(
         provision_id="nd-168-2024__dieu-7",
-        document_version_id=None,
+        document_version_id=uuid4(),
         source_text="Điều 7.",
         retrieval_text="Điều 7.",
         status="EFFECTIVE",
@@ -336,8 +341,8 @@ def test_relationship_object_graph_wiring() -> None:
         document_version=version,
     )
     provenance = ProvisionProvenance(
-        provision_version_row_id=None,
-        source_document_version_id=None,
+        provision_version_row_id=uuid4(),
+        source_document_version_id=uuid4(),
         source_element_id="el-9",
         page_number=3,
         role="BASE_TEXT",
@@ -347,11 +352,11 @@ def test_relationship_object_graph_wiring() -> None:
     registry = ProvisionVersion(
         provision_id=provision.provision_id,
         version=provision.version,
-        document_version_id=None,
+        document_version_id=uuid4(),
         provision=provision,
     )
     reference = ProvisionReference(
-        source_legal_provision_id=None,
+        source_legal_provision_id=uuid4(),
         source_provision_id=provision.provision_id,
         relation_type="PENALTY_COMPANION",
         extraction_method="PENALTY_INFERENCE",

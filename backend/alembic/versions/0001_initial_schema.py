@@ -217,6 +217,14 @@ RETURN btrim(
                                 CONSTRAINT provision_references_review_status_check
                                 CHECK (review_status IN ('PENDING', 'ACCEPTED', 'REJECTED', 'DROPPED')),
     created_at                  timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT provision_references_target_resolution_check
+        CHECK (
+            (resolution_status = 'UNRESOLVED' AND target_legal_provision_id IS NULL)
+            OR (
+                resolution_status IN ('RESOLVED', 'PENDING_REVIEW')
+                AND target_legal_provision_id IS NOT NULL
+            )
+        ),
     CONSTRAINT provision_references_resolved_pk
         UNIQUE (source_legal_provision_id, target_legal_provision_id, relation_type)
 )"""

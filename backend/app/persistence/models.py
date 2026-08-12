@@ -375,6 +375,13 @@ class ProvisionReference(Base):
             name="provision_references_resolution_status_check",
         ),
         CheckConstraint(
+            "(resolution_status = 'UNRESOLVED' AND "
+            "target_legal_provision_id IS NULL) OR "
+            "(resolution_status IN ('RESOLVED', 'PENDING_REVIEW') AND "
+            "target_legal_provision_id IS NOT NULL)",
+            name="provision_references_target_resolution_check",
+        ),
+        CheckConstraint(
             "review_status IN (" + _REVIEW_STATUS_VALUES + ")",
             name="provision_references_review_status_check",
         ),

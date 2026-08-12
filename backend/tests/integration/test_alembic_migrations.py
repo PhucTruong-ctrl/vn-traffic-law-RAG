@@ -131,6 +131,7 @@ DOCUMENTED_CONSTRAINTS = frozenset(
         "legal_provisions_effective_from_accepted_check",
         "provision_references_relation_type_check",
         "provision_references_resolution_status_check",
+        "provision_references_target_resolution_check",
         "provision_references_review_status_check",
         "document_relations_relation_type_check",
         "document_relations_resolution_status_check",

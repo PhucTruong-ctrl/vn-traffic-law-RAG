@@ -5,6 +5,7 @@ roles, the physical UUID FKs to the exact version row (``legal_provisions.id``)
 and the source document version (``document_versions.id``), the documented
 index, and the relationship wiring to LegalProvision/DocumentVersion.
 """
+from uuid import uuid4
 
 from sqlalchemy import CheckConstraint, Integer, inspect
 from sqlalchemy.dialects.postgresql import UUID
@@ -85,7 +86,7 @@ def test_provenance_relationships_wired() -> None:
 def test_provenance_instantiation_and_wiring() -> None:
     provision = LegalProvision(
         provision_id="nd-168-2024__dieu-7",
-        document_version_id=None,
+        document_version_id=uuid4(),
         source_text="nội dung gốc",
         retrieval_text="nội dung gốc",
         status="EFFECTIVE",
@@ -100,8 +101,8 @@ def test_provenance_instantiation_and_wiring() -> None:
         content_hash="c1",
     )
     provenance = ProvisionProvenance(
-        provision_version_row_id=None,
-        source_document_version_id=None,
+        provision_version_row_id=uuid4(),
+        source_document_version_id=uuid4(),
         source_element_id="el-42",
         page_number=7,
         role="BASE_TEXT",

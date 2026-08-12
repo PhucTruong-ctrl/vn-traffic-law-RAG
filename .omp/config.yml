@@ -1,7 +1,4 @@
 # Project-scoped Oh My Pi settings.
-# Overrides the global approval mode for this repository only.
-tools:
-  approvalMode: yolo
 skills:
   enabled: true
   enableSkillCommands: true

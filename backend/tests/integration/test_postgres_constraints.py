@@ -466,19 +466,45 @@ def test_unresolved_reference_index_ignores_resolved_rows(
     with clean_transaction(upgraded_engine) as conn:
         dv = _seed_document_version(conn)
         source = _seed_provision(conn, document_version_id=dv)
+        resolved_target = _seed_provision(conn, document_version_id=dv)
+        pending_target = _seed_provision(conn, document_version_id=dv)
+        _insert_unresolved_reference(
+            conn,
+            source_provision_id=source,
+            source_text="Điều 7, Khoản 4",
+        )
+        _insert_unresolved_reference(
+            conn,
+            source_provision_id=source,
+            target_provision_id=resolved_target,
+            source_text="Điều 7, Khoản 4",
+            resolution_status="RESOLVED",
+        )
+        _insert_unresolved_reference(
+            conn,
+            source_provision_id=source,
+            target_provision_id=pending_target,
+            source_text="Điều 7, Khoản 4",
+            resolution_status="PENDING_REVIEW",
+        )
+
+def test_reference_resolution_status_requires_target(
+    upgraded_engine: Engine,
+) -> None:
+    """RESOLVED and PENDING_REVIEW references must identify a target row."""
+    with clean_transaction(upgraded_engine) as conn:
+        dv = _seed_document_version(conn)
+        source = _seed_provision(conn, document_version_id=dv)
         for resolution_status in ("RESOLVED", "PENDING_REVIEW"):
-            _insert_unresolved_reference(
-                conn,
-                source_provision_id=source,
-                source_text="Điều 7, Khoản 4",
-                resolution_status=resolution_status,
-            )
-            _insert_unresolved_reference(
-                conn,
-                source_provision_id=source,
-                source_text="Điều 7, Khoản 4",
-                resolution_status=resolution_status,
-            )
+            with pytest.raises(IntegrityError) as exc, conn.begin_nested():
+                _insert_unresolved_reference(
+                    conn,
+                    source_provision_id=source,
+                    source_text="Điều 7",
+                    resolution_status=resolution_status,
+                )
+            assert sqlstate(exc.value) == SQLSTATE_CHECK
+
 
 
 def test_resolved_reference_triple_unique(upgraded_engine: Engine) -> None:
