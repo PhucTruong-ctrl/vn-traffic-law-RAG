@@ -1,0 +1,6 @@
+# Project-scoped Oh My Pi settings.
+skills:
+  enabled: true
+  enableSkillCommands: true
+mcp:
+  enableProjectConfig: true
