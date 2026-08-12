@@ -493,9 +493,18 @@ def test_relation_query_filters_by_review_status_and_interval(
         effective_from=date(2024, 1, 1),
         effective_to=None,
     )
+    # Expires exactly at d -> invalid at d (exclusive upper bound).
+    expired_target = _seed_provision(
+        session,
+        version.id,
+        provision_id="p-expired",
+        effective_from=date(2024, 1, 1),
+        effective_to=D,
+    )
 
     _seed_reference(session, seed, valid_target)  # expected
     _seed_reference(session, seed, future_target)  # target interval excludes
+    _seed_reference(session, seed, expired_target)  # target interval excludes
     _seed_reference(session, seed, pending_target)  # target review excludes
     _seed_reference(  # relation review excludes
         session,
@@ -562,8 +571,44 @@ def test_relation_query_filters_by_relation_type(session: Session) -> None:
     assert {r.added_by for r in refs_all} == {"CROSS_REFERENCE", "PENALTY_COMPANION"}
 
 
-def test_relation_query_ignores_empty_seeds(session: Session) -> None:
-    assert RelationRepository(session).related_provisions(D, []) == []
+def test_relation_query_pins_source_version(session: Session) -> None:
+    """Expansion follows only the seed's exact version row.
+
+    A reference owned by another version of the same provision_id must not
+    leak into the expansion (doc 03 §3.20.2: relations are pinned to the
+    source version in use). ACCEPTED versions of one provision_id cannot
+    overlap, so the non-seed version is a PENDING row.
+    """
+    document = _seed_document(session)
+    version = _seed_version(session, document.document_id, effective_from=date(2024, 1, 1))
+    seed_v2 = _seed_provision(
+        session,
+        version.id,
+        provision_id="p-seed",
+        version=2,
+        effective_from=date(2024, 1, 1),
+        effective_to=None,
+    )
+    seed_v1 = _seed_provision(
+        session,
+        version.id,
+        provision_id="p-seed",
+        version=1,
+        review_status="PENDING",
+        effective_from=None,
+        effective_to=None,
+    )
+    v1_target = _seed_provision(
+        session,
+        version.id,
+        provision_id="p-v1-target",
+        effective_from=date(2024, 1, 1),
+        effective_to=None,
+    )
+    _seed_reference(session, seed_v1, v1_target)
+
+    related = RelationRepository(session).related_provisions(D, [seed_v2])
+    assert related == []
 
 
 def test_document_relations_filter_by_review_status_and_interval(
