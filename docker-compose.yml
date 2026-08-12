@@ -101,6 +101,7 @@ services:
     command:
       - |
         set -eu
+        rm -f /tmp/minio-buckets-ready
         minio server /data --console-address ":9001" &
         minio_pid=$$!
         cleanup() {
