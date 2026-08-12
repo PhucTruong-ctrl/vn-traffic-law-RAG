@@ -12,6 +12,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
+from sqlalchemy.exc import InternalError
 
 from alembic import command
 
@@ -232,12 +233,34 @@ def test_alembic_version_at_head(upgraded_engine: Engine) -> None:
 
 
 def test_upgrade_downgrade_roundtrip(cycle_db_url: str) -> None:
-    """Upgrade from empty DB, then downgrade to base removes every object."""
+    """Upgrade from empty DB, then downgrade to base removes every owned object."""
     cfg = _alembic_config(cycle_db_url)
     command.upgrade(cfg, "head")
     engine = create_engine(cycle_db_url)
     try:
         assert _public_tables(engine) == EXPECTED_TABLES | {"alembic_version"}
+
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "CREATE VIEW external_legal_provisions AS "
+                    "SELECT provision_id FROM legal_provisions"
+                )
+            )
+
+        with pytest.raises(InternalError):
+            command.downgrade(cfg, "base")
+
+        with engine.connect() as conn:
+            assert (
+                conn.execute(
+                    text("SELECT 1 FROM pg_views WHERE viewname = 'external_legal_provisions'")
+                ).scalar_one_or_none()
+                == 1
+            )
+
+        with engine.begin() as conn:
+            conn.execute(text("DROP VIEW external_legal_provisions"))
 
         command.downgrade(cfg, "base")
         # Alembic (1.19) does not drop its version table on downgrade to
@@ -248,7 +271,8 @@ def test_upgrade_downgrade_roundtrip(cycle_db_url: str) -> None:
             rows = conn.execute(text("SELECT count(*) FROM alembic_version")).scalar_one()
         assert rows == 0
 
-        # the extension and the function are gone with the schema
+        # btree_gist may predate this revision and remains installed; the
+        # migration-owned helper function is removed.
         with engine.connect() as conn:
             ext = conn.execute(
                 text("SELECT 1 FROM pg_extension WHERE extname = 'btree_gist'")
@@ -256,7 +280,7 @@ def test_upgrade_downgrade_roundtrip(cycle_db_url: str) -> None:
             fn = conn.execute(
                 text("SELECT 1 FROM pg_proc WHERE proname = 'normalize_ref_text'")
             ).scalar_one_or_none()
-        assert ext is None
+        assert ext == 1
         assert fn is None
     finally:
         engine.dispose()

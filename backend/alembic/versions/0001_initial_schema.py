@@ -553,7 +553,6 @@ def downgrade() -> None:
     document_versions,
     legal_documents,
     legal_sources
-CASCADE"""
+"""
     )
     op.execute("DROP FUNCTION IF EXISTS normalize_ref_text(text)")
-    op.execute("DROP EXTENSION IF EXISTS btree_gist")
