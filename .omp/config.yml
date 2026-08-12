@@ -1,6 +1,6 @@
 modelRoleStorage: project
-modelRoles:
-  default: opencode-go/deepseek-v4-flash:medium
+modelRoles: 
+  default: opencode-go/deepseek-v4-flash:high
   smol: opencode-go/deepseek-v4-flash:low
   task: opencode-go/deepseek-v4-flash:medium
   commit: opencode-go/deepseek-v4-flash:low
@@ -8,12 +8,12 @@ modelRoles:
   slow: openai-codex/gpt-5.6-terra:high
   vision: openai-codex/gpt-5.6-luna:medium
   advisor: opencode-go/deepseek-v4-flash:medium
-tools:
+tools: 
   approvalMode: yolo
-advisor:
+advisor: 
   enabled: true
-skills:
-  includeSkills:
+skills: 
+  includeSkills: 
     - python-pro
     - fastapi-expert
     - debugging-wizard
