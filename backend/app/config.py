@@ -204,6 +204,31 @@ class ObjectStorageSettings(BaseSettings):
         return value
 
 
+class UploadSettings(BaseSettings):
+    """Upload API limits (doc 03 §3.28.3, FR-07).
+
+    Read from ``UPLOAD_*`` environment variables, then the repo-root ``.env``
+    file (doc 07 §7.3.3): ``UPLOAD_MAX_SIZE_MB`` caps the source-PDF size
+    accepted by ``POST /api/v1/documents`` (rejected with 413 when exceeded).
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="UPLOAD_",
+        env_file=str(_ENV_FILE),
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False,
+    )
+
+    max_size_mb: int = 50
+
+
+@lru_cache(maxsize=1)
+def get_upload_settings() -> UploadSettings:
+    """Return the process-wide upload settings singleton (cached until cleared)."""
+    return UploadSettings()
+
+
 @lru_cache(maxsize=1)
 def get_embedding_settings() -> EmbeddingSettings:
     """Return the process-wide embedding settings singleton (cached until cleared)."""
