@@ -166,7 +166,7 @@ def test_payload_contains_exactly_the_contract_keys() -> None:
 def test_payload_emits_full_doc_3113_key_set() -> None:
     """The FULL doc 03 §3.11.3 payload key set is emitted, with doc names."""
     payload = payload_for_unit(_unit())
-    assert DOC_03_311_KEYS <= set(payload)
+    assert set(payload) >= DOC_03_311_KEYS
 
 
 def test_payload_maps_unit_fields_and_defaults() -> None:
