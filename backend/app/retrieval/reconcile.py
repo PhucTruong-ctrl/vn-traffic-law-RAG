@@ -55,6 +55,7 @@ from app.persistence.models import (
     LegalDocument,
     LegalProvision,
 )
+from app.retrieval.embedding import EmbeddingProvider
 from app.retrieval.qdrant_store import (
     PAYLOAD_INDEX_FIELDS,
     PROVISION_ALIAS,
@@ -62,12 +63,14 @@ from app.retrieval.qdrant_store import (
     build_collection_config,
     rebuild_alias,
 )
+from app.retrieval.sparse import SparseEncoder
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
     "ACCEPTED_REVIEW_STATUS",
     "CONTENT_HASH_PAYLOAD_KEY",
+    "ReconcileError",
     "ReconciliationReport",
     "RepairCounts",
     "accepted_provisions",
@@ -85,6 +88,18 @@ __all__ = [
 #: The only review status that is indexable / comparable (doc 03 §3.13; the
 #: VNLRAG-44 contract) — DROPPED/REJECTED/NEEDS_REVIEW/PENDING never are.
 ACCEPTED_REVIEW_STATUS = "ACCEPTED"
+
+
+class ReconcileError(RuntimeError):
+    """A reconcile operation was refused or could not complete safely.
+
+    Raised when a repair/rebuild would corrupt the live index rather than
+    fix it: rebuilding into an existing collection (prior points would
+    survive) or a rebuild whose indexing pass was incomplete (switching the
+    alias would publish a partial index). The live ``PROVISION_ALIAS`` is
+    always left unchanged when this is raised.
+    """
+
 
 #: Payload key holding the provision content hash used for stale detection
 #: (doc 03 §3.11.3).
@@ -456,10 +471,20 @@ def _reindex_units(
     unit_payloads: Mapping[str, Mapping[str, Any]],
     collection: str | None,
     batch_size: int,
-) -> int:
-    """Call ``index_provision_units`` for one repair batch; return indexed count."""
+    embedder: EmbeddingProvider | None,
+    sparse_encoder: SparseEncoder | None,
+) -> tuple[int, list[str]]:
+    """Call ``index_provision_units`` for one repair batch.
+
+    Returns ``(indexed, errors)``. ``embedder``/``sparse_encoder`` are
+    threaded through so repaired/rebuild points carry real dense+sparse
+    vectors (a ``None`` provider omits that channel — VNLRAG-44 semantics —
+    which is only safe against payload-only collections; production callers
+    must supply the configured providers). Errors are logged and returned so
+    callers can decide whether the outcome is acceptable.
+    """
     if not units:
-        return 0
+        return 0, []
     result = index_provision_units(
         client,
         units,
@@ -467,9 +492,12 @@ def _reindex_units(
         unit_payloads={unit.unit_id: unit_payloads[unit.unit_id] for unit in units},
         collection=collection,
         batch_size=batch_size,
+        embedder=embedder,
+        sparse_encoder=sparse_encoder,
     )
     indexed = int(getattr(result, "indexed", len(units)))
-    for error in getattr(result, "errors", []) or []:
+    errors = list(getattr(result, "errors", []) or [])
+    for error in errors:
         logger.warning("index_provision_units error during reconcile: %s", error)
     if indexed != len(units):
         logger.warning(
@@ -477,7 +505,7 @@ def _reindex_units(
             indexed,
             len(units),
         )
-    return indexed
+    return indexed, errors
 
 
 # ---------------------------------------------------------------------------
@@ -491,6 +519,8 @@ def reconcile_index(
     session: Session,
     index_provision_units: Callable[..., Any] | None = None,
     point_id_for: Callable[[uuid.UUID], str] | None = None,
+    embedder: EmbeddingProvider | None = None,
+    sparse_encoder: SparseEncoder | None = None,
     collection: str | None = None,
     effective_from_required: bool = True,
     batch_size: int = 32,
@@ -514,6 +544,12 @@ def reconcile_index(
        ``app.retrieval.indexing`` unless injected) and drop extra points with
        ``client.delete``. Stale points are RE-INDEXED from PG, never deleted;
        PG rows are never modified.
+
+    ``embedder``/``sparse_encoder`` are threaded through to
+    ``index_provision_units`` so repaired points carry dense+sparse vectors
+    matching a fresh index; production callers (the CLI) resolve them from
+    configuration. ``None`` omits that vector channel (VNLRAG-44 semantics —
+    safe only against payload-only collections / contract tests).
 
     Returns the :class:`ReconciliationReport`; ``repaired`` counts what was
     fixed (zeros for ``dry_run``). The indexer is resolved lazily only when a
@@ -562,7 +598,7 @@ def reconcile_index(
         if pid in point_id_to_unit_id
     ]
 
-    missing_reindexed = _reindex_units(
+    missing_reindexed, _ = _reindex_units(
         indexer,
         client,
         missing_units,
@@ -570,8 +606,10 @@ def reconcile_index(
         unit_payloads=unit_payloads,
         collection=target_collection,
         batch_size=batch_size,
+        embedder=embedder,
+        sparse_encoder=sparse_encoder,
     )
-    stale_reindexed = _reindex_units(
+    stale_reindexed, _ = _reindex_units(
         indexer,
         client,
         stale_units,
@@ -579,6 +617,8 @@ def reconcile_index(
         unit_payloads=unit_payloads,
         collection=target_collection,
         batch_size=batch_size,
+        embedder=embedder,
+        sparse_encoder=sparse_encoder,
     )
     extra_dropped = 0
     if report.extra:
@@ -639,6 +679,8 @@ def rebuild_index(
     session: Session,
     index_provision_units: Callable[..., Any] | None = None,
     point_id_for: Callable[[uuid.UUID], str] | None = None,
+    embedder: EmbeddingProvider | None = None,
+    sparse_encoder: SparseEncoder | None = None,
     collection_name: str | None = None,
     effective_from_required: bool = True,
     batch_size: int = 32,
@@ -646,12 +688,24 @@ def rebuild_index(
 ) -> str | None:
     """Full collection replacement (doc 03 §3.11.7).
 
-    1. create a new versioned collection (``collection_name`` override, else
+    1. create a NEW versioned collection (``collection_name`` override, else
        ``next_collection_name``) with the provision config + payload indexes;
     2. index ALL accepted provisions into it via ``index_provision_units``
-       (injected or lazily imported from ``app.retrieval.indexing``);
+       (injected or lazily imported from ``app.retrieval.indexing``) with the
+       configured ``embedder``/``sparse_encoder``;
     3. switch ``PROVISION_ALIAS`` via ``qdrant_store.rebuild_alias`` and
        return the OLD collection name.
+
+    Safety guards (the live alias is NEVER touched when these fire):
+
+    - an explicit ``collection_name`` that ALREADY EXISTS is rejected —
+      reusing it would leave prior points live (stale/extra surviving the
+      rebuild). Pick a fresh name or delete the old collection first;
+    - the alias is switched ONLY when the indexing pass upserted exactly
+      ``len(units)`` points with no ``errors`` (e.g. a failed embedding
+      batch). A partial rebuild raises :class:`ReconcileError` and leaves the
+      existing collection active; the partially-built collection stays on
+      disk (versioned, harmless) and a re-run retries it.
 
     The old collection is RETAINED for the rollback/grace period (§3.11.7
     step 6): deleting it is the caller's policy (e.g. after retrieval
@@ -660,13 +714,20 @@ def rebuild_index(
     """
     point_id = _resolve_point_id_for() if point_id_for is None else point_id_for
 
+    new_name = collection_name or next_collection_name(client)
+    if collection_name is not None and client.collection_exists(collection_name):
+        raise ReconcileError(
+            f"rebuild collection override {collection_name!r} already exists; refusing to "
+            "reuse it (prior points would survive the rebuild). Pick a new name or delete "
+            "the collection first"
+        )
+
     provisions = _select_provisions(session, effective_from_required=effective_from_required)
     document_metadata = _document_metadata(session, {p.document_version_id for p in provisions})
     units, unit_point_ids, unit_payloads, _ = _prepare_units(
         provisions, point_id, document_metadata
     )
 
-    new_name = collection_name or next_collection_name(client)
     logger.info("rebuild: indexing %d accepted provisions into %s", len(units), new_name)
     if dry_run:
         return None
@@ -675,7 +736,7 @@ def rebuild_index(
         _resolve_index_provision_units() if index_provision_units is None else index_provision_units
     )
     _ensure_named_collection(client, new_name)
-    indexed = _reindex_units(
+    indexed, errors = _reindex_units(
         indexer,
         client,
         units,
@@ -683,13 +744,16 @@ def rebuild_index(
         unit_payloads=unit_payloads,
         collection=new_name,
         batch_size=batch_size,
+        embedder=embedder,
+        sparse_encoder=sparse_encoder,
     )
-    if indexed != len(units):
-        logger.warning(
-            "rebuild indexed %d of %d units into %s; verify before retiring the old collection",
-            indexed,
-            len(units),
-            new_name,
+    if errors or indexed != len(units):
+        detail = f"indexed {indexed}/{len(units)}"
+        if errors:
+            detail += f"; first error: {errors[0]}"
+        raise ReconcileError(
+            f"rebuild into {new_name} incomplete ({detail}); PROVISION_ALIAS left unchanged "
+            "- re-run to retry the incomplete batches (idempotent upsert)"
         )
     return rebuild_alias(client, new_name)
 

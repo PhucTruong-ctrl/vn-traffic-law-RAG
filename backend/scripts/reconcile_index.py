@@ -28,6 +28,14 @@ recorded as an immutable JSON manifest under ``data/evaluation/reconcile/``
 (``--out-dir`` overrides). Connection settings follow the repo convention
 (doc 07 §7.3.3): ``DATABASE_URL`` / ``QDRANT_URL`` from the environment, then
 the repository-root ``.env`` file.
+
+``repair`` and ``rebuild`` index real points, so they resolve the configured
+dense embedding provider (``EMBEDDING_*`` settings) and the BM25 sparse
+encoder and thread them through to ``index_provision_units`` (VNLRAG-44): a
+missing embedding API key fails the indexing pass loudly instead of writing
+vector-less points into a vector collection. ``rebuild`` refuses an existing
+``--collection`` name (prior points would survive) and never switches the
+alias when the indexing pass is incomplete (partial rebuild = error).
 """
 
 from __future__ import annotations
@@ -94,6 +102,24 @@ def _qdrant_client() -> object:
     )
 
 
+def _resolve_encoders() -> tuple[object, object]:
+    """Configured dense embedding provider + BM25 sparse encoder.
+
+    The embedding provider is built from the ``EMBEDDING_*`` settings
+    (``get_embedding_provider``); a missing provider API key surfaces as a
+    ``ConfigError`` at the first embed — fail-fast inside the indexing pass,
+    so a repair/rebuild can never silently write vector-less points into a
+    vector collection. The sparse encoder is the deterministic local BM25
+    encoder (unfitted, text-local vocabulary — matching the ingestion index
+    actor, doc 03 §3.11.2).
+    """
+    from app.config import get_embedding_settings
+    from app.retrieval.embedding import get_embedding_provider
+    from app.retrieval.sparse import BM25SparseEncoder
+
+    return get_embedding_provider(get_embedding_settings()), BM25SparseEncoder()
+
+
 def _print_report(report: reconcile.ReconciliationReport) -> None:
     repaired = report.repaired
     print(
@@ -140,18 +166,26 @@ def _run(
                     from app.retrieval.qdrant_store import ensure_qdrant_collection
 
                     ensure_qdrant_collection(client)
+                embedder, sparse_encoder = (
+                    _resolve_encoders() if args.command == "repair" else (None, None)
+                )
                 report = reconcile.reconcile_index(
                     client,
                     session=session,
+                    embedder=embedder,
+                    sparse_encoder=sparse_encoder,
                     collection=args.collection,
                     batch_size=args.batch_size,
                     dry_run=args.dry_run or args.command == "check",
                 )
                 return (1 if report.diverged else 0), report, None
             # rebuild
+            embedder, sparse_encoder = _resolve_encoders()
             old = reconcile.rebuild_index(
                 client,
                 session=session,
+                embedder=embedder,
+                sparse_encoder=sparse_encoder,
                 collection_name=args.collection,
                 batch_size=args.batch_size,
                 dry_run=args.dry_run,
