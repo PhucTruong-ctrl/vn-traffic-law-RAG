@@ -36,6 +36,7 @@ from pydantic import BaseModel, ConfigDict
 
 from app.ingestion.metadata_normalizer import canonical_point_label
 from app.ingestion.structure_extractor import ExtractedLegalProvision
+from app.ingestion.structure_state_parser import StructureKind
 
 #: PRIMARY Vietnamese point-run alphabet (rulespec §4.1: ``a→b→c→d→đ→e``,
 #: d = 4th, đ = 5th letter).  Mirrors ``metadata_normalizer._POINT_RUN_ALPHABET``;
@@ -45,6 +46,18 @@ _POINT_RUN_ALPHABET = "abcdđe"
 
 #: Tree node kinds participating in the Điều hierarchy (docs/03 §3.8.1).
 _TREE_KINDS = frozenset({"ARTICLE", "CLAUSE", "POINT"})
+
+#: Explicit non-tree node kinds (StructureKind) living outside the Điều tree
+#: (docs/03 §3.9.4).  They are excluded from tree validation outright, even
+#: when the extractor retains their enclosing hierarchy fields.
+_NON_TREE_KINDS = frozenset(
+    {
+        StructureKind.APPENDIX,
+        StructureKind.TABLE,
+        StructureKind.TRANSITIONAL,
+        StructureKind.HEADING,
+    }
+)
 
 #: provision_id segment prefixes (docs/03 §3.8.5): ``{slug}__dieu-{n}``,
 #: ``{slug}__dieu-{n}__khoan-{m}``, ``{slug}__dieu-{n}__khoan-{m}__diem-{x}``.
@@ -90,13 +103,19 @@ class HierarchyValidationResult(BaseModel):
 def _provision_kind(provision: ExtractedLegalProvision) -> str | None:
     """Effective tree kind: ``node_kind`` is authoritative, else field inference.
 
-    Non-tree kinds (APPENDIX/TABLE/TRANSITIONAL/HEADING live outside the Điều
-    tree, docs/03 §3.9.4) fall back to their hierarchy fields when those are
-    populated; a provision with no hierarchy fields returns ``None``.
+    Tree kinds (ARTICLE/CLAUSE/POINT) are authoritative.  Recognized non-tree
+    kinds (APPENDIX/TABLE/TRANSITIONAL/HEADING, docs/03 §3.9.4) are excluded
+    from the Điều tree outright — even when the extractor retains their
+    enclosing ``article``/``clause`` fields — so they never count toward tree
+    metrics or orphan checks.  Field-based inference applies only when
+    ``node_kind`` is absent or an unrecognized value; a provision with no
+    hierarchy fields returns ``None``.
     """
 
     if provision.node_kind in _TREE_KINDS:
         return provision.node_kind
+    if provision.node_kind in _NON_TREE_KINDS:
+        return None
     if provision.point is not None:
         return "POINT"
     if provision.clause is not None:
