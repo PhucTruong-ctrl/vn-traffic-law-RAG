@@ -3750,6 +3750,7 @@ dependencies = [
     { name = "dramatiq" },
     { name = "fastapi" },
     { name = "google-genai" },
+    { name = "httpx" },
     { name = "jinja2" },
     { name = "langchain-core" },
     { name = "langfuse" },
@@ -3769,7 +3770,6 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "httpx" },
     { name = "jsonschema" },
     { name = "mypy" },
     { name = "playwright" },
@@ -3787,6 +3787,7 @@ requires-dist = [
     { name = "dramatiq", specifier = "==2.2.0" },
     { name = "fastapi", specifier = ">=0.115,<1" },
     { name = "google-genai" },
+    { name = "httpx", specifier = ">=0.27,<1" },
     { name = "jinja2" },
     { name = "langchain-core", specifier = ">=1.3.0,<2" },
     { name = "langfuse", specifier = ">=4.7.0" },
@@ -3806,7 +3807,6 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "httpx" },
     { name = "jsonschema" },
     { name = "mypy" },
     { name = "playwright" },
