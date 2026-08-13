@@ -24,9 +24,11 @@ and monkeypatched in tests:
   share of provisions with ≥1 ``source_element_id`` AND a non-null
   ``page_number`` (0.0 for an empty list);
 - ``validate_hierarchy`` (VNLRAG-30, ``app.ingestion.hierarchy_validation``)
-  — supplies ``orphan_point_count``, ``orphan_clause_count``,
-  ``duplicate_count`` and ``point_label_detection_rate`` from its
-  ``.metrics`` dict (keys fixed by the cross-ticket contract).
+  — supplies ``orphan_point_count``, ``orphan_clause_count`` and
+  ``duplicate_count`` from its ``.metrics`` dict (keys fixed by the
+  cross-ticket contract).  ``d_point_detection_rate`` is NOT sourced from
+  hierarchy validation: it is the đ)-specific rate computed locally by
+  ``vietnamese_d_detection_rate`` (rulespec §4).
 
 The two modules may not exist yet (parallel development), so they are loaded
 lazily at call time via ``importlib``; ``run_corpus_qa`` raises a clear
@@ -97,8 +99,8 @@ def provenance_coverage(provisions: list[ExtractedLegalProvision]) -> float:
 def validate_hierarchy(provisions: list[ExtractedLegalProvision]) -> Any:
     """Hierarchy validation per the VNLRAG-30 contract: the result has
     ``.violations`` and ``.metrics`` with the fixed keys ``orphan_point_count``
-    / ``orphan_clause_count`` / ``duplicate_count`` /
-    ``point_label_detection_rate``.  Tests monkeypatch this module-level name.
+    / ``orphan_clause_count`` / ``duplicate_count``.  Tests monkeypatch this
+    module-level name.
     """
 
     return _load_contract("app.ingestion.hierarchy_validation", "validate_hierarchy")(provisions)
@@ -130,9 +132,9 @@ class CorpusQaMetrics(BaseModel):
     #: DROPPED/REJECTED).
     short_point_retention: float
     #: Vietnamese đ) detection rate — Point labels detected as ``đ)``,
-    #: distinct from ``d)`` (rulespec §4).  Sourced from hierarchy
-    #: validation's ``point_label_detection_rate``; falls back to the local
-    #: đ)-specific computation when the key is absent.
+    #: distinct from ``d)`` (rulespec §4).  Computed locally by
+    #: ``vietnamese_d_detection_rate``, NOT from hierarchy validation's
+    #: generic point-label rate.
     d_point_detection_rate: float
     #: Orphan Points without a parent Clause/Article (validate_hierarchy).
     orphan_point_count: int
@@ -389,8 +391,8 @@ def vietnamese_d_detection_rate(provisions: Sequence[ExtractedLegalProvision]) -
     A Point whose canonical label is ``"đ)"`` (the đ character preserved,
     distinct from ``d)``) counts as correctly detected; the denominator is
     every POINT provision with a detected label.  0.0 when no label is
-    detected.  This is the local đ)-specific signal; the report metric is
-    sourced from hierarchy validation's ``point_label_detection_rate``.
+    detected.  This is the source of the report's ``d_point_detection_rate``
+    metric (FR-10) — it is NOT taken from hierarchy validation.
     """
 
     labeled = 0
@@ -619,9 +621,7 @@ def run_corpus_qa(
     orphan_point_count = int(hierarchy_metrics["orphan_point_count"])
     orphan_clause_count = int(hierarchy_metrics["orphan_clause_count"])
     duplicate_provision_count = int(hierarchy_metrics["duplicate_count"])
-    d_point_detection_rate = float(
-        hierarchy_metrics.get("point_label_detection_rate", vietnamese_d_detection_rate(provisions))
-    )
+    d_point_detection_rate = vietnamese_d_detection_rate(provisions)
 
     parent_context_count = sum(
         1
