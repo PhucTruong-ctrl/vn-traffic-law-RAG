@@ -74,6 +74,7 @@ __all__ = [
     "ReconciliationReport",
     "RepairCounts",
     "accepted_provisions",
+    "accepted_retrieval_texts",
     "compare_indexes",
     "make_run_id",
     "provision_to_unit",
@@ -235,6 +236,24 @@ def accepted_provisions(session: Session) -> list[LegalProvision]:
     Repeated runs produce identical point-id sets and identical repair batches.
     """
     return list(session.scalars(_accepted_provisions_stmt()))
+
+
+def accepted_retrieval_texts(session: Session) -> list[str]:
+    """``retrieval_text`` of every ACCEPTED provision — the sparse-encoder
+    corpus for repair/rebuild.
+
+    One shared corpus vocabulary must cover every point that will ever be
+    encoded, so a token lands on the same sparse dimension in every point
+    (doc 03 §3.11.2; unfitted encoders assign text-local ids and would
+    produce inconsistent sparse dimensions across repaired points). The
+    CLI feeds this to ``load_or_fit_sparse_encoder`` (VNLRAG-133) so the
+    persisted vocabulary is shared between the ingestion actors and the
+    reconcile CLI.
+    """
+    stmt = select(LegalProvision.retrieval_text).where(
+        LegalProvision.review_status == ACCEPTED_REVIEW_STATUS
+    )
+    return list(session.scalars(stmt))
 
 
 def provision_to_unit(provision: LegalProvision) -> RetrievalUnit:
