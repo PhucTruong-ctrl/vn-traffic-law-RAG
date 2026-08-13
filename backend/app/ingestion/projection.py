@@ -29,6 +29,9 @@ Rules enforced here (never deferred to the DB):
 - Validation before persistence (:func:`validate_provisions`) rejects
   incomplete provisions (missing source_text, empty source_element_ids,
   invalid interval, ACCEPTED without effective_from, ...).
+- VNLRAG-29 provenance: :func:`project_provenance` exposes the
+  ``ProvisionProvenance``-shaped aggregation for one provision at this
+  boundary; :func:`project_provisions` itself is unchanged.
 
 This module is a pure mapping layer: it never touches a session or a
 transaction — the repository layer (VNLRAG-39) owns persistence.
@@ -52,6 +55,11 @@ from app.ingestion.metadata_normalizer import (
     is_header_footer_leakage,
     normalize_metadata,
     normalize_provision_text,
+)
+from app.ingestion.provenance import (
+    ProvenanceRecord,
+    ProvisionProvenanceRole,
+    aggregate_provenance,
 )
 from app.ingestion.structure_extractor import ExtractedLegalProvision
 from app.persistence.models import DocumentVersion, LegalDocument, LegalProvision
@@ -288,6 +296,34 @@ def project_provisions(
     return provisions
 
 
+def project_provenance(
+    provision: ExtractedLegalProvision,
+    *,
+    provision_version_row_id: UUID,
+    source_document_version_id: UUID,
+    role: ProvisionProvenanceRole = "BASE_TEXT",
+) -> list[ProvenanceRecord]:
+    """Projection-layer provenance aggregation for one provision (VNLRAG-29).
+
+    Projection entry point pairing with :func:`project_provisions`: builds
+    the ``ProvisionProvenance``-shaped records for one extractor provision
+    (one record per ``source_element_id``, inheriting ``page_number`` /
+    ``bbox``).  ``provision_version_row_id`` is the persisted
+    ``legal_provisions.id`` of the projected row — available after the row
+    is flushed; aggregation itself never touches a session.  Multi-source
+    (amended) provisions should use
+    :func:`app.ingestion.provenance.aggregate_multi_source_provenance`,
+    which attributes per-source roles explicitly.
+    """
+
+    return aggregate_provenance(
+        provision,
+        provision_version_row_id=provision_version_row_id,
+        source_document_version_id=source_document_version_id,
+        role=role,
+    )
+
+
 def validate_provisions(provisions: list[LegalProvision]) -> list[str]:
     """Return validation errors for incomplete/invalid provisions (empty = valid).
 
@@ -359,5 +395,6 @@ def validate_provisions(provisions: list[LegalProvision]) -> list[str]:
 __all__ = [
     "project_document",
     "project_provisions",
+    "project_provenance",
     "validate_provisions",
 ]
