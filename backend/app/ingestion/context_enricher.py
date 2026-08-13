@@ -9,15 +9,18 @@ the actual provision (docs/00 §4.4, §8.3:394-410; docs/03 §3.8.6).
 The exact expected format is defined by
 ``backend/tests/fixtures/parser_benchmark/gold/parent_context_annotation.json``:
 
-- POINT  -> clause lead-in + point ``source_text``
+- POINT  -> canonical clause lead-in + point ``source_text``
   e.g. ``"Khoản 4. Phạt tiền từ 14.000.000 đồng đến 16.000.000 đồng ... sau
   đây: a) Điều khiển xe lạng lách, đánh võng trên đường bộ"``
 - CLAUSE -> article heading + clause ``source_text``
 - ARTICLE and other node kinds -> the provision's own ``source_text`` (identity)
 
-The module never mutates ``source_text`` or ``content_hash``; if a parent chain
-cannot be resolved it falls back to ``provision.parent_context`` and finally to
-the unmodified ``source_text`` (never raises, never fabricates).
+The clause lead-in is the parent clause's text with its leading raw number
+replaced by the canonical ``Khoản {n}.`` label (from the clause's structural
+``clause`` field); the article heading is never included in a Point's
+retrieval_text.  When the parent chain cannot be resolved, the enrichment
+falls back to ``provision.parent_context`` and finally to the unmodified
+``source_text`` (never raises, never fabricates content).
 """
 
 from __future__ import annotations
@@ -32,6 +35,9 @@ _ENRICHABLE_KINDS = frozenset({"POINT", "CLAUSE"})
 
 _ARTICLE_NUMBER_RE = re.compile(r"^Điều\s+(\d+)", re.IGNORECASE)
 _CLAUSE_NUMBER_RE = re.compile(r"^Khoản\s+(\d+)", re.IGNORECASE)
+#: Leading marker of a clause text: either the raw number ("4. Phạt tiền ...") or
+#: an already-canonical label ("Khoản 4. Phạt tiền ...").
+_CLAUSE_LEAD_IN_RE = re.compile(r"^(?:\d+|Khoản\s+\d+)\s*\.\s*")
 
 
 def _label_number(label: str | None, pattern: re.Pattern[str]) -> str | None:
@@ -49,6 +55,50 @@ def _article_number(provision: ExtractedLegalProvision) -> str | None:
 
 def _clause_number(provision: ExtractedLegalProvision) -> str | None:
     return _label_number(provision.clause, _CLAUSE_NUMBER_RE)
+
+
+def _canonical_clause_lead_in(clause: ExtractedLegalProvision) -> str:
+    """Canonical clause lead-in text for a parent CLAUSE provision.
+
+    Returns ``Khoản {n}. {body}`` where ``{n}`` comes from the clause's
+    structural ``clause`` label and ``{body}`` is the clause source_text with
+    its leading raw number (``"4. "``) or existing ``Khoản {n}.`` label
+    removed, e.g. ``"4. Phạt tiền từ ..."`` -> ``"Khoản 4. Phạt tiền từ ..."``.
+    Returns an empty string when the clause number is unknown.
+    """
+
+    number = _clause_number(clause)
+    if not number:
+        return ""
+    body = _CLAUSE_LEAD_IN_RE.sub("", clause.source_text.strip(), count=1)
+    return f"Khoản {number}. {body}" if body else f"Khoản {number}."
+
+
+def _extract_clause_lead_in(provision: ExtractedLegalProvision) -> str:
+    """Extract the canonical clause lead-in from ``provision.parent_context``.
+
+    The structure extractor records ``parent_context`` of a POINT as the
+    concatenation ``[chapter] [section] [article] [clause]``, so the clause
+    text is the trailing segment starting with its raw number.  The last
+    ``{clause number}.``-preceded-by-whitespace occurrence is the clause start
+    (clause bodies only contain ``{n}.`` without a following space, e.g.
+    thousands separators like ``14.000.000``).  Returns an empty string when
+    the clause cannot be located (``parent_context`` missing or malformed).
+    """
+
+    parent = provision.parent_context
+    if not parent:
+        return ""
+    number = _clause_number(provision)
+    if not number:
+        return ""
+    pattern = re.compile(rf"(?:^|\s){re.escape(number)}\.\s")
+    matches = list(pattern.finditer(parent))
+    if not matches:
+        return ""
+    clause_text = parent[matches[-1].start() :].strip()
+    body = _CLAUSE_LEAD_IN_RE.sub("", clause_text, count=1)
+    return f"Khoản {number}. {body}" if body else f"Khoản {number}."
 
 
 def _document_provisions(
@@ -128,23 +178,30 @@ def build_parent_context(
 ) -> str:
     """Resolve the parent-chain text used to enrich ``retrieval_text``.
 
-    For a POINT this is the parent clause lead-in; for a CLAUSE the parent
-    article heading.  When ``documents`` is provided, the parent provision is
-    looked up among the sibling provisions of the same document (matched by
-    provision_id prefix or article/clause labels); otherwise, or when the
-    parent cannot be found, ``provision.parent_context`` is used.  Returns an
-    empty string when nothing can be resolved.
+    For a POINT this is the canonical clause lead-in (``Khoản {n}. ...``,
+    without the article heading); for a CLAUSE the parent article heading.
+    When ``documents`` is provided, the parent provision is looked up among
+    the sibling provisions of the same document (matched by provision_id
+    prefix or article/clause labels); otherwise, or when the parent cannot be
+    found, the clause lead-in is extracted from ``provision.parent_context``
+    (for POINTs) and finally ``provision.parent_context`` itself is used.
+    Returns an empty string when nothing can be resolved.
     """
 
-    if documents is not None and provision.node_kind in _ENRICHABLE_KINDS:
+    if documents is not None:
         document_key, siblings = _document_provisions(provision, documents)
-        parent = (
-            _find_clause_parent(provision, siblings, document_key)
-            if provision.node_kind == "POINT"
-            else _find_article_parent(provision, siblings, document_key)
-        )
-        if parent is not None:
-            return parent.source_text.strip()
+        if provision.node_kind == "POINT":
+            parent = _find_clause_parent(provision, siblings, document_key)
+            if parent is not None:
+                return _canonical_clause_lead_in(parent)
+        elif provision.node_kind == "CLAUSE":
+            parent = _find_article_parent(provision, siblings, document_key)
+            if parent is not None:
+                return parent.source_text.strip()
+    if provision.node_kind == "POINT":
+        clause_lead_in = _extract_clause_lead_in(provision)
+        if clause_lead_in:
+            return clause_lead_in
     if provision.parent_context:
         return provision.parent_context.strip()
     return ""
