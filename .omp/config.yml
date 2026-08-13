@@ -1,6 +1,22 @@
-# Project-scoped Oh My Pi settings.
-skills:
+modelRoleStorage: project
+modelRoles:
+  default: opencode-go/deepseek-v4-flash:medium
+  smol: opencode-go/deepseek-v4-flash:low
+  task: opencode-go/deepseek-v4-flash:medium
+  commit: opencode-go/deepseek-v4-flash:low
+  plan: openai-codex/gpt-5.6-terra:high
+  slow: openai-codex/gpt-5.6-terra:high
+  vision: openai-codex/gpt-5.6-luna:medium
+  advisor: opencode-go/deepseek-v4-flash:medium
+tools:
+  approvalMode: yolo
+advisor:
   enabled: true
-  enableSkillCommands: true
-mcp:
-  enableProjectConfig: true
+skills:
+  includeSkills:
+    - python-pro
+    - fastapi-expert
+    - debugging-wizard
+    - test-master
+    - verification-before-completion
+    - simplify
