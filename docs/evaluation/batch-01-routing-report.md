@@ -125,4 +125,4 @@ tests/test_run_batch01_routing.py::test_render_report_contains_required_content 
 - Manifest validation (unchanged manifests, `cd backend && uv run python -m scripts.validate_manifest ../data/manifests/batch-01/<id>.manifest.json`): PASS × 5 (see §6).
 - Commit hash: recorded after commit (see the final line of this report).
 
-- Final commit hash: `(filled after commit)`
+- Final commit hash: `c0dfa11` (the VNLRAG-35 deliverable commit this report documents)
