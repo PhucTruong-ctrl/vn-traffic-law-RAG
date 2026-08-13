@@ -426,6 +426,31 @@ def test_object_key_rejects_path_traversal() -> None:
         object_key("source-pdfs", document_id="x", file_name="y.pdf", content_hash="  ")
 
 
+def test_object_key_accepts_lowercase_hex_sha256() -> None:
+    digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    assert (
+        object_key("source-pdfs", document_id="x", file_name="doc.pdf", content_hash=digest)
+        == f"x/{digest}.pdf"
+    )
+
+
+def test_object_key_rejects_invalid_content_hash() -> None:
+    # Traversal/separator payloads must not reach the key.
+    for bad in ("../../etc/passwd", "a/b", "..", ".", "a\\b", " ", "  a" * 32):
+        with pytest.raises(ValueError, match="content_hash"):
+            object_key("source-pdfs", document_id="x", file_name="y.pdf", content_hash=bad)
+    # Wrong length.
+    with pytest.raises(ValueError, match="content_hash"):
+        object_key("source-pdfs", document_id="x", file_name="y.pdf", content_hash="abc")
+    with pytest.raises(ValueError, match="content_hash"):
+        object_key("source-pdfs", document_id="x", file_name="y.pdf", content_hash="a" * 63)
+    # Not lowercase hex.
+    with pytest.raises(ValueError, match="content_hash"):
+        object_key("source-pdfs", document_id="x", file_name="y.pdf", content_hash="A" * 64)
+    with pytest.raises(ValueError, match="content_hash"):
+        object_key("source-pdfs", document_id="x", file_name="y.pdf", content_hash="g" * 64)
+
+
 # --- Bucket constants vs doc / env / settings ---------------------------------
 
 
