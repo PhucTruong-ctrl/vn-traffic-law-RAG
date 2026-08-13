@@ -9,10 +9,11 @@ document version that contributed that content.
 
 A provision version may legitimately originate from more than one source
 document (base text plus amending/correcting documents); the multi-source
-API records per-source roles explicitly — this module never assumes one
-source PDF per provision version.  ``page_number``/``bbox`` on
-``LegalProvision`` stay a convenience projection; the authoritative
-per-content source lives in the provenance records (doc 03 §3.9.14).
+API records per-source roles and per-source element locations explicitly —
+this module never assumes one source PDF per provision version.
+``page_number``/``bbox`` on ``LegalProvision`` stay a convenience
+projection; the authoritative per-content source lives in the provenance
+records (doc 03 §3.9.14).
 
 This module is a pure mapping layer: it never touches a session or a
 transaction — the repository layer (VNLRAG-39) owns persistence and must
@@ -36,8 +37,13 @@ ProvisionProvenanceRole = Literal[
 ]
 
 #: A single-source provenance "source": (source_document_version_id, role,
-#: element ids contributed by that source document version).
-_SourceAttribution = tuple[UUID, ProvisionProvenanceRole, list[str]]
+#: (element_id, page_number, bbox) tuples contributed by that source
+#: document version).  The location is carried per element so each
+#: provenance record points at its own source element, never at the
+#: provision's merged page/bbox.
+_SourceAttribution = tuple[
+    UUID, ProvisionProvenanceRole, list[tuple[str, int, dict[str, float] | None]]
+]
 
 
 class ProvenanceRecord(BaseModel):
@@ -100,21 +106,24 @@ def aggregate_multi_source_provenance(
     source documents (e.g. an amended clause: base text + amendment text).
 
     Each ``sources`` entry is ``(source_document_version_id, role,
-    element_ids)`` — the element ids contributed by that source document
-    version.  Records inherit ``provision.page_number`` and
-    ``provision.bbox``; each record carries the role of its own source, so
-    amended provisions get ``BASE_TEXT`` records plus
-    ``AMENDMENT_TEXT``/``CORRECTION_TEXT`` records without assuming one
-    source PDF per provision version (ticket VNLRAG-29).
+    elements)`` where ``elements`` is a list of ``(element_id, page_number,
+    bbox)`` tuples — the elements contributed by that source document
+    version, each carrying its own location.  Every record uses its own
+    source element's ``page_number``/``bbox`` (amended provisions get
+    ``BASE_TEXT`` records plus ``AMENDMENT_TEXT``/``CORRECTION_TEXT``
+    records, each pointing at the exact page it came from) without assuming
+    one source PDF per provision version (ticket VNLRAG-29).
 
     Raises ``ValueError`` unless the attributed element ids match
     ``provision.source_element_ids`` exactly (every source element must be
     attributed to exactly one source).
     """
 
-    attributed: list[str] = []
-    for _source_document_version_id, _role, element_ids in sources:
-        attributed.extend(element_ids)
+    attributed = [
+        element_id
+        for _source_document_version_id, _role, elements in sources
+        for element_id, _page_number, _bbox in elements
+    ]
     if sorted(attributed) != sorted(provision.source_element_ids):
         raise ValueError(
             f"attributed element ids {sorted(attributed)} do not match "
@@ -123,17 +132,17 @@ def aggregate_multi_source_provenance(
         )
 
     records: list[ProvenanceRecord] = []
-    for source_document_version_id, role, element_ids in sources:
+    for source_document_version_id, role, elements in sources:
         records.extend(
             ProvenanceRecord(
                 provision_version_row_id=provision_version_row_id,
                 source_document_version_id=source_document_version_id,
                 source_element_id=element_id,
-                page_number=provision.page_number,
-                bbox=provision.bbox,
+                page_number=page_number,
+                bbox=bbox,
                 role=role,
             )
-            for element_id in element_ids
+            for element_id, page_number, bbox in elements
         )
     return records
 
