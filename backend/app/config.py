@@ -8,10 +8,10 @@ hardcoded or logged.
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import AliasChoices, Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import AliasChoices, Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _ENV_FILE = _REPO_ROOT / ".env"
@@ -145,6 +145,65 @@ class SparseSettings(BaseSettings):
     tokenizer: str = "unicode-word"
 
 
+#: Canonical object-storage buckets (doc 03 §3.12.1, FR-08). Kept in sync with
+#: ``app.storage.BUCKETS`` (pinned by tests/test_object_storage.py) and the
+#: docker-compose ``MINIO_BUCKETS`` bootstrap list.
+_DEFAULT_OBJECT_STORAGE_BUCKETS = (
+    "source-pdfs",
+    "parser-outputs",
+    "page-images",
+    "ingestion-artifacts",
+    "review-artifacts",
+    "evaluation-artifacts",
+)
+
+
+class ObjectStorageSettings(BaseSettings):
+    """S3-compatible object storage configuration (doc 03 §3.12, doc 04 §4.15).
+
+    Read from ``MINIO_*`` environment variables, then the repo-root ``.env``
+    file (doc 07 §7.3.3): ``MINIO_ENDPOINT``, ``MINIO_USE_SSL``,
+    ``MINIO_BUCKETS`` (comma-separated list). Credentials accept the MinIO
+    server spellings ``MINIO_ROOT_USER`` / ``MINIO_ROOT_PASSWORD`` (used by
+    docker-compose), the S3 SDK spellings ``MINIO_ACCESS_KEY`` /
+    ``MINIO_SECRET_KEY``, and the repository's ``MINIO_ACCESS`` /
+    ``MINIO_SECRET`` forms (see the ``AliasChoices`` on ``access_key`` /
+    ``secret_key``). ``endpoint`` is ``host[:port]`` with no scheme; a scheme
+    is tolerated and stripped by :class:`app.storage.S3ObjectStorage`.
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="MINIO_",
+        env_file=str(_ENV_FILE),
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False,
+        populate_by_name=True,
+    )
+
+    endpoint: str = "localhost:9000"
+    access_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("MINIO_ROOT_USER", "MINIO_ACCESS_KEY", "MINIO_ACCESS"),
+    )
+    secret_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("MINIO_ROOT_PASSWORD", "MINIO_SECRET_KEY", "MINIO_SECRET"),
+    )
+    use_ssl: bool = False
+    buckets: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: list(_DEFAULT_OBJECT_STORAGE_BUCKETS)
+    )
+
+    @field_validator("buckets", mode="before")
+    @classmethod
+    def _parse_buckets(cls, value: object) -> object:
+        """Accept the docker-compose/bootstrap form ``MINIO_BUCKETS=a,b,c``."""
+        if isinstance(value, str):
+            return [part.strip() for part in value.split(",") if part.strip()]
+        return value
+
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """Return the process-wide settings singleton (cached until cleared)."""
@@ -167,3 +226,9 @@ def get_embedding_settings() -> EmbeddingSettings:
 def get_sparse_settings() -> SparseSettings:
     """Return the process-wide sparse settings singleton (cached until cleared)."""
     return SparseSettings()
+
+
+@lru_cache(maxsize=1)
+def get_object_storage_settings() -> ObjectStorageSettings:
+    """Return the process-wide object-storage settings singleton (cached until cleared)."""
+    return ObjectStorageSettings()
