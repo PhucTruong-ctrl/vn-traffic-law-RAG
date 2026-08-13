@@ -16,6 +16,7 @@ from app.ingestion.quality_gates import (
     GroupAResult,
     GroupAThresholds,
     GroupBContract,
+    GroupBResult,
     GroupBThresholds,
     evaluate_group_a,
     evaluate_group_b,
@@ -24,6 +25,7 @@ from app.ingestion.quality_gates import (
     table_detection_rate,
     text_extraction_rate,
 )
+from app.ingestion.structure_extractor import ExtractedLegalProvision
 
 _PARSED_DOCUMENT_ID = "a1b2c3d4-0000-4000-8000-000000000000"
 
@@ -417,8 +419,93 @@ def test_evaluate_group_a_empty_document_verdict_na() -> None:
 
 
 # ────────────────────────────────────────────────────────────────────────────
-# Group B — structural gates (CONTRACT ONLY in W2)
+# Group B — structural gates (OPERATIONAL in VNLRAG-33)
 # ────────────────────────────────────────────────────────────────────────────
+
+_DOC_VERSION = "dv-nd-168-2024"
+_SLUG = "nd-168-2024"
+
+
+def _provision(**overrides: object) -> ExtractedLegalProvision:
+    """Build an ExtractedLegalProvision (default: point ``a)``, Điều 5 Khoản 1)."""
+
+    base: dict[str, object] = {
+        "provision_id": f"{_SLUG}__dieu-5__khoan-1__diem-a",
+        "document_version_id": _DOC_VERSION,
+        "chapter": None,
+        "section": None,
+        "article": "Điều 5",
+        "clause": "Khoản 1",
+        "point": "Điểm a)",
+        "heading": None,
+        "source_text": "a) Điều khiển xe lạng lách, đánh võng trên đường bộ",
+        "retrieval_text": (
+            "Khoản 1. Phạt tiền từ 800.000 đồng đến 1.000.000 đồng ... "
+            "a) Điều khiển xe lạng lách, đánh võng trên đường bộ"
+        ),
+        "parent_context": "Khoản 1. Xử phạt người điều khiển xe ô tô ...",
+        "page_number": 1,
+        "bbox": None,
+        "source_element_ids": ["e1"],
+        "content_hash": "hash",
+        "node_kind": "POINT",
+        "point_label": "a)",
+        "short_point": False,
+        "needs_review": False,
+        "ambiguity": None,
+        "effective_from": "2025-01-01",
+    }
+    base.update(overrides)
+    return ExtractedLegalProvision(**base)
+
+
+def _clause(**overrides: object) -> ExtractedLegalProvision:
+    """CLAUSE-kind provision under Điều 5 Khoản 1."""
+
+    base: dict[str, object] = {
+        "provision_id": f"{_SLUG}__dieu-5__khoan-1",
+        "article": "Điều 5",
+        "clause": "Khoản 1",
+        "point": None,
+        "source_text": "1. Phạt tiền từ 800.000 đồng đến 1.000.000 đồng ...",
+        "node_kind": "CLAUSE",
+        "point_label": None,
+    }
+    base.update(overrides)
+    return _provision(**base)
+
+
+def _article(**overrides: object) -> ExtractedLegalProvision:
+    """ARTICLE-kind provision for Điều 5."""
+
+    base: dict[str, object] = {
+        "provision_id": f"{_SLUG}__dieu-5",
+        "article": "Điều 5",
+        "clause": None,
+        "point": None,
+        "source_text": "Điều 5. Xử phạt người điều khiển xe ô tô ...",
+        "node_kind": "ARTICLE",
+        "point_label": None,
+    }
+    base.update(overrides)
+    return _provision(**base)
+
+
+def _point(index: int, label: str) -> ExtractedLegalProvision:
+    """POINT provision ``index`` (1-based) with the given label under Khoản 1."""
+
+    letters = "abcdefghij"
+    return _provision(
+        provision_id=f"{_SLUG}__dieu-5__khoan-1__diem-{letters[index - 1]}",
+        point_label=label,
+        source_text=f"{label} Nội dung điểm thứ {index}.",
+    )
+
+
+def _clean_tree() -> list[ExtractedLegalProvision]:
+    """Điều 5 → Khoản 1 → points a) b): no orphans, no duplicates, labels valid."""
+
+    return [_article(), _clause(), _point(1, "a)"), _point(2, "b)")]
 
 
 def test_group_b_thresholds_defaults_from_yaml() -> None:
@@ -442,6 +529,119 @@ def test_group_b_contract_dict_is_jsonable() -> None:
     assert isinstance(json.dumps(payload), str)
 
 
-def test_evaluate_group_b_stub_raises_not_implemented() -> None:
-    with pytest.raises(NotImplementedError, match="contract-only in W2"):
-        evaluate_group_b([])  # type: ignore[arg-type]  # LegalProvision[] lands in W3
+def test_group_b_contract_marks_implementation_ticket() -> None:
+    assert GroupBContract().implemented_in == "VNLRAG-33"
+
+
+def test_evaluate_group_b_clean_tree_passes() -> None:
+    result = evaluate_group_b(_clean_tree())
+    assert isinstance(result, GroupBResult)
+    assert result.passed is True
+    assert result.failed_checks == []
+    assert result.metrics["point_label_detection_rate"] == 1.0
+    assert result.metrics["hierarchy_completeness"] == 1.0
+    assert result.metrics["short_point_retention_rate"] == 1.0
+    assert result.metrics["orphan_point_count"] == 0
+    assert result.metrics["orphan_clause_count"] == 0
+    assert result.metrics["duplicate_count"] == 0
+
+
+def test_group_b_result_metrics_contract_keys() -> None:
+    metrics = evaluate_group_b(_clean_tree()).metrics
+    assert set(metrics) == {
+        "point_label_detection_rate",
+        "hierarchy_completeness",
+        "short_point_retention_rate",
+        "orphan_point_count",
+        "orphan_clause_count",
+        "duplicate_count",
+    }
+
+
+def test_evaluate_group_b_point_label_detection_boundary() -> None:
+    # 9 of 10 points with a PRIMARY-run label = exactly 0.9 -> passed (>=);
+    # labels beyond the PRIMARY run (g)) do not count as detected.
+    tree = [_article(), _clause()]
+    tree += [_point(i, "a)") for i in range(1, 10)]
+    tree.append(_point(10, "g)"))
+    result = evaluate_group_b(tree)
+    assert result.metrics["point_label_detection_rate"] == pytest.approx(0.9)
+    assert "point_label_detection" not in result.failed_checks
+
+    below = [_article(), _clause()]
+    below += [_point(i, "a)") for i in range(1, 9)]
+    below += [_point(9, "g)"), _point(10, "g)")]
+    result_below = evaluate_group_b(below)
+    assert result_below.metrics["point_label_detection_rate"] == pytest.approx(0.8)
+    assert result_below.passed is False
+    assert "point_label_detection" in result_below.failed_checks
+
+
+def test_evaluate_group_b_hierarchy_completeness_counts_orphans_and_duplicates() -> None:
+    # Orphan point: neither its provision_id parent nor its (article, clause)
+    # labels exist anywhere in the document.  Orphan clause: article Điều 9
+    # missing.  Duplicate: the second _clause() repeats the same provision_id.
+    orphan_point = _point(1, "a)").model_copy(
+        update={
+            "provision_id": f"{_SLUG}__dieu-9__khoan-9__diem-a",
+            "article": "Điều 9",
+            "clause": "Khoản 9",
+        }
+    )
+    orphan_clause = _clause().model_copy(
+        update={
+            "provision_id": f"{_SLUG}__dieu-9__khoan-2",
+            "article": "Điều 9",
+            "clause": "Khoản 2",
+        }
+    )
+    tree = [
+        _article(),
+        _clause(),
+        _point(1, "a)"),
+        _point(2, "b)"),
+        orphan_point,
+        orphan_clause,
+        _clause(),  # duplicate provision_id (same id as _clause())
+    ]
+    result = evaluate_group_b(tree)
+    assert result.metrics["orphan_point_count"] == 1
+    assert result.metrics["orphan_clause_count"] == 1
+    assert result.metrics["duplicate_count"] == 1
+    # 7 tree provisions, 3 defects (orphan point + orphan clause + duplicate
+    # id) -> completeness 4/7 < 0.9 -> hierarchy gate fails.
+    assert result.metrics["hierarchy_completeness"] == pytest.approx(4 / 7)
+    assert result.passed is False
+    assert "hierarchy_completeness" in result.failed_checks
+
+
+def test_evaluate_group_b_short_point_retention_never_fails() -> None:
+    # Rulespec §5: no token-length threshold — flagged short points are
+    # retained, so the rate is 1.0 (vacuously 1.0 when none are flagged).
+    with_short = [_article(), _clause(), _point(1, "a)"), _point(2, "b)")]
+    with_short[2] = with_short[2].model_copy(update={"short_point": True})
+    result = evaluate_group_b(with_short)
+    assert result.metrics["short_point_retention_rate"] == 1.0
+    assert result.passed is True
+
+    without_short = _clean_tree()
+    result_vacuous = evaluate_group_b(without_short)
+    assert result_vacuous.metrics["short_point_retention_rate"] == 1.0
+
+
+def test_evaluate_group_b_empty_input_fails() -> None:
+    # Nothing extracted → nothing detected (0.0 < 0.9): never auto-accept.
+    result = evaluate_group_b([])
+    assert result.passed is False
+    assert result.metrics["point_label_detection_rate"] == 0.0
+    assert result.metrics["hierarchy_completeness"] == 0.0
+    assert set(result.failed_checks) == {"point_label_detection", "hierarchy_completeness"}
+
+
+def test_evaluate_group_b_custom_thresholds() -> None:
+    tree = [_article(), _clause(), _point(1, "a)"), _point(2, "g)")]
+    strict = evaluate_group_b(tree, GroupBThresholds(min_point_label_detection=1.0))
+    assert "point_label_detection" in strict.failed_checks
+    lenient = evaluate_group_b(tree, GroupBThresholds(min_point_label_detection=0.5))
+    assert lenient.metrics["point_label_detection_rate"] == pytest.approx(0.5)
+    assert "point_label_detection" not in lenient.failed_checks
