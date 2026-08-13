@@ -20,6 +20,11 @@ Rules enforced here (never deferred to the DB):
 - ``content_hash`` is a deterministic plain ``sha256`` hex digest — the frozen
   JSON templates require ``^[a-f0-9]{64}$`` (``templates/legal-*.schema.json``),
   which is why the ``sha256:``-prefixed persistence helper is not used here.
+- VNLRAG-27 normalization: extracted metadata is canonicalized per the
+  VNLRAG-23 v2 rules (manifest-authoritative document_type/issuer, no-guess
+  dates, unicode cleanup) before row construction, and ``retrieval_text`` is
+  normalized (glued point labels, whitespace, unicode) while ``source_text``
+  is kept verbatim.
 - Validation before persistence (:func:`validate_provisions`) rejects
   incomplete provisions (missing source_text, empty source_element_ids,
   invalid interval, ACCEPTED without effective_from, ...).
@@ -42,6 +47,7 @@ from app.ingestion.metadata_extractor import (
     ExtractedDocumentMetadata,
     validate_against_manifest,
 )
+from app.ingestion.metadata_normalizer import normalize_metadata, normalize_provision_text
 from app.ingestion.structure_extractor import ExtractedLegalProvision
 from app.persistence.models import DocumentVersion, LegalDocument, LegalProvision
 
@@ -162,6 +168,12 @@ def project_document(
         joined = "; ".join(conflicts)
         raise ValueError(f"manifest conflicts with extracted IR metadata: {joined}")
 
+    # VNLRAG-27: canonicalize extracted metadata per the VNLRAG-23 v2 rules
+    # (manifest-authoritative document_type/issuer, no-guess dates, unicode
+    # cleanup).  Idempotent on canonical inputs; review flags raised here are
+    # returned by normalize_metadata for callers that invoke it directly.
+    metadata = normalize_metadata(metadata, manifest).metadata
+
     document_title = metadata.document_title or document_number
 
     document = LegalDocument(
@@ -230,7 +242,7 @@ def project_provisions(
                 point=item.point,
                 heading=item.heading,
                 source_text=item.source_text,
-                retrieval_text=item.retrieval_text,
+                retrieval_text=normalize_provision_text(item.retrieval_text),
                 parent_context=item.parent_context,
                 effective_from=(
                     effective_from

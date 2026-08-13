@@ -1,0 +1,14 @@
+{
+  "schema_version": "extracted-metadata-output-v1",
+  "description": "VNLRAG-27 expected normalization output for input_metadata.json + manifest.json. Dates serialize to ISO YYYY-MM-DD; document_type/issuer follow manifest authority (CIRCULAR / Bộ Công an); title/number get unicode NFC + whitespace collapse + full-width cleanup. needs_review is empty because every value canonicalized confidently (no guessing was required).",
+  "metadata": {
+    "document_title": "THÔNG TƯ 79/2024/TT-BCA QUY ĐỊNH VỀ CẤP, THU HỒI ĐĂNG KÝ XE",
+    "document_number": "79/2024/TT-BCA",
+    "document_type": "CIRCULAR",
+    "issuer": "Bộ Công an",
+    "issued_date": "2024-11-15",
+    "effective_from": "2025-01-01",
+    "effective_to": null
+  },
+  "needs_review": []
+}
