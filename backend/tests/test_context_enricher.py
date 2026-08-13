@@ -170,6 +170,137 @@ def test_point_retrieval_text_exactly_matches_gold_annotation(provision_id: str)
     assert enrich_retrieval_text(point) == annotation["retrieval_text_expected"]
 
 
+def test_point_with_unresolvable_clause_uses_derived_clause_lead_in_only() -> None:
+    """Regression (oracle): a POINT whose clause cannot be located structurally
+    (missing clause label -> ``_extract_clause_lead_in`` bails) must never
+    inherit the chapter/section/article prefix of ``parent_context``; the
+    fallback derives the trailing clause segment after the last article
+    boundary and canonicalizes it to ``Khoản {n}. ...``.
+    """
+
+    point = _provision(
+        "nd-168-2024__dieu-7__khoan-4__diem-a",
+        node_kind="POINT",
+        source_text="a) Điều khiển xe lạng lách, đánh võng trên đường bộ",
+        article="Điều 7",
+        clause=None,
+        point="Điểm a)",
+        parent_context=(
+            "Chương I. Quy định chung Mục 1. Quy định về xử phạt "
+            "Điều 7. Xử phạt người điều khiển xe mô tô, xe gắn máy vi phạm quy tắc giao thông đường bộ "
+            "4. Phạt tiền từ 14.000.000 đồng đến 16.000.000 đồng đối với người điều khiển xe "
+            "thực hiện hành vi vi phạm sau đây:"
+        ),
+    )
+    retrieval_text = enrich_retrieval_text(point)
+    assert retrieval_text == (
+        "Khoản 4. Phạt tiền từ 14.000.000 đồng đến 16.000.000 đồng đối với người điều khiển xe "
+        "thực hiện hành vi vi phạm sau đây: a) Điều khiển xe lạng lách, đánh võng trên đường bộ"
+    )
+    assert "Chương" not in retrieval_text
+    assert "Mục" not in retrieval_text
+    assert "Điều 7" not in retrieval_text
+
+
+def test_point_with_mismatched_clause_number_uses_derived_clause_lead_in_only() -> None:
+    """Regression (oracle): the structural clause label may not match the
+    marker-stripped/reconstructed clause text in ``parent_context``; the
+    derived fallback must still pick the trailing clause segment (by its own
+    marker) instead of leaking the article heading.
+    """
+
+    point = _provision(
+        "nd-168-2024__dieu-7__khoan-4__diem-a",
+        node_kind="POINT",
+        source_text="a) Điều khiển xe lạng lách, đánh võng trên đường bộ",
+        article="Điều 7",
+        clause="Khoản 3",
+        point="Điểm a)",
+        parent_context=(
+            "Chương I. Quy định chung Mục 1. Quy định về xử phạt "
+            "Điều 7. Xử phạt người điều khiển xe mô tô, xe gắn máy vi phạm quy tắc giao thông đường bộ "
+            "4. Phạt tiền từ 14.000.000 đồng đến 16.000.000 đồng đối với người điều khiển xe "
+            "thực hiện hành vi vi phạm sau đây:"
+        ),
+    )
+    retrieval_text = enrich_retrieval_text(point)
+    assert retrieval_text == (
+        "Khoản 4. Phạt tiền từ 14.000.000 đồng đến 16.000.000 đồng đối với người điều khiển xe "
+        "thực hiện hành vi vi phạm sau đây: a) Điều khiển xe lạng lách, đánh võng trên đường bộ"
+    )
+    assert "Điều 7" not in retrieval_text
+
+
+def test_point_with_underivable_parent_context_falls_back_to_source_text() -> None:
+    """A POINT whose clause cannot be located AND whose parent_context has no
+    derivable clause segment (chapter+section+article only) falls back to the
+    unmodified ``source_text`` — the full ``parent_context`` is never leaked.
+    """
+
+    point = _provision(
+        "nd-168-2024__dieu-7__khoan-4__diem-a",
+        node_kind="POINT",
+        source_text="a) Điều khiển xe lạng lách, đánh võng trên đường bộ",
+        article="Điều 7",
+        clause=None,
+        point="Điểm a)",
+        parent_context=(
+            "Chương I. Quy định chung Mục 1. Quy định về xử phạt "
+            "Điều 7. Xử phạt người điều khiển xe mô tô, xe gắn máy vi phạm quy tắc giao thông đường bộ"
+        ),
+    )
+    assert enrich_retrieval_text(point) == point.source_text
+    assert build_parent_context(point) == ""
+
+
+def test_clause_with_chapter_section_parent_derives_article_heading_only() -> None:
+    """Regression (oracle): a CLAUSE enriched without sibling documents
+    (``build_retrieval_units`` path) must never inherit chapter/section text:
+    the article heading is derived from ``parent_context`` and any clause-level
+    text after it is cut off.
+    """
+
+    clause_text = (
+        "4. Phạt tiền từ 14.000.000 đồng đến 16.000.000 đồng đối với người điều khiển xe "
+        "thực hiện hành vi vi phạm sau đây:"
+    )
+    clause = _provision(
+        "nd-168-2024__dieu-7__khoan-4",
+        node_kind="CLAUSE",
+        source_text=clause_text,
+        article="Điều 7",
+        clause="Khoản 4",
+        parent_context=(
+            "Chương I. Quy định chung Mục 1. Quy định về xử phạt "
+            "Điều 7. Xử phạt người điều khiển xe mô tô, xe gắn máy vi phạm quy tắc giao thông đường bộ "
+            "4. Phạt tiền từ 14.000.000 đồng đến 16.000.000 đồng đối với người điều khiển xe "
+            "thực hiện hành vi vi phạm sau đây:"
+        ),
+    )
+    retrieval_text = enrich_retrieval_text(clause)
+    assert retrieval_text.startswith(ARTICLE_HEADING)
+    assert "Chương" not in retrieval_text
+    assert "Mục" not in retrieval_text
+    assert retrieval_text == f"{ARTICLE_HEADING} {clause_text}"
+
+
+def test_clause_without_derivable_article_heading_falls_back_to_source_text() -> None:
+    """A CLAUSE whose ``parent_context`` has no article heading falls back to
+    the unmodified ``source_text`` — chapter/section text is never prepended.
+    """
+
+    clause = _provision(
+        "nd-168-2024__dieu-7__khoan-4",
+        node_kind="CLAUSE",
+        source_text="4. Phạt tiền từ 14.000.000 đồng đến 16.000.000 đồng",
+        article="Điều 7",
+        clause="Khoản 4",
+        parent_context="Chương I. Quy định chung Mục 1. Quy định về xử phạt",
+    )
+    assert enrich_retrieval_text(clause) == clause.source_text
+    assert build_parent_context(clause) == ""
+
+
 def test_build_parent_context_resolves_clause_lead_in_from_siblings() -> None:
     """Without parent_context on the record, the clause lead-in comes from siblings."""
 
