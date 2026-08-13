@@ -512,21 +512,24 @@ def test_parse_actor_bootstraps_run_and_chains(
     assert _messages(_stub_broker, "normalize")[0].args == ("job-1",)
 
 
-def test_index_sparse_encoder_fitted_on_corpus_aligns_shared_tokens() -> None:
+def test_index_sparse_encoder_fitted_on_corpus_aligns_shared_tokens(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Shared tokens land on the SAME sparse dimension across provisions.
 
-    The index actor must fit ONE BM25 vocabulary over the corpus before
-    indexing — an unfitted encoder assigns text-local token ids, so the same
-    dimension would mean different tokens in different points (invalid
-    keyword scoring, doc 03 §3.11.2 sparse-space contract).
+    The index actor must use ONE corpus vocabulary before indexing — an
+    unfitted encoder assigns text-local token ids, so the same dimension
+    would mean different tokens in different points (invalid keyword
+    scoring, doc 03 §3.11.2 sparse-space contract).
     """
-    from app.ingestion.actors.index import _fit_sparse_encoder
+    from app.ingestion.actors import index as index_module
 
+    monkeypatch.setattr(index_module, "_VOCAB_DIR", tmp_path / "vocab")
     corpus = [
         "Điều 7. Xử phạt người điều khiển xe mô tô",
         "1. Phạt tiền từ 400.000 đồng đến 600.000 đồng",
     ]
-    encoder = _fit_sparse_encoder(corpus)
+    encoder = index_module.load_or_fit_sparse_encoder(corpus, version="bm25-test-v1")
     first = encoder.encode(corpus[0])
     second = encoder.encode(corpus[1])
 
@@ -538,8 +541,65 @@ def test_index_sparse_encoder_fitted_on_corpus_aligns_shared_tokens() -> None:
     assert first[shared] > 0.0
     assert second[shared] > 0.0
 
-    # Deterministic across runs for the same corpus: re-fitting yields the
-    # identical vocabulary, so a re-run indexes with the same dimensions.
-    refitted = _fit_sparse_encoder(corpus)
-    assert refitted.vocabulary == encoder.vocabulary
-    assert refitted.encode(corpus[0]) == first
+    # The vocabulary was persisted: file exists with version + sorted tokens.
+    vocab_file = tmp_path / "vocab" / "bm25-test-v1.json"
+    assert vocab_file.is_file()
+    stored = json.loads(vocab_file.read_text(encoding="utf-8"))
+    assert stored["version"] == "bm25-test-v1"
+    assert stored["tokens"] == sorted(encoder.vocabulary, key=encoder.vocabulary.get)
+
+
+def test_index_sparse_vocabulary_is_stable_across_jobs(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A growing corpus must NOT drift the persisted vocabulary (no refit).
+
+    Incremental indexing reuses the persisted token->dimension map verbatim;
+    new tokens are out-of-vocabulary (skipped) until a version bump +
+    collection rebuild, per the sparse_encoder_version contract.
+    """
+    from app.ingestion.actors import index as index_module
+
+    monkeypatch.setattr(index_module, "_VOCAB_DIR", tmp_path / "vocab")
+    corpus_v1 = ["Điều 7. Xử phạt người điều khiển xe mô tô"]
+    first = index_module.load_or_fit_sparse_encoder(corpus_v1, version="bm25-test-v1")
+
+    # Job 2 indexes the same corpus PLUS a new document with a new token.
+    corpus_v2 = [*corpus_v1, "Xử lý nghiệp vụ đặc biệt mới"]
+    second = index_module.load_or_fit_sparse_encoder(corpus_v2, version="bm25-test-v1")
+
+    # Same token -> same dimension across jobs; no refit drift.  (Weights
+    # shift because idf is recomputed over the larger corpus; dimensions are
+    # what must stay stable.)
+    assert second.vocabulary == first.vocabulary
+    first_encoding = first.encode(corpus_v1[0])
+    second_encoding = second.encode(corpus_v1[0])
+    for token in ("điều", "xử", "phạt", "xe"):
+        dimension = first.vocabulary[token]
+        assert dimension in first_encoding
+        assert dimension in second_encoding
+    assert "nghiệp" not in second.vocabulary  # new token stays OOV
+    assert "nghiệp" not in second.encode(corpus_v2[1])
+
+    # A different version is a NEW sparse space: fit + persist separately.
+    third = index_module.load_or_fit_sparse_encoder(corpus_v2, version="bm25-test-v2")
+    assert third.vocabulary != second.vocabulary
+    assert "nghiệp" in third.vocabulary
+    assert (tmp_path / "vocab" / "bm25-test-v2.json").is_file()
+
+
+def test_index_sparse_vocabulary_round_trip(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """persist_vocabulary / load_vocabulary round-trip and missing-version None."""
+    from app.ingestion.actors import index as index_module
+
+    monkeypatch.setattr(index_module, "_VOCAB_DIR", tmp_path / "vocab")
+    assert index_module.load_vocabulary(version="bm25-test-v1") is None
+
+    encoder = index_module._fit_sparse_encoder(
+        ["Tòa án nhân dân tối cao"], version="bm25-test-v1"
+    )
+    path = index_module.persist_vocabulary(encoder, version="bm25-test-v1")
+    assert path == tmp_path / "vocab" / "bm25-test-v1.json"
+    assert index_module.load_vocabulary(version="bm25-test-v1") == encoder.vocabulary
