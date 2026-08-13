@@ -24,7 +24,8 @@ Rules enforced here (never deferred to the DB):
   VNLRAG-23 v2 rules (manifest-authoritative document_type/issuer, no-guess
   dates, unicode cleanup) before row construction, and ``retrieval_text`` is
   normalized (glued point labels, whitespace, unicode) while ``source_text``
-  is kept verbatim.
+  is kept verbatim.  Header/footer leakage is routed to ``PENDING`` review
+  (never auto-accepted) and marked on the extractor record for QA counting.
 - Validation before persistence (:func:`validate_provisions`) rejects
   incomplete provisions (missing source_text, empty source_element_ids,
   invalid interval, ACCEPTED without effective_from, ...).
@@ -47,7 +48,11 @@ from app.ingestion.metadata_extractor import (
     ExtractedDocumentMetadata,
     validate_against_manifest,
 )
-from app.ingestion.metadata_normalizer import normalize_metadata, normalize_provision_text
+from app.ingestion.metadata_normalizer import (
+    is_header_footer_leakage,
+    normalize_metadata,
+    normalize_provision_text,
+)
 from app.ingestion.structure_extractor import ExtractedLegalProvision
 from app.persistence.models import DocumentVersion, LegalDocument, LegalProvision
 
@@ -181,7 +186,7 @@ def project_document(
         document_number=document_number,
         document_title=document_title,
         document_type=document_type,
-        issuer=_optional_str(manifest.get("issuer")),
+        issuer=metadata.issuer,  # normalized issuer (VNLRAG-27), not raw manifest text
         issued_date=_parse_iso_date(manifest.get("issued_date")),
         source_url=_optional_str(manifest.get("source_url")),
         downloaded_at=None,
@@ -220,6 +225,14 @@ def project_provisions(
     stay nullable until temporal resolution (doc 03 §3.15.6).  The
     ``content_hash`` is recomputed deterministically from ``source_text`` and
     must equal the extractor's value.
+
+    Header/footer leakage (rulespec §9) is never persisted as auto-accepted:
+    when a provision's text is detected as repeated document chrome, its
+    ``review_status`` is forced to ``PENDING`` (an explicit ``review_status``
+    override never overrides leakage), and the marker is recorded on the
+    extractor record itself (``needs_review = True`` with ``ambiguity =
+    "header/footer leakage"``, the extractor's own review-flag convention) so
+    corpus QA can count leakage from the caller's ``extracted`` list.
     """
 
     provisions: list[LegalProvision] = []
@@ -229,6 +242,17 @@ def project_provisions(
             raise ValueError(
                 f"content_hash mismatch for {item.provision_id}: "
                 f"projected {content_hash} != extractor {item.content_hash}"
+            )
+        leakage = is_header_footer_leakage(item.source_text) or is_header_footer_leakage(
+            item.retrieval_text
+        )
+        if leakage:
+            item.needs_review = True
+            item.ambiguity = item.ambiguity or "header/footer leakage"
+            provision_review_status = "PENDING"  # never auto-accept leaked chrome
+        else:
+            provision_review_status = (
+                review_status if review_status is not None else item.review_status
             )
         provisions.append(
             LegalProvision(
@@ -258,7 +282,7 @@ def project_provisions(
                 source_element_ids=item.source_element_ids,
                 content_hash=content_hash,
                 version=item.version,
-                review_status=review_status if review_status is not None else item.review_status,
+                review_status=provision_review_status,
             )
         )
     return provisions

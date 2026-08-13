@@ -5,11 +5,11 @@ Implements the normalization layer defined in
 sits between :class:`ExtractedDocumentMetadata` and persistence
 (doc 03 §3.9.3):
 
-- §2 document type is read from the manifest, never inferred from IR text;
-  Vietnamese type prefixes are mapped to the ``DocumentType`` enum
-  (multi-word-first, reusing the extractor's ``_DOCUMENT_TYPE_PREFIXES``
-  table).  The manifest's ``document_type`` is authoritative when present and
-  valid.
+- §2 document type is read from the manifest, never inferred from IR text:
+  ``document_type`` is taken from the manifest's ``DocumentType`` enum
+  value only; a missing or invalid manifest value becomes ``None`` with a
+  ``needs_review`` flag (the extracted Vietnamese prefix is never promoted
+  to an enum).
 - §4 d)/đ) handling: ``đ`` is kept distinct from ``d`` in labels and IDs.  A
   bare ``d)`` label is d↔đ OCR-ambiguous and is routed to review
   (``needs_review``) instead of guessed, unless ordinal position in the point
@@ -26,11 +26,11 @@ sits between :class:`ExtractedDocumentMetadata` and persistence
   (Ⅰ/Ⅱ/Ⅲ → I/II/III), d↔đ confusion and header/footer leakage are detected
   and either canonicalized or flagged for review — never silently rewritten.
 
-Manifest authority is applied here for ``document_type`` and ``issuer`` (the
-manifest value wins when present and valid); the extracted values are
-canonicalized in form and, when unmappable, set to ``None`` with a review
-flag.  Text fields get unicode NFC + whitespace collapse + full-width
-cleanup.
+Manifest authority is applied here for ``document_type`` (manifest enum only)
+and ``issuer`` (manifest value wins when present; canonicalized via the
+keyword map, boilerplate noise stripped).  Values that cannot be resolved
+authoritatively are set to ``None`` with a review flag — never guessed.
+Text fields get unicode NFC + whitespace collapse + full-width cleanup.
 
 The module is deterministic, parser-neutral and side-effect free.  Every
 public function is idempotent on canonical inputs, so already-normalized
@@ -46,11 +46,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from app.ingestion.metadata_extractor import (
-    _DOCUMENT_TYPE_PREFIXES,
-    _VALID_DOCUMENT_TYPES,
-    ExtractedDocumentMetadata,
-)
+from app.ingestion.metadata_extractor import _VALID_DOCUMENT_TYPES, ExtractedDocumentMetadata
 
 #: ISO ``YYYY-MM-DD`` (or full ISO 8601 date-time) parsed via date.fromisoformat.
 #: dd/mm/yyyy in the official Vietnamese day-first convention.
@@ -176,35 +172,6 @@ def _clean_text(value: str | None) -> str | None:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def _normalize_document_type(value: str | None, needs_review: list[str]) -> str | None:
-    """Map a Vietnamese type prefix to the ``DocumentType`` enum.
-
-    Multi-word prefixes are matched first (reusing the extractor's
-    ``_DOCUMENT_TYPE_PREFIXES`` table, rulespec §2).  An already-valid enum
-    value passes through.  An unrecognized value becomes ``None`` with a
-    review flag — never guessed.  The manifest value, when present and valid,
-    is authoritative and wins over the extracted mapping.
-    """
-
-    mapped: str | None = None
-    if value is not None:
-        cleaned = _clean_text(value)
-        upper = cleaned.upper() if cleaned else ""
-        if upper in _VALID_DOCUMENT_TYPES:
-            mapped = upper
-        else:
-            for prefix, document_type in _DOCUMENT_TYPE_PREFIXES:
-                if upper == prefix or upper.startswith(prefix + " "):
-                    mapped = document_type
-                    break
-            if mapped is None:
-                needs_review.append(
-                    f"document_type: {value!r} is not a known Vietnamese type prefix; "
-                    "set to None (never guess)"
-                )
-    return mapped
-
-
 def _normalize_issuer(value: str | None, needs_review: list[str]) -> str | None:
     """Canonicalize an issuer via the keyword map and strip boilerplate noise.
 
@@ -286,7 +253,8 @@ def normalize_metadata(
     canonicalized :class:`ExtractedDocumentMetadata` (a fixpoint of this
     function), ``.needs_review`` lists the review flags raised for ambiguous
     or unmappable values.  The manifest is authoritative for
-    ``document_type`` and ``issuer`` (its value wins when present and valid);
+    ``document_type`` (manifest enum only — never inferred from the IR
+    prefix, rulespec §2) and ``issuer`` (manifest value wins when present);
     dates and text fields are normalized in form only.  Idempotent on
     canonical inputs.
     """
@@ -294,12 +262,14 @@ def normalize_metadata(
     needs_review: list[str] = []
 
     manifest_type = manifest.get("document_type")
-    mapped_type = _normalize_document_type(metadata.document_type, needs_review)
-    document_type: str | None
     if isinstance(manifest_type, str) and manifest_type in _VALID_DOCUMENT_TYPES:
-        document_type = manifest_type  # manifest is authoritative (§2)
+        document_type: str | None = manifest_type  # manifest is authoritative (§2)
     else:
-        document_type = mapped_type
+        document_type = None
+        needs_review.append(
+            f"document_type: manifest value {manifest_type!r} missing/invalid; "
+            "set to None (never guess from IR text)"
+        )
 
     manifest_issuer = manifest.get("issuer")
     issuer_source = (

@@ -11,6 +11,7 @@ never mutates ``source_text``.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -29,7 +30,7 @@ from app.ingestion.metadata_normalizer import (
     normalize_roman_numeral,
 )
 from app.ingestion.projection import project_provisions, validate_provisions
-from app.ingestion.structure_extractor import LegalStructureExtractor
+from app.ingestion.structure_extractor import ExtractedLegalProvision, LegalStructureExtractor
 from app.ingestion.terminology import TERMINOLOGY, TERMINOLOGY_VERSION, canonical_term
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -102,43 +103,56 @@ def _ir(elements: list[tuple[str, str]], *, document_id: str = "nd-168-2024") ->
     )
 
 
-# ─────────────────────── document_type: prefix mapping + manifest authority ───────────────────────
+# ───────────────────── document_type: manifest authority, never IR-inferred ─────────────────────
 
 
 @pytest.mark.parametrize(
-    ("prefix", "expected"),
+    "prefix",
     [
-        ("THÔNG TƯ", "CIRCULAR"),
-        ("THÔNG TƯ LIÊN TỊCH", "CIRCULAR"),
-        ("NGHỊ ĐỊNH", "DECREE"),
-        ("LUẬT", "LAW"),
-        ("QUYẾT ĐỊNH", "DECISION"),
-        ("NGHỊ QUYẾT", "RESOLUTION"),
-        ("VĂN BẢN HỢP NHẤT", "OTHER"),
+        "THÔNG TƯ",
+        "THÔNG TƯ LIÊN TỊCH",
+        "NGHỊ ĐỊNH",
+        "LUẬT",
+        "QUYẾT ĐỊNH",
+        "NGHỊ QUYẾT",
+        "VĂN BẢN HỢP NHẤT",
     ],
 )
-def test_document_type_prefix_mapping(prefix: str, expected: str) -> None:
+def test_document_type_never_inferred_from_ir_when_manifest_missing(prefix: str) -> None:
+    """Rulespec §2: type comes from the manifest only — an extracted Vietnamese
+    prefix is never promoted to an enum (missing manifest -> None + review)."""
     result = normalize_metadata(_metadata(document_type=prefix), {})
-    assert result.metadata.document_type == expected
-    assert result.needs_review == []
+    assert result.metadata.document_type is None
+    assert any("document_type" in flag and "manifest" in flag for flag in result.needs_review)
 
-def test_document_type_already_enum_is_kept() -> None:
-    result = normalize_metadata(_metadata(document_type="DECREE"), {})
+
+def test_document_type_from_valid_manifest_is_used() -> None:
+    result = normalize_metadata(
+        _metadata(document_type="THÔNG TƯ"), _manifest(document_type="DECREE")
+    )
     assert result.metadata.document_type == "DECREE"
     assert result.needs_review == []
 
 
 def test_document_type_manifest_is_authoritative() -> None:
-    """Manifest wins over the extracted Vietnamese prefix (rulespec §2)."""
+    """Manifest wins over the extracted value (rulespec §2)."""
     manifest = _manifest(document_type="LAW")
     result = normalize_metadata(_metadata(document_type="THÔNG TƯ"), manifest)
     assert result.metadata.document_type == "LAW"
 
 
+def test_document_type_invalid_manifest_value_becomes_none_with_review_flag() -> None:
+    """An invalid manifest enum is not guessed either."""
+    manifest = _manifest(document_type="STATUTE")
+    result = normalize_metadata(_metadata(document_type="THÔNG TƯ"), manifest)
+    assert result.metadata.document_type is None
+    assert any("document_type" in flag and "manifest" in flag for flag in result.needs_review)
+
+
 def test_document_type_unrecognized_becomes_none_with_review_flag() -> None:
     result = normalize_metadata(_metadata(document_type="SẮC LỆNH"), {})
     assert result.metadata.document_type is None
-    assert any("document_type" in flag and "never guess" in flag for flag in result.needs_review)
+    assert any("document_type" in flag and "manifest" in flag for flag in result.needs_review)
 
 
 # ──────────────────────────────────── issuer canonicalization ────────────────────────────────────
@@ -209,13 +223,13 @@ def test_issuer_unknown_name_kept_cleaned() -> None:
     ],
 )
 def test_date_formats_normalized(raw: str, expected: date) -> None:
-    result = normalize_metadata(_metadata(issued_date=raw), {})
+    result = normalize_metadata(_metadata(issued_date=raw), _manifest())
     assert result.metadata.issued_date == expected
     assert result.needs_review == []
 
 
 def test_date_object_passes_through() -> None:
-    result = normalize_metadata(_metadata(issued_date=date(2024, 12, 26)), {})
+    result = normalize_metadata(_metadata(issued_date=date(2024, 12, 26)), _manifest())
     assert result.metadata.issued_date == date(2024, 12, 26)
     assert result.needs_review == []
 
@@ -240,7 +254,7 @@ def test_ambiguous_or_unparseable_date_becomes_none_with_review_flag(raw: str) -
 
 def test_effective_dates_normalized_independently() -> None:
     result = normalize_metadata(
-        _metadata(effective_from="15/8/2023", effective_to="2025-01-01T00:00:00"), {}
+        _metadata(effective_from="15/8/2023", effective_to="2025-01-01T00:00:00"), _manifest()
     )
     assert result.metadata.effective_from == date(2023, 8, 15)
     assert result.metadata.effective_to == date(2025, 1, 1)
@@ -416,7 +430,9 @@ def test_normalize_metadata_metadata_is_fixpoint_for_review_flagged_inputs() -> 
     assert first.needs_review
     second = normalize_metadata(first.metadata, {})
     assert second.metadata == first.metadata  # metadata is a fixpoint
-    assert second.needs_review == []
+    # the input-derived issued_date flag clears; the manifest-derived
+    # document_type flag persists (the manifest is unchanged)
+    assert all("issued_date" not in flag for flag in second.needs_review)
 
 
 def test_normalize_provision_text_is_idempotent() -> None:
@@ -477,6 +493,96 @@ def test_pipeline_never_mutates_source_text() -> None:
     assert "a)Điều khiển xe" in glued.source_text  # glued label kept verbatim in source
     assert "a) Điều khiển xe" in glued.retrieval_text  # spacing fixed in retrieval only
     assert validate_provisions(provisions) == []
+
+
+# ────────────────────────── header/footer leakage never auto-accepted ──────────────────────────
+
+
+def _extracted_provision(**overrides: object) -> ExtractedLegalProvision:
+    """Build an extractor record with all storage fields set (overridable)."""
+
+    source_text = "Điều 99. Quy định chuyển tiếp"
+    base: dict[str, object] = {
+        "provision_id": "nd-168-2024__dieu-99",
+        "document_version_id": "version-1",
+        "chapter": None,
+        "section": None,
+        "article": "Điều 99",
+        "clause": None,
+        "point": None,
+        "heading": None,
+        "source_text": source_text,
+        "retrieval_text": source_text,
+        "parent_context": None,
+        "effective_from": None,
+        "effective_to": None,
+        "status": "UNKNOWN",
+        "page_number": 1,
+        "bbox": {"left": 0.1, "top": 0.1, "right": 0.9, "bottom": 0.2},
+        "source_element_ids": ["e1"],
+        "content_hash": hashlib.sha256(source_text.encode("utf-8")).hexdigest(),
+        "version": 1,
+        "review_status": "PENDING",
+        "node_kind": "ARTICLE",
+        "point_label": None,
+        "short_point": False,
+        "needs_review": False,
+        "ambiguity": None,
+    }
+    base.update(overrides)
+    if overrides.get("source_text") is not None and overrides.get("content_hash") is None:
+        base["content_hash"] = hashlib.sha256(
+            str(overrides["source_text"]).encode("utf-8")
+        ).hexdigest()
+    return ExtractedLegalProvision.model_construct(**base)
+
+
+def test_leakage_provision_never_persisted_as_accepted() -> None:
+    """Rulespec §9: header/footer chrome is not legal content — a leaked
+    provision is forced to PENDING review (never ACCEPTED) and the marker is
+    recorded on the extractor record so corpus QA can count it."""
+    header = "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\nĐộc lập - Tự do - Hạnh phúc"
+    leaked = _extracted_provision(
+        provision_id="nd-168-2024__tieu-de-99",
+        node_kind="HEADING",
+        article=None,
+        source_text=header,
+        retrieval_text=header,
+    )
+    normal = _extracted_provision(provision_id="nd-168-2024__dieu-99")
+    extracted = [leaked, normal]
+
+    provisions = project_provisions(
+        extracted, document_version_id=uuid4(), review_status="ACCEPTED"
+    )
+
+    leaked_row = next(p for p in provisions if p.provision_id == "nd-168-2024__tieu-de-99")
+    normal_row = next(p for p in provisions if p.provision_id == "nd-168-2024__dieu-99")
+    assert leaked_row.review_status == "PENDING"  # never auto-accepted
+    assert normal_row.review_status == "ACCEPTED"  # normal provision unaffected
+    # marker recorded on the extractor record (existing needs_review convention)
+    assert leaked.needs_review is True
+    assert leaked.ambiguity == "header/footer leakage"
+    assert not normal.needs_review
+
+
+def test_leakage_marker_countable_by_qa() -> None:
+    """Corpus QA can count leakage from the caller's extracted list."""
+    header = "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\nĐộc lập - Tự do - Hạnh phúc"
+    extracted = [
+        _extracted_provision(provision_id=f"nd-168-2024__dieu-{n}") for n in range(1, 4)
+    ]
+    extracted[1] = extracted[1].model_copy(
+        update={
+            "source_text": header,
+            "retrieval_text": header,
+            "content_hash": hashlib.sha256(header.encode("utf-8")).hexdigest(),
+        }
+    )
+    project_provisions(extracted, document_version_id=uuid4(), review_status="ACCEPTED")
+    leaked = [item for item in extracted if item.ambiguity == "header/footer leakage"]
+    assert len(leaked) == 1
+    assert all(item.needs_review for item in leaked)
 
 
 # ─────────────────────────── fixture: manifest + metadata input/output ───────────────────────────
