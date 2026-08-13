@@ -452,7 +452,9 @@ def test_quality_gate_embed_index_completes_without_duplicates(
     monkeypatch.setattr(embed_module, "_get_provider", lambda: _FakeEmbedder())
     monkeypatch.setattr(index_module, "_get_qdrant_client", lambda: client)
     monkeypatch.setattr(index_module, "_get_embedder", lambda: _FakeEmbedder())
-    monkeypatch.setattr(index_module, "_get_sparse_encoder", lambda: None)
+    # Sparse channel: NOT monkeypatched — the actor fits BM25 on the corpus
+    # vocabulary; the assertions below verify shared tokens land on the SAME
+    # sparse dimension across points.
 
     broker = get_broker()
     worker = Worker(broker, queues={"quality_gate", "embed", "index"}, worker_timeout=30_000)
@@ -501,6 +503,30 @@ def test_quality_gate_embed_index_completes_without_duplicates(
                 )
             }
         assert {point.id for point in points} == row_ids
+
+        # Sparse dimensions are CORPUS-aligned: the actor fitted one BM25
+        # vocabulary over all retrieval texts, so a token shared by two
+        # provisions ("phạt" in Điều 7 + Khoản 1) maps to the SAME index in
+        # both points' sparse vectors (doc 03 §3.11.2, sparse-space contract).
+        with Session(engine) as session:
+            corpus_texts = list(session.scalars(select(LegalProvision.retrieval_text)))
+        from app.retrieval.sparse import BM25SparseEncoder
+
+        expected_vocab = BM25SparseEncoder()
+        expected_vocab.fit(corpus_texts)
+        shared_dimension = expected_vocab.vocabulary["phạt"]
+        for point in points:
+            sparse = point.vector.get("sparse")
+            assert sparse is not None
+            assert sparse.indices  # non-empty: tokens are in-vocabulary
+        article_and_clause = [
+            point
+            for point in points
+            if "diem" not in point.payload["provision_id"]  # Điều 7 + Khoản 1
+        ]
+        assert len(article_and_clause) == 2
+        for point in article_and_clause:
+            assert shared_dimension in point.vector["sparse"].indices
 
         # --- re-run: duplicate index message must not upsert again ---
         index_actor.send(job_id)
