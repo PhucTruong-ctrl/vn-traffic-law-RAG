@@ -603,3 +603,79 @@ def test_index_sparse_vocabulary_round_trip(
     path = index_module.persist_vocabulary(encoder, version="bm25-test-v1")
     assert path == tmp_path / "vocab" / "bm25-test-v1.json"
     assert index_module.load_vocabulary(version="bm25-test-v1") == encoder.vocabulary
+    # The atomic write is create-if-absent: a second persist with a DIFFERENT
+    # vocabulary must NOT overwrite the winner.
+    other = index_module._fit_sparse_encoder(["Khoản 2. Xử lý đặc biệt"], version="bm25-test-v1")
+    index_module.persist_vocabulary(other, version="bm25-test-v1")
+    assert index_module.load_vocabulary(version="bm25-test-v1") == encoder.vocabulary
+
+
+def test_load_or_fit_converges_under_concurrent_first_persist(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Two concurrent first-time creators converge on ONE persisted vocabulary.
+
+    Both callers load-miss, each fits its own corpus, and their persists
+    interleave (the second runs its full load-or-fit while the first is
+    mid-persist).  The atomic create-if-absent persist + read-after-write
+    must leave both callers using the SAME token->dimension map — the
+    winner's — never two divergent sparse spaces.
+    """
+    from app.ingestion.actors import index as index_module
+
+    monkeypatch.setattr(index_module, "_VOCAB_DIR", tmp_path / "vocab")
+    corpus_a = ["Điều 1. Xử phạt xe mô tô"]
+    corpus_b = ["Khoản 2. Xử lý nghiệp vụ đặc biệt"]
+
+    original_persist = index_module.persist_vocabulary
+    raced = {"triggered": False}
+
+    def _interleaved_persist(encoder, *, version):
+        if not raced["triggered"]:
+            raced["triggered"] = True
+            # While caller A is mid-persist, caller B runs its FULL
+            # load-or-fit (its load still misses; it fits its own corpus and
+            # persists first).
+            index_module.load_or_fit_sparse_encoder(corpus_b, version="bm25-race-v1")
+        return original_persist(encoder, version=version)
+
+    monkeypatch.setattr(index_module, "persist_vocabulary", _interleaved_persist)
+    encoder_a = index_module.load_or_fit_sparse_encoder(corpus_a, version="bm25-race-v1")
+    encoder_b = index_module.load_or_fit_sparse_encoder(corpus_b, version="bm25-race-v1")
+
+    assert raced["triggered"] is True
+    on_disk = index_module.load_vocabulary(version="bm25-race-v1")
+    assert on_disk is not None
+    assert encoder_a.vocabulary == on_disk
+    assert encoder_b.vocabulary == on_disk
+    assert encoder_a.vocabulary == encoder_b.vocabulary  # no divergent spaces
+
+
+def test_load_or_fit_raises_on_empty_corpus(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An empty corpus must raise (a degenerate encoder would diverge)."""
+    from app.ingestion.actors import index as index_module
+
+    monkeypatch.setattr(index_module, "_VOCAB_DIR", tmp_path / "vocab")
+    with pytest.raises(ValueError, match="empty corpus"):
+        index_module.load_or_fit_sparse_encoder([], version="bm25-test-v1")
+
+
+def test_load_or_fit_version_defaults_to_sparse_settings(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The default version is CONFIG-driven (SparseSettings.encoder_version)."""
+    from app.config import get_sparse_settings
+    from app.ingestion.actors import index as index_module
+
+    monkeypatch.setattr(index_module, "_VOCAB_DIR", tmp_path / "vocab")
+    monkeypatch.setenv("SPARSE_ENCODER_VERSION", "bm25-test-cfg")
+    get_sparse_settings.cache_clear()
+    try:
+        encoder = index_module.load_or_fit_sparse_encoder(["Tòa án nhân dân tối cao"])
+        assert (tmp_path / "vocab" / "bm25-test-cfg.json").is_file()
+        assert encoder.version == "bm25-test-cfg"
+        assert index_module.load_vocabulary(version="bm25-test-cfg") == encoder.vocabulary
+    finally:
+        get_sparse_settings.cache_clear()
