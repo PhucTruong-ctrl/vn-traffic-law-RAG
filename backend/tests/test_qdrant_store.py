@@ -28,30 +28,48 @@ from app.retrieval.qdrant_store import (
     payload_for_unit,
 )
 
-#: The exact doc 03 §3.11.3 payload key set the contract mandates.
-PAYLOAD_KEYS = frozenset(
+#: The exact doc 03 §3.11.3 payload key set the contract mandates (doc names).
+DOC_03_311_KEYS = frozenset(
     {
         "provision_id",
-        "version",
-        "document_version_id",
-        "node_kind",
-        "chapter",
-        "section",
+        "provision_version",
+        "document_id",
+        "document_version",
+        "document_number",
+        "document_type",
+        "document_title",
         "article",
         "clause",
         "point",
-        "heading",
+        "chapter",
+        "section",
+        "vehicle_types",
         "effective_from",
         "effective_to",
+        "document_status",
         "review_status",
-        "status",
+        "page_number",
+        "content_hash",
+        "parser",
         "parser_version",
-        "content_version",
+        "legal_parser_version",
+        "sparse_encoder_version",
+        "text",
+        "parent_context",
         "relations",
-        "vehicle_types",
+    }
+)
+
+#: The full key set ``payload_for_unit`` emits: the doc 03 §3.11.3 keys plus
+#: the ingest-only extras (node_kind/heading hierarchy filters, content
+#: version, verbatim citation text, document-version UUID).
+PAYLOAD_KEYS = DOC_03_311_KEYS | frozenset(
+    {
+        "node_kind",
+        "heading",
+        "content_version",
         "source_text",
-        "retrieval_text",
-        "document_id",
+        "document_version_id",
     }
 )
 
@@ -145,18 +163,27 @@ def test_payload_contains_exactly_the_contract_keys() -> None:
     assert set(payload) == PAYLOAD_KEYS
 
 
+def test_payload_emits_full_doc_3113_key_set() -> None:
+    """The FULL doc 03 §3.11.3 payload key set is emitted, with doc names."""
+    payload = payload_for_unit(_unit())
+    assert DOC_03_311_KEYS <= set(payload)
+
+
 def test_payload_maps_unit_fields_and_defaults() -> None:
     unit = _unit()
     payload = payload_for_unit(unit)
     assert payload["provision_id"] == unit.provision_id
-    assert payload["version"] == unit.version
+    assert payload["provision_version"] == unit.version
     assert payload["node_kind"] == unit.node_kind
-    assert payload["retrieval_text"] == unit.retrieval_text
+    assert payload["text"] == unit.retrieval_text
     assert payload["source_text"] == unit.source_text
     assert payload["document_id"] == unit.document_id
     # document_version_id defaults to the unit's document id (the document
     # version UUID carried by RetrievalUnit.build_retrieval_units).
     assert payload["document_version_id"] == unit.document_id
+    # Unit-mapped doc 03 §3.11.3 fields.
+    assert payload["page_number"] == unit.page_number
+    assert payload["parent_context"] == unit.parent_context
     # Metadata defaults.
     assert payload["review_status"] == "PENDING"
     assert payload["content_version"] == 1
@@ -165,7 +192,7 @@ def test_payload_maps_unit_fields_and_defaults() -> None:
     for field in (
         "effective_from",
         "effective_to",
-        "status",
+        "document_status",
         "parser_version",
         "chapter",
         "section",
@@ -173,6 +200,14 @@ def test_payload_maps_unit_fields_and_defaults() -> None:
         "clause",
         "point",
         "heading",
+        "document_number",
+        "document_type",
+        "document_title",
+        "document_version",
+        "parser",
+        "legal_parser_version",
+        "sparse_encoder_version",
+        "content_hash",
     ):
         assert payload[field] is None
 
@@ -184,36 +219,52 @@ def test_payload_applies_metadata_overrides() -> None:
         review_status="ACCEPTED",
         effective_from="2025-01-01",
         effective_to="2026-01-01",
-        parser_version="vnlrag-legal-parser-v1",
+        parser_version="docling-2.1.0",
         content_version=3,
         relations=[{"relation_type": "PENALTY_COMPANION", "target_provision_id": "p-9"}],
         vehicle_types=["MOTORCYCLE", "CAR"],
         document_version_id="11111111-2222-3333-4444-555555555555",
-        status="EFFECTIVE",
+        document_status="EFFECTIVE",
         chapter="Chương I",
         section="Mục 1",
         article="7",
         clause="4",
         point="b",
         heading=None,
+        document_number="168/2024/NĐ-CP",
+        document_type="DECREE",
+        document_title="Nghị định quy định xử phạt vi phạm hành chính",
+        document_version=2,
+        parser="DOCLING",
+        legal_parser_version="vnlrag-legal-parser-v1",
+        sparse_encoder_version="qdrant-bm25-v1",
+        content_hash="a" * 64,
     )
     assert payload["review_status"] == "ACCEPTED"
     assert payload["effective_from"] == "2025-01-01"
     assert payload["effective_to"] == "2026-01-01"
-    assert payload["parser_version"] == "vnlrag-legal-parser-v1"
+    assert payload["parser_version"] == "docling-2.1.0"
     assert payload["content_version"] == 3
     assert payload["relations"] == [
         {"relation_type": "PENALTY_COMPANION", "target_provision_id": "p-9"}
     ]
     assert payload["vehicle_types"] == ["MOTORCYCLE", "CAR"]
     assert payload["document_version_id"] == "11111111-2222-3333-4444-555555555555"
-    assert payload["status"] == "EFFECTIVE"
+    assert payload["document_status"] == "EFFECTIVE"
     assert payload["chapter"] == "Chương I"
     assert payload["section"] == "Mục 1"
     assert payload["article"] == "7"
     assert payload["clause"] == "4"
     assert payload["point"] == "b"
     assert payload["heading"] is None
+    assert payload["document_number"] == "168/2024/NĐ-CP"
+    assert payload["document_type"] == "DECREE"
+    assert payload["document_title"] == "Nghị định quy định xử phạt vi phạm hành chính"
+    assert payload["document_version"] == 2
+    assert payload["parser"] == "DOCLING"
+    assert payload["legal_parser_version"] == "vnlrag-legal-parser-v1"
+    assert payload["sparse_encoder_version"] == "qdrant-bm25-v1"
+    assert payload["content_hash"] == "a" * 64
 
 
 def test_payload_document_version_id_override_independent_of_unit() -> None:
