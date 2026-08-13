@@ -300,7 +300,7 @@ def test_short_points_are_retained() -> None:
                 )
 
     # The ticket-named luat Điều 8 Khoản 1 cases survive extraction (retained).
-    assert SHORT_POINT_IDS <= all_ids, (
+    assert all_ids >= SHORT_POINT_IDS, (
         f"thiếu Point đã đặt tên: {SHORT_POINT_IDS - all_ids}"
     )
     # d/đ are flagged short_point=True by the extractor (the a) case carries the
