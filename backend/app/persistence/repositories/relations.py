@@ -119,14 +119,14 @@ class RelationRepository:
         requested = set(relation_types) if relation_types is not None else set(_ADDED_BY)
         outbound_types = sorted(requested & _OUTBOUND_RELATION_TYPES)
         inbound_types = sorted(requested & _INBOUND_RELATION_TYPES)
-        seed_row_ids = [seed.id for seed in seeds]
+        seed_provision_ids = {seed.id: seed.provision_id for seed in seeds}
 
         related: list[RelatedProvision] = []
         if outbound_types:
             related.extend(
                 self._expand(
                     d,
-                    seed_row_ids=seed_row_ids,
+                    seed_provision_ids=seed_provision_ids,
                     relation_types=outbound_types,
                     inbound=False,
                 )
@@ -135,7 +135,7 @@ class RelationRepository:
             related.extend(
                 self._expand(
                     d,
-                    seed_row_ids=seed_row_ids,
+                    seed_provision_ids=seed_provision_ids,
                     relation_types=inbound_types,
                     inbound=True,
                 )
@@ -149,29 +149,32 @@ class RelationRepository:
         self,
         d: date,
         *,
-        seed_row_ids: list[UUID],
+        seed_provision_ids: dict[UUID, str],
         relation_types: list[str],
         inbound: bool,
     ) -> list[RelatedProvision]:
         """One directed traversal: outbound (seed is the edge source) or
-        inbound (seed is the edge target, e.g. parent lookup)."""
+        inbound (seed is the edge target, e.g. parent lookup).
+
+        ``source_id`` is derived from the matched seed row (via its physical
+        id), never from the reference's nullable logical provision columns,
+        so expansion provenance stays correct even when a RESOLVED row lacks
+        ``source_provision_id`` / ``target_provision_id``.
+        """
         reference = ProvisionReference
         seed_column: InstrumentedAttribute[UUID | None]
         expanded_column: InstrumentedAttribute[UUID | None]
-        source_id_column: InstrumentedAttribute[str | None]
         if inbound:
             seed_column = reference.target_legal_provision_id
             expanded_column = reference.source_legal_provision_id
-            source_id_column = reference.target_provision_id
         else:
             seed_column = reference.source_legal_provision_id
             expanded_column = reference.target_legal_provision_id
-            source_id_column = reference.source_provision_id
         stmt = (
-            select(reference.relation_type, source_id_column, LegalProvision)
+            select(reference.relation_type, seed_column, LegalProvision)
             .join(LegalProvision, LegalProvision.id == expanded_column)
             .where(
-                seed_column.in_(seed_row_ids),
+                seed_column.in_(seed_provision_ids),
                 reference.relation_type.in_(relation_types),
                 reference.review_status == _REVIEW_STATUS_ACCEPTED,
                 reference.resolution_status == _RESOLUTION_STATUS_RESOLVED,
@@ -184,14 +187,19 @@ class RelationRepository:
             )
         )
         rows = self._session.execute(stmt).all()
-        return [
-            RelatedProvision(
-                provision=provision,
-                relation_type=relation_type,
-                source_id=source_id,
+        related: list[RelatedProvision] = []
+        for relation_type, seed_row_id, provision in rows:
+            if seed_row_id is None:
+                continue  # IN filter guarantees a match; keep mypy happy
+            source_id = seed_provision_ids[seed_row_id]
+            related.append(
+                RelatedProvision(
+                    provision=provision,
+                    relation_type=relation_type,
+                    source_id=source_id,
+                )
             )
-            for relation_type, source_id, provision in rows
-        ]
+        return related
 
     def related_documents(
         self,

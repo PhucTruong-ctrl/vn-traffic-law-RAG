@@ -639,7 +639,23 @@ def test_relation_query_finds_parent_via_incoming_parent_of(session: Session) ->
         effective_to=None,
     )
     # Điều 7 --PARENT_OF--> Khoản 1 --PARENT_OF--> Điểm a
-    _seed_reference(session, article, clause, relation_type="PARENT_OF")
+    # The parent edge intentionally lacks the logical target_provision_id:
+    # source_id must still resolve from the seed row, not the nullable
+    # logical column (doc 03 §3.9.6).
+    session.add(
+        ProvisionReference(
+            source_legal_provision_id=article.id,
+            target_legal_provision_id=clause.id,
+            source_provision_id=article.provision_id,
+            target_provision_id=None,
+            relation_type="PARENT_OF",
+            extraction_method="TEXT_PATTERN",
+            source_text="parent",
+            review_status="ACCEPTED",
+            resolution_status="RESOLVED",
+        )
+    )
+    session.flush()
     _seed_reference(session, clause, point, relation_type="PARENT_OF")
 
     repo = RelationRepository(session)
