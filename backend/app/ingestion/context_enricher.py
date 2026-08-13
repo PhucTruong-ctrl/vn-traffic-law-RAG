@@ -18,9 +18,12 @@ The exact expected format is defined by
 The clause lead-in is the parent clause's text with its leading raw number
 replaced by the canonical ``Khoản {n}.`` label (from the clause's structural
 ``clause`` field); the article heading is never included in a Point's
-retrieval_text.  When the parent chain cannot be resolved, the enrichment
-falls back to ``provision.parent_context`` and finally to the unmodified
-``source_text`` (never raises, never fabricates content).
+retrieval_text.  When the parent chain cannot be resolved, a POINT derives a
+clause-only lead-in from ``provision.parent_context`` (the trailing clause
+segment after the last article boundary) and a CLAUSE derives the article
+heading only — the full ``parent_context`` concatenation (chapter+section+
+article[+clause]) is never used — and the enrichment finally falls back to
+the unmodified ``source_text`` (never raises, never fabricates content).
 """
 
 from __future__ import annotations
@@ -36,8 +39,19 @@ _ENRICHABLE_KINDS = frozenset({"POINT", "CLAUSE"})
 _ARTICLE_NUMBER_RE = re.compile(r"^Điều\s+(\d+)", re.IGNORECASE)
 _CLAUSE_NUMBER_RE = re.compile(r"^Khoản\s+(\d+)", re.IGNORECASE)
 #: Leading marker of a clause text: either the raw number ("4. Phạt tiền ...") or
-#: an already-canonical label ("Khoản 4. Phạt tiền ...").
-_CLAUSE_LEAD_IN_RE = re.compile(r"^(?:\d+|Khoản\s+\d+)\s*\.\s*")
+#: an already-canonical label ("Khoản 4. Phạt tiền ...").  The number is
+#: captured so a derived lead-in can be canonicalized without a structural label.
+_CLAUSE_LEAD_IN_RE = re.compile(r"^(?:(\d+)|Khoản\s+(\d+))\s*\.\s*")
+#: Article heading boundary anywhere in a concatenated ``parent_context``
+#: (``"Điều 7. Xử phạt ..."``, preceded by start-of-text or whitespace).  The
+#: required space after the dot keeps cross-references like ``"tại Điều 5 của"``
+#: from being mistaken for a heading boundary.
+_ARTICLE_HEADING_RE = re.compile(r"(?:^|\s)Điều\s+\d+\.\s")
+#: Clause-level marker anywhere in text: a raw number ("4. ") or an
+#: already-canonical label ("Khoản 4. "), preceded by start-of-text or
+#: whitespace, with the trailing space required so thousands separators
+#: (``"14.000.000 đồng"``) are never treated as clause boundaries.
+_CLAUSE_SEGMENT_RE = re.compile(r"(?:^|\s)(?:\d+|Khoản\s+\d+)\s*\.\s")
 
 
 def _label_number(label: str | None, pattern: re.Pattern[str]) -> str | None:
@@ -57,6 +71,18 @@ def _clause_number(provision: ExtractedLegalProvision) -> str | None:
     return _label_number(provision.clause, _CLAUSE_NUMBER_RE)
 
 
+def _clause_lead_in(number: str, text: str) -> str:
+    """Canonical clause lead-in ``Khoản {number}. {body}`` from a clause ``text``.
+
+    ``{body}`` is ``text`` with its leading raw number (``"4. "``) or existing
+    ``Khoản {n}.`` label removed, e.g. ``"4. Phạt tiền từ ..."`` ->
+    ``"Khoản 4. Phạt tiền từ ..."``.
+    """
+
+    body = _CLAUSE_LEAD_IN_RE.sub("", text.strip(), count=1)
+    return f"Khoản {number}. {body}" if body else f"Khoản {number}."
+
+
 def _canonical_clause_lead_in(clause: ExtractedLegalProvision) -> str:
     """Canonical clause lead-in text for a parent CLAUSE provision.
 
@@ -70,8 +96,7 @@ def _canonical_clause_lead_in(clause: ExtractedLegalProvision) -> str:
     number = _clause_number(clause)
     if not number:
         return ""
-    body = _CLAUSE_LEAD_IN_RE.sub("", clause.source_text.strip(), count=1)
-    return f"Khoản {number}. {body}" if body else f"Khoản {number}."
+    return _clause_lead_in(number, clause.source_text)
 
 
 def _extract_clause_lead_in(provision: ExtractedLegalProvision) -> str:
@@ -97,8 +122,64 @@ def _extract_clause_lead_in(provision: ExtractedLegalProvision) -> str:
     if not matches:
         return ""
     clause_text = parent[matches[-1].start() :].strip()
-    body = _CLAUSE_LEAD_IN_RE.sub("", clause_text, count=1)
-    return f"Khoản {number}. {body}" if body else f"Khoản {number}."
+    return _clause_lead_in(number, clause_text)
+
+
+def _derive_clause_lead_in(parent_context: str | None) -> str:
+    """Derive a clause-only lead-in from a full ``parent_context``.
+
+    Best-effort fallback for a POINT whose parent clause cannot be located by
+    the structural clause number (missing or mismatched label, marker-stripped
+    or reconstructed clause text): the trailing clause segment is the text from
+    the last clause-level marker (raw ``"4. "`` or ``"Khoản 4. "``) after the
+    last article boundary, canonicalized to ``Khoản {n}. ...``.  The chapter,
+    section and article-heading prefix is never returned — when no clause
+    segment can be located the fallback is an empty string (the caller then
+    falls back to ``source_text`` alone).
+    """
+
+    if not parent_context:
+        return ""
+    search_from = 0
+    article_matches = list(_ARTICLE_HEADING_RE.finditer(parent_context))
+    if article_matches:
+        match = article_matches[-1]
+        # Skip the article's own "Điều {n}. " label; step one char back so a
+        # clause marker directly abutting the heading is still found.
+        search_from = match.start() + len(match.group(0).lstrip()) - 1
+    clause_matches = list(_CLAUSE_SEGMENT_RE.finditer(parent_context, max(search_from, 0)))
+    if not clause_matches:
+        return ""
+    segment = parent_context[clause_matches[-1].start() :].strip()
+    lead_in_match = _CLAUSE_LEAD_IN_RE.match(segment)
+    if not lead_in_match:
+        return ""
+    number = lead_in_match.group(1) or lead_in_match.group(2)
+    return _clause_lead_in(number, segment)
+
+
+def _derive_article_heading(parent_context: str | None) -> str:
+    """Derive the parent article heading from a full ``parent_context``.
+
+    Best-effort fallback for a CLAUSE enriched without sibling documents: the
+    heading is the text from the last article boundary (``Điều {n}. ...``) cut
+    off at the first clause-level marker, so chapter/section text (and any
+    trailing clause text) is never included.  Returns an empty string when no
+    article heading can be located.
+    """
+
+    if not parent_context:
+        return ""
+    article_matches = list(_ARTICLE_HEADING_RE.finditer(parent_context))
+    if not article_matches:
+        return ""
+    match = article_matches[-1]
+    heading = parent_context[match.start() :].strip()
+    label_len = len(match.group(0).lstrip())
+    clause_match = _CLAUSE_SEGMENT_RE.search(heading, max(label_len - 1, 0))
+    if clause_match:
+        heading = heading[: clause_match.start()].strip()
+    return heading
 
 
 def _document_provisions(
@@ -184,8 +265,11 @@ def build_parent_context(
     the sibling provisions of the same document (matched by provision_id
     prefix or article/clause labels); otherwise, or when the parent cannot be
     found, the clause lead-in is extracted from ``provision.parent_context``
-    (for POINTs) and finally ``provision.parent_context`` itself is used.
-    Returns an empty string when nothing can be resolved.
+    (for POINTs) or derived from it as a clause-only segment; a CLAUSE derives
+    the article heading only.  The full ``parent_context`` (chapter+section+
+    article[+clause] concatenation) is never returned — when nothing can be
+    resolved the result is an empty string and :func:`enrich_retrieval_text`
+    falls back to the unmodified ``source_text``.
     """
 
     if documents is not None:
@@ -202,6 +286,9 @@ def build_parent_context(
         clause_lead_in = _extract_clause_lead_in(provision)
         if clause_lead_in:
             return clause_lead_in
+        return _derive_clause_lead_in(provision.parent_context)
+    if provision.node_kind == "CLAUSE":
+        return _derive_article_heading(provision.parent_context)
     if provision.parent_context:
         return provision.parent_context.strip()
     return ""
@@ -212,9 +299,11 @@ def enrich_retrieval_text(provision: ExtractedLegalProvision) -> str:
 
     POINT/CLAUSE provisions inherit the resolved parent context; ARTICLE and
     every other node kind keep their own ``source_text`` (identity).  When the
-    parent chain cannot be resolved the provision falls back to its
-    ``parent_context`` and finally to the unmodified ``source_text``.  This
-    function never mutates ``source_text`` or ``content_hash``.
+    parent chain cannot be resolved, the provision falls back to the derived
+    clause-only lead-in / article heading and finally to the unmodified
+    ``source_text`` — the full ``parent_context`` concatenation is never
+    prepended.  This function never mutates ``source_text`` or
+    ``content_hash``.
     """
 
     if provision.node_kind not in _ENRICHABLE_KINDS:
