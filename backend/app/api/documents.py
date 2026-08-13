@@ -86,7 +86,7 @@ def _enqueue(job_id: str, object_key_value: str, *, document_id: str | None = No
     may not exist when this module is imported. Returns the Dramatiq message
     id.
     """
-    from app.ingestion.actors import enqueue_parse  # type: ignore[import-not-found]
+    from app.ingestion.actors import enqueue_parse
 
     return enqueue_parse(job_id, object_key_value, document_id=document_id)
 
