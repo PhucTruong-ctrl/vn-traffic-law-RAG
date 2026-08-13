@@ -50,6 +50,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
@@ -60,6 +61,12 @@ if str(_BACKEND_DIR) not in sys.path:
 
 from app.config import get_qdrant_settings  # noqa: E402  (sys.path bootstrap above)
 from app.retrieval import reconcile  # noqa: E402
+
+if TYPE_CHECKING:  # pragma: no cover  (annotations only)
+    from qdrant_client import QdrantClient
+
+    from app.retrieval.embedding import EmbeddingProvider
+    from app.retrieval.sparse import SparseEncoder
 
 
 def _resolve_database_url() -> str:
@@ -93,7 +100,7 @@ def _session() -> Iterator[Session]:
         session.close()
 
 
-def _qdrant_client() -> object:
+def _qdrant_client() -> QdrantClient:
     """Qdrant client from ``QdrantSettings`` (``QDRANT_URL`` env / .env)."""
     from qdrant_client import QdrantClient
 
@@ -105,7 +112,7 @@ def _qdrant_client() -> object:
     )
 
 
-def _load_or_fit_sparse_encoder(corpus_texts: list[str]) -> object:
+def _load_or_fit_sparse_encoder(corpus_texts: list[str]) -> SparseEncoder:
     """Lazily import the shared persisted-vocabulary sparse encoder (VNLRAG-133).
 
     ``load_or_fit_sparse_encoder`` (``app.ingestion.actors.index``) loads the
@@ -128,10 +135,10 @@ def _load_or_fit_sparse_encoder(corpus_texts: list[str]) -> object:
             "(VNLRAG-133 not merged); repair/rebuild need the shared fitted sparse "
             "encoder so all points share one vocabulary"
         ) from exc
-    return load_or_fit_sparse_encoder(corpus_texts)
+    return cast(SparseEncoder, load_or_fit_sparse_encoder(corpus_texts))
 
 
-def _resolve_encoders(corpus_texts: list[str]) -> tuple[object, object]:
+def _resolve_encoders(corpus_texts: list[str]) -> tuple[EmbeddingProvider | None, SparseEncoder]:
     """Configured dense embedding provider + shared fitted BM25 sparse encoder.
 
     The embedding provider is built from the ``EMBEDDING_*`` settings

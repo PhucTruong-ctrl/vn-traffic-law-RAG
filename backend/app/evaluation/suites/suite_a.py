@@ -14,9 +14,13 @@ Run all three variants (P1 Docling, P2 MinerU real pipeline, P3 parser router)::
 Each variant produces its own immutable run (identical input-manifest hashes),
 so P1/P2/P3 share a common execution context on the same fixtures.
 
-Scope (QA arbitration, VNLRAG-20): parser-native metrics ONLY. Structure metrics
-(Article/Clause/Point P/R/F1, Short Point Recall, đ) Recall, Parent Context
-Completeness) are deferred to VNLRAG-97 and no regex structure proxy is built.
+Scope (QA arbitration, VNLRAG-20/VNLRAG-97): parser-native metrics PLUS the
+nine-metric Suite A final set. The final set adds the structure metrics
+deferred to VNLRAG-97 — Article/Clause/Point P/R/F1 vs gold, Short Point
+Recall, Vietnamese đ) Recall, Parent Context Completeness (after the Legal
+Context Enricher, VNLRAG-132) — computed over the REAL Legal Structure
+Extractor output on the parser's canonical IR (no regex structure proxy), on
+top of Table Preservation, Header/Footer Leakage and Provenance Coverage.
 P3 (parser router, VNLRAG-131) is OPERATIONAL: each fixture is routed through
 ``ParserRouter.decide`` + ``route_and_gate`` with lazy real runners (Docling
 primary, real MinerU pipeline alternate), and the per-document
@@ -28,6 +32,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import resource
 import shutil
 import subprocess
@@ -43,6 +48,7 @@ from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, Field
 
+from app.ingestion.context_enricher import enrich_provision
 from app.ingestion.document_ir import (
     BoundingBox,
     DocumentElement,
@@ -50,6 +56,10 @@ from app.ingestion.document_ir import (
     ParsedPage,
 )
 from app.ingestion.parser_router import ParserRouter, RoutingInputs
+from app.ingestion.structure_extractor import (
+    ExtractedLegalProvision,
+    extract_legal_provisions,
+)
 
 IR_SCHEMA_VERSION = "document-ir-v2"
 SUITE_NAME = "suite-a"
@@ -96,6 +106,32 @@ _METRIC_NAMES = (
     "table_preservation",
     "header_footer_leakage",
     "layout_coherence",
+    "article_p_r_f1",
+    "clause_p_r_f1",
+    "point_p_r_f1",
+    "short_point_recall",
+    "vietnamese_d_recall",
+    "parent_context_completeness",
+)
+#: P/R/F1 structure metrics whose aggregate pools matched/gold/extracted counts
+#: across documents (never a plain mean of per-doc F1).
+_PRF_METRICS = frozenset({"article_p_r_f1", "clause_p_r_f1", "point_p_r_f1"})
+#: Fraction metrics aggregated by pooling numerators/denominators (a document
+#: with more units counts proportionally more, not as an equal-weight mean).
+_FRACTION_METRICS = frozenset(
+    {
+        "text_extraction_rate",
+        "provenance_coverage",
+        "short_point_recall",
+        "vietnamese_d_recall",
+        "parent_context_completeness",
+    }
+)
+#: Vietnamese point-label alphabet (a..y incl. đ) used to detect point labels
+#: in OCR text — đ is kept distinct from d (docs/03 §3.8.5; point_label_d_dd.json).
+_POINT_LABEL_ALPHABET = "aăâbcdđeêghiklmnoôơpqrstuưvxy"
+_POINT_LABEL_RE = re.compile(
+    rf"(?<![A-Za-zÀ-ỹ])([{_POINT_LABEL_ALPHABET}])\s*\)", re.IGNORECASE
 )
 
 
@@ -530,13 +566,16 @@ def layout_coherence(doc: ParsedDocument) -> MetricResult:
 
 
 def compute_all_metrics(parsed: ParsedDocument, entry: dict[str, Any]) -> dict[str, MetricResult]:
-    """Compute the six parser-native metrics for one document.
+    """Compute the full nine-metric Suite A set for one document.
 
     ``entry`` is an input-manifest entry; gold-derived availability comes from
-    ``entry["gold_path"]`` (None when the fixture has no gold file).
+    ``entry["gold_path"]`` (None when the fixture has no gold file). The
+    structure metrics (VNLRAG-97) run the REAL Legal Structure Extractor over
+    the parser's canonical IR once and compare against the gold provisions;
+    when gold carries no provisions they are N/A (never fabricated).
     """
     gold_path = entry.get("gold_path")
-    return {
+    metrics: dict[str, MetricResult] = {
         "text_extraction_rate": text_extraction_rate(parsed),
         "provenance_coverage": provenance_coverage(parsed),
         "table_detection_rate": table_detection_rate(parsed, _gold_expected_tables(gold_path)),
@@ -544,6 +583,24 @@ def compute_all_metrics(parsed: ParsedDocument, entry: dict[str, Any]) -> dict[s
         "header_footer_leakage": header_footer_leakage(parsed, _gold_has_header_footer(gold_path)),
         "layout_coherence": layout_coherence(parsed),
     }
+    gold = _load_gold(gold_path)
+    if not (gold and isinstance(gold.get("provisions"), list) and gold["provisions"]):
+        metrics.update(_structure_na_bundle(gold_path))
+        return metrics
+    provisions = extract_legal_provisions(parsed)
+    metrics.update(
+        {
+            "article_p_r_f1": article_p_r_f1(gold, provisions),
+            "clause_p_r_f1": clause_p_r_f1(gold, provisions),
+            "point_p_r_f1": point_p_r_f1(gold, provisions),
+            "short_point_recall": short_point_recall(gold, provisions),
+            "vietnamese_d_recall": vietnamese_d_recall(gold, provisions),
+            "parent_context_completeness": parent_context_completeness_metric(
+                provisions, gold_path
+            ),
+        }
+    )
+    return metrics
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -574,6 +631,341 @@ def _gold_has_header_footer(gold_path: str | None) -> bool:
     if gold is None:
         return False
     return any(key in gold for key in ("header_footer", "headers_footers", "page_header"))
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Structure metrics (VNLRAG-97) — P/R/F1 vs gold, Short Point Recall, đ) Recall
+# ────────────────────────────────────────────────────────────────────────────
+
+
+def _article_number(label: str | None) -> str | None:
+    """Trailing article number from a label like ``Điều 5`` / ``Điều 5A``."""
+    if not label:
+        return None
+    match = re.match(r"^Điều\s+(\d+[A-Za-z]?)", label.strip(), re.IGNORECASE)
+    return match.group(1) if match else None
+
+
+def _clause_number(label: str | None) -> str | None:
+    """Trailing clause number from a label like ``Khoản 1``."""
+    if not label:
+        return None
+    match = re.match(r"^Khoản\s+(\d+)", label.strip(), re.IGNORECASE)
+    return match.group(1) if match else None
+
+
+def _point_slug(point_label: str | None) -> str | None:
+    """Normalize a Vietnamese point label to a stable key slug.
+
+    ``a)`` -> ``a``, ``đ)`` -> ``đ`` — đ is kept DISTINCT from d (it does not
+    decompose under NFD), matching ``point_label_d_dd.json``
+    (``diem-d`` vs ``diem-đ`` never collide). Combining marks are stripped so
+    any precomposed/decomposed input normalizes identically.
+    """
+    if not point_label:
+        return None
+    normalized = unicodedata.normalize("NFD", point_label.removesuffix(")").casefold())
+    slug = "".join(char for char in normalized if unicodedata.category(char) != "Mn")
+    return slug or None
+
+
+def _gold_structure_keys(
+    gold: dict[str, Any] | None,
+) -> tuple[set[str], set[tuple[str, str]], set[tuple[str, str, str]]]:
+    """Structural keys of the gold provisions (article / article+clause / +point).
+
+    Per docs/06 §6.4.1 the P/R/F1 comparison tuple is
+    ``(document_id, article, clause, point)``; the document_id is fixed per
+    document, so the per-document keys are the article number, the
+    (article, clause) pair and the (article, clause, point-slug) triple.
+    """
+    articles: set[str] = set()
+    clauses: set[tuple[str, str]] = set()
+    points: set[tuple[str, str, str]] = set()
+    if gold is None:
+        return articles, clauses, points
+    for provision in gold.get("provisions") or []:
+        article = _article_number(provision.get("article"))
+        clause = _clause_number(provision.get("clause"))
+        point = _point_slug(provision.get("point_label") or provision.get("point"))
+        if article:
+            articles.add(article)
+        if article and clause:
+            clauses.add((article, clause))
+        if article and clause and point:
+            points.add((article, clause, point))
+    return articles, clauses, points
+
+
+def _extracted_structure_keys(
+    provisions: list[ExtractedLegalProvision],
+) -> tuple[set[str], set[tuple[str, str]], set[tuple[str, str, str]]]:
+    """Structural keys of the extracted provisions (by node kind)."""
+    articles: set[str] = set()
+    clauses: set[tuple[str, str]] = set()
+    points: set[tuple[str, str, str]] = set()
+    for provision in provisions:
+        article = _article_number(provision.article)
+        clause = _clause_number(provision.clause)
+        point = _point_slug(provision.point_label)
+        if provision.node_kind == "ARTICLE" and article:
+            articles.add(article)
+        elif provision.node_kind == "CLAUSE" and article and clause:
+            clauses.add((article, clause))
+        elif provision.node_kind == "POINT" and article and clause and point:
+            points.add((article, clause, point))
+    return articles, clauses, points
+
+
+def _structure_prf_metric(
+    name: str,
+    level: str,
+    gold_keys: set[Any],
+    extracted_keys: set[Any],
+) -> MetricResult:
+    """P/R/F1 vs gold for one structural level.
+
+    ``value`` is F1; ``detail`` carries precision/recall and the full key sets
+    for auditability. No gold keys -> N/A (never a fabricated 0%). An empty
+    extraction against a non-empty gold set is a REAL measured miss: recall 0,
+    precision None (nothing predicted), F1 0.
+    """
+    if not gold_keys:
+        return MetricResult(
+            name=name,
+            status="na",
+            na_reason=f"gold fixtures contain no {level} annotations",
+        )
+    matched = len(gold_keys & extracted_keys)
+    precision = matched / len(extracted_keys) if extracted_keys else None
+    recall = matched / len(gold_keys)
+    f1 = 2 * precision * recall / (precision + recall) if precision else 0.0
+    return MetricResult(
+        name=name,
+        status="computed",
+        value=f1,
+        numerator=matched,
+        denominator=len(gold_keys),
+        detail={
+            "level": level,
+            "precision": precision,
+            "recall": recall,
+            "matched": matched,
+            "gold_count": len(gold_keys),
+            "extracted_count": len(extracted_keys),
+            "gold_keys": sorted(map(str, gold_keys)),
+            "extracted_keys": sorted(map(str, extracted_keys)),
+        },
+    )
+
+
+def article_p_r_f1(gold: dict[str, Any], provisions: list[ExtractedLegalProvision]) -> MetricResult:
+    """Metric — Article P/R/F1 vs gold (match key: article number)."""
+    gold_articles, _, _ = _gold_structure_keys(gold)
+    extracted_articles, _, _ = _extracted_structure_keys(provisions)
+    return _structure_prf_metric("article_p_r_f1", "article", gold_articles, extracted_articles)
+
+
+def clause_p_r_f1(gold: dict[str, Any], provisions: list[ExtractedLegalProvision]) -> MetricResult:
+    """Metric — Clause P/R/F1 vs gold (match key: (article, clause) numbers)."""
+    _, gold_clauses, _ = _gold_structure_keys(gold)
+    _, extracted_clauses, _ = _extracted_structure_keys(provisions)
+    return _structure_prf_metric("clause_p_r_f1", "clause", gold_clauses, extracted_clauses)
+
+
+def point_p_r_f1(gold: dict[str, Any], provisions: list[ExtractedLegalProvision]) -> MetricResult:
+    """Metric — Point P/R/F1 vs gold (match key: (article, clause, point-slug))."""
+    _, _, gold_points = _gold_structure_keys(gold)
+    _, _, extracted_points = _extracted_structure_keys(provisions)
+    return _structure_prf_metric("point_p_r_f1", "point", gold_points, extracted_points)
+
+
+def short_point_recall(
+    gold: dict[str, Any], provisions: list[ExtractedLegalProvision]
+) -> MetricResult:
+    """Metric — Short Point Recall: gold short points retained by the extraction.
+
+    Per docs/06 §6.4.1 and the rulespec §5 there is NO token-length threshold:
+    a short-but-valid point is retained, so a gold short point counts as
+    recalled exactly when the extraction contains the matching point key.
+    No gold short points -> N/A (never a fabricated 0%/100%).
+    """
+    _, _, gold_points = _gold_structure_keys(gold)
+    _, _, extracted_points = _extracted_structure_keys(provisions)
+    gold_short = {
+        key
+        for key in gold_points
+        if any(
+            provision.get("short_point")
+            for provision in gold.get("provisions") or []
+            if (
+                _article_number(provision.get("article")),
+                _clause_number(provision.get("clause")),
+                _point_slug(provision.get("point_label") or provision.get("point")),
+            )
+            == key
+        )
+    }
+    if not gold_short:
+        return MetricResult(
+            name="short_point_recall",
+            status="na",
+            na_reason="gold fixtures contain no short-point annotations",
+        )
+    retained = gold_short & extracted_points
+    return MetricResult(
+        name="short_point_recall",
+        status="computed",
+        value=len(retained) / len(gold_short),
+        numerator=len(retained),
+        denominator=len(gold_short),
+        detail={
+            "gold_short_points": sorted(map(str, gold_short)),
+            "retained_points": sorted(map(str, retained)),
+            "dropped_points": sorted(map(str, gold_short - extracted_points)),
+            "rule": "no token-length threshold; retained = point present in extraction",
+        },
+    )
+
+
+def vietnamese_d_recall(
+    gold: dict[str, Any], provisions: list[ExtractedLegalProvision]
+) -> MetricResult:
+    """Metric — Vietnamese đ) Recall: gold đ)-points recognized as đ) (not d)).
+
+    A gold đ)-point counts as recalled exactly when the extraction contains the
+    matching (article, clause, ``đ``) key — since the key carries the đ slug,
+    a match proves the đ) label was not confused with d). The detail records
+    the confusion counts in both directions (docs/06 §6.4.1, R4).
+    """
+    _, _, gold_points = _gold_structure_keys(gold)
+    _, _, extracted_points = _extracted_structure_keys(provisions)
+    gold_dd = {key for key in gold_points if key[2] == "đ"}
+    gold_d = {key for key in gold_points if key[2] == "d"}
+    if not gold_dd:
+        return MetricResult(
+            name="vietnamese_d_recall",
+            status="na",
+            na_reason="gold fixtures contain no đ)-labeled point annotations",
+        )
+    extracted_dd = {key for key in extracted_points if key[2] == "đ"}
+    extracted_d = {key for key in extracted_points if key[2] == "d"}
+    matched = gold_dd & extracted_dd
+    # Confusion: an extracted đ)-point whose (article, clause) matches a gold
+    # d)-point (đ mislabeled where gold says d) and vice versa.
+    dd_as_d = {(a, c) for a, c, _ in gold_dd} & {(a, c) for a, c, _ in extracted_d}
+    d_as_dd = {(a, c) for a, c, _ in gold_d} & {(a, c) for a, c, _ in extracted_dd}
+    return MetricResult(
+        name="vietnamese_d_recall",
+        status="computed",
+        value=len(matched) / len(gold_dd),
+        numerator=len(matched),
+        denominator=len(gold_dd),
+        detail={
+            "gold_dd_points": sorted(map(str, gold_dd)),
+            "matched_dd_points": sorted(map(str, matched)),
+            "missed_dd_points": sorted(map(str, gold_dd - extracted_dd)),
+            "gold_dd_confused_as_d": sorted(map(str, dd_as_d)),
+            "gold_d_confused_as_dd": sorted(map(str, d_as_dd)),
+            "rule": "match key carries the đ slug -> a match proves đ) not confused with d)",
+        },
+    )
+
+
+def _gold_annotation_path(gold_path: str | None, filename: str) -> Path | None:
+    """Sibling gold annotation file next to ``*-gold.json`` (e.g.
+    ``parent_context_annotation.json``), or None when the gold file is absent."""
+    if gold_path is None:
+        return None
+    path = Path(gold_path).parent / filename
+    return path if path.is_file() else None
+
+
+def parent_context_completeness_metric(
+    provisions: list[ExtractedLegalProvision],
+    gold_path: str | None = None,
+) -> MetricResult:
+    """Metric — Parent Context Completeness after the Legal Context Enricher.
+
+    Value: fraction of POINT/CLAUSE provisions whose enriched ``retrieval_text``
+    inherits parent context after :func:`enrich_provision` (the resolved parent
+    chain is non-empty) — the docs/06 §6.4.1 / §6.13.4 definition, measured
+    after W3 now that the enricher exists. ``detail.gold_match`` reports, for
+    every provision annotated in ``parent_context_annotation.json`` that the
+    extraction produced, whether the enriched ``retrieval_text`` matches the
+    gold expected text (normalized whitespace) — the "correct vs gold" check.
+    No eligible provisions -> N/A (never a fabricated 0.0).
+    """
+    eligible = [p for p in provisions if p.node_kind in ("POINT", "CLAUSE")]
+    if not eligible:
+        return MetricResult(
+            name="parent_context_completeness",
+            status="na",
+            na_reason="no POINT/CLAUSE provisions to enrich (extraction empty for this document)",
+        )
+    enriched = [enrich_provision(p) for p in eligible]
+    with_context = [p for p in enriched if p.parent_context]
+    detail: dict[str, Any] = {
+        "eligible_provisions": len(eligible),
+        "with_parent_context": len(with_context),
+        "node_kind_counts": {
+            kind: sum(1 for p in eligible if p.node_kind == kind)
+            for kind in ("POINT", "CLAUSE")
+        },
+        "rule": "enriched retrieval_text inherits non-empty resolved parent context",
+    }
+    annotation_path = _gold_annotation_path(gold_path, "parent_context_annotation.json")
+    if annotation_path is not None:
+        try:
+            payload = json.loads(annotation_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            payload = None
+        annotations = (payload or {}).get("annotations") if isinstance(payload, dict) else None
+        if isinstance(annotations, list) and annotations:
+            by_id = {p.provision_id: p for p in provisions}
+            gold_match: dict[str, Any] = {}
+            for annotation in annotations:
+                provision_id = annotation.get("provision_id")
+                provision = by_id.get(provision_id)
+                if provision is None:
+                    continue
+                expected = (annotation.get("retrieval_text_expected") or "").strip()
+                actual = enrich_provision(provision).retrieval_text.strip()
+                gold_match[provision_id] = {
+                    "expected": expected,
+                    "actual": actual,
+                    "match": " ".join(expected.split()) == " ".join(actual.split()),
+                }
+            detail["gold_annotated"] = gold_match
+            detail["gold_annotated_total"] = len(annotations)
+    return MetricResult(
+        name="parent_context_completeness",
+        status="computed",
+        value=len(with_context) / len(eligible),
+        numerator=len(with_context),
+        denominator=len(eligible),
+        detail=detail,
+    )
+
+
+def _structure_na_bundle(gold_path: str | None) -> dict[str, MetricResult]:
+    """N/A bundle for the six structure metrics when gold is unavailable."""
+    reason = (
+        "gold fixtures contain no provisions"
+        if gold_path
+        else "no gold fixture for this document"
+    )
+    return {
+        name: MetricResult(name=name, status="na", na_reason=reason)
+        for name in (
+            "article_p_r_f1",
+            "clause_p_r_f1",
+            "point_p_r_f1",
+            "short_point_recall",
+            "vietnamese_d_recall",
+            "parent_context_completeness",
+        )
+    }
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -977,12 +1369,38 @@ def _aggregate_metrics(per_doc: dict[str, dict[str, MetricResult]]) -> dict[str,
             "value": sum(values) / len(values),
             "per_document_values": {doc_id: doc[name].value for doc_id, doc in per_doc.items()},
         }
-        if name in ("text_extraction_rate", "provenance_coverage"):
+        if name in _FRACTION_METRICS:
+            # Pooled fraction: a document with more units counts proportionally
+            # (short-point / đ) / parent-context denominators sum across docs).
             numerator = sum(result.numerator or 0 for result in computed)
             denominator = sum(result.denominator or 0 for result in computed)
-            entry["overall_fraction"] = numerator / denominator if denominator else None
+            fraction = numerator / denominator if denominator else None
+            entry["overall_fraction"] = fraction
             entry["numerator"] = numerator
             entry["denominator"] = denominator
+            if fraction is not None:
+                entry["value"] = fraction
+        if name in _PRF_METRICS:
+            # Pooled P/R/F1: matched/gold/extracted counts sum across docs, then
+            # precision/recall/F1 are recomputed on the pooled counts.
+            matched = sum(result.detail.get("matched", 0) for result in computed)
+            gold_count = sum(result.detail.get("gold_count", 0) for result in computed)
+            extracted_count = sum(
+                result.detail.get("extracted_count", 0) for result in computed
+            )
+            precision = matched / extracted_count if extracted_count else None
+            recall = matched / gold_count if gold_count else None
+            f1 = 2 * precision * recall / (precision + recall) if precision else 0.0
+            entry.update(
+                {
+                    "value": f1,
+                    "precision": precision,
+                    "recall": recall,
+                    "matched": matched,
+                    "gold_count": gold_count,
+                    "extracted_count": extracted_count,
+                }
+            )
         aggregate[name] = entry
     return aggregate
 
@@ -2106,6 +2524,453 @@ def _cmd_generate_report(runs_base: Path, out: Path) -> int:
 
 
 # ────────────────────────────────────────────────────────────────────────────
+# FINAL report generator (VNLRAG-97): nine metrics from immutable run artifacts
+# ────────────────────────────────────────────────────────────────────────────
+
+_NINE_METRIC_LABELS = (
+    ("article_p_r_f1", "Article P/R/F1"),
+    ("clause_p_r_f1", "Clause P/R/F1"),
+    ("point_p_r_f1", "Point P/R/F1"),
+    ("short_point_recall", "Short Point Recall"),
+    ("vietnamese_d_recall", "Vietnamese đ) Recall"),
+    ("parent_context_completeness", "Parent Context Completeness"),
+    ("table_preservation", "Table Preservation"),
+    ("header_footer_leakage", "Header/Footer Leakage"),
+    ("provenance_coverage", "Provenance Coverage"),
+)
+
+
+def _structure_cell(metric: dict[str, Any]) -> str:
+    """Report cell for a P/R/F1 metric: ``'1.0 (P 1.0/R 1.0)'`` / ``'N/A'``.
+
+    Per-document entries carry precision/recall in ``detail``; the pooled
+    aggregate carries them at the top level — read either.
+    """
+    if metric.get("status") == "na":
+        return "N/A"
+    value = metric.get("value")
+    if value is None:
+        return "None"
+    detail = metric.get("detail") or {}
+    precision = metric.get("precision", detail.get("precision"))
+    recall = metric.get("recall", detail.get("recall"))
+    p_text = "None" if precision is None else f"{precision:.4f}"
+    r_text = "None" if recall is None else f"{recall:.4f}"
+    return f"{value:.4f} (P {p_text}/R {r_text})"
+
+
+def _fraction_cell(metric: dict[str, Any]) -> str:
+    """Report cell for a fraction metric: ``'1.0 (3/3)'`` / ``'N/A'`` / ``'None'``."""
+    if metric.get("status") == "na":
+        return "N/A"
+    value = metric.get("value")
+    if value is None:
+        return "None"
+    text = f"{value:.4f}"
+    if metric.get("numerator") is not None and metric.get("denominator") is not None:
+        text += f" ({metric['numerator']}/{metric['denominator']})"
+    return text
+
+
+def _provenance_final_cell(metric: dict[str, Any]) -> str:
+    """Provenance Coverage cell incl. the bbox share from detail."""
+    base = _fraction_cell(metric)
+    if metric.get("status") != "computed":
+        return base
+    detail = metric.get("detail") or {}
+    if detail.get("bbox_share") is not None:
+        base += f" bbox {detail['bbox_share']:.4f}"
+    return base
+
+
+def _nine_metric_table(metrics: dict[str, Any], doc_ids: list[str]) -> list[str]:
+    """Per-parser nine-metric table: rows = the 9 metrics, cols = docs + aggregate."""
+    header = "| metric | " + " | ".join(doc_ids) + " | aggregate |"
+    sep = "|" + "---|" * (len(doc_ids) + 2)
+    lines = [header, sep]
+    for name, label in _NINE_METRIC_LABELS:
+        cells = []
+        for doc_id in doc_ids:
+            metric = (metrics.get("per_document") or {}).get(doc_id, {}).get(name, {})
+            if name == "provenance_coverage":
+                cells.append(_provenance_final_cell(metric))
+            elif name in _PRF_METRICS:
+                cells.append(_structure_cell(metric))
+            else:
+                cells.append(_fraction_cell(metric))
+        aggregate = (metrics.get("aggregate") or {}).get(name, {})
+        if name == "provenance_coverage":
+            agg_cell = _provenance_final_cell(aggregate)
+        elif name in _PRF_METRICS:
+            agg_cell = _structure_cell(aggregate)
+        else:
+            agg_cell = _fraction_cell(aggregate)
+        lines.append(f"| {label} | " + " | ".join(cells) + f" | {agg_cell} |")
+    return lines
+
+
+def _final_parser_section(run_root: Path, run_json: dict[str, Any], label: str) -> list[str]:
+    """§P — one parser's nine-metric section (per-doc table + aggregate)."""
+    phase = VARIANT_PHASE_DIR[_VARIANT_BY_PARSER[str(run_json["parser"])]]
+    metrics = _safe_load_json(run_root / phase / "metrics.json") or {}
+    results = _safe_load_json(run_root / phase / "results.json") or {}
+    doc_ids = sorted((results.get("per_document") or {}).keys())
+    versions = run_json.get("parser_versions") or {}
+    if run_json.get("parser") == "p3-parser-router":
+        parser_line = (
+            f"- parser: Parser Router (VNLRAG-131); primary docling "
+            f"{versions.get('docling', 'unknown')}, alternate mineru "
+            f"{versions.get('mineru', 'unknown')}"
+        )
+    else:
+        parser_line = (
+            f"- parser: {run_json['parser']} {versions.get(run_json['parser'], 'unknown')}"
+        )
+    lines = [
+        f"## {label} — run {run_root.name}",
+        "",
+        parser_line,
+        f"- ir_schema_version: {run_json.get('ir_schema_version')}",
+        f"- elapsed: {run_json.get('created_at')} -> {run_json.get('completed_at')} UTC",
+        f"- run.json sha256: `{_sha256(run_root / 'run.json')}`",
+        "",
+        "### Nine metrics per document (shared fixtures)",
+        "",
+    ]
+    lines += _nine_metric_table(metrics, doc_ids)
+    lines += [
+        "",
+        "N/A reasons (availability — never fabricated 0%/100%):",
+    ]
+    agg = metrics.get("aggregate") or {}
+    for name, label in _NINE_METRIC_LABELS:
+        reason = agg.get(name, {}).get("na_reason")
+        if reason:
+            lines.append(f"- {label}: `{reason}`")
+    if run_json.get("parser") == "p3-parser-router":
+        routing = _safe_load_json(run_root / phase / "routing-and-gates.json") or {}
+        router_agg = routing.get("aggregate") or {}
+        for key in (
+            "accepted",
+            "routes",
+            "source_parsers",
+            "gate_verdicts",
+            "terminal_outcomes",
+        ):
+            value = router_agg.get(key)
+            if value is None:
+                continue
+            text = value if isinstance(value, (int, str)) else json.dumps(value, ensure_ascii=False)
+            lines.append(f"- {key}: {text}")
+    lines.append("")
+    return lines
+
+
+def _final_aggregate_comparison(runs: dict[str, Path]) -> list[str]:
+    """Cross-parser aggregate comparison table (9 metrics x P1/P2/P3)."""
+    aggregates: dict[str, dict[str, Any]] = {}
+    for variant in ("p1", "p2", "p3"):
+        phase = VARIANT_PHASE_DIR[variant]
+        metrics = _safe_load_json(runs[variant] / phase / "metrics.json") or {}
+        aggregates[variant] = metrics.get("aggregate") or {}
+    lines = [
+        "## Aggregate comparison (9 metrics x P1/P2/P3)",
+        "",
+        "Pooled aggregates over the SAME fixtures. Raw numbers only — NO "
+        "superiority conclusion where any parser's result is incomplete.",
+        "",
+        "| metric | P1 Docling | P2 MinerU | P3 Router |",
+        "|---|---|---|---|",
+    ]
+    for name, label in _NINE_METRIC_LABELS:
+        cells = []
+        for variant in ("p1", "p2", "p3"):
+            metric = aggregates[variant].get(name, {})
+            if name == "provenance_coverage":
+                cells.append(_provenance_final_cell(metric))
+            elif name in _PRF_METRICS:
+                cells.append(_structure_cell(metric))
+            else:
+                cells.append(_fraction_cell(metric))
+        lines.append(f"| {label} | " + " | ".join(cells) + " |")
+    lines.append("")
+    return lines
+
+
+def _ocr_regression_section(
+    bench_run: Path | None, sample: Path | None
+) -> list[str]:
+    """NĐ 168 OCR regression section: 300 vs 600 DPI on the 6-page sample."""
+    lines = [
+        "## NĐ 168 OCR regression (300 vs 600 DPI)",
+        "",
+        "Tesseract vie (psm 3) via the docling IMAGE pipeline on a real scan-only "
+        "1-bit CCITT document (no text layer), 6 pages, CPU-only. Quality axes: "
+        "phrase hit rate, Vietnamese point-label (d)/đ)) evidence, s/page, peak "
+        "RAM, bbox coverage. The reviewed sample (Article/Clause/Point + d/đ "
+        "labels from `nd-gold.json` + the nd fixture text) is the regression "
+        "reference.",
+        "",
+    ]
+    if sample is not None and sample.is_file():
+        payload = _safe_load_json(sample)
+        if payload is not None:
+            lines += [
+                f"- sample: `{sample}` (sha256 `{_sha256(sample)}`)",
+                f"- schema_version: {payload.get('schema_version')}",
+                f"- basis: {payload.get('basis')}",
+                f"- page_range: {payload.get('page_range')}",
+                f"- expected: {json.dumps(payload.get('expected', {}), ensure_ascii=False)}",
+                "",
+            ]
+    else:
+        lines.append("- sample: not provided at generation time.")
+        lines.append("")
+    if bench_run is None:
+        lines.append("- no COMPLETED ocr-dpi-benchmark run discovered.")
+        lines.append("")
+        return lines
+    run_json = _safe_load_json(bench_run / "run.json") or {}
+    summary = _safe_load_json(bench_run / "summary.json") or {}
+    detail = _safe_load_json(bench_run / "detail.json") or {}
+    dpi = summary.get("dpi_metrics", {})
+    rec = summary.get("recommendation", {})
+    lines += [
+        f"- run: `ocr-dpi-benchmark/{bench_run.name}` (status "
+        f"{run_json.get('status')}); pdf {run_json.get('config', {}).get('pdf')}",
+        "",
+        "| axis | 300 DPI | 600 DPI | better |",
+        "|---|---|---|---|",
+    ]
+    axis_labels = {
+        "speed_avg_seconds_per_page": "avg seconds/page",
+        "ram_peak_rss_kb": "peak RSS (KB)",
+        "quality_phrase_hit_rate": "phrase hit rate (mean)",
+        "quality_bbox_coverage": "bbox coverage (mean)",
+    }
+    for key, label in axis_labels.items():
+        row = rec.get("decision_table", {}).get(key, {})
+        lines.append(
+            f"| {label} | {row.get('300', '-')} | {row.get('600', '-')} | "
+            f"{row.get('better', '-')} |"
+        )
+    if dpi.get("300") and dpi.get("600"):
+        lines.append(
+            f"| total extracted chars | {dpi['300'].get('total_extracted_chars', '-')} | "
+            f"{dpi['600'].get('total_extracted_chars', '-')} | — |"
+        )
+        lines.append(
+            f"| total d) labels | {dpi['300'].get('total_d_label_count', '-')} | "
+            f"{dpi['600'].get('total_d_label_count', '-')} | — |"
+        )
+        lines.append(
+            f"| total đ) labels | {dpi['300'].get('total_dd_label_count', '-')} | "
+            f"{dpi['600'].get('total_dd_label_count', '-')} | — |"
+        )
+    relative = detail.get("relative_quality", {})
+    if relative:
+        lines += [
+            "",
+            "Relative quality (difflib SequenceMatcher ratio, 300 vs 600): "
+            + ", ".join(
+                f"page {page_no} `{row['sequence_matcher_ratio']}`"
+                for page_no, row in sorted(relative.items())
+            )
+            + ".",
+        ]
+    lines += [
+        "",
+        f"DPI decision: **{rec.get('dpi_for_scan_ocr')}** for this 1-bit CCITT "
+        f"scan type; basis: {rec.get('basis')}. Note: {rec.get('note')}. "
+        "(Kept at 300 unless this measurement changed the first-pass evidence.)",
+        "",
+    ]
+    return lines
+
+
+def _final_hash_table(
+    runs: dict[str, Path], bench_run: Path | None, git_commit: str
+) -> list[str]:
+    """Immutable artifact sha256 table for the final trio + OCR regression run."""
+    lines = [
+        "## Immutable artifacts (sha256)",
+        "",
+        f"- git commit (recorded in run.json): `{git_commit}`",
+    ]
+    manifest_hashes = {_sha256(run_root / "input-manifest.json") for run_root in runs.values()}
+    manifest_text = (
+        f"`{next(iter(manifest_hashes))}`" if len(manifest_hashes) == 1 else str(manifest_hashes)
+    )
+    lines.append(f"- input-manifest.json sha256 (identical across the trio): {manifest_text}")
+    lines.append("")
+    lines.append("| artifact | sha256 |")
+    lines.append("|---|---|")
+    for i, variant in enumerate(("p1", "p2", "p3")):
+        run_root = runs[variant]
+        prefix = "…" if i else f"suite-a-final/{run_root.name}"
+        phase = VARIANT_PHASE_DIR[variant]
+        for artifact, label in (
+            ("run.json", "run.json"),
+            (f"{phase}/results.json", f"{phase}/results.json"),
+            (f"{phase}/metrics.json", f"{phase}/metrics.json"),
+            (f"{phase}/routing-and-gates.json", f"{phase}/routing-and-gates.json"),
+            (f"{phase}/artifacts-manifest.json", f"{phase}/artifacts-manifest.json"),
+            ("report.md", f"{phase}/report.md"),
+        ):
+            path = run_root / artifact
+            if path.is_file():
+                lines.append(f"| {prefix}/{label} | `{_sha256(path)}` |")
+    if bench_run is not None:
+        for artifact in ("summary.json", "detail.json"):
+            path = bench_run / artifact
+            if path.is_file():
+                lines.append(
+                    f"| ocr-dpi-benchmark/{bench_run.name}/{artifact} | "
+                    f"`{_sha256(path)}` |"
+                )
+    lines.append("")
+    return lines
+
+
+def generate_final_report(
+    runs: dict[str, Path],
+    ocr_bench_run: Path | None = None,
+    sample: Path | None = None,
+    tests_log: Path | None = None,
+) -> str:
+    """Build the committed Suite A FINAL report (VNLRAG-97) from artifacts.
+
+    Reads run.json / metrics.json / results.json / routing-and-gates.json of
+    the canonical P1/P2/P3 trio (identical input-manifest hash) plus the
+    sibling ocr-dpi-benchmark run and produces the committed markdown — the
+    report is reproducible from the artifacts, never hand-edited. The NĐ 168
+    OCR regression sample and the verbatim pytest output (``tests_log``) are
+    optional inputs inlined when provided.
+    """
+    p1_json = _safe_load_json(runs["p1"] / "run.json") or {}
+    recorded_commit = p1_json.get("git_commit") or _git_commit()
+    manifest_hash = _sha256(runs["p1"] / "input-manifest.json")
+    run_ids = {v: runs[v].name for v in ("p1", "p2", "p3")}
+
+    lines = [
+        "# Suite A Final Report (VNLRAG-97)",
+        "",
+        "Nine-metric parser benchmark on the shared parser-benchmark fixtures "
+        "(Luật, Nghị định, Thông tư — born-digital PDFs with a text layer): "
+        "P1 (Docling), P2 (MinerU real pipeline), P3 (Parser Router). **Raw "
+        "numbers only — no superiority claim between parsers where any result "
+        "is incomplete** (FR-01). Source of truth: the gitignored immutable "
+        "`data/evaluation/` tree (per run_id; corrections are new runs, never "
+        "rewrites).",
+        "",
+        "This report is GENERATED, not hand-edited: `python -m "
+        "app.evaluation.suites.suite_a final-report --runs "
+        "data/evaluation/suite-a-final --out docs/evaluation/"
+        "suite-a-final-report.md --sample docs/evaluation/"
+        "nd-168-ocr-regression-sample.json` reads the immutable run artifacts "
+        "and rewrites this file.",
+        "",
+        f"All three variants ran on the SAME fixtures — `input-manifest.json` is "
+        f"byte-identical (sha256 `{manifest_hash}`), git `{recorded_commit}`. "
+        f"Runs: P1 `{run_ids['p1']}`, P2 `{run_ids['p2']}`, P3 `{run_ids['p3']}`.",
+        "",
+    ]
+    lines += _final_parser_section(runs["p1"], p1_json, "1. P1 (Docling)")
+    p2_json = _safe_load_json(runs["p2"] / "run.json") or {}
+    lines += _final_parser_section(runs["p2"], p2_json, "2. P2 (MinerU)")
+    p3_json = _safe_load_json(runs["p3"] / "run.json") or {}
+    lines += _final_parser_section(runs["p3"], p3_json, "3. P3 (Parser Router)")
+    lines += _final_aggregate_comparison(runs)
+    lines += _ocr_regression_section(ocr_bench_run, sample)
+    lines += [
+        "## Scan corpus status",
+        "",
+        "- The shared parser-benchmark fixtures are born-digital (text layer) — "
+        "P1/P2/P3 ran on all three (luat/nd/tt).",
+        "- Real scan-only corpus (nd-168, nd-100, tt-79, tt-24 — 1-bit CCITT, no "
+        "text layer): not parsed through P1/P2/P3 in this run — full-scan parsing "
+        "is the routing/quality-gate execution lane; the NĐ 168 OCR regression "
+        "section above benchmarks the scan-OCR decision on a 6-page sample of "
+        "nd-168 instead.",
+        "",
+        "## Skips and reasons",
+        "",
+        "- Table Preservation / Table Detection: the v1 fixtures carry no table "
+        "annotations (`gold fixtures contain no table annotations`) -> N/A "
+        "(never a fabricated percentage).",
+        "- Header/Footer Leakage: the v1 fixtures carry no header/footer "
+        "annotations -> N/A.",
+        "- Parent Context Completeness on nd-168: the accepted parser output "
+        "extracts no POINT/CLAUSE provisions -> N/A for that document (measured "
+        "on luat/tt; see §1–§3).",
+        "- Scan corpus: skipped as above.",
+        "",
+        "## Reproducibility",
+        "",
+        "Exact commands (run in the worktree root, branch "
+        "`feat/VNLRAG-97-suite-a-final`):",
+        "",
+        "```bash",
+        "CUDA_VISIBLE_DEVICES=\"\" python -m app.evaluation.suites.suite_a run \\",
+        "    --fixtures-dir backend/tests/fixtures/parser_benchmark/documents \\",
+        "    --run-dir data/evaluation/suite-a-final --variants p1 p2 p3",
+        "",
+        "python -m app.evaluation.suites.suite_a bench-ocr-dpi \\",
+        "    --pdf data/evaluation/suite-a-final/nd-168-2024.pdf \\",
+        "    --pages 6 --out data/evaluation/ocr-dpi-benchmark \\",
+        "    --sample docs/evaluation/nd-168-ocr-regression-sample.json",
+        "",
+        "python -m app.evaluation.suites.suite_a final-report \\",
+        "    --runs data/evaluation/suite-a-final \\",
+        "    --out docs/evaluation/suite-a-final-report.md \\",
+        "    --sample docs/evaluation/nd-168-ocr-regression-sample.json \\",
+        "    --tests-log data/evaluation/suite-a-final/tests-output.txt",
+        "```",
+        "",
+        "Focused unit tests (new metric-computation helpers):",
+        "",
+    ]
+    if tests_log is not None and tests_log.is_file():
+        content = tests_log.read_text(encoding="utf-8")
+        lines += ["```text", content.rstrip("\n"), "```", ""]
+    else:
+        lines += [
+            "- tests-log not provided at generation time (re-run with "
+            "`--tests-log` to inline the verbatim output).",
+            "",
+        ]
+    lines += _final_hash_table(runs, ocr_bench_run, recorded_commit)
+    return "\n".join(lines)
+
+
+def _cmd_generate_final_report(
+    runs_base: Path,
+    out: Path,
+    sample: Path | None = None,
+    tests_log: Path | None = None,
+) -> int:
+    """`suite_a final-report` — regenerate the committed final report."""
+    runs_base = runs_base.resolve()
+    out = out.resolve()
+    sample = sample.resolve() if sample is not None else None
+    tests_log = tests_log.resolve() if tests_log is not None else None
+    try:
+        runs = _discover_variant_runs(runs_base)
+        bench_run = _discover_ocr_bench_run(runs_base)
+    except ValueError as exc:
+        print(f"final report generation failed: {exc}", file=sys.stderr)
+        return 1
+    text = generate_final_report(runs, ocr_bench_run=bench_run, sample=sample, tests_log=tests_log)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(text + "\n", encoding="utf-8")
+    print(
+        f"final report written: {out} (from {runs['p1'].name}/{runs['p2'].name}/"
+        f"{runs['p3'].name}, sha256 {_sha256(out)})"
+    )
+    return 0
+
+
+# ────────────────────────────────────────────────────────────────────────────
 # 300-vs-600 DPI OCR benchmark (AC 7)
 # ────────────────────────────────────────────────────────────────────────────
 
@@ -2122,6 +2987,31 @@ def _diacritic_count(text: str) -> int:
     return sum(
         1 for char in text if char in _VIETNAMESE_DIACRITICS or unicodedata.category(char) == "Mn"
     )
+
+
+def _point_label_hits(text: str) -> dict[str, Any]:
+    """Vietnamese point-label evidence in OCR text (d) vs đ) distinction).
+
+    Counts every ``<vietnamese-letter>)`` occurrence (a..y incl. đ, case
+    insensitive) and records the distinct labels seen, with d)/đ) counted
+    separately so the đ)-vs-d) regression evidence is measurable per page.
+    """
+    labels: list[str] = []
+    d_count = 0
+    dd_count = 0
+    for match in _POINT_LABEL_RE.finditer(text):
+        label = match.group(1).casefold() + ")"
+        labels.append(label)
+        if label == "d)":
+            d_count += 1
+        elif label == "đ)":
+            dd_count += 1
+    return {
+        "labels_present": sorted(set(labels)),
+        "point_label_count": len(labels),
+        "d_count": d_count,
+        "dd_count": dd_count,
+    }
 
 
 def _render_pages(pdf_path: Path, first: int, last: int, dpi: int, out_dir: Path) -> list[Path]:
@@ -2207,6 +3097,7 @@ def _ocr_convert_page(converter: Any, png_path: Path) -> dict[str, Any]:
         "diacritics": _diacritic_count(text),
         "phrase_hits": hits,
         "phrase_hit_fraction": round(hit_fraction, 4),
+        "point_labels": _point_label_hits(text),
         "extracted_text": text,
         "text_snippet": text[:200],
     }
@@ -2237,6 +3128,8 @@ def _dpi_aggregate(page_stats: dict[int, dict[str, Any]], dpi: int) -> dict[str,
             sum(p["phrase_hit_fraction"] for p in succeeded) / len(succeeded), 4
         ),
         "total_extracted_chars": sum(p["extracted_text_length"] for p in succeeded),
+        "total_d_label_count": sum(p["point_labels"]["d_count"] for p in succeeded),
+        "total_dd_label_count": sum(p["point_labels"]["dd_count"] for p in succeeded),
     }
 
 
@@ -2332,20 +3225,24 @@ def _write_ocr_bench_report(
     lines.append("## Per-page detail")
     lines.append("")
     lines.append(
-        "| page | dpi | s/page | peak_rss_kb | elements | bbox | phrase hits | chars | diacritics |"
+        "| page | dpi | s/page | peak_rss_kb | elements | bbox | phrase hits | chars | "
+        "diacritics | d) count | đ) count |"
     )
     lines.append(
-        "|------|-----|--------|-------------|----------|------|-------------|-------|------------|"
+        "|------|-----|--------|-------------|----------|------|-------------|-------|"
+        "------------|----------|----------|"
     )
     for page_no in sorted(page_stats):
         for dpi in (300, 600):
             page = page_stats[page_no][str(dpi)]
             hits = "/".join(page["phrase_hits"]) if page["status"] == "SUCCESS" else "FAILED"
+            point_labels = page.get("point_labels", {}) if page["status"] == "SUCCESS" else {}
             lines.append(
                 f"| {page_no} | {dpi} | {page.get('elapsed_seconds', '')} | "
                 f"{page.get('peak_rss_kb', '')} | {page.get('element_count', '')} | "
                 f"{page.get('bbox_coverage', '')} | {hits} | "
-                f"{page.get('extracted_text_length', '')} | {page.get('diacritics', '')} |"
+                f"{page.get('extracted_text_length', '')} | {page.get('diacritics', '')} | "
+                f"{point_labels.get('d_count', '')} | {point_labels.get('dd_count', '')} |"
             )
     lines.append("")
     lines.append("## Relative quality (difflib SequenceMatcher ratio, 300 vs 600)")
@@ -2363,9 +3260,15 @@ def _write_ocr_bench_report(
     (run_root / "report.md").write_text("\n".join(lines), encoding="utf-8")
 
 
-def run_ocr_dpi_benchmark(pdf_path: Path, pages: int, out_dir: Path) -> int:
+def run_ocr_dpi_benchmark(
+    pdf_path: Path, pages: int, out_dir: Path, sample: Path | None = None
+) -> int:
     """bench-ocr-dpi: render pages 2..pages+1 of a scan PDF at 300 and 600 DPI,
     OCR each with tesseract vie via Docling, and record the decision data.
+
+    ``sample`` (optional) is the NĐ 168 OCR regression sample definition
+    (reviewed Article/Clause/Point + d/đ labels); its path + sha256 are
+    recorded in run.json config so the regression run is fully traceable.
 
     Immutability: the run.json status is one-way RUNNING -> COMPLETED|FAILED.
     The entire post-creation body (converter creation, rendering, conversion,
@@ -2385,6 +3288,11 @@ def run_ocr_dpi_benchmark(pdf_path: Path, pages: int, out_dir: Path) -> int:
     first, last = 2, pages + 1
 
     ocr_snapshot = OcrConfig.snapshot()
+    sample_record: dict[str, Any] = {}
+    if sample is not None:
+        sample = sample.resolve()
+        if sample.is_file():
+            sample_record = {"path": str(sample), "sha256": _sha256(sample)}
     config: dict[str, Any] = {
         "pdf": str(pdf_path),
         "pages": pages,
@@ -2401,6 +3309,7 @@ def run_ocr_dpi_benchmark(pdf_path: Path, pages: int, out_dir: Path) -> int:
         "docling": {"do_ocr": True, "do_table_structure": False, "image_input": True},
         "cuda_visible_devices": "",
         "phrases": list(OCR_BENCH_PHRASES),
+        "ocr_regression_sample": sample_record,
     }
     run_json: dict[str, Any] = {
         "run_id": run_id,
@@ -2692,6 +3601,13 @@ def main(argv: list[str] | None = None) -> int:
     bench_parser.add_argument("--pdf", type=Path, required=True)
     bench_parser.add_argument("--pages", type=int, default=6)
     bench_parser.add_argument("--out", type=Path, required=True)
+    bench_parser.add_argument(
+        "--sample",
+        type=Path,
+        default=None,
+        help="NĐ 168 OCR regression sample definition (reviewed Article/Clause/"
+        "Point + d/đ labels); recorded in run.json config for traceability",
+    )
     report_parser = sub.add_parser(
         "report",
         help="Regenerate the committed Suite A first-pass report from the "
@@ -2710,6 +3626,38 @@ def main(argv: list[str] | None = None) -> int:
         required=True,
         help="Output markdown path (e.g. docs/evaluation/suite-a-first-pass-report.md)",
     )
+    final_parser = sub.add_parser(
+        "final-report",
+        help="Regenerate the committed Suite A FINAL report (VNLRAG-97) with the "
+        "nine metrics from the immutable run artifacts (reproducible, never "
+        "hand-edited)",
+    )
+    final_parser.add_argument(
+        "--runs",
+        type=Path,
+        required=True,
+        help="Base run dir holding the newest COMPLETED p1/p2/p3 trio sharing one "
+        "input-manifest hash",
+    )
+    final_parser.add_argument(
+        "--out",
+        type=Path,
+        required=True,
+        help="Output markdown path (e.g. docs/evaluation/suite-a-final-report.md)",
+    )
+    final_parser.add_argument(
+        "--sample",
+        type=Path,
+        default=None,
+        help="Committed NĐ 168 OCR regression sample definition "
+        "(docs/evaluation/nd-168-ocr-regression-sample.json)",
+    )
+    final_parser.add_argument(
+        "--tests-log",
+        type=Path,
+        default=None,
+        help="Verbatim pytest output log inlined in the reproducibility section",
+    )
     args = arg_parser.parse_args(argv)
     if args.command == "run":
         if args.parser is not None:
@@ -2725,9 +3673,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "check-ocr":
         return _cmd_check_ocr(args.tessdata_dir)
     if args.command == "bench-ocr-dpi":
-        return run_ocr_dpi_benchmark(args.pdf, args.pages, args.out)
+        return run_ocr_dpi_benchmark(args.pdf, args.pages, args.out, sample=args.sample)
     if args.command == "report":
         return _cmd_generate_report(args.runs, args.out)
+    if args.command == "final-report":
+        return _cmd_generate_final_report(
+            args.runs, args.out, sample=args.sample, tests_log=args.tests_log
+        )
     return 2
 
 

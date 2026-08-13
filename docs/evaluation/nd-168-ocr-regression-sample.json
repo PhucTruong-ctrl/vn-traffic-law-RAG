@@ -1,0 +1,24 @@
+{
+  "schema_version": "nd-168-ocr-regression-sample-v1",
+  "description": "NĐ 168 OCR regression sample (VNLRAG-97): 6-page window of the real scan-only nd-168-2024 PDF (1-bit CCITT, no text layer) with the Article/Clause/Point + d/đ label structure manually reviewed from the gold reference. Used to benchmark Tesseract vie (300 vs 600 DPI) on Article/Clause/Point recognition and the d) vs đ) label distinction.",
+  "basis": "Manual review reference built from backend/tests/fixtures/parser_benchmark/gold/nd-gold.json (reviewed Article/Clause/Point structure incl. point_label d) vs đ) per docs/03 §3.8.5) and the nd-168-2024-fixture.pdf.txt excerpt text.",
+  "pdf": "data/evaluation/suite-a-final/nd-168-2024.pdf",
+  "page_range": [2, 7],
+  "pages": 6,
+  "expected": {
+    "articles": ["Điều 5", "Điều 7", "Điều 9"],
+    "clause_count": 8,
+    "point_count": 19,
+    "point_labels_d": ["a)", "b)", "c)", "d)"],
+    "point_labels_dd": ["đ)"],
+    "dd_label_count": 4,
+    "d_label_count": 4,
+    "dd_provisions": [
+      "nd-168-2024__dieu-5__khoan-1__diem-đ",
+      "nd-168-2024__dieu-7__khoan-1__diem-đ",
+      "nd-168-2024__dieu-7__khoan-2__diem-đ",
+      "nd-168-2024__dieu-9__khoan-1__diem-đ"
+    ]
+  },
+  "review_note": "The reviewed reference is the excerpt structure (Điều 5/7/9 with Khoản 1-4 etc.) per nd-gold.json; the OCR quality axes measured per page are phrase hit rate (OCR_BENCH_PHRASES), Vietnamese point-label detection (d) vs đ) counts), s/page, peak RSS and bbox coverage. DPI decision kept at 300 unless the 600 DPI measurement changes the first-pass evidence."
+}

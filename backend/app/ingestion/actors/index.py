@@ -54,6 +54,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import uuid
 from collections import Counter
 from contextlib import suppress
 from datetime import date
@@ -171,7 +172,11 @@ def persist_vocabulary(encoder: BM25SparseEncoder, *, version: str) -> Path:
     payload = json.dumps(
         {"version": version, "tokens": tokens}, ensure_ascii=False, indent=2
     )
-    tmp_path = path.parent / f"{path.name}.tmp"
+    # Per-caller unique tmp name: a shared ".tmp" path could be unlinked by a
+    # racing creator between another creator's write and os.link, turning the
+    # create-if-absent into FileNotFoundError instead of converging on the
+    # winner. Uniqueness keeps every caller's tmp private.
+    tmp_path = path.parent / f"{path.name}.tmp.{os.getpid()}.{uuid.uuid4().hex}"
     try:
         tmp_path.write_text(payload + "\n", encoding="utf-8")
         # Atomic create-if-absent; a concurrent creator's file is never
