@@ -113,6 +113,45 @@ def test_gold_annotation_covers_required_points() -> None:
     assert REQUIRED_GOLD_POINTS.issubset(ANNOTATIONS)
 
 
+def test_real_extractor_output_matches_gold_parent_context() -> None:
+    """Regression (oracle): enrichment on REAL extractor output equals the gold.
+
+    The extractor records ``parent_context`` of a POINT as the article+clause
+    concatenation (e.g. ``"Điều 7. Xử phạt ... 4. Phạt tiền ... sau đây:"``);
+    the enricher must produce only the canonical clause lead-in + point text,
+    never the article heading, and never pass the raw concatenation through.
+
+    The gold annotation normalizes away trailing sentence punctuation that the
+    source fixture keeps (``"...đường bộ."`` vs ``"...đường bộ"``,
+    ``"...phương tiện;"`` vs ``"...phương tiện"``), while the enricher must
+    keep ``source_text`` verbatim per the immutability contract — so the
+    comparison strips trailing sentence punctuation from the produced
+    retrieval text only (the lead-in and the point label are still compared
+    exactly, and any missing/wrong parent context still fails this test).
+    """
+
+    from app.ingestion.structure_extractor import LegalStructureExtractor
+    from tests.test_structure_extractor import FIXTURE, _document
+
+    lines = [
+        (line, "paragraph")
+        for line in FIXTURE.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    provisions = LegalStructureExtractor().extract(
+        _document(lines), document_version_id="version-1"
+    )
+    by_id = {provision.provision_id: provision for provision in provisions}
+    for annotation in GOLD["annotations"]:
+        provision_id = annotation["provision_id"]
+        if not provision_id.startswith("nd-168-2024"):
+            continue
+        assert provision_id in by_id, f"extractor did not emit {provision_id}"
+        actual = enrich_retrieval_text(by_id[provision_id])
+        expected = annotation["retrieval_text_expected"]
+        assert actual.rstrip(".;,!?") == expected
+
+
 @pytest.mark.parametrize("provision_id", sorted(ANNOTATIONS))
 def test_point_retrieval_text_exactly_matches_gold_annotation(provision_id: str) -> None:
     """POINT retrieval_text = clause lead-in + point source_text (gold format)."""
