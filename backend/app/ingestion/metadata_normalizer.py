@@ -188,7 +188,8 @@ def _normalize_document_type(value: str | None, needs_review: list[str]) -> str 
 
     mapped: str | None = None
     if value is not None:
-        upper = _clean_text(value).upper()
+        cleaned = _clean_text(value)
+        upper = cleaned.upper() if cleaned else ""
         if upper in _VALID_DOCUMENT_TYPES:
             mapped = upper
         else:
@@ -215,7 +216,7 @@ def _normalize_issuer(value: str | None, needs_review: list[str]) -> str | None:
     if value is None:
         return None
     cleaned = _clean_text(value)
-    lowered = cleaned.casefold()
+    lowered = cleaned.casefold() if cleaned else ""
     for noise in _ISSUER_NOISE:
         lowered = lowered.replace(noise, " ")
     lowered = re.sub(r"\s+", " ", lowered).strip()
@@ -294,6 +295,7 @@ def normalize_metadata(
 
     manifest_type = manifest.get("document_type")
     mapped_type = _normalize_document_type(metadata.document_type, needs_review)
+    document_type: str | None
     if isinstance(manifest_type, str) and manifest_type in _VALID_DOCUMENT_TYPES:
         document_type = manifest_type  # manifest is authoritative (§2)
     else:
