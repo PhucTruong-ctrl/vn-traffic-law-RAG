@@ -230,18 +230,6 @@ def get_upload_settings() -> UploadSettings:
 
 
 @lru_cache(maxsize=1)
-def get_settings() -> Settings:
-    """Return the process-wide settings singleton (cached until cleared)."""
-    return Settings()
-
-
-@lru_cache(maxsize=1)
-def get_qdrant_settings() -> QdrantSettings:
-    """Return the process-wide Qdrant settings singleton (cached until cleared)."""
-    return QdrantSettings()
-
-
-@lru_cache(maxsize=1)
 def get_embedding_settings() -> EmbeddingSettings:
     """Return the process-wide embedding settings singleton (cached until cleared)."""
     return EmbeddingSettings()
@@ -334,6 +322,17 @@ def get_queue_settings() -> QueueSettings:
     """Return the process-wide queue settings singleton (cached until cleared)."""
     return QueueSettings()
 
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    """Return the process-wide settings singleton (cached until cleared)."""
+    return Settings()
+
+
+@lru_cache(maxsize=1)
+def get_qdrant_settings() -> QdrantSettings:
+    """Return the process-wide Qdrant settings singleton (cached until cleared)."""
+    return QdrantSettings()
 
 @lru_cache(maxsize=1)
 def get_object_storage_settings() -> ObjectStorageSettings:

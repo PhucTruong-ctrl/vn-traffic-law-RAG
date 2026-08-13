@@ -25,6 +25,7 @@ from dramatiq.middleware.age_limit import AgeLimit
 from dramatiq.middleware.retries import Retries
 from dramatiq.middleware.time_limit import TimeLimit
 
+from app import config as config_module
 from app.config import (
     DEFAULT_ACTOR_TIME_LIMITS_SECONDS,
     QueueSettings,
@@ -162,8 +163,10 @@ def _queue_empty(broker: StubBroker, queue_name: str) -> bool:
 # --- config ------------------------------------------------------------------
 
 
-def test_redis_settings_default_url() -> None:
-    assert RedisSettings().url == "redis://localhost:6379/0"
+def test_redis_settings_default_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Isolate from the repo-root .env (REDIS_URL points at the docker service name).
+    monkeypatch.delenv("REDIS_URL", raising=False)
+    assert RedisSettings(_env_file=None).url == "redis://localhost:6379/0"
 
 
 def test_queue_settings_defaults() -> None:
@@ -193,8 +196,14 @@ def test_queue_settings_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
 # --- broker ------------------------------------------------------------------
 
 
-def test_broker_is_configured_redis_broker() -> None:
-    broker = get_broker()
+def test_broker_is_configured_redis_broker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("REDIS_URL", raising=False)
+    monkeypatch.setattr(
+        config_module, "get_redis_settings", lambda: RedisSettings(url="redis://localhost:6379/0")
+    )
+    broker = get_broker(QueueSettings())
     assert isinstance(broker, RedisBroker)
     kwargs = broker.client.connection_pool.connection_kwargs
     assert kwargs["host"] == "localhost"

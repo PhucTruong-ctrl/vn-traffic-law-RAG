@@ -34,6 +34,7 @@ frontend/out/
 # ─────────────────────────────────────────────
 data/*
 !data/manifests/
+!data/ingestion/
 backups/
 minio-backup*/
 
