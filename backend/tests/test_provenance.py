@@ -2,8 +2,9 @@
 
 Covers single-source aggregation (``source_element_ids`` -> one record per
 id, page/bbox inheritance), multi-source amendment aggregation (per-source
-roles), and the exact ``provenance_coverage`` cross-ticket contract (0.0 for
-empty, full = 1.0, partial arithmetic, both conditions required).
+roles and per-source element locations), and the exact
+``provenance_coverage`` cross-ticket contract (0.0 for empty, full = 1.0,
+partial arithmetic, both conditions required).
 """
 
 from __future__ import annotations
@@ -113,16 +114,23 @@ def test_records_are_typed_provenance_records() -> None:
 
 def test_multi_source_amendment_records_carry_per_source_role() -> None:
     """Amended clause: base text element + amendment element -> per-source
-    roles, never assuming one source document per provision version."""
+    roles and per-source page/bbox, never assuming one source document per
+    provision version."""
     provision = _provision(source_element_ids=["e1", "e2", "e3"])
     row_id, base_version_id, amendment_version_id = uuid4(), uuid4(), uuid4()
+    base_bbox = {"left": 0.1, "top": 0.2, "right": 0.9, "bottom": 0.4}
+    amendment_bbox = {"left": 0.0, "top": 0.5, "right": 1.0, "bottom": 0.8}
 
     records = aggregate_multi_source_provenance(
         provision,
         provision_version_row_id=row_id,
         sources=[
-            (base_version_id, "BASE_TEXT", ["e1", "e2"]),
-            (amendment_version_id, "AMENDMENT_TEXT", ["e3"]),
+            (
+                base_version_id,
+                "BASE_TEXT",
+                [("e1", 3, base_bbox), ("e2", 3, base_bbox)],
+            ),
+            (amendment_version_id, "AMENDMENT_TEXT", [("e3", 5, amendment_bbox)]),
         ],
     )
 
@@ -134,9 +142,14 @@ def test_multi_source_amendment_records_carry_per_source_role() -> None:
     assert by_element["e1"].source_document_version_id == base_version_id
     assert by_element["e2"].source_document_version_id == base_version_id
     assert by_element["e3"].source_document_version_id == amendment_version_id
-    # page/bbox still inherited from the provision; row id shared.
-    assert all(record.page_number == 3 for record in records)
-    assert all(record.bbox == provision.bbox for record in records)
+    # Each record carries ITS OWN source element's page/bbox — the amendment
+    # element lives on page 5, not the provision's merged page 3.
+    assert by_element["e1"].page_number == 3
+    assert by_element["e2"].page_number == 3
+    assert by_element["e3"].page_number == 5
+    assert by_element["e1"].bbox == base_bbox
+    assert by_element["e2"].bbox == base_bbox
+    assert by_element["e3"].bbox == amendment_bbox
     assert all(record.provision_version_row_id == row_id for record in records)
 
 
@@ -148,9 +161,9 @@ def test_multi_source_supports_three_roles() -> None:
         provision,
         provision_version_row_id=uuid4(),
         sources=[
-            (base, "BASE_TEXT", ["e1"]),
-            (amendment, "AMENDMENT_TEXT", ["e2"]),
-            (correction, "CORRECTION_TEXT", ["e3"]),
+            (base, "BASE_TEXT", [("e1", 3, None)]),
+            (amendment, "AMENDMENT_TEXT", [("e2", 4, None)]),
+            (correction, "CORRECTION_TEXT", [("e3", 5, None)]),
         ],
     )
 
@@ -166,7 +179,7 @@ def test_multi_source_requires_full_attribution() -> None:
         aggregate_multi_source_provenance(
             provision,
             provision_version_row_id=uuid4(),
-            sources=[(uuid4(), "BASE_TEXT", ["e1"])],
+            sources=[(uuid4(), "BASE_TEXT", [("e1", 3, None)])],
         )
     except ValueError as error:
         assert "do not match" in str(error)
@@ -179,8 +192,8 @@ def test_multi_source_requires_full_attribution() -> None:
             provision,
             provision_version_row_id=uuid4(),
             sources=[
-                (uuid4(), "BASE_TEXT", ["e1", "e2"]),
-                (uuid4(), "AMENDMENT_TEXT", ["e2", "e3"]),
+                (uuid4(), "BASE_TEXT", [("e1", 3, None), ("e2", 3, None)]),
+                (uuid4(), "AMENDMENT_TEXT", [("e2", 4, None), ("e3", 5, None)]),
             ],
         )
     except ValueError as error:
