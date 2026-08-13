@@ -44,7 +44,6 @@ from app.ingestion.actors.parse import parse_actor
 from app.ingestion.actors.quality_gate import quality_gate_actor
 from app.ingestion.actors.resolve_refs import resolve_refs_actor
 from app.ingestion.actors.resolve_temporal import resolve_temporal_actor
-from app.ingestion import queue as queue_module
 from app.ingestion.queue import (
     TRANSIENT_ERRORS,
     DeadLetterMiddleware,
