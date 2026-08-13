@@ -16,12 +16,20 @@ Sparse dimensions MUST mean the same token across every point in the
 collection — an unfitted :class:`BM25SparseEncoder` assigns per-text local
 token ids, which would silently map different tokens onto the same dimension
 (invalid keyword scoring).  The actor therefore uses ONE corpus vocabulary
-PERSISTED per ``SPARSE_ENCODER_VERSION`` (``data/sparse-vocab/{version}.json`,
+PERSISTED per sparse-encoder version (``data/sparse-vocab/{version}.json`,
 gitignored): :func:`load_or_fit_sparse_encoder` fits the FULL corpus and
 persists the vocabulary the first time a version is seen; every later job
 loads the persisted vocabulary verbatim (ids = 1-based stored order) and only
 recomputes corpus idf for weights.  Incremental jobs therefore index with the
 identical token->dimension map — never mixing sparse spaces.
+
+First-version creation is ATOMIC (create-if-absent via ``os.link``) and the
+vocabulary is read back from disk after persisting, so two concurrent
+creators (actor + CLI) converge on the winner's file — the loser's fit is
+discarded, the file is immutable once created, and every reader observes the
+same map.  An empty corpus raises :class:`ValueError` (a degenerate encoder
+would fall back to text-local ids); the actor only calls this when it has
+ACCEPTED provisions to index, so its corpus is never empty.
 
 Vocabulary lifecycle: growing or changing the vocabulary is a NEW sparse
 space — it requires a collection rebuild + alias switch AND a
@@ -45,7 +53,9 @@ from __future__ import annotations
 
 import json
 import math
+import os
 from collections import Counter
+from contextlib import suppress
 from datetime import date
 from pathlib import Path
 from typing import Any, cast
@@ -54,7 +64,7 @@ import dramatiq
 from qdrant_client import QdrantClient
 from sqlalchemy import select
 
-from app.config import get_embedding_settings, get_queue_settings
+from app.config import get_embedding_settings, get_queue_settings, get_sparse_settings
 from app.persistence.models import LegalProvision
 from app.retrieval.embedding import EmbeddingProvider, get_embedding_provider
 from app.retrieval.indexing import (
@@ -64,12 +74,7 @@ from app.retrieval.indexing import (
     provision_row_to_unit,
 )
 from app.retrieval.qdrant_store import ensure_qdrant_collection
-from app.retrieval.sparse import (
-    SPARSE_ENCODER_VERSION,
-    BM25SparseEncoder,
-    SparseEncoder,
-    tokenize_vietnamese,
-)
+from app.retrieval.sparse import BM25SparseEncoder, SparseEncoder, tokenize_vietnamese
 
 from ._state import (
     STATUS_COMPLETED,
@@ -149,6 +154,13 @@ def load_vocabulary(*, version: str) -> dict[str, int] | None:
 def persist_vocabulary(encoder: BM25SparseEncoder, *, version: str) -> Path:
     """Persist ``encoder``'s vocabulary as ``{version}.json``; return the path.
 
+    ATOMIC create-if-absent: the payload is written to a temp file in the
+    same directory and hard-linked to the final name (``os.link`` fails with
+    ``FileExistsError`` when another process created the file first).  A
+    vocabulary file is immutable once created — a racing second writer never
+    overwrites the winner, so every reader observes the same token->dimension
+    map (first-writer-wins; see :func:`load_or_fit_sparse_encoder`).
+
     Idempotent and deterministic: the stored token list is the vocabulary
     sorted by id (the encoder's own sorted order), so persisting the same
     vocabulary twice yields byte-identical files.
@@ -159,7 +171,15 @@ def persist_vocabulary(encoder: BM25SparseEncoder, *, version: str) -> Path:
     payload = json.dumps(
         {"version": version, "tokens": tokens}, ensure_ascii=False, indent=2
     )
-    path.write_text(payload + "\n", encoding="utf-8")
+    tmp_path = path.parent / f"{path.name}.tmp"
+    try:
+        tmp_path.write_text(payload + "\n", encoding="utf-8")
+        # Atomic create-if-absent; a concurrent creator's file is never
+        # overwritten (the winner stands and everyone converges on it).
+        with suppress(FileExistsError):
+            os.link(tmp_path, path)
+    finally:
+        tmp_path.unlink(missing_ok=True)
     return path
 
 
@@ -222,16 +242,37 @@ def load_or_fit_sparse_encoder(
     dimensions: every job indexes with the IDENTICAL token->dimension map, so
     incremental indexing never mixes sparse spaces (doc 03 §3.11.2).  When no
     vocabulary is persisted for the version yet, the FULL corpus is fitted and
-    the vocabulary persisted; when one exists, it is loaded verbatim (ids from
-    the stored order) and only the corpus idf is recomputed for weights.
-    ``version`` defaults to :data:`app.retrieval.sparse.SPARSE_ENCODER_VERSION`.
+    the vocabulary persisted ATOMICALLY (create-if-absent, see
+    :func:`persist_vocabulary`), and the vocabulary is then READ BACK from
+    disk and used — so two concurrent creators (actor + CLI) converge on the
+    winner's file: the loser's fit is discarded and both build from the same
+    persisted map (first-writer-wins; the file is immutable once created).
+
+    ``version`` defaults to the CONFIGURED ``SparseSettings.encoder_version``
+    (env ``SPARSE_ENCODER_VERSION``), matching ``BM25SparseEncoder``'s own
+    default.
+
+    Raises:
+        ValueError: when ``corpus_texts`` is empty — an empty corpus yields a
+            degenerate encoder whose ``encode`` falls back to text-local ids
+            (the divergence this module exists to prevent).  Callers with no
+            provisions have nothing to index and should skip sparse encoding
+            entirely rather than call this.
     """
     if version is None:
-        version = SPARSE_ENCODER_VERSION
+        version = get_sparse_settings().encoder_version
+    if not corpus_texts:
+        raise ValueError(
+            "cannot build a sparse vocabulary from an empty corpus: pass the "
+            "corpus retrieval_texts; with no provisions there is nothing to "
+            "index, so callers should skip sparse encoding"
+        )
     if load_vocabulary(version=version) is None:
         encoder = _fit_sparse_encoder(corpus_texts, version=version)
         persist_vocabulary(encoder, version=version)
-        return encoder
+        # Read-after-write: use whatever vocabulary is on disk NOW — if a
+        # concurrent creator won the race, ITS vocabulary is authoritative.
+        return _encoder_from_persisted_vocabulary(corpus_texts, version=version)
     return _encoder_from_persisted_vocabulary(corpus_texts, version=version)
 
 
