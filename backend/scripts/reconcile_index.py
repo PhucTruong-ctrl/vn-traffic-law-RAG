@@ -30,12 +30,15 @@ recorded as an immutable JSON manifest under ``data/evaluation/reconcile/``
 the repository-root ``.env`` file.
 
 ``repair`` and ``rebuild`` index real points, so they resolve the configured
-dense embedding provider (``EMBEDDING_*`` settings) and the BM25 sparse
-encoder and thread them through to ``index_provision_units`` (VNLRAG-44): a
-missing embedding API key fails the indexing pass loudly instead of writing
-vector-less points into a vector collection. ``rebuild`` refuses an existing
-``--collection`` name (prior points would survive) and never switches the
-alias when the indexing pass is incomplete (partial rebuild = error).
+dense embedding provider (``EMBEDDING_*`` settings) and the SHARED
+persisted-vocabulary sparse encoder (``load_or_fit_sparse_encoder`` from the
+ingestion index actor, VNLRAG-133) fitted on the ACCEPTED provisions'
+``retrieval_text`` — every point shares one token vocabulary with stable
+sparse dimensions. A missing embedding API key or a missing shared encoder
+module fails the run loudly instead of writing divergent vector-less points.
+``rebuild`` refuses an existing ``--collection`` name (prior points would
+survive) and never switches the alias when the indexing pass is incomplete
+(partial rebuild = error).
 """
 
 from __future__ import annotations
@@ -102,22 +105,50 @@ def _qdrant_client() -> object:
     )
 
 
-def _resolve_encoders() -> tuple[object, object]:
-    """Configured dense embedding provider + BM25 sparse encoder.
+def _load_or_fit_sparse_encoder(corpus_texts: list[str]) -> object:
+    """Lazily import the shared persisted-vocabulary sparse encoder (VNLRAG-133).
+
+    ``load_or_fit_sparse_encoder`` (``app.ingestion.actors.index``) loads the
+    persisted corpus vocabulary or fits + persists it on first use, so every
+    indexed point — from ingestion actors and from this CLI — shares one token
+    vocabulary and therefore stable sparse dimensions (doc 03 §3.11.2). An
+    unfitted encoder would assign text-local token ids per provision and
+    produce inconsistent sparse dimensions across repaired/rebuild points.
+
+    Imported lazily (same pattern as the ``index_provision_units`` wiring):
+    the module is developed in parallel (VNLRAG-133) and may not exist yet —
+    repair/rebuild then fail with a clear error instead of silently writing a
+    divergent sparse space.
+    """
+    try:
+        from app.ingestion.actors.index import load_or_fit_sparse_encoder
+    except ImportError as exc:
+        raise RuntimeError(
+            "app.ingestion.actors.index.load_or_fit_sparse_encoder is not available "
+            "(VNLRAG-133 not merged); repair/rebuild need the shared fitted sparse "
+            "encoder so all points share one vocabulary"
+        ) from exc
+    return load_or_fit_sparse_encoder(corpus_texts)
+
+
+def _resolve_encoders(corpus_texts: list[str]) -> tuple[object, object]:
+    """Configured dense embedding provider + shared fitted BM25 sparse encoder.
 
     The embedding provider is built from the ``EMBEDDING_*`` settings
     (``get_embedding_provider``); a missing provider API key surfaces as a
     ``ConfigError`` at the first embed — fail-fast inside the indexing pass,
     so a repair/rebuild can never silently write vector-less points into a
-    vector collection. The sparse encoder is the deterministic local BM25
-    encoder (unfitted, text-local vocabulary — matching the ingestion index
-    actor, doc 03 §3.11.2).
+    vector collection. The sparse encoder is the shared persisted-vocabulary
+    encoder fitted/loaded on ``corpus_texts`` (the ACCEPTED provisions'
+    ``retrieval_text``) via :func:`_load_or_fit_sparse_encoder`.
     """
     from app.config import get_embedding_settings
     from app.retrieval.embedding import get_embedding_provider
-    from app.retrieval.sparse import BM25SparseEncoder
 
-    return get_embedding_provider(get_embedding_settings()), BM25SparseEncoder()
+    return (
+        get_embedding_provider(get_embedding_settings()),
+        _load_or_fit_sparse_encoder(corpus_texts),
+    )
 
 
 def _print_report(report: reconcile.ReconciliationReport) -> None:
@@ -167,7 +198,9 @@ def _run(
 
                     ensure_qdrant_collection(client)
                 embedder, sparse_encoder = (
-                    _resolve_encoders() if args.command == "repair" else (None, None)
+                    _resolve_encoders(reconcile.accepted_retrieval_texts(session))
+                    if args.command == "repair"
+                    else (None, None)
                 )
                 report = reconcile.reconcile_index(
                     client,
@@ -180,7 +213,9 @@ def _run(
                 )
                 return (1 if report.diverged else 0), report, None
             # rebuild
-            embedder, sparse_encoder = _resolve_encoders()
+            embedder, sparse_encoder = _resolve_encoders(
+                reconcile.accepted_retrieval_texts(session)
+            )
             old = reconcile.rebuild_index(
                 client,
                 session=session,

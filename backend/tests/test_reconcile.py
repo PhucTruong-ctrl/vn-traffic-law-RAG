@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from contextlib import contextmanager
 from datetime import UTC, date, datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -893,6 +894,103 @@ def test_cli_parser_subcommands_and_defaults() -> None:
     assert args.collection == "c1"
     assert args.batch_size == 8
     assert "check" in parser.format_help()
+
+
+def _cli_resolution_harness(monkeypatch: pytest.MonkeyPatch, fitted: object) -> dict:
+    """Monkeypatch the CLI's client/session/reconcile entry points so
+    ``_run`` can execute without services; returns the captured call kwargs."""
+    import scripts.reconcile_index as cli
+
+    monkeypatch.setattr(cli, "_load_or_fit_sparse_encoder", lambda corpus_texts: fitted)
+    captured: dict[str, object] = {}
+
+    class FakeClient:
+        def close(self) -> None:
+            pass
+
+    monkeypatch.setattr(cli, "_qdrant_client", lambda: FakeClient())
+
+    @contextmanager
+    def fake_session():
+        # scalars() serves both the ACCEPTED corpus query and any other
+        # statement — the corpus texts the CLI feeds to load_or_fit.
+        yield SimpleNamespace(scalars=lambda stmt: iter(["điều 1 nội dung", "điều 2 nội dung"]))
+
+    monkeypatch.setattr(cli, "_session", fake_session)
+    return captured
+
+
+def test_cli_repair_resolves_fitted_sparse_encoder(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Fix: CLI repair must use the SHARED fitted/persisted sparse encoder
+    # (load_or_fit_sparse_encoder on the ACCEPTED corpus), never a fresh
+    # unfitted one — unfitted encoders assign text-local token ids and would
+    # produce inconsistent sparse dimensions across repaired points.
+    import scripts.reconcile_index as cli
+
+    fitted = FakeSparseEncoder()
+    captured = _cli_resolution_harness(monkeypatch, fitted)
+    seen_corpus: list[list[str]] = []
+    monkeypatch.setattr(
+        cli, "_load_or_fit_sparse_encoder", lambda texts: seen_corpus.append(list(texts)) or fitted
+    )
+
+    def fake_reconcile(
+        client,
+        *,
+        session,
+        embedder=None,
+        sparse_encoder=None,
+        collection=None,
+        batch_size=32,
+        dry_run=False,
+        **kwargs: object,
+    ) -> reconcile.ReconciliationReport:
+        captured["embedder"] = embedder
+        captured["sparse_encoder"] = sparse_encoder
+        return reconcile.ReconciliationReport()
+
+    monkeypatch.setattr(reconcile, "reconcile_index", fake_reconcile)
+
+    args = cli.build_parser().parse_args(["repair", "--dry-run"])
+    exit_code, report, old = cli._run(args)  # type: ignore[attr-defined]
+
+    assert captured["sparse_encoder"] is fitted  # fitted encoder, not a fresh one
+    assert captured["embedder"] is not None  # configured dense provider
+    assert seen_corpus == [["điều 1 nội dung", "điều 2 nội dung"]]  # ACCEPTED corpus
+    assert exit_code == 0
+    assert not report.diverged
+
+
+def test_cli_rebuild_resolves_fitted_sparse_encoder(monkeypatch: pytest.MonkeyPatch) -> None:
+    import scripts.reconcile_index as cli
+
+    fitted = FakeSparseEncoder()
+    captured = _cli_resolution_harness(monkeypatch, fitted)
+
+    def fake_rebuild(
+        client,
+        *,
+        session,
+        embedder=None,
+        sparse_encoder=None,
+        collection_name=None,
+        batch_size=32,
+        dry_run=False,
+        **kwargs: object,
+    ) -> str | None:
+        captured["embedder"] = embedder
+        captured["sparse_encoder"] = sparse_encoder
+        return "legal_provisions_v1"
+
+    monkeypatch.setattr(reconcile, "rebuild_index", fake_rebuild)
+
+    args = cli.build_parser().parse_args(["rebuild", "--dry-run"])
+    exit_code, report, old = cli._run(args)  # type: ignore[attr-defined]
+
+    assert captured["sparse_encoder"] is fitted
+    assert captured["embedder"] is not None
+    assert old == "legal_provisions_v1"
+    assert exit_code == 0
 
 
 # ---------------------------------------------------------------------------
