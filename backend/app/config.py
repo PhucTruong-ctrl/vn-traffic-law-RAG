@@ -228,6 +228,88 @@ def get_sparse_settings() -> SparseSettings:
     return SparseSettings()
 
 
+class RedisSettings(BaseSettings):
+    """Redis broker connection for the ingestion queue (doc 03 §3.13.1, ADR-011).
+
+    Read from ``REDIS_*`` environment variables, then the repo-root ``.env``
+    file (doc 07 §7.3.3). ``url`` is the full ``redis://`` URL consumed by
+    :class:`dramatiq.brokers.redis.RedisBroker`; the docker-compose
+    ``vnlaw-redis`` service is reachable via ``REDIS_URL=redis://redis:6379/0``
+    in the compose environment.
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="REDIS_",
+        env_file=str(_ENV_FILE),
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False,
+    )
+
+    url: str = "redis://localhost:6379/0"
+
+
+#: Per-actor time limits in seconds (doc 03 §3.13.5, NFR-02) — the parse step
+#: is the only long step; every other actor stays well under the 10-minute
+#: Dramatiq default. Keys are the actor queue names (``app.ingestion.actors``).
+DEFAULT_ACTOR_TIME_LIMITS_SECONDS: dict[str, int] = {
+    "parse": 1200,
+    "normalize": 300,
+    "extract": 600,
+    "resolve_refs": 300,
+    "resolve_temporal": 300,
+    "quality_gate": 300,
+    "embed": 600,
+    "index": 300,
+}
+
+
+class QueueSettings(BaseSettings):
+    """Ingestion queue / Dramatiq policy (doc 03 §3.13.4-3.13.6, ADR-011).
+
+    Read from ``QUEUE_*`` environment variables, then the repo-root ``.env``
+    file (doc 07 §7.3.3). Retry policy is deliberately bounded (doc 03
+    §3.13.4: ``max_retries`` 5 for transient errors, backoff 15s -> 1h — NOT
+    the Dramatiq 20-retry / 7-day-backoff defaults); ``actor_timeouts_seconds``
+    mirrors doc 03 §3.13.5 and can be overridden with a JSON object in
+    ``QUEUE_ACTOR_TIMEOUTS_SECONDS``.
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="QUEUE_",
+        env_file=str(_ENV_FILE),
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False,
+        populate_by_name=True,
+    )
+
+    #: Maximum retries per message before it is dead-lettered (bounded).
+    max_retries: int = 3
+    #: Minimum backoff between retries (doc 03 §3.13.4).
+    min_backoff_ms: int = 15_000
+    #: Maximum backoff between retries (doc 03 §3.13.4 — 1h, not 7 days).
+    max_backoff_ms: int = 3_600_000
+    #: Queue receiving messages that exhausted their retries (doc 03 §3.13.6).
+    dlq_queue: str = "default.DLQ"
+    #: Per-actor time limits (seconds); keys are the actor queue names.
+    actor_timeouts_seconds: dict[str, int] = Field(
+        default_factory=lambda: dict(DEFAULT_ACTOR_TIME_LIMITS_SECONDS)
+    )
+
+
+@lru_cache(maxsize=1)
+def get_redis_settings() -> RedisSettings:
+    """Return the process-wide Redis settings singleton (cached until cleared)."""
+    return RedisSettings()
+
+
+@lru_cache(maxsize=1)
+def get_queue_settings() -> QueueSettings:
+    """Return the process-wide queue settings singleton (cached until cleared)."""
+    return QueueSettings()
+
+
 @lru_cache(maxsize=1)
 def get_object_storage_settings() -> ObjectStorageSettings:
     """Return the process-wide object-storage settings singleton (cached until cleared)."""
