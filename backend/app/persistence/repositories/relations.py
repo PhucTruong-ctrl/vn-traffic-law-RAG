@@ -1,11 +1,30 @@
 """Relation queries for legal context expansion (VNLRAG-39).
 
 Implements doc 03 §3.20.2: expanding from seed provisions follows only
-relations that are ACCEPTED and RESOLVED, and only targets whose own
-validity interval contains the query date. UNRESOLVED / PENDING_REVIEW
-relations are never used for automatic expansion. Each expansion carries
-the ``added_by`` / ``source_id`` / ``depth`` metadata documented in
-§3.20.2.
+relations that are ACCEPTED and RESOLVED, and only expanded provisions
+whose own validity interval contains the query date. UNRESOLVED /
+PENDING_REVIEW relations are never used for automatic expansion. Each
+expansion carries the ``added_by`` / ``source_id`` / ``depth`` metadata
+documented in §3.20.2.
+
+Traversal is direction-aware. ``ProvisionReference`` stores edges
+``source --relation_type--> target``; for a seed, expansion follows:
+
+- ``REFERS_TO``: outbound — the seed refers to the target;
+- ``PARENT_OF``: inbound — edges point parent -> child (doc 03 §3.14.1,
+  Điều -> Khoản -> Điểm), and context expansion needs the parent
+  (doc 03 §3.20.1), so the seed is the child and the expanded provision
+  is the edge source;
+- ``SIBLING_OF``: both directions — sibling pairs are stored once with
+  an arbitrary direction, so a seed on either side finds the other;
+- ``PENALTY_COMPANION``: both directions — the companion relationship
+  is mutual (penalty provision <-> accompanying provision, doc 03
+  §3.9.6), so a seed on either side finds the other.
+
+In every direction the reference is pinned to the seed's exact version
+row (``source_legal_provision_id`` / ``target_legal_provision_id``
+physical FKs, doc 03 §3.9.6) and the expanded provision must be ACCEPTED
+with an interval containing ``d``.
 """
 
 from __future__ import annotations
@@ -13,9 +32,10 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
+from uuid import UUID
 
 from sqlalchemy import or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import InstrumentedAttribute, Session
 
 from app.persistence.models import (
     DocumentRelation,
@@ -34,6 +54,14 @@ _ADDED_BY = {
     "SIBLING_OF": "SIBLING",
     "PENALTY_COMPANION": "PENALTY_COMPANION",
 }
+
+# Traversal direction per relation type (module docstring):
+#   REFERS_TO         outbound — the seed refers to the target
+#   PARENT_OF         inbound  — parent lookup (edges point parent -> child)
+#   SIBLING_OF        both     — pairs stored once, direction arbitrary
+#   PENALTY_COMPANION both     — the companion relationship is mutual
+_OUTBOUND_RELATION_TYPES = frozenset({"REFERS_TO", "SIBLING_OF", "PENALTY_COMPANION"})
+_INBOUND_RELATION_TYPES = frozenset({"PARENT_OF", "SIBLING_OF", "PENALTY_COMPANION"})
 
 
 @dataclass(frozen=True)
@@ -72,29 +100,81 @@ class RelationRepository:
         *,
         relation_types: Iterable[str] | None = None,
     ) -> list[RelatedProvision]:
-        """Provisions referenced by any seed at date ``d`` (depth 1).
+        """Provisions reachable from any seed at date ``d`` (depth 1).
 
-        Filters, per doc 03 §3.20.2: the relation row must be ACCEPTED and
-        RESOLVED (UNRESOLVED / PENDING_REVIEW are never auto-expanded), the
-        target must be ACCEPTED with an interval containing ``d``, and the
-        reference must be pinned to the seed's exact version row
-        (``source_legal_provision_id``). When ``relation_types`` is given,
-        only those relation types are followed.
+        Traverses each requested relation type in its documented direction
+        (module docstring): outbound for ``REFERS_TO``, inbound for
+        ``PARENT_OF`` (parent lookup), both directions for ``SIBLING_OF``
+        and ``PENALTY_COMPANION``. Filters, per doc 03 §3.20.2: the relation
+        row must be ACCEPTED and RESOLVED (UNRESOLVED / PENDING_REVIEW are
+        never auto-expanded), the expanded provision must be ACCEPTED with
+        an interval containing ``d``, and the relation must be pinned to the
+        seed's exact version row (physical FK). ``source_id`` is the seed
+        provision_id that led to the expansion. Results are ordered by
+        ``(relation_type, source_id, provision_id)``.
         """
         seeds = list(seed_provisions)
         if not seeds:
             return []
-        stmt = (
-            select(ProvisionReference, LegalProvision)
-            .join(
-                LegalProvision,
-                LegalProvision.id == ProvisionReference.target_legal_provision_id,
+        requested = set(relation_types) if relation_types is not None else set(_ADDED_BY)
+        outbound_types = sorted(requested & _OUTBOUND_RELATION_TYPES)
+        inbound_types = sorted(requested & _INBOUND_RELATION_TYPES)
+        seed_row_ids = [seed.id for seed in seeds]
+
+        related: list[RelatedProvision] = []
+        if outbound_types:
+            related.extend(
+                self._expand(
+                    d,
+                    seed_row_ids=seed_row_ids,
+                    relation_types=outbound_types,
+                    inbound=False,
+                )
             )
+        if inbound_types:
+            related.extend(
+                self._expand(
+                    d,
+                    seed_row_ids=seed_row_ids,
+                    relation_types=inbound_types,
+                    inbound=True,
+                )
+            )
+        return sorted(
+            related,
+            key=lambda r: (r.relation_type, r.source_id, r.provision.provision_id),
+        )
+
+    def _expand(
+        self,
+        d: date,
+        *,
+        seed_row_ids: list[UUID],
+        relation_types: list[str],
+        inbound: bool,
+    ) -> list[RelatedProvision]:
+        """One directed traversal: outbound (seed is the edge source) or
+        inbound (seed is the edge target, e.g. parent lookup)."""
+        reference = ProvisionReference
+        seed_column: InstrumentedAttribute[UUID | None]
+        expanded_column: InstrumentedAttribute[UUID | None]
+        source_id_column: InstrumentedAttribute[str | None]
+        if inbound:
+            seed_column = reference.target_legal_provision_id
+            expanded_column = reference.source_legal_provision_id
+            source_id_column = reference.target_provision_id
+        else:
+            seed_column = reference.source_legal_provision_id
+            expanded_column = reference.target_legal_provision_id
+            source_id_column = reference.source_provision_id
+        stmt = (
+            select(reference.relation_type, source_id_column, LegalProvision)
+            .join(LegalProvision, LegalProvision.id == expanded_column)
             .where(
-                ProvisionReference.source_legal_provision_id.in_([seed.id for seed in seeds]),
-                ProvisionReference.review_status == _REVIEW_STATUS_ACCEPTED,
-                ProvisionReference.resolution_status == _RESOLUTION_STATUS_RESOLVED,
-                ProvisionReference.target_legal_provision_id.is_not(None),
+                seed_column.in_(seed_row_ids),
+                reference.relation_type.in_(relation_types),
+                reference.review_status == _REVIEW_STATUS_ACCEPTED,
+                reference.resolution_status == _RESOLUTION_STATUS_RESOLVED,
                 LegalProvision.review_status == _REVIEW_STATUS_ACCEPTED,
                 LegalProvision.effective_from <= d,
                 or_(
@@ -103,16 +183,14 @@ class RelationRepository:
                 ),
             )
         )
-        if relation_types is not None:
-            stmt = stmt.where(ProvisionReference.relation_type.in_(list(relation_types)))
         rows = self._session.execute(stmt).all()
         return [
             RelatedProvision(
-                provision=target,
-                relation_type=reference.relation_type,
-                source_id=reference.source_provision_id,
+                provision=provision,
+                relation_type=relation_type,
+                source_id=source_id,
             )
-            for reference, target in rows
+            for relation_type, source_id, provision in rows
         ]
 
     def related_documents(
