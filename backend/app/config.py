@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Literal
 
 from pydantic import AliasChoices, Field
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
