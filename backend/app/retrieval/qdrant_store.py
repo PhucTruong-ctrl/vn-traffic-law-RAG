@@ -151,27 +151,40 @@ def payload_for_unit(
     relations: list[dict] | None = None,
     vehicle_types: list[str] | None = None,
     document_version_id: str | None = None,
-    status: str | None = None,
+    document_status: str | None = None,
     chapter: str | None = None,
     section: str | None = None,
     article: str | None = None,
     clause: str | None = None,
     point: str | None = None,
     heading: str | None = None,
+    document_number: str | None = None,
+    document_type: str | None = None,
+    document_title: str | None = None,
+    document_version: int | None = None,
+    parser: str | None = None,
+    legal_parser_version: str | None = None,
+    sparse_encoder_version: str | None = None,
+    content_hash: str | None = None,
 ) -> dict:
     """Map a ``RetrievalUnit`` plus ingestion/review metadata to the Qdrant payload.
 
-    The payload carries exactly the doc 03 §3.11.3 keys: provision identity
-    and version, document identity, ``node_kind`` + hierarchy labels, temporal
-    interval, ``review_status``/``status``, parser/content versions, bounded
-    relation metadata, vehicle types, and both texts (``retrieval_text`` is
-    searchable; ``source_text`` is preserved verbatim for citation display).
+    The payload emits the full doc 03 §3.11.3 key set with the doc's field
+    names (``provision_version``, ``document_version``, ``document_status``,
+    ``text``, ...) plus the ingest-only extras ``node_kind``/``heading``
+    (hierarchy filters), ``content_version``, ``source_text`` (verbatim,
+    citation display) and ``document_version_id`` (the document-version UUID).
+    ``text`` is the searchable retrieval text; ``source_text`` is preserved
+    verbatim for citation display (doc 03 §3.11.3 names the searchable field
+    ``text``).
 
-    ``RetrievalUnit`` does not carry hierarchy labels or DB-row metadata, so
-    those are accepted as keyword-only arguments (default ``None`` / unit
-    values). ``document_version_id`` defaults to ``unit.document_id``, which
-    ``build_retrieval_units`` populates from the provision's
-    ``document_version_id`` (the document-version UUID).
+    ``RetrievalUnit`` does not carry hierarchy labels, DB-row metadata or
+    document-level metadata, so those are accepted as keyword-only arguments
+    (default ``None`` / unit values). ``page_number`` and ``parent_context``
+    are mapped from the unit when present. ``document_version_id`` defaults to
+    ``unit.document_id``, which ``build_retrieval_units`` populates from the
+    provision's ``document_version_id`` (the document-version UUID);
+    ``document_version`` is the document's version number (doc §3.11.3).
 
     ``relations`` is bounded metadata (doc 03 §3.11.3): each entry must be
     exactly ``{"relation_type", "target_provision_id"}`` with non-empty string
@@ -201,10 +214,15 @@ def payload_for_unit(
 
     return {
         "provision_id": unit.provision_id,
-        "version": unit.version,
+        "provision_version": unit.version,
         "document_version_id": (
             unit.document_id if document_version_id is None else document_version_id
         ),
+        "document_version": document_version,
+        "document_number": document_number,
+        "document_type": document_type,
+        "document_title": document_title,
+        "document_id": unit.document_id,
         "node_kind": unit.node_kind,
         "chapter": chapter,
         "section": section,
@@ -214,15 +232,20 @@ def payload_for_unit(
         "heading": heading,
         "effective_from": effective_from,
         "effective_to": effective_to,
+        "document_status": document_status,
         "review_status": review_status,
-        "status": status,
+        "page_number": unit.page_number,
+        "content_hash": content_hash,
+        "parser": parser,
         "parser_version": parser_version,
-        "content_version": content_version,
+        "legal_parser_version": legal_parser_version,
+        "sparse_encoder_version": sparse_encoder_version,
+        "text": unit.retrieval_text,
+        "source_text": unit.source_text,
+        "parent_context": unit.parent_context,
         "relations": [] if relations is None else relations,
         "vehicle_types": [] if vehicle_types is None else vehicle_types,
-        "source_text": unit.source_text,
-        "retrieval_text": unit.retrieval_text,
-        "document_id": unit.document_id,
+        "content_version": content_version,
     }
 
 
@@ -299,17 +322,26 @@ def ensure_qdrant_collection(client: QdrantClient | None = None) -> QdrantClient
     return client
 
 
-def rebuild_alias(client: QdrantClient, new_collection_name: str) -> None:
-    """Point ``PROVISION_ALIAS`` at ``new_collection_name`` and delete the old collection.
+def rebuild_alias(client: QdrantClient, new_collection_name: str) -> str | None:
+    """Point ``PROVISION_ALIAS`` at ``new_collection_name`` and return the old target.
+
+    Returns the name of the collection ``PROVISION_ALIAS`` previously pointed
+    at (the previous versioned collection, retained for the rollback/grace
+    period), or ``None`` when there was no previous target (first bootstrap)
+    or the alias already pointed at ``new_collection_name`` (no-op).
 
     Implements doc 03 §3.11.7 steps 5-6: the alias switch (delete alias from
     the old target + create alias on the new collection) is issued as a single
     atomic ``update_collection_aliases`` batch, so queries through the alias
     never observe a missing/partial state; the previous versioned collection
-    is deleted only after the switch. ``new_collection_name`` is created with
-    the same config + payload indexes when it does not exist yet, so the full
-    flow is: PostgreSQL is authoritative -> rebuild the new collection -> call
-    this helper to activate it.
+    is **not** deleted here — it is kept for a grace period so queries can
+    roll back to it (step 6). The caller decides when to delete: keep the old
+    collection until the new one is verified (e.g. retrieval regression), then
+    ``client.delete_collection(old)`` per the grace-period cleanup policy.
+    ``new_collection_name`` is created with the same config + payload indexes
+    when it does not exist yet, so the full flow is: PostgreSQL is
+    authoritative -> rebuild the new collection -> call this helper to
+    activate it (returns the previous collection to retire later).
 
     No-op when the alias already points at ``new_collection_name``.
     """
@@ -318,7 +350,7 @@ def rebuild_alias(client: QdrantClient, new_collection_name: str) -> None:
 
     current = _alias_target(client)
     if current == new_collection_name:
-        return
+        return None
     operations: list[models.AliasOperations] = [
         models.DeleteAliasOperation(delete_alias=models.DeleteAlias(alias_name=PROVISION_ALIAS)),
         models.CreateAliasOperation(
@@ -330,8 +362,7 @@ def rebuild_alias(client: QdrantClient, new_collection_name: str) -> None:
     if current is None:  # no alias yet: only create it
         operations = operations[1:]
     client.update_collection_aliases(operations)
-    if current is not None:
-        client.delete_collection(current)
+    return current
 
 
 def get_collection_info(client: QdrantClient) -> dict:

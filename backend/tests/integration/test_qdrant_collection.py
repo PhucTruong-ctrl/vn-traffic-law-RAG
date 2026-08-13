@@ -142,18 +142,23 @@ def test_get_collection_info_reports_active_collection(
 # ---------------------------------------------------------------------------
 
 
-def test_rebuild_alias_switches_and_deletes_old(
+def test_rebuild_alias_switches_and_retains_old_for_grace_period(
     qdrant_client: QdrantClient, scratch: tuple[str, str]
 ) -> None:
     collection, alias = scratch
     ensure_qdrant_collection(qdrant_client)
     new_collection = f"{collection}_v2"
 
-    rebuild_alias(qdrant_client, new_collection)
+    # §3.11.7 step 5-6: alias switches atomically; the old versioned
+    # collection is NOT deleted — it is returned for the grace-period/rollback
+    # cleanup policy, and the caller decides when to delete it.
+    old_collection = rebuild_alias(qdrant_client, new_collection)
 
+    assert old_collection == collection
     assert _alias_target(qdrant_client, alias) == new_collection
     assert qdrant_client.collection_exists(new_collection)
-    assert not qdrant_client.collection_exists(collection)
+    # Old collection retained (rollback path) until the caller deletes it.
+    assert qdrant_client.collection_exists(collection)
     # New collection carries the same config + payload indexes.
     new_info = qdrant_client.get_collection(new_collection)
     assert new_info.config.params.vectors[DENSE_VECTOR_NAME].size == DENSE_VECTOR_SIZE
@@ -162,13 +167,19 @@ def test_rebuild_alias_switches_and_deletes_old(
     active = get_collection_info(qdrant_client)
     assert active["status"] == new_info.status
 
+    # Test cleanup: retire the old collection per the grace-period policy.
+    qdrant_client.delete_collection(old_collection)
+    assert not qdrant_client.collection_exists(collection)
+    assert _alias_target(qdrant_client, alias) == new_collection
+
 
 def test_rebuild_alias_creates_alias_when_missing(
     qdrant_client: QdrantClient, scratch: tuple[str, str]
 ) -> None:
     collection, alias = scratch
     # No collection / alias exists yet; rebuild straight into the new one.
-    rebuild_alias(qdrant_client, collection)
+    old_collection = rebuild_alias(qdrant_client, collection)
+    assert old_collection is None
     assert _alias_target(qdrant_client, alias) == collection
     assert qdrant_client.collection_exists(collection)
 
@@ -179,7 +190,8 @@ def test_rebuild_alias_noop_when_already_active(
     collection, alias = scratch
     ensure_qdrant_collection(qdrant_client)
 
-    rebuild_alias(qdrant_client, collection)
+    old_collection = rebuild_alias(qdrant_client, collection)
 
+    assert old_collection is None
     assert _alias_target(qdrant_client, alias) == collection
     assert qdrant_client.collection_exists(collection)
