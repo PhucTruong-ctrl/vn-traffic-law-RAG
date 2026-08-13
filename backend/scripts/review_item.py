@@ -39,13 +39,32 @@ if str(_BACKEND_DIR) not in sys.path:
 
 from app.persistence.models import ReviewItem  # noqa: E402  (sys.path bootstrap above)
 from app.persistence.repositories.review_items import (  # noqa: E402
+    DECISION_TO_STATUS,
     ReviewItemNotFoundError,
     ReviewItemRepository,
 )
 
 #: ``--status`` choices mirror the routing decisions (doc 03 §3.4.2); note
-#: NEEDS_REVIEW is a decision, not a stored status (see repository module).
+#: NEEDS_REVIEW is a decision, not a stored status — ``_status_filter`` maps
+#: it back to PENDING before querying (see repository module).
 _STATUS_CHOICES = ("PENDING", "ACCEPTED", "NEEDS_REVIEW", "REJECTED", "DROPPED")
+
+
+def _status_filter(choice: str | None) -> str | None:
+    """Translate a CLI ``--status`` choice to a stored ``review_items.status``.
+
+    The DB CHECK constraint allows only PENDING/ACCEPTED/REJECTED/DROPPED
+    (models.py ``_REVIEW_STATUS_VALUES``); NEEDS_REVIEW is a routing decision
+    that leaves the row PENDING, so the choice maps back to PENDING — i.e.
+    ``list --status NEEDS_REVIEW`` shows the pending review queue.  Other
+    choices are already stored statuses and pass through unchanged.  Matching
+    ``DECISION_TO_STATUS``, keys are uppercase and comparison is
+    case-insensitive.
+    """
+    if choice is None:
+        return None
+    normalized = choice.upper()
+    return DECISION_TO_STATUS.get(normalized, normalized)
 
 
 def _default_reviewer() -> str:
@@ -117,8 +136,9 @@ def _print_fields(fields: dict[str, str | None]) -> None:
 
 
 def _cmd_list(args: argparse.Namespace) -> int:
+    status = _status_filter(args.status)
     with _session() as session:
-        rows = [row for row in ReviewItemRepository(session).list(status=args.status)]
+        rows = [row for row in ReviewItemRepository(session).list(status=status)]
     if not rows:
         print("No review items.")
         return 0
@@ -173,7 +193,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_list.add_argument(
         "--status",
         choices=_STATUS_CHOICES,
-        help="only items with this status (NEEDS_REVIEW is a decision, never a stored status)",
+        help="only items with this status (NEEDS_REVIEW maps to the stored PENDING status)",
     )
     p_list.set_defaults(func=_cmd_list)
 

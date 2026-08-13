@@ -93,6 +93,13 @@ def test_parser_list_status() -> None:
     assert args.status == "PENDING"
 
 
+def test_parser_list_needs_review_choice() -> None:
+    # NEEDS_REVIEW stays a valid CLI choice: it means "show the pending
+    # review queue" and is mapped to the stored PENDING status at query time.
+    args = cli.build_parser().parse_args(["list", "--status", "NEEDS_REVIEW"])
+    assert args.status == "NEEDS_REVIEW"
+
+
 def test_parser_list_rejects_unknown_status() -> None:
     with pytest.raises(SystemExit):
         cli.build_parser().parse_args(["list", "--status", "NOPE"])
@@ -142,6 +149,27 @@ def test_decision_to_status_mapping() -> None:
         "REJECTED": "REJECTED",
         "DROPPED": "DROPPED",
     }
+
+
+def test_status_filter_maps_needs_review_to_pending() -> None:
+    # list --status NEEDS_REVIEW must query the stored PENDING status or the
+    # SQL filter never matches and the queue always looks empty.
+    assert cli._status_filter("NEEDS_REVIEW") == "PENDING"
+
+
+def test_status_filter_is_case_insensitive() -> None:
+    # Matching DECISION_TO_STATUS semantics: keys are uppercase, input case
+    # does not matter.
+    assert cli._status_filter("needs_review") == "PENDING"
+    assert cli._status_filter("Pending") == "PENDING"
+    assert cli._status_filter("accepted") == "ACCEPTED"
+
+
+def test_status_filter_passes_stored_statuses_and_none() -> None:
+    # Stored statuses and no filter pass through unchanged.
+    assert cli._status_filter(None) is None
+    for status in ("PENDING", "ACCEPTED", "REJECTED", "DROPPED"):
+        assert cli._status_filter(status) == status
 
 
 def test_default_reviewer(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -381,6 +409,62 @@ def test_main_list_prints_rows(
     assert "PENDING" in out
     assert "ACCEPTED" in out
     assert "LOW_OCR_COVERAGE" in out
+
+
+class _RecordingRepository:
+    """Fake repository recording the list filter for CLI unit tests."""
+
+    def __init__(self, session: object) -> None:
+        self.session = session
+        self.list_status: str | None = None
+        self.list_limit: int | None = None
+
+    def list(self, status: str | None = None, limit: int = 100) -> list[ReviewItem]:
+        self.list_status = status
+        self.list_limit = limit
+        return []
+
+
+def test_main_list_needs_review_queries_pending_status(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """``list --status NEEDS_REVIEW`` calls repository.list with PENDING.
+
+    NEEDS_REVIEW is a routing decision, not a stored status (the DB CHECK
+    allows only PENDING/ACCEPTED/REJECTED/DROPPED), so the CLI must map the
+    choice to PENDING before querying — otherwise the SQL filter never
+    matches and the queue always looks empty.
+    """
+    session = _FakeSession()
+    repo = _RecordingRepository(session)
+    monkeypatch.setattr(cli, "ReviewItemRepository", lambda _session: repo)
+    monkeypatch.setattr(cli, "_connect", lambda: session)
+
+    code = cli.main(["list", "--status", "NEEDS_REVIEW"])
+
+    assert code == 0
+    assert repo.list_status == "PENDING"
+    assert "No review items." in capsys.readouterr().out
+
+
+def test_main_list_needs_review_prints_pending_items(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Full CLI path: ``list --status NEEDS_REVIEW`` lists pending items."""
+    rows = [_row(), _row(status="PENDING", reason_code="LOW_TEXT_DENSITY")]
+    session = _FakeSession()
+    session.scalars_result = rows
+    monkeypatch.setattr(cli, "_connect", lambda: session)
+
+    code = cli.main(["list", "--status", "NEEDS_REVIEW"])
+
+    assert code == 0
+    sql = str(session.statement)
+    assert "WHERE review_items.status" in sql
+    out = capsys.readouterr().out
+    assert "PENDING" in out
+    assert "LOW_OCR_COVERAGE" in out
+    assert "LOW_TEXT_DENSITY" in out
 
 
 def test_main_list_empty(
