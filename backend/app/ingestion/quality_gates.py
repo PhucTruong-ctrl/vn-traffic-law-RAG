@@ -7,11 +7,37 @@ Two gate groups, run at two different points of the ingestion pipeline
   normalization and BEFORE the Legal Structure Extractor, on
   :class:`~app.ingestion.document_ir.ParsedDocument` /
   :class:`~app.ingestion.document_ir.DocumentElement`.
-* **Group B — structural gates (CONTRACT ONLY in W2).** Run AFTER the Legal
-  Structure Extractor (VNLRAG-26/28, W3) on ``LegalProvision[]``. This module
-  defines the typed contract (:class:`GroupBThresholds`,
-  :class:`GroupBContract`) and the stub :func:`evaluate_group_b`; execution
-  lands in W3. No extractor logic is implemented here.
+* **Group B — structural gates (OPERATIONAL in VNLRAG-33).** Run AFTER the
+  Legal Structure Extractor (VNLRAG-26/28) on ``LegalProvision[]``.
+  :func:`evaluate_group_b` executes the point-label, hierarchy-completeness
+  and short-point-retention gates defined by the contract
+  (:class:`GroupBThresholds`, :class:`GroupBContract`); the extractor logic
+  itself lives in VNLRAG-26/28.
+
+Group B formula decisions (documented, tested):
+
+* ``point_label_detection_rate``, ``orphan_point_count``,
+  ``orphan_clause_count`` and ``duplicate_count`` are reused verbatim from
+  :func:`app.ingestion.hierarchy_validation.validate_hierarchy` (VNLRAG-30) —
+  same Điều-tree parent resolution, PRIMARY run ``a→b→c→d→đ→e`` label
+  detection and provision_id duplicate detection. When the provision list is
+  empty or contains no POINT provisions the rate is 0.0 (nothing detected) and
+  the gate fails — a point-less/empty extraction is never auto-accepted.
+* ``short_point_retention_rate`` = retained short points / flagged short
+  points. Rulespec §5: **no token-length threshold** — a short-but-valid point
+  is retained, so every flagged short point present in the list is retained
+  and the rate is 1.0 (vacuously 1.0 when no short points are flagged). It is
+  reported as a metric but can never fail a check.
+* ``hierarchy_completeness`` = share of Điều-tree provisions (ARTICLE/CLAUSE/
+  POINT) free of structural defects:
+  ``1 - (orphan_point_count + orphan_clause_count + duplicate_count +
+  short_point_losses) / tree_count``, where ``short_point_losses`` =
+  ``(1 - short_point_retention_rate) * flagged_short_points`` (always 0 by the
+  no-threshold rule). 0.0 when no tree provisions exist (nothing to be
+  complete).
+
+All thresholds use the same ``>=`` boundary convention as Group A
+(``value >= threshold`` passes).
 
 Formula decisions (documented, tested):
 
@@ -44,11 +70,13 @@ gate.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Literal, NoReturn
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
 from app.ingestion.document_ir import DocumentElement, ParsedDocument
+from app.ingestion.hierarchy_validation import validate_hierarchy
+from app.ingestion.structure_extractor import ExtractedLegalProvision
 
 GateStatus = Literal["passed", "failed", "na"]
 
@@ -325,22 +353,40 @@ def evaluate_group_a(
 class GroupBThresholds(BaseModel):
     """Group B threshold set (defaults from ``docs/parser_router.yaml``).
 
-    Contract for W3: execution happens after the Legal Structure Extractor
-    (VNLRAG-26/28) on ``LegalProvision[]``.
+    Execution happens after the Legal Structure Extractor (VNLRAG-26/28) on
+    ``LegalProvision[]``.
     """
 
     min_point_label_detection: float = DEFAULT_MIN_POINT_LABEL_DETECTION
     min_hierarchy_completeness: float = DEFAULT_MIN_HIERARCHY_COMPLETENESS
 
 
+#: Tree node kinds participating in the Điều hierarchy (docs/03 §3.8.1) —
+#: mirrors ``hierarchy_validation._TREE_KINDS``.
+_TREE_KINDS = frozenset({"ARTICLE", "CLAUSE", "POINT"})
+
+
+class GroupBResult(BaseModel):
+    """Group B verdict: structural metrics plus the failing gate checks.
+
+    ``passed`` is True exactly when ``failed_checks`` is empty. ``metrics``
+    always carries the contract keys ``point_label_detection_rate``,
+    ``hierarchy_completeness``, ``short_point_retention_rate``,
+    ``orphan_point_count``, ``orphan_clause_count`` and ``duplicate_count``.
+    """
+
+    passed: bool
+    metrics: dict[str, float | int]
+    failed_checks: list[str]
+
+
 @dataclass(frozen=True)
 class GroupBContract:
-    """Group B (structural) gates — typed CONTRACT in W2 (VNLRAG-131).
+    """Group B (structural) gates — typed CONTRACT (VNLRAG-131, executed VNLRAG-33).
 
     These gates run AFTER the Legal Structure Extractor because they need its
-    output (``LegalProvision[]``, not the parser IR). In W2 this is a contract
-    + config only: :func:`evaluate_group_b` raises ``NotImplementedError``.
-    Execution lands in W3 (VNLRAG-26/28 extractor + VNLRAG-131 W3).
+    output (``LegalProvision[]``, not the parser IR). The contract + config
+    landed in W2 (VNLRAG-131); :func:`evaluate_group_b` executes it.
     """
 
     name: str = "group_b_structural"
@@ -348,9 +394,9 @@ class GroupBContract:
     thresholds: GroupBThresholds = field(default_factory=GroupBThresholds)
     runs_on: str = "LegalProvision[]"
     executes_after: str = "Legal Structure Extractor (VNLRAG-26/28)"
-    implemented_in: str = "VNLRAG-131 W3"
+    implemented_in: str = "VNLRAG-33"
     # Rulespec §5: short-point retention has NO token-length threshold — a
-    # short-but-valid point is retained. Not a numeric gate; documented for W3.
+    # short-but-valid point is retained. Not a numeric gate.
     short_point_retention: str = "no token-length threshold (rulespec §5)"
 
     def to_dict(self) -> dict[str, Any]:
@@ -365,17 +411,94 @@ class GroupBContract:
         }
 
 
-def evaluate_group_b(provisions: list[Any], thresholds: GroupBThresholds | None = None) -> NoReturn:
-    """Group B structural gate evaluation — stub, CONTRACT ONLY in W2.
+def _tree_count(provisions: list[ExtractedLegalProvision]) -> int:
+    """Number of provisions participating in the Điều tree.
 
-    Implemented in W3 (VNLRAG-131 W3) once the Legal Structure Extractor
-    (VNLRAG-26/28) produces ``LegalProvision[]``. Execution requires
-    structural-recognition output the parser IR does not carry (d/đ point
-    labels, article/clause/point hierarchy, short-point retention).
+    Mirrors ``hierarchy_validation._provision_kind``: ``node_kind`` is
+    authoritative for tree kinds, otherwise the hierarchy fields infer.
     """
-    del provisions, thresholds  # contract-only stub; inputs land in W3
-    raise NotImplementedError(
-        "Group B structural gates are contract-only in W2 (VNLRAG-131). Execution "
-        "lands in W3 after the Legal Structure Extractor (VNLRAG-26/28) produces "
-        "LegalProvision[] (min_point_label_detection, min_hierarchy_completeness)."
-    )
+
+    count = 0
+    for provision in provisions:
+        if provision.node_kind in _TREE_KINDS or (
+            provision.point is not None
+            or provision.clause is not None
+            or provision.article is not None
+        ):
+            count += 1
+    return count
+
+
+def evaluate_group_b(
+    provisions: list[ExtractedLegalProvision],
+    thresholds: GroupBThresholds | None = None,
+) -> GroupBResult:
+    """Evaluate all Group B structural gates on ``provisions``.
+
+    Point-label detection, orphan Point/Clause and duplicate counts are reused
+    from :func:`app.ingestion.hierarchy_validation.validate_hierarchy`
+    (VNLRAG-30). ``hierarchy_completeness`` and ``short_point_retention_rate``
+    are derived per the module docstring: completeness is the share of
+    Điều-tree provisions free of orphan/duplicate/label defects (short-point
+    losses are 0 by the rulespec §5 no-token-length rule); retention is
+    retained/flagged short points = 1.0 (vacuously 1.0 when none flagged) and
+    never fails a check. A gate fails when its value is below the threshold
+    (``>=`` boundary passes, same as Group A); empty input fails both numeric
+    gates (0.0 < 0.9) — nothing extracted is never auto-accepted.
+    """
+
+    config = thresholds or GroupBThresholds()
+    hierarchy = validate_hierarchy(provisions)
+    detection_rate = float(hierarchy.metrics["point_label_detection_rate"])
+    orphan_point_count = int(hierarchy.metrics["orphan_point_count"])
+    orphan_clause_count = int(hierarchy.metrics["orphan_clause_count"])
+    duplicate_count = int(hierarchy.metrics["duplicate_count"])
+
+    # Short-point retention (rulespec §5): no token-length threshold — every
+    # flagged short point is retained, so the rate is 1.0 and contributes no
+    # losses to completeness.
+    flagged_short_points = sum(1 for provision in provisions if provision.short_point)
+    short_point_retention_rate = 1.0
+    short_point_losses = (1 - short_point_retention_rate) * flagged_short_points  # always 0
+
+    tree_count = _tree_count(provisions)
+    defects = orphan_point_count + orphan_clause_count + duplicate_count + int(short_point_losses)
+    hierarchy_completeness = (tree_count - defects) / tree_count if tree_count else 0.0
+
+    failed_checks: list[str] = []
+    if detection_rate < config.min_point_label_detection:
+        failed_checks.append("point_label_detection")
+    if hierarchy_completeness < config.min_hierarchy_completeness:
+        failed_checks.append("hierarchy_completeness")
+
+    metrics: dict[str, float | int] = {
+        "point_label_detection_rate": detection_rate,
+        "hierarchy_completeness": hierarchy_completeness,
+        "short_point_retention_rate": short_point_retention_rate,
+        "orphan_point_count": orphan_point_count,
+        "orphan_clause_count": orphan_clause_count,
+        "duplicate_count": duplicate_count,
+    }
+    return GroupBResult(passed=not failed_checks, metrics=metrics, failed_checks=failed_checks)
+
+
+__all__ = [
+    "DEFAULT_MIN_HIERARCHY_COMPLETENESS",
+    "DEFAULT_MIN_POINT_LABEL_DETECTION",
+    "DEFAULT_MIN_PROVENANCE_COVERAGE",
+    "DEFAULT_MIN_TABLE_DETECTION_RATE",
+    "DEFAULT_MIN_TEXT_EXTRACTION_RATE",
+    "GateResult",
+    "GateStatus",
+    "GroupAResult",
+    "GroupAThresholds",
+    "GroupBContract",
+    "GroupBResult",
+    "GroupBThresholds",
+    "evaluate_group_a",
+    "evaluate_group_b",
+    "layout_coherence",
+    "provenance_coverage",
+    "table_detection_rate",
+    "text_extraction_rate",
+]
