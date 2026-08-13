@@ -436,25 +436,31 @@ def _seed_gate_pipeline(engine: Any, document_id: str, job_id: str) -> tuple[uui
 
 
 def test_quality_gate_embed_index_completes_without_duplicates(
-    queue_env: Any, clean_queues: None, monkeypatch: pytest.MonkeyPatch
+    queue_env: Any, clean_queues: None, monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
     """ACCEPTED provisions flow gate -> embed -> index -> COMPLETED.
 
     A re-sent index message must NOT upsert again (idempotent re-run, no
-    duplicate points).  Qdrant + the embedding API are doubled.
+    duplicate points).  A SECOND job must reuse the PERSISTED sparse
+    vocabulary (same token->dimension mapping — no refit drift) even when the
+    corpus has grown.  Qdrant + the embedding API are doubled.
     """
     engine = queue_env
     document_id = _document_id()
     job_id = _unique("job")
     run_id, provision_ids = _seed_gate_pipeline(engine, document_id, job_id)
 
+    vocab_dir = tmp_path / "sparse-vocab"
+    monkeypatch.setattr(index_module, "_VOCAB_DIR", vocab_dir)
+
     client = _RecordingClient()
     monkeypatch.setattr(embed_module, "_get_provider", lambda: _FakeEmbedder())
     monkeypatch.setattr(index_module, "_get_qdrant_client", lambda: client)
     monkeypatch.setattr(index_module, "_get_embedder", lambda: _FakeEmbedder())
-    # Sparse channel: NOT monkeypatched — the actor fits BM25 on the corpus
-    # vocabulary; the assertions below verify shared tokens land on the SAME
-    # sparse dimension across points.
+    # Sparse channel: NOT monkeypatched — the actor persists and reuses ONE
+    # corpus vocabulary (data/sparse-vocab/{version}.json); the assertions
+    # below verify shared tokens land on the SAME sparse dimension across
+    # points AND across jobs (no refit drift, doc 03 §3.11.2).
 
     broker = get_broker()
     worker = Worker(broker, queues={"quality_gate", "embed", "index"}, worker_timeout=30_000)
@@ -504,17 +510,15 @@ def test_quality_gate_embed_index_completes_without_duplicates(
             }
         assert {point.id for point in points} == row_ids
 
-        # Sparse dimensions are CORPUS-aligned: the actor fitted one BM25
-        # vocabulary over all retrieval texts, so a token shared by two
-        # provisions ("phạt" in Điều 7 + Khoản 1) maps to the SAME index in
-        # both points' sparse vectors (doc 03 §3.11.2, sparse-space contract).
-        with Session(engine) as session:
-            corpus_texts = list(session.scalars(select(LegalProvision.retrieval_text)))
-        from app.retrieval.sparse import BM25SparseEncoder
+        # The vocabulary was persisted once, keyed by SPARSE_ENCODER_VERSION.
+        from app.retrieval.sparse import SPARSE_ENCODER_VERSION
 
-        expected_vocab = BM25SparseEncoder()
-        expected_vocab.fit(corpus_texts)
-        shared_dimension = expected_vocab.vocabulary["phạt"]
+        vocab_path = vocab_dir / f"{SPARSE_ENCODER_VERSION}.json"
+        assert vocab_path.is_file()
+        vocab_bytes_after_job1 = vocab_path.read_bytes()
+        vocab = index_module.load_vocabulary(version=SPARSE_ENCODER_VERSION)
+        assert vocab is not None
+        shared_dimension = vocab["phạt"]  # token shared by Điều 7 + Khoản 1
         for point in points:
             sparse = point.vector.get("sparse")
             assert sparse is not None
@@ -533,6 +537,42 @@ def test_quality_gate_embed_index_completes_without_duplicates(
         broker.join("index", timeout=60_000)
         worker.join()
         assert len(client.upserts) == 1  # no duplicate points
+
+        # --- second job: corpus grows, vocabulary must NOT drift ---
+        document_id_2 = _document_id()
+        job_id_2 = _unique("job")
+        _seed_gate_pipeline(engine, document_id_2, job_id_2)
+        with Session(engine) as session:
+            article_2 = session.scalar(
+                select(LegalProvision).where(
+                    LegalProvision.provision_id == f"{document_id_2}__dieu-7"
+                )
+            )
+            # New content brings a brand-new token into the corpus.
+            article_2.retrieval_text = article_2.source_text = (
+                "Điều 7. Xử phạt người điều khiển xe mô tô nghiệp vụ mới"
+            )
+            session.commit()
+
+        quality_gate_actor.send(job_id_2)
+        for queue in ("quality_gate", "embed", "index"):
+            broker.join(queue, timeout=60_000)
+        worker.join()
+
+        assert len(client.upserts) == 2  # second job upserted its own points
+        _, points_2 = client.upserts[1]
+        assert len(points_2) == 3
+        # Same token -> same dimension as job 1: the persisted vocabulary was
+        # REUSED, not refitted.
+        assert vocab_path.read_bytes() == vocab_bytes_after_job1
+        for point in points_2:
+            sparse = point.vector.get("sparse")
+            assert sparse is not None and sparse.indices
+        for point in points_2:
+            if "diem" not in point.payload["provision_id"]:
+                assert shared_dimension in point.vector["sparse"].indices
+        # The new token stayed out-of-vocabulary: no silent sparse-space drift.
+        assert "nghiệp" not in index_module.load_vocabulary(version=SPARSE_ENCODER_VERSION)
     finally:
         worker.stop()
 
