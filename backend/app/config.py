@@ -78,6 +78,30 @@ class QdrantSettings(BaseSettings):
     collection_prefix: str = "legal_provisions"
 
 
+class SparseSettings(BaseSettings):
+    """Sparse-encoder configuration (doc 03 §3.11.2).
+
+    Read from ``SPARSE_*`` environment variables, then the repo-root ``.env``
+    file (doc 07 §7.3.3). ``encoder_version`` is the id recorded in every
+    indexed point's ``sparse_encoder_version`` payload key; changing the
+    encoder means a collection rebuild + alias switch, never mixing two sparse
+    spaces in one collection. ``tokenizer`` names the tokenizer the
+    ``BM25SparseEncoder`` implements (only ``"unicode-word"`` exists today;
+    Suite C tokenizer verification may add variants).
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="SPARSE_",
+        env_file=str(_ENV_FILE),
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False,
+    )
+
+    encoder_version: str = "bm25-v1"
+    tokenizer: str = "unicode-word"
+
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """Return the process-wide settings singleton (cached until cleared)."""
@@ -88,3 +112,9 @@ def get_settings() -> Settings:
 def get_qdrant_settings() -> QdrantSettings:
     """Return the process-wide Qdrant settings singleton (cached until cleared)."""
     return QdrantSettings()
+
+
+@lru_cache(maxsize=1)
+def get_sparse_settings() -> SparseSettings:
+    """Return the process-wide sparse settings singleton (cached until cleared)."""
+    return SparseSettings()
