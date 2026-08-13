@@ -96,6 +96,20 @@ class EmbeddingSettings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_prefix="EMBEDDING_",
+class SparseSettings(BaseSettings):
+    """Sparse-encoder configuration (doc 03 §3.11.2).
+
+    Read from ``SPARSE_*`` environment variables, then the repo-root ``.env``
+    file (doc 07 §7.3.3). ``encoder_version`` is the id recorded in every
+    indexed point's ``sparse_encoder_version`` payload key; changing the
+    encoder means a collection rebuild + alias switch, never mixing two sparse
+    spaces in one collection. ``tokenizer`` names the tokenizer the
+    ``BM25SparseEncoder`` implements (only ``"unicode-word"`` exists today;
+    Suite C tokenizer verification may add variants).
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="SPARSE_",
         env_file=str(_ENV_FILE),
         env_file_encoding="utf-8",
         extra="ignore",
@@ -119,6 +133,10 @@ class EmbeddingSettings(BaseSettings):
         default="",
         validation_alias=AliasChoices("JINA_API_KEY", "EMBEDDING_JINA_API_KEY"),
     )
+    )
+
+    encoder_version: str = "bm25-v1"
+    tokenizer: str = "unicode-word"
 
 
 @lru_cache(maxsize=1)
@@ -137,3 +155,6 @@ def get_qdrant_settings() -> QdrantSettings:
 def get_embedding_settings() -> EmbeddingSettings:
     """Return the process-wide embedding settings singleton (cached until cleared)."""
     return EmbeddingSettings()
+def get_sparse_settings() -> SparseSettings:
+    """Return the process-wide sparse settings singleton (cached until cleared)."""
+    return SparseSettings()
