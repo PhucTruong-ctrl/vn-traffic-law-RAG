@@ -204,7 +204,14 @@ def test_broker_is_configured_redis_broker() -> None:
 
 def test_broker_middleware_stack_and_configuration() -> None:
     broker = get_broker()
-    middleware_types = [type(middleware).__name__ for middleware in broker.middleware]
+    # dramatiq injects internal middleware (e.g. _WorkerMiddleware) onto the
+    # broker when a Worker consumes — the assertion compares the full
+    # NON-internal stack, which is ours and order-stable.
+    middleware_types = [
+        type(middleware).__name__
+        for middleware in broker.middleware
+        if not type(middleware).__name__.startswith("_")
+    ]
     assert middleware_types == [
         "DeadLetterMiddleware",
         "Retries",
