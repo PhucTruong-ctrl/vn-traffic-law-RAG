@@ -356,33 +356,46 @@ def test_vietnamese_d_detection_present_vs_absent() -> None:
     assert vietnamese_d_detection_rate([]) == 0.0
 
 
-def test_d_point_detection_rate_comes_from_hierarchy(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_d_point_detection_rate_zero_without_d_da(monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-10 đ) metric is 0.0 when no đ)-labeled point exists.
+
+    Regression: this metric is the đ)-SPECIFIC rate (rulespec §4), NOT the
+    generic point-label detection rate from hierarchy validation, so a
+    corpus with only a)/b)/c) points must report 0.0.
+    """
+
     _patch_contracts(monkeypatch)
 
     report = run_corpus_qa(
-        [_provision(point_label="đ)"), _provision(point_label="d)")],
+        [
+            _provision("nd-168-2024__dieu-5__khoan-1__diem-a", point_label="a)"),
+            _provision("nd-168-2024__dieu-5__khoan-1__diem-b", point_label="b)"),
+            _provision("nd-168-2024__dieu-5__khoan-1__diem-c", point_label="c)"),
+        ],
         corpus_version="v1",
         corpus_hash="h",
     )
-    assert report.metrics.d_point_detection_rate == 0.75  # fake hierarchy value
+    assert report.metrics.d_point_detection_rate == 0.0
 
 
-def test_d_point_detection_falls_back_to_local_computation(
+def test_d_point_detection_rate_reflects_d_da_presence(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(
-        corpus_qa,
-        "validate_hierarchy",
-        lambda provisions: SimpleNamespace(
-            violations=[],
-            metrics={"orphan_point_count": 0, "orphan_clause_count": 0, "duplicate_count": 0},
-        ),
-    )
-    monkeypatch.setattr(corpus_qa, "provenance_coverage", _fake_provenance_coverage)
+    """FR-10 đ) metric reflects đ)-labeled points, distinct from d)."""
 
-    provisions = [_provision(point_label="a)"), _provision(point_label="đ)")]
-    report = run_corpus_qa(provisions, corpus_version="v1", corpus_hash="h")
-    assert report.metrics.d_point_detection_rate == pytest.approx(0.5)
+    _patch_contracts(monkeypatch)
+
+    report = run_corpus_qa(
+        [
+            _provision("nd-168-2024__dieu-5__khoan-1__diem-a", point_label="a)"),
+            _provision("nd-168-2024__dieu-5__khoan-1__diem-d", point_label="d)"),
+            _provision("nd-168-2024__dieu-5__khoan-1__diem-dd", point_label="đ)"),
+            _provision("nd-168-2024__dieu-5__khoan-1__diem-e", point_label="e)"),
+        ],
+        corpus_version="v1",
+        corpus_hash="h",
+    )
+    assert report.metrics.d_point_detection_rate == pytest.approx(0.25)
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -401,7 +414,8 @@ def test_hierarchy_and_provenance_feed_through_to_metrics(
     assert report.metrics.orphan_point_count == 2
     assert report.metrics.orphan_clause_count == 1
     assert report.metrics.duplicate_provision_count == 3
-    assert report.metrics.d_point_detection_rate == 0.75
+    # đ)-specific rate computed locally: no provision carries a point_label.
+    assert report.metrics.d_point_detection_rate == 0.0
     assert report.metrics.provenance_coverage == 0.5
     # Every analyzed document carries the hierarchy reuse.
     entry = (report.documents_analyzed or [])[0]
