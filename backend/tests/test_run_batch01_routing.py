@@ -13,7 +13,6 @@ from app.ingestion.quality_gates import GateResult, GroupAResult, GroupBResult
 from app.ingestion.review_routing import (
     D_D_AMBIGUITY,
     LOW_OCR_COVERAGE,
-    POINT_LABEL_AMBIGUOUS,
     RoutingDecision,
 )
 from app.ingestion.structure_extractor import ExtractedLegalProvision
@@ -179,8 +178,8 @@ def test_certifying_group_a_scan_only_fails_extraction_gates() -> None:
     assert certifying.provenance_coverage.status == "failed"
     # Measured values are preserved for transparency.
     assert certifying.text_extraction_rate.value == 1.0
-    assert "scan_only" in certifying.text_extraction_rate.detail["scan_policy"].casefold() or \
-        "scan" in certifying.text_extraction_rate.detail["scan_policy"].casefold()
+    policy = certifying.text_extraction_rate.detail["scan_policy"].casefold()
+    assert "scan-only" in policy and "not certified" in policy
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -236,7 +235,9 @@ def test_document_level_decision_mirrors_actor_outcome() -> None:
     assert decision == {"decision": "NEEDS_REVIEW", "reason_codes": [LOW_OCR_COVERAGE]}
 
     # All ACCEPTED -> document ACCEPTED.
-    aggregated = aggregate_routing([_decision("p1", "ACCEPTED", []), _decision("p2", "ACCEPTED", [])])
+    aggregated = aggregate_routing(
+        [_decision("p1", "ACCEPTED", []), _decision("p2", "ACCEPTED", [])]
+    )
     decision = document_level_decision(
         _MANIFEST_EFFECTIVE, has_provisions=True, aggregated=aggregated, scan_only=False
     )
@@ -294,7 +295,13 @@ def test_quality_stats_for_empty_provision_set() -> None:
 
 def _minimal_artifact() -> dict:
     documents: dict[str, dict] = {}
-    for document_id in ("nd-168-2024", "nd-100-2019", "luat-36-2024-qh15", "tt-79-2024", "tt-24-2023"):
+    for document_id in (
+        "nd-168-2024",
+        "nd-100-2019",
+        "luat-36-2024-qh15",
+        "tt-79-2024",
+        "tt-24-2023",
+    ):
         documents[document_id] = {
             "document_id": document_id,
             "source_kind": "scan-only 1-bit CCITT (no text layer)",

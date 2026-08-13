@@ -108,7 +108,9 @@ BATCH01_DOCUMENT_IDS = [
 #: Committed text inputs available for this W3 run (fixture excerpts).
 #: key = document_id, value = path relative to the repository root.
 FIXTURE_INPUTS: dict[str, str] = {
-    "nd-168-2024": "backend/tests/fixtures/parser_benchmark/documents/nd/nd-168-2024-fixture.pdf.txt",
+    "nd-168-2024": (
+        "backend/tests/fixtures/parser_benchmark/documents/nd/nd-168-2024-fixture.pdf.txt"
+    ),
     "luat-36-2024-qh15": (
         "backend/tests/fixtures/parser_benchmark/documents/luat/luat-traffic-2024-fixture.pdf.txt"
     ),
@@ -699,7 +701,8 @@ def render_report(artifact: dict) -> str:
     add("## 3. Per-document routing summary")
     add("")
     add(
-        "| document_id | Group A (routing basis) | Group B | provisions | ACCEPTED | NEEDS_REVIEW | DROPPED | decision | reason codes |"
+        "| document_id | Group A (routing basis) | Group B | provisions | ACCEPTED "
+        "| NEEDS_REVIEW | DROPPED | decision | reason codes |"
     )
     add("|---|---|---|---|---|---|---|---|---|")
     for document_id in doc_order:
@@ -713,7 +716,8 @@ def render_report(artifact: dict) -> str:
         add(
             f"| `{document_id}` | {ga_verdict} | {gb_verdict} | {counts['total']} "
             f"| {states['ACCEPTED']} | {states['NEEDS_REVIEW']} | {states['DROPPED']} "
-            f"| **{entry['routing']['decision']}** | {', '.join(entry['routing']['reason_codes']) or '—'} |"
+            f"| **{entry['routing']['decision']}** | "
+            f"{', '.join(entry['routing']['reason_codes']) or '—'} |"
         )
     add("")
     add("Aggregate: "
@@ -740,7 +744,8 @@ def render_report(artifact: dict) -> str:
     )
     add("")
     add(
-        "| document_id | provisions (A/C/P) | point-label detection | đ) detection | provenance coverage | parent-context coverage | short-point retention |"
+        "| document_id | provisions (A/C/P) | point-label detection | đ) detection "
+        "| provenance coverage | parent-context coverage | short-point retention |"
     )
     add("|---|---|---|---|---|---|---|")
     for document_id in doc_order:
@@ -821,7 +826,10 @@ def render_report(artifact: dict) -> str:
     )
     add("")
     for document_id in doc_order:
-        add(f"    `uv run python -m scripts.validate_manifest ../data/manifests/batch-01/{document_id}.manifest.json` → PASS")
+        add(
+            f"    `uv run python -m scripts.validate_manifest "
+            f"../data/manifests/batch-01/{document_id}.manifest.json` → PASS"
+        )
     add("")
 
     add("## 7. Reproducibility")
@@ -833,7 +841,7 @@ def render_report(artifact: dict) -> str:
     add("cd backend && uv run pytest tests/test_run_batch01_routing.py --no-cov -q")
     add("```")
     add("")
-    add(f"- Routing artifact: `data/ingestion/batch-01-routing.json`")
+    add("- Routing artifact: `data/ingestion/batch-01-routing.json`")
     add("- Report: `docs/evaluation/batch-01-routing-report.md` (this file, generated)")
     add("- Script: `backend/scripts/run_batch01_routing.py`")
     add("- Tests: `backend/tests/test_run_batch01_routing.py`")
@@ -875,9 +883,21 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     repo_root = _BACKEND_DIR.parent
-    manifests_dir = Path(args.manifests_dir) if args.manifests_dir else repo_root / "data" / "manifests" / "batch-01"
-    artifact_path = Path(args.artifacts) if args.artifacts else repo_root / "data" / "ingestion" / "batch-01-routing.json"
-    report_path = Path(args.report) if args.report else repo_root / "docs" / "evaluation" / "batch-01-routing-report.md"
+    manifests_dir = (
+        Path(args.manifests_dir)
+        if args.manifests_dir
+        else repo_root / "data" / "manifests" / "batch-01"
+    )
+    artifact_path = (
+        Path(args.artifacts)
+        if args.artifacts
+        else repo_root / "data" / "ingestion" / "batch-01-routing.json"
+    )
+    report_path = (
+        Path(args.report)
+        if args.report
+        else repo_root / "docs" / "evaluation" / "batch-01-routing-report.md"
+    )
 
     artifact = run_batch01_routing(manifests_dir, repo_root)
     artifact_path.parent.mkdir(parents=True, exist_ok=True)

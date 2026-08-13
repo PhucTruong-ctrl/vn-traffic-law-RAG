@@ -3,9 +3,9 @@
   "version": "batch-01-routing-v1",
   "ticket": "VNLRAG-35",
   "phase": "W3 routing-only",
-  "generated_at": "2026-08-13T22:30:22.440197+00:00",
+  "generated_at": "2026-08-13T22:32:41.838145+00:00",
   "command": "cd backend && uv run python scripts/run_batch01_routing.py",
-  "base_commit": "22e740d9c737c068802b1d4f3733f8cb808d51f5",
+  "base_commit": "88774063c5f5262304538bb50808fff366873214",
   "thresholds": {
     "group_a": {
       "min_provenance_coverage": 0.9,

@@ -1,9 +1,9 @@
 # Batch 01 Routing Report — VNLRAG-35 (W3, routing-only)
 
 - Artifact: `data/ingestion/batch-01-routing.json` (version `batch-01-routing-v1`)
-- Generated at: `2026-08-13T22:30:22.440197+00:00` (UTC)
+- Generated at: `2026-08-13T22:32:41.838145+00:00` (UTC)
 - Command: `cd backend && uv run python scripts/run_batch01_routing.py`
-- Base commit: `22e740d9c737c068802b1d4f3733f8cb808d51f5`
+- Base commit: `88774063c5f5262304538bb50808fff366873214`
 
 ## 1. Scope — W3 routing-only, NO indexing
 
@@ -123,6 +123,8 @@ tests/test_run_batch01_routing.py::test_render_report_contains_required_content 
 
 - Dependent-module sanity (routing/gates/corpus-qa/enricher, unchanged code): `uv run pytest tests/test_review_routing.py tests/test_quality_gates.py tests/test_corpus_qa.py tests/test_context_enricher.py --no-cov -q` → `122 passed in 1.47s`.
 - Manifest validation (unchanged manifests, `cd backend && uv run python -m scripts.validate_manifest ../data/manifests/batch-01/<id>.manifest.json`): PASS × 5 (see §6).
+- Ruff: `uv run ruff check scripts/run_batch01_routing.py tests/test_run_batch01_routing.py` → clean.
 - Commit hash: recorded after commit (see the final line of this report).
 
 - Final commit hash: `c0dfa11` (the VNLRAG-35 deliverable commit this report documents)
+
