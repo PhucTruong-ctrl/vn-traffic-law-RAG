@@ -523,8 +523,16 @@ def test_settings_use_ssl_true(monkeypatch: pytest.MonkeyPatch) -> None:
     assert ObjectStorageSettings().use_ssl is True
 
 
-def test_settings_defaults_match_canonical_buckets() -> None:
-    settings = ObjectStorageSettings()
+def test_settings_defaults_match_canonical_buckets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Isolate from the repo-root .env (MINIO_ENDPOINT etc.) so the DEFAULTS are
+    # tested, not environment-provided values.
+    monkeypatch.delenv("MINIO_ENDPOINT", raising=False)
+    monkeypatch.delenv("MINIO_ACCESS_KEY", raising=False)
+    monkeypatch.delenv("MINIO_SECRET_KEY", raising=False)
+    monkeypatch.delenv("MINIO_USE_SSL", raising=False)
+    settings = ObjectStorageSettings(_env_file=None)
     assert settings.endpoint == "localhost:9000"
     assert settings.use_ssl is False
     assert sorted(settings.buckets) == sorted(BUCKETS)

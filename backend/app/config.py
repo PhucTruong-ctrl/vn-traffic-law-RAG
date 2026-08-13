@@ -227,7 +227,6 @@ def get_qdrant_settings() -> QdrantSettings:
     """Return the process-wide Qdrant settings singleton (cached until cleared)."""
     return QdrantSettings()
 
-9:
 @lru_cache(maxsize=1)
 def get_object_storage_settings() -> ObjectStorageSettings:
     """Return the process-wide object-storage settings singleton (cached until cleared)."""
