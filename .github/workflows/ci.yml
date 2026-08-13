@@ -75,6 +75,23 @@ jobs:
     env:
       MINERU_INTEGRATION: "1"
       CUDA_VISIBLE_DEVICES: ""
+      # PostgreSQL for the repository integration tests (VNLRAG-39); the
+      # scratch databases are created by the tests' own conftest.
+      DATABASE_URL: postgresql+psycopg://vnlaw:change-me@localhost:5432/vnlaw
+    services:
+      postgres:
+        image: postgres:18.4
+        env:
+          POSTGRES_DB: vnlaw
+          POSTGRES_USER: vnlaw
+          POSTGRES_PASSWORD: change-me
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vnlaw -d vnlaw"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: backend
