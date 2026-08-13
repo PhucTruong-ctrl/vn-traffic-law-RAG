@@ -167,3 +167,4 @@ def get_settings() -> Settings:
 def get_qdrant_settings() -> QdrantSettings:
     """Return the process-wide Qdrant settings singleton (cached until cleared)."""
     return QdrantSettings()
+
