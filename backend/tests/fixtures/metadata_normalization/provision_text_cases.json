@@ -1,0 +1,62 @@
+{
+  "schema_version": "metadata-normalization-text-cases-v1",
+  "description": "VNLRAG-27 provision-text / label edge cases (rulespec §4 d/đ, §9 OCR variants: glued labels, Roman numerals, header/footer leakage). Each case: input + calls (function name, optional kwargs, expected result). expected null = needs_review (never guess). Leakage is detected and flagged for review, never deleted by text normalization.",
+  "cases": [
+    {
+      "name": "glued point label (scan/OCR route)",
+      "input": "a)Điều khiển xe đi ngược chiều trên đường một chiều",
+      "calls": [
+        {"function": "normalize_provision_text", "expected": "a) Điều khiển xe đi ngược chiều trên đường một chiều"},
+        {"function": "canonical_point_label", "expected": "a)"}
+      ]
+    },
+    {
+      "name": "đ label kept distinct, glued form",
+      "input": "đ)Ảnh chân dung theo quy định.",
+      "calls": [
+        {"function": "normalize_provision_text", "expected": "đ) Ảnh chân dung theo quy định."},
+        {"function": "canonical_point_label", "expected": "đ)"}
+      ]
+    },
+    {
+      "name": "bare d) is OCR-ambiguous without ordinal context → needs_review",
+      "input": "d) Dừng xe, đỗ xe tại nơi có biển cấm dừng",
+      "calls": [
+        {"function": "normalize_provision_text", "expected": "d) Dừng xe, đỗ xe tại nơi có biển cấm dừng"},
+        {"function": "canonical_point_label", "expected": null}
+      ]
+    },
+    {
+      "name": "d) disambiguated by ordinal position (PRIMARY rule a→b→c→d→đ→e)",
+      "input": "d)",
+      "calls": [
+        {"function": "canonical_point_label", "kwargs": {"ordinal": 4}, "expected": "d)"},
+        {"function": "canonical_point_label", "kwargs": {"ordinal": 5}, "expected": "đ)"}
+      ]
+    },
+    {
+      "name": "Điểm prefix and full-width paren variants",
+      "input": "Điểm A） Không chấp hành hiệu lệnh của đèn tín hiệu giao thông",
+      "calls": [
+        {"function": "canonical_point_label", "expected": "a)"}
+      ]
+    },
+    {
+      "name": "Unicode Roman numeral variant in chapter heading",
+      "input": "Chương Ⅱ. NGƯỜI ĐIỀU KHIỂN PHƯƠNG TIỆN",
+      "calls": [
+        {"function": "normalize_roman_numeral", "expected": "Chương II. NGƯỜI ĐIỀU KHIỂN PHƯƠNG TIỆN"},
+        {"function": "normalize_provision_text", "expected": "Chương II. NGƯỜI ĐIỀU KHIỂN PHƯƠNG TIỆN"}
+      ]
+    },
+    {
+      "name": "repeated header/footer chrome is not legal content",
+      "input": "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\nĐộc lập - Tự do - Hạnh phúc",
+      "calls": [
+        {"function": "is_header_footer_leakage", "expected": true},
+        {"function": "normalize_provision_text", "expected": "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM Độc lập - Tự do - Hạnh phúc"}
+      ],
+      "note": "leakage is flagged for review (rulespec §9); text normalization never deletes content"
+    }
+  ]
+}

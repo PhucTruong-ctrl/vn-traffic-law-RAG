@@ -1,0 +1,18 @@
+{
+  "schema_version": "corpus-manifest-v1",
+  "document_id": "tt-79-2024",
+  "source_url": "https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/11/79-bca.signed.pdf",
+  "downloaded_at": "2026-08-09T09:30:00+07:00",
+  "file_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "document_number": "79/2024/TT-BCA",
+  "document_type": "CIRCULAR",
+  "issuer": "Bộ Công an",
+  "issued_date": "2024-11-15",
+  "effective_from": "2025-01-01",
+  "effective_to": null,
+  "status": "EFFECTIVE",
+  "relation_notes": "Thông tư 79/2024/TT-BCA quy định về cấp, thu hồi đăng ký, biển số xe cơ giới; bãi bỏ TT 24/2023/TT-BCA. Fixture cho VNLRAG-27 metadata normalization (manifest authority + edge cases).",
+  "review_status": "ACCEPTED",
+  "reviewed_by": "corpus-reviewer-01",
+  "reviewed_at": "2026-08-09T10:30:00+07:00"
+}

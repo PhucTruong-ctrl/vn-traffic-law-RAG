@@ -20,6 +20,12 @@ Rules enforced here (never deferred to the DB):
 - ``content_hash`` is a deterministic plain ``sha256`` hex digest — the frozen
   JSON templates require ``^[a-f0-9]{64}$`` (``templates/legal-*.schema.json``),
   which is why the ``sha256:``-prefixed persistence helper is not used here.
+- VNLRAG-27 normalization: extracted metadata is canonicalized per the
+  VNLRAG-23 v2 rules (manifest-authoritative document_type/issuer, no-guess
+  dates, unicode cleanup) before row construction, and ``retrieval_text`` is
+  normalized (glued point labels, whitespace, unicode) while ``source_text``
+  is kept verbatim.  Header/footer leakage is routed to ``PENDING`` review
+  (never auto-accepted) and marked on the extractor record for QA counting.
 - Validation before persistence (:func:`validate_provisions`) rejects
   incomplete provisions (missing source_text, empty source_element_ids,
   invalid interval, ACCEPTED without effective_from, ...).
@@ -41,6 +47,11 @@ from app.ingestion.document_ir import ParsedDocument
 from app.ingestion.metadata_extractor import (
     ExtractedDocumentMetadata,
     validate_against_manifest,
+)
+from app.ingestion.metadata_normalizer import (
+    is_header_footer_leakage,
+    normalize_metadata,
+    normalize_provision_text,
 )
 from app.ingestion.structure_extractor import ExtractedLegalProvision
 from app.persistence.models import DocumentVersion, LegalDocument, LegalProvision
@@ -162,6 +173,12 @@ def project_document(
         joined = "; ".join(conflicts)
         raise ValueError(f"manifest conflicts with extracted IR metadata: {joined}")
 
+    # VNLRAG-27: canonicalize extracted metadata per the VNLRAG-23 v2 rules
+    # (manifest-authoritative document_type/issuer, no-guess dates, unicode
+    # cleanup).  Idempotent on canonical inputs; review flags raised here are
+    # returned by normalize_metadata for callers that invoke it directly.
+    metadata = normalize_metadata(metadata, manifest).metadata
+
     document_title = metadata.document_title or document_number
 
     document = LegalDocument(
@@ -169,7 +186,7 @@ def project_document(
         document_number=document_number,
         document_title=document_title,
         document_type=document_type,
-        issuer=_optional_str(manifest.get("issuer")),
+        issuer=metadata.issuer,  # normalized issuer (VNLRAG-27), not raw manifest text
         issued_date=_parse_iso_date(manifest.get("issued_date")),
         source_url=_optional_str(manifest.get("source_url")),
         downloaded_at=None,
@@ -208,6 +225,14 @@ def project_provisions(
     stay nullable until temporal resolution (doc 03 §3.15.6).  The
     ``content_hash`` is recomputed deterministically from ``source_text`` and
     must equal the extractor's value.
+
+    Header/footer leakage (rulespec §9) is never persisted as auto-accepted:
+    when a provision's text is detected as repeated document chrome, its
+    ``review_status`` is forced to ``PENDING`` (an explicit ``review_status``
+    override never overrides leakage), and the marker is recorded on the
+    extractor record itself (``needs_review = True`` with ``ambiguity =
+    "header/footer leakage"``, the extractor's own review-flag convention) so
+    corpus QA can count leakage from the caller's ``extracted`` list.
     """
 
     provisions: list[LegalProvision] = []
@@ -217,6 +242,17 @@ def project_provisions(
             raise ValueError(
                 f"content_hash mismatch for {item.provision_id}: "
                 f"projected {content_hash} != extractor {item.content_hash}"
+            )
+        leakage = is_header_footer_leakage(item.source_text) or is_header_footer_leakage(
+            item.retrieval_text
+        )
+        if leakage:
+            item.needs_review = True
+            item.ambiguity = item.ambiguity or "header/footer leakage"
+            provision_review_status = "PENDING"  # never auto-accept leaked chrome
+        else:
+            provision_review_status = (
+                review_status if review_status is not None else item.review_status
             )
         provisions.append(
             LegalProvision(
@@ -230,7 +266,7 @@ def project_provisions(
                 point=item.point,
                 heading=item.heading,
                 source_text=item.source_text,
-                retrieval_text=item.retrieval_text,
+                retrieval_text=normalize_provision_text(item.retrieval_text),
                 parent_context=item.parent_context,
                 effective_from=(
                     effective_from
@@ -246,7 +282,7 @@ def project_provisions(
                 source_element_ids=item.source_element_ids,
                 content_hash=content_hash,
                 version=item.version,
-                review_status=review_status if review_status is not None else item.review_status,
+                review_status=provision_review_status,
             )
         )
     return provisions

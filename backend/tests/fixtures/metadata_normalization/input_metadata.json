@@ -1,0 +1,13 @@
+{
+  "schema_version": "extracted-metadata-input-v1",
+  "description": "VNLRAG-27 input metadata exercising the edge cases: Vietnamese document_type prefix, lowercase/noisy issuer, dd/mm/yyyy and Vietnamese long-form dates (pre-pydantic raw values — the normalizer accepts them defensively), full-width spaces in the title.",
+  "metadata": {
+    "document_title": "THÔNG TƯ　79/2024/TT-BCA　QUY ĐỊNH  VỀ  CẤP, THU HỒI ĐĂNG KÝ XE",
+    "document_number": "79/2024/TT-BCA",
+    "document_type": "THÔNG TƯ",
+    "issuer": "bộ công an",
+    "issued_date": "15/11/2024",
+    "effective_from": "ngày 01 tháng 01 năm 2025",
+    "effective_to": null
+  }
+}
