@@ -611,6 +611,135 @@ def test_relation_query_pins_source_version(session: Session) -> None:
     assert related == []
 
 
+def test_relation_query_finds_parent_via_incoming_parent_of(session: Session) -> None:
+    """Context expansion needs the parent of a seed: PARENT_OF edges point
+    parent -> child (doc 03 §3.14.1, Điều -> Khoản -> Điểm), so the parent is
+    found on the INCOMING edge (§3.20.1 Parent Clause / Parent Article)."""
+    document = _seed_document(session)
+    version = _seed_version(session, document.document_id, effective_from=date(2024, 1, 1))
+    article = _seed_provision(
+        session,
+        version.id,
+        provision_id="nd-168-2024__dieu-7",
+        effective_from=date(2024, 1, 1),
+        effective_to=None,
+    )
+    clause = _seed_provision(
+        session,
+        version.id,
+        provision_id="nd-168-2024__dieu-7__khoan-1",
+        effective_from=date(2024, 1, 1),
+        effective_to=None,
+    )
+    point = _seed_provision(
+        session,
+        version.id,
+        provision_id="nd-168-2024__dieu-7__khoan-1__diem-a",
+        effective_from=date(2024, 1, 1),
+        effective_to=None,
+    )
+    # Điều 7 --PARENT_OF--> Khoản 1 --PARENT_OF--> Điểm a
+    _seed_reference(session, article, clause, relation_type="PARENT_OF")
+    _seed_reference(session, clause, point, relation_type="PARENT_OF")
+
+    repo = RelationRepository(session)
+    parents_of_clause = repo.related_provisions(D, [clause], relation_types=["PARENT_OF"])
+    assert {r.provision.provision_id for r in parents_of_clause} == {"nd-168-2024__dieu-7"}
+    assert parents_of_clause[0].source_id == clause.provision_id
+    assert parents_of_clause[0].added_by == "PARENT_CONTEXT"
+    assert parents_of_clause[0].as_metadata()["depth"] == 1
+
+    parents_of_point = repo.related_provisions(D, [point], relation_types=["PARENT_OF"])
+    assert {r.provision.provision_id for r in parents_of_point} == {"nd-168-2024__dieu-7__khoan-1"}
+
+
+def test_relation_query_direction_semantics(session: Session) -> None:
+    """REFERS_TO traverses outbound only, PARENT_OF inbound only, while
+    SIBLING_OF and PENALTY_COMPANION traverse both directions (documented in
+    relations.py)."""
+    document = _seed_document(session)
+    version = _seed_version(session, document.document_id, effective_from=date(2024, 1, 1))
+    seed = _seed_provision(
+        session,
+        version.id,
+        provision_id="p-seed",
+        effective_from=date(2024, 1, 1),
+        effective_to=None,
+    )
+    refers_target = _seed_provision(
+        session,
+        version.id,
+        provision_id="p-refers",
+        effective_from=date(2024, 1, 1),
+        effective_to=None,
+    )
+    parent = _seed_provision(
+        session,
+        version.id,
+        provision_id="p-parent",
+        effective_from=date(2024, 1, 1),
+        effective_to=None,
+    )
+    sibling_a = _seed_provision(
+        session,
+        version.id,
+        provision_id="p-sib-a",
+        effective_from=date(2024, 1, 1),
+        effective_to=None,
+    )
+    sibling_b = _seed_provision(
+        session,
+        version.id,
+        provision_id="p-sib-b",
+        effective_from=date(2024, 1, 1),
+        effective_to=None,
+    )
+    companion_a = _seed_provision(
+        session,
+        version.id,
+        provision_id="p-comp-a",
+        effective_from=date(2024, 1, 1),
+        effective_to=None,
+    )
+    companion_b = _seed_provision(
+        session,
+        version.id,
+        provision_id="p-comp-b",
+        effective_from=date(2024, 1, 1),
+        effective_to=None,
+    )
+
+    _seed_reference(session, seed, refers_target, relation_type="REFERS_TO")
+    _seed_reference(session, parent, seed, relation_type="PARENT_OF")
+    _seed_reference(session, seed, sibling_a, relation_type="SIBLING_OF")
+    _seed_reference(session, sibling_b, seed, relation_type="SIBLING_OF")
+    _seed_reference(session, seed, companion_a, relation_type="PENALTY_COMPANION")
+    _seed_reference(session, companion_b, seed, relation_type="PENALTY_COMPANION")
+
+    repo = RelationRepository(session)
+    refs = repo.related_provisions(D, [seed], relation_types=["REFERS_TO"])
+    assert {r.provision.provision_id for r in refs} == {"p-refers"}
+
+    parents = repo.related_provisions(D, [seed], relation_types=["PARENT_OF"])
+    assert {r.provision.provision_id for r in parents} == {"p-parent"}
+
+    siblings = repo.related_provisions(D, [seed], relation_types=["SIBLING_OF"])
+    assert {r.provision.provision_id for r in siblings} == {"p-sib-a", "p-sib-b"}
+
+    companions = repo.related_provisions(D, [seed], relation_types=["PENALTY_COMPANION"])
+    assert {r.provision.provision_id for r in companions} == {"p-comp-a", "p-comp-b"}
+
+    all_related = repo.related_provisions(D, [seed])
+    assert {r.provision.provision_id for r in all_related} == {
+        "p-refers",
+        "p-parent",
+        "p-sib-a",
+        "p-sib-b",
+        "p-comp-a",
+        "p-comp-b",
+    }
+
+
 def test_document_relations_filter_by_review_status_and_interval(
     session: Session,
 ) -> None:
