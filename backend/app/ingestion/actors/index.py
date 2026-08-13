@@ -10,6 +10,21 @@ interval; the defensive guard mirrors ``index_accepted_provisions``), so
 PENDING / NEEDS_REVIEW / DROPPED / REJECTED provisions NEVER enter the index
 (doc 00 §8.6, FR-09).
 
+Sparse-encoder vocabulary (doc 03 §3.11.2, ADR sparse space)
+-----------------------------------------------------------
+Sparse dimensions MUST mean the same token across every point in the
+collection — an unfitted :class:`BM25SparseEncoder` assigns per-text local
+token ids, which would silently map different tokens onto the same dimension
+(invalid keyword scoring).  The actor therefore builds ONE corpus vocabulary:
+it fits a fresh :class:`BM25SparseEncoder` on ALL provision ``retrieval_text``
+rows (the corpus) — deterministic (sorted tokens, ids from 1), so every job
+indexes with the identical vocabulary and a shared token lands on the same
+dimension in every point.  Vocabulary lifecycle: fitting is derived purely
+from the corpus, so a content change shifts the vocabulary; a new vocabulary
+is a NEW sparse space — it requires a collection rebuild + alias switch AND a
+``SPARSE_ENCODER_VERSION`` bump (doc 03 §3.11.2), never mixing two sparse
+spaces in one collection.
+
 Idempotency (doc 03 §3.4.1): the Qdrant upsert happens AFTER the PostgreSQL
 commit and uses deterministic point ids (the row UUID), so a re-run — resume
 after a killed worker, a duplicate message or a reconcile-triggered re-run —
@@ -27,8 +42,10 @@ from typing import Any, cast
 
 import dramatiq
 from qdrant_client import QdrantClient
+from sqlalchemy import select
 
 from app.config import get_embedding_settings, get_queue_settings
+from app.persistence.models import LegalProvision
 from app.retrieval.embedding import EmbeddingProvider, get_embedding_provider
 from app.retrieval.indexing import (
     ACCEPTED_REVIEW_STATUS,
@@ -74,9 +91,38 @@ def _get_embedder() -> EmbeddingProvider | None:
     return get_embedding_provider(get_embedding_settings())
 
 
-def _get_sparse_encoder() -> SparseEncoder:
-    """Configured BM25 sparse encoder (local, deterministic; test seam)."""
-    return cast(SparseEncoder, BM25SparseEncoder())
+def _corpus_retrieval_texts(session) -> list[str]:
+    """Every provision's ``retrieval_text`` — the sparse-encoder corpus.
+
+    ALL rows participate (review status is irrelevant to the vocabulary);
+    the vocabulary must cover the whole corpus so every point's tokens are
+    in-vocabulary and dimension-stable across jobs (doc 03 §3.11.2).
+    """
+    return list(session.scalars(select(LegalProvision.retrieval_text)))
+
+
+def _fit_sparse_encoder(corpus_texts: list[str]) -> BM25SparseEncoder:
+    """A BM25 encoder fitted on the corpus vocabulary.
+
+    Deterministic given the same corpus: sorted token vocabulary with ids
+    from 1.  An empty corpus yields an empty vocabulary (``encode`` then
+    returns ``{}`` for any input) — callers with no provisions omit the
+    sparse channel entirely.
+    """
+    encoder = BM25SparseEncoder()
+    if corpus_texts:
+        encoder.fit(corpus_texts)
+    return encoder
+
+
+def _get_sparse_encoder(corpus_texts: list[str]) -> SparseEncoder:
+    """BM25 encoder fitted on the corpus vocabulary (test seam).
+
+    An unfitted encoder would assign text-local token ids — different tokens
+    on the same dimension across points — so fitting on the corpus is
+    mandatory before indexing (see the module docstring).
+    """
+    return cast(SparseEncoder, _fit_sparse_encoder(corpus_texts))
 
 
 def _accepted_rows(session, document_id: str) -> tuple[list[Any], Any | None]:
@@ -103,6 +149,7 @@ def index_actor(job_id: str) -> None:
     units: list[Any] = []
     point_ids: dict[str, str] = {}
     unit_payloads: dict[str, dict[str, Any]] = {}
+    sparse_encoder: SparseEncoder | None = None
     try:
         run = load_run(session, job_id)
         if run is None:
@@ -132,6 +179,10 @@ def index_actor(job_id: str) -> None:
                 "heading": row.heading,
                 "content_hash": row.content_hash,
             }
+        if accepted:
+            # ONE corpus vocabulary for the whole collection: a shared token
+            # must land on the same sparse dimension in every point.
+            sparse_encoder = _get_sparse_encoder(_corpus_retrieval_texts(session))
         set_stage(run, "INDEXING")
         session.commit()  # PG commit BEFORE the Qdrant upsert (doc 03 §3.4.1)
     finally:
@@ -143,7 +194,7 @@ def index_actor(job_id: str) -> None:
             units,
             point_ids=point_ids,
             embedder=_get_embedder(),
-            sparse_encoder=_get_sparse_encoder(),
+            sparse_encoder=sparse_encoder,
             unit_payloads=unit_payloads,
         )
         if result.errors:

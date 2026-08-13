@@ -510,3 +510,36 @@ def test_parse_actor_bootstraps_run_and_chains(
     }
     # Chain advanced: a normalize message was enqueued.
     assert _messages(_stub_broker, "normalize")[0].args == ("job-1",)
+
+
+def test_index_sparse_encoder_fitted_on_corpus_aligns_shared_tokens() -> None:
+    """Shared tokens land on the SAME sparse dimension across provisions.
+
+    The index actor must fit ONE BM25 vocabulary over the corpus before
+    indexing — an unfitted encoder assigns text-local token ids, so the same
+    dimension would mean different tokens in different points (invalid
+    keyword scoring, doc 03 §3.11.2 sparse-space contract).
+    """
+    from app.ingestion.actors.index import _fit_sparse_encoder
+
+    corpus = [
+        "Điều 7. Xử phạt người điều khiển xe mô tô",
+        "1. Phạt tiền từ 400.000 đồng đến 600.000 đồng",
+    ]
+    encoder = _fit_sparse_encoder(corpus)
+    first = encoder.encode(corpus[0])
+    second = encoder.encode(corpus[1])
+
+    # "phạt" (lowercased by the tokenizer) occurs in both texts and must map
+    # to one shared dimension in both sparse dicts.
+    shared = encoder.vocabulary["phạt"]
+    assert shared in first
+    assert shared in second
+    assert first[shared] > 0.0
+    assert second[shared] > 0.0
+
+    # Deterministic across runs for the same corpus: re-fitting yields the
+    # identical vocabulary, so a re-run indexes with the same dimensions.
+    refitted = _fit_sparse_encoder(corpus)
+    assert refitted.vocabulary == encoder.vocabulary
+    assert refitted.encode(corpus[0]) == first
