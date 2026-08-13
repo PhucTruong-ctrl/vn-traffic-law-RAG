@@ -54,6 +54,30 @@ _ACCEPTED_CONTENT_TYPES = frozenset(
 
 _SOURCE_SUBPATH = "source"
 
+#: Chunk size for the bounded upload read (see :func:`_read_bounded`).
+_READ_CHUNK_SIZE = 1024 * 1024  # 1 MiB
+
+
+async def _read_bounded(file: UploadFile, max_bytes: int) -> bytes | None:
+    """Read an upload in bounded chunks; None when it exceeds ``max_bytes``.
+
+    The size limit is enforced while streaming, so an oversized upload is
+    rejected without ever materializing the whole body: reading stops as soon
+    as the cumulative length crosses the limit (the excess chunk is discarded,
+    so at most ``max_bytes + chunk`` bytes are buffered).
+    """
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await file.read(_READ_CHUNK_SIZE)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > max_bytes:
+            return None
+        chunks.append(chunk)
+    return b"".join(chunks)
+
 
 def _enqueue(job_id: str, object_key_value: str, *, document_id: str | None = None) -> str:
     """Publish the ingestion message (monkeypatch seam for tests).
@@ -110,6 +134,7 @@ async def upload_document(
 ) -> dict[str, str] | JSONResponse:
     """Accept a source PDF, store it, and enqueue background ingestion."""
     settings = get_upload_settings()
+    max_bytes = settings.max_size_mb * 1024 * 1024
 
     file_name = file.filename or "document.pdf"
     if Path(file_name).suffix.lower() != ".pdf":
@@ -125,9 +150,17 @@ async def upload_document(
             f"Unexpected content type {file.content_type!r} for {file_name!r}.",
         )
 
-    data = await file.read()
-    max_bytes = settings.max_size_mb * 1024 * 1024
-    if len(data) > max_bytes:
+    # FastAPI/Starlette reports the spooled length on ``UploadFile.size``:
+    # reject early without reading anything. When it is unavailable (None),
+    # the bounded chunked read below still enforces the limit while streaming.
+    if file.size is not None and file.size > max_bytes:
+        return error_response(
+            413,
+            FILE_TOO_LARGE,
+            f"File {file_name!r} exceeds the {settings.max_size_mb} MB upload limit.",
+        )
+    data = await _read_bounded(file, max_bytes)
+    if data is None:
         return error_response(
             413,
             FILE_TOO_LARGE,

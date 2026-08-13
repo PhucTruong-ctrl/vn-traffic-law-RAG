@@ -7,7 +7,9 @@ is faked or monkeypatched: the API contract is exercised through
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
+import json
 import re
 import uuid
 from collections.abc import Iterator
@@ -164,6 +166,49 @@ def test_upload_rejects_oversized_file(api_client: object, monkeypatch: pytest.M
     )
     assert response.status_code == 413
     _assert_error_shape(response.json(), 413, "FILE_TOO_LARGE")
+
+
+class ChunkedFakeFile:
+    """Duck-typed ``UploadFile`` yielding fixed-size chunks; records reads.
+
+    ``size`` is None so the handler takes the bounded chunked-read path
+    (rather than the early ``UploadFile.size`` short-circuit).
+    """
+
+    def __init__(self, chunks: list[bytes]) -> None:
+        self._chunks = list(chunks)
+        self.reads = 0
+        self.filename = "big.pdf"
+        self.content_type = "application/pdf"
+        self.size: int | None = None
+
+    async def read(self, size: int = -1) -> bytes:
+        self.reads += 1
+        if not self._chunks:
+            return b""
+        chunk = self._chunks.pop(0)
+        return chunk[:size] if 0 < size < len(chunk) else chunk
+
+
+def test_upload_aborts_read_when_chunks_exceed_limit(
+    api_client: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Oversized uploads are rejected mid-stream, not fully consumed."""
+    _, session, _, _ = api_client
+    monkeypatch.setattr(
+        documents_module, "get_upload_settings", lambda: UploadSettings(max_size_mb=1)
+    )
+    mega = 1024 * 1024
+    fake = ChunkedFakeFile([b"a" * mega, b"b" * mega, b"c" * mega, b"d" * mega])
+
+    response = asyncio.run(documents_module.upload_document(file=fake, db=session))
+
+    assert response.status_code == 413
+    _assert_error_shape(json.loads(response.body), 413, "FILE_TOO_LARGE")
+    # Two 1 MiB chunks crossed the 1 MiB limit; the remaining body was not read.
+    assert fake.reads == 2
+    assert len(fake._chunks) == 2
+    assert session.added == []  # nothing persisted for a rejected upload
 
 
 def test_upload_missing_file_yields_422_standard_shape(api_client: object) -> None:
