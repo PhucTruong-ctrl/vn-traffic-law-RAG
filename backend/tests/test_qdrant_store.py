@@ -177,7 +177,9 @@ def test_payload_maps_unit_fields_and_defaults() -> None:
     assert payload["node_kind"] == unit.node_kind
     assert payload["text"] == unit.retrieval_text
     assert payload["source_text"] == unit.source_text
-    assert payload["document_id"] == unit.document_id
+    # document_id is the LOGICAL document id derived from the provision_id
+    # slug prefix (doc 03 §3.11.3), never the document-version UUID.
+    assert payload["document_id"] == "nd-168-2024"
     # document_version_id defaults to the unit's document id (the document
     # version UUID carried by RetrievalUnit.build_retrieval_units).
     assert payload["document_version_id"] == unit.document_id
@@ -235,6 +237,7 @@ def test_payload_applies_metadata_overrides() -> None:
         document_type="DECREE",
         document_title="Nghị định quy định xử phạt vi phạm hành chính",
         document_version=2,
+        document_id="nd-168-2024",
         parser="DOCLING",
         legal_parser_version="vnlrag-legal-parser-v1",
         sparse_encoder_version="qdrant-bm25-v1",
@@ -261,6 +264,7 @@ def test_payload_applies_metadata_overrides() -> None:
     assert payload["document_type"] == "DECREE"
     assert payload["document_title"] == "Nghị định quy định xử phạt vi phạm hành chính"
     assert payload["document_version"] == 2
+    assert payload["document_id"] == "nd-168-2024"
     assert payload["parser"] == "DOCLING"
     assert payload["legal_parser_version"] == "vnlrag-legal-parser-v1"
     assert payload["sparse_encoder_version"] == "qdrant-bm25-v1"
@@ -270,7 +274,18 @@ def test_payload_applies_metadata_overrides() -> None:
 def test_payload_document_version_id_override_independent_of_unit() -> None:
     payload = payload_for_unit(_unit(), document_version_id="custom-version-id")
     assert payload["document_version_id"] == "custom-version-id"
-    assert payload["document_id"] == _unit().document_id
+    # document_id is the logical document id derived from provision_id, not
+    # the document-version UUID.
+    assert payload["document_id"] == "nd-168-2024"
+
+
+def test_payload_document_id_none_when_not_derivable() -> None:
+    unit = _unit(provision_id="no-separator-provision-id")
+    payload = payload_for_unit(unit)
+    # document_id omitted (None) when it cannot be derived from provision_id;
+    # the document-version UUID stays in document_version_id only.
+    assert payload["document_id"] is None
+    assert payload["document_version_id"] == unit.document_id
 
 
 # ---------------------------------------------------------------------------
