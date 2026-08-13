@@ -187,7 +187,8 @@ def test_point_with_unresolvable_clause_uses_derived_clause_lead_in_only() -> No
         point="Điểm a)",
         parent_context=(
             "Chương I. Quy định chung Mục 1. Quy định về xử phạt "
-            "Điều 7. Xử phạt người điều khiển xe mô tô, xe gắn máy vi phạm quy tắc giao thông đường bộ "
+            "Điều 7. Xử phạt người điều khiển xe mô tô, xe gắn máy "
+            "vi phạm quy tắc giao thông đường bộ "
             "4. Phạt tiền từ 14.000.000 đồng đến 16.000.000 đồng đối với người điều khiển xe "
             "thực hiện hành vi vi phạm sau đây:"
         ),
@@ -218,7 +219,8 @@ def test_point_with_mismatched_clause_number_uses_derived_clause_lead_in_only() 
         point="Điểm a)",
         parent_context=(
             "Chương I. Quy định chung Mục 1. Quy định về xử phạt "
-            "Điều 7. Xử phạt người điều khiển xe mô tô, xe gắn máy vi phạm quy tắc giao thông đường bộ "
+            "Điều 7. Xử phạt người điều khiển xe mô tô, xe gắn máy "
+            "vi phạm quy tắc giao thông đường bộ "
             "4. Phạt tiền từ 14.000.000 đồng đến 16.000.000 đồng đối với người điều khiển xe "
             "thực hiện hành vi vi phạm sau đây:"
         ),
@@ -246,7 +248,8 @@ def test_point_with_underivable_parent_context_falls_back_to_source_text() -> No
         point="Điểm a)",
         parent_context=(
             "Chương I. Quy định chung Mục 1. Quy định về xử phạt "
-            "Điều 7. Xử phạt người điều khiển xe mô tô, xe gắn máy vi phạm quy tắc giao thông đường bộ"
+            "Điều 7. Xử phạt người điều khiển xe mô tô, xe gắn máy "
+            "vi phạm quy tắc giao thông đường bộ"
         ),
     )
     assert enrich_retrieval_text(point) == point.source_text
@@ -272,7 +275,8 @@ def test_clause_with_chapter_section_parent_derives_article_heading_only() -> No
         clause="Khoản 4",
         parent_context=(
             "Chương I. Quy định chung Mục 1. Quy định về xử phạt "
-            "Điều 7. Xử phạt người điều khiển xe mô tô, xe gắn máy vi phạm quy tắc giao thông đường bộ "
+            "Điều 7. Xử phạt người điều khiển xe mô tô, xe gắn máy "
+            "vi phạm quy tắc giao thông đường bộ "
             "4. Phạt tiền từ 14.000.000 đồng đến 16.000.000 đồng đối với người điều khiển xe "
             "thực hiện hành vi vi phạm sau đây:"
         ),
