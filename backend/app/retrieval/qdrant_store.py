@@ -151,6 +151,7 @@ def payload_for_unit(
     relations: list[dict] | None = None,
     vehicle_types: list[str] | None = None,
     document_version_id: str | None = None,
+    document_id: str | None = None,
     document_status: str | None = None,
     chapter: str | None = None,
     section: str | None = None,
@@ -186,6 +187,15 @@ def payload_for_unit(
     provision's ``document_version_id`` (the document-version UUID);
     ``document_version`` is the document's version number (doc §3.11.3).
 
+    ``document_id`` is the LOGICAL document id (doc 03 §3.11.3 example:
+    ``"nd-168-2024"``), taken from the explicit input when provided, otherwise
+    derived from the ``provision_id`` slug prefix (``"nd-168-2024"`` from
+    ``"nd-168-2024__dieu-7__..."`` — the frozen provision-ID grammar). When it
+    cannot be derived (provision_id without the ``__`` separator) the payload
+    omits it (``None``) rather than writing the document-version UUID into
+    ``document_id`` — the UUID lives in ``document_version_id`` only, so
+    document-ID payload filters match the documented logical value.
+
     ``relations`` is bounded metadata (doc 03 §3.11.3): each entry must be
     exactly ``{"relation_type", "target_provision_id"}`` with non-empty string
     values; anything else raises ``ValueError``. Only RESOLVED, ACCEPTED
@@ -212,6 +222,12 @@ def payload_for_unit(
     ):
         raise ValueError("vehicle_types must be a list of non-empty strings")
 
+    if document_id is None and unit.provision_id:
+        # Logical document id: the provision_id slug prefix (doc 03 §3.11.3).
+        document_id = (
+            unit.provision_id.split("__", 1)[0] if "__" in unit.provision_id else None
+        )
+
     return {
         "provision_id": unit.provision_id,
         "provision_version": unit.version,
@@ -222,7 +238,7 @@ def payload_for_unit(
         "document_number": document_number,
         "document_type": document_type,
         "document_title": document_title,
-        "document_id": unit.document_id,
+        "document_id": document_id,
         "node_kind": unit.node_kind,
         "chapter": chapter,
         "section": section,
