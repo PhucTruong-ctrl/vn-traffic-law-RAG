@@ -427,7 +427,7 @@ def _resolve_index_provision_units() -> Callable[..., Any]:
     implementation.
     """
     try:
-        from app.retrieval.indexing import index_provision_units  # type: ignore[import-not-found]
+        from app.retrieval.indexing import index_provision_units
     except ImportError as exc:
         raise RuntimeError(
             "app.retrieval.indexing.index_provision_units is not available (VNLRAG-44 "
@@ -448,8 +448,10 @@ def _resolve_point_id_for() -> Callable[[uuid.UUID], str]:
         from app.retrieval.indexing import point_id_for
     except ImportError:
 
-        def point_id_for(row_id: uuid.UUID) -> str:
+        def _fallback_point_id(row_id: uuid.UUID) -> str:
             return str(row_id)
+
+        return _fallback_point_id
 
     return point_id_for
 
