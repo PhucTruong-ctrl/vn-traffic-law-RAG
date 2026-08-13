@@ -279,6 +279,92 @@ def test_duplicate_detected_across_documents() -> None:
 
 
 # ────────────────────────────────────────────────────────────────────────────
+# Non-tree node kinds (APPENDIX/TABLE/TRANSITIONAL/HEADING)
+# ────────────────────────────────────────────────────────────────────────────
+
+
+def test_non_tree_kind_with_hierarchy_fields_not_counted() -> None:
+    """TABLE/HEADING provisions keep enclosing fields but stay outside the tree.
+
+    The extractor retains ``article``/``clause`` on TABLE (and HEADING)
+    provisions; without explicit non-tree exclusion they were reclassified as
+    CLAUSE/ARTICLE, inflating tree counts, spuriously resolving orphans and
+    adding spurious orphan_clause violations (VNLRAG-30).
+    """
+
+    article = _article()
+    clause = _clause()
+    table = _provision(
+        provision_id=f"{DOC}__dieu-5__bang-1",
+        article="Điều 5",
+        clause="Khoản 1",
+        point=None,
+        source_text="Bảng 1. Biểu mức thu tiền sử dụng đường bộ",
+        node_kind="TABLE",
+        point_label=None,
+    )
+    heading = _provision(
+        provision_id=f"{DOC}__tieu-de-1",
+        article="Điều 5",
+        clause="Khoản 1",
+        point=None,
+        source_text="Điều 5. Xử phạt người điều khiển xe ô tô",
+        node_kind="HEADING",
+        point_label=None,
+    )
+    result = validate_hierarchy([article, clause, table, heading])
+    assert result.violations == []
+    assert result.metrics["orphan_point_count"] == 0
+    assert result.metrics["orphan_clause_count"] == 0
+
+    # A TABLE's retained clause field must not resolve a point whose real
+    # parent is absent: only the TABLE references (Điều 99, Khoản 99).
+    orphan = _provision(
+        provision_id=f"{DOC}__dieu-99__khoan-99__diem-a",
+        article="Điều 99",
+        clause="Khoản 99",
+        point="Điểm a)",
+        point_label="a)",
+    )
+    stray_table = _provision(
+        provision_id=f"{DOC}__dieu-99__bang-1",
+        article="Điều 99",
+        clause="Khoản 99",
+        point=None,
+        source_text="Bảng 1. Biểu mức thu tiền sử dụng đường bộ",
+        node_kind="TABLE",
+        point_label=None,
+    )
+    result = validate_hierarchy([article, clause, stray_table, orphan])
+    assert [v.type for v in result.violations] == ["orphan_point"]
+    assert result.metrics["orphan_point_count"] == 1
+    assert result.metrics["orphan_clause_count"] == 0
+
+    # A HEADING's retained article field must not resolve a point hanging
+    # directly off an absent ARTICLE either.
+    point_under_heading_article = _provision(
+        provision_id=f"{DOC}__dieu-7__diem-a",
+        article="Điều 7",
+        clause=None,
+        point="Điểm a)",
+        point_label="a)",
+    )
+    stray_heading = _provision(
+        provision_id=f"{DOC}__tieu-de-7",
+        article="Điều 7",
+        clause=None,
+        point=None,
+        source_text="Điều 7. Các hành vi bị nghiêm cấm",
+        node_kind="HEADING",
+        point_label=None,
+    )
+    result = validate_hierarchy([article, clause, stray_heading, point_under_heading_article])
+    assert [v.type for v in result.violations] == ["orphan_point"]
+    assert result.metrics["orphan_point_count"] == 1
+    assert result.metrics["orphan_clause_count"] == 0
+
+
+# ────────────────────────────────────────────────────────────────────────────
 # Point-label detection (rulespec §4)
 # ────────────────────────────────────────────────────────────────────────────
 
@@ -520,6 +606,66 @@ def test_gold_completeness_ignores_unretained_entries() -> None:
         )
     ]
     assert validate_against_gold(extracted, gold) == {
+        "completeness": 1.0,
+        "missing": [],
+        "mismatched": [],
+    }
+
+
+def test_gold_completeness_ignores_non_tree_with_fields() -> None:
+    """Non-tree provisions with retained fields never appear in the comparison.
+
+    Real gold fixtures carry only Điều-tree entries; a TABLE/HEADING provision
+    in the extraction — even one whose enclosing article/clause fields are
+    retained by the extractor — is outside the tree and must not surface as
+    missing/mismatched (completeness stays 1.0).
+    """
+
+    extracted = [
+        _provision(
+            provision_id="test-doc__dieu-1",
+            article="Điều 1",
+            clause=None,
+            point=None,
+            node_kind="ARTICLE",
+            point_label=None,
+        ),
+        _provision(
+            provision_id="test-doc__dieu-1__khoan-1",
+            article="Điều 1",
+            clause="Khoản 1",
+            point=None,
+            node_kind="CLAUSE",
+            point_label=None,
+        ),
+        _provision(
+            provision_id="test-doc__dieu-1__khoan-1__diem-a",
+            article="Điều 1",
+            clause="Khoản 1",
+            point="Điểm a)",
+            point_label="a)",
+        ),
+        # Enclosing hierarchy fields retained, yet the kinds are non-tree.
+        _provision(
+            provision_id="test-doc__dieu-1__bang-1",
+            article="Điều 1",
+            clause="Khoản 1",
+            point=None,
+            source_text="Bảng 1. Biểu mức thu tiền sử dụng đường bộ",
+            node_kind="TABLE",
+            point_label=None,
+        ),
+        _provision(
+            provision_id="test-doc__tieu-de-1",
+            article="Điều 1",
+            clause="Khoản 1",
+            point=None,
+            source_text="Điều 1. Phạm vi điều chỉnh",
+            node_kind="HEADING",
+            point_label=None,
+        ),
+    ]
+    assert validate_against_gold(extracted, SMALL_GOLD) == {
         "completeness": 1.0,
         "missing": [],
         "mismatched": [],
