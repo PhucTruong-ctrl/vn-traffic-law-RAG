@@ -122,8 +122,6 @@ class EmbeddingSettings(BaseSettings):
     )
 
 
-@lru_cache(maxsize=1)
-
 class SparseSettings(BaseSettings):
     """Sparse-encoder configuration (doc 03 §3.11.2).
 
