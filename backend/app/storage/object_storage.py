@@ -28,8 +28,9 @@ Object-key convention (§3.12.2):
   validated source PDFs or ``docling-2.1.0`` for parser output.
 * ``file`` is a system-generated internal filename — never a user-supplied
   path; :func:`object_key` rejects path components and ``..`` segments. When a
-  ``content_hash`` is supplied the stored name is ``{content_hash}{ext}``
-  (e.g. ``<sha256>.pdf``), so source PDFs are content-addressed.
+  ``content_hash`` is supplied it must be a 64-char lowercase hex SHA-256
+  digest and the stored name is ``{content_hash}{ext}`` (e.g.
+  ``<sha256>.pdf``), so source PDFs are content-addressed.
 
 Callers build keys exclusively through :func:`object_key`.
 
@@ -42,6 +43,7 @@ source).
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Mapping
 from datetime import timedelta
 from functools import lru_cache
@@ -117,6 +119,9 @@ class ObjectStoragePort(Protocol):
 
 # --- Key conventions (doc 03 §3.12.2) -----------------------------------------
 
+#: Content-addressed names embed a lowercase hex SHA-256 digest (§3.12.2).
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+
 
 def object_key(
     bucket: str,
@@ -130,18 +135,20 @@ def object_key(
 
     ``document_id`` and ``subpath`` are slash-separated paths (e.g.
     ``documents/nd-168-2024`` and ``docling-2.1.0``); ``file_name`` must be a
-    bare filename. When ``content_hash`` is given, the stored name becomes
-    ``{content_hash}{ext}`` (extension preserved from ``file_name``), e.g.
-    ``<sha256>.pdf`` for content-addressed source PDFs.
+    bare filename. When ``content_hash`` is given it must be a 64-character
+    lowercase hex SHA-256 digest (the content-addressing contract — the name
+    becomes ``{content_hash}{ext}`` with the extension preserved from
+    ``file_name``, e.g. ``<sha256>.pdf`` for source PDFs).
 
     Raises :class:`ValueError` for unknown buckets, empty segments, ``.`` /
-    ``..`` segments, or filenames containing path separators (path traversal
-    is rejected — filenames are system-generated per §3.12.2).
+    ``..`` segments, filenames containing path separators, or a
+    ``content_hash`` that is not a 64-char lowercase hex digest (path
+    traversal is rejected — filenames are system-generated per §3.12.2).
     """
     if bucket not in BUCKETS:
         raise ValueError(f"unknown bucket {bucket!r}; expected one of {sorted(BUCKETS)}")
-    if content_hash is not None and not content_hash.strip():
-        raise ValueError("content_hash must be non-empty")
+    if content_hash is not None and not _SHA256_RE.fullmatch(content_hash):
+        raise ValueError("content_hash must be a 64-character lowercase hex SHA-256 digest")
     name = file_name.strip()
     if not name or name in (".", "..") or "/" in name or "\\" in name:
         raise ValueError(
