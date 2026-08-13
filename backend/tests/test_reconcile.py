@@ -151,8 +151,9 @@ class FakeQdrant:
 class FakeIndexer:
     """Contract-matching fake for ``index_provision_units`` (VNLRAG-44):
 
-    ``(client, units, *, point_ids, unit_payloads, collection, batch_size)``
-    returns an ``IndexResult``-shaped object and records every call.
+    ``(client, units, *, point_ids, unit_payloads, collection, batch_size,
+    embedder, sparse_encoder)`` returns an ``IndexResult``-shaped object and
+    records every call.
     """
 
     def __init__(self) -> None:
@@ -166,9 +167,85 @@ class FakeIndexer:
                 "unit_payloads": dict(kwargs["unit_payloads"] or {}),
                 "collection": kwargs["collection"],
                 "batch_size": kwargs["batch_size"],
+                "embedder": kwargs.get("embedder"),
+                "sparse_encoder": kwargs.get("sparse_encoder"),
             }
         )
         return SimpleNamespace(indexed=len(units), skipped_no_effective_from=0, errors=[])
+
+
+class VectorIndexer(FakeIndexer):
+    """Fake indexer that actually builds points with dense+sparse vectors from
+    the passed encoders (mirrors ``indexing.build_point`` vector logic)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.points_built: list[dict] = []
+
+    def __call__(self, client, units: list[RetrievalUnit], **kwargs: object):
+        super().__call__(client, units, **kwargs)
+        embedder = kwargs.get("embedder")
+        sparse_encoder = kwargs.get("sparse_encoder")
+        for unit in units:
+            vector: dict[str, object] = {}
+            if embedder is not None:
+                vector["dense"] = embedder.embed([unit.retrieval_text])[0]  # type: ignore[attr-defined]
+            if sparse_encoder is not None:
+                vector["sparse"] = sparse_encoder.encode(unit.retrieval_text)  # type: ignore[attr-defined]
+            self.points_built.append({"unit_id": unit.unit_id, "vector": vector})
+        return SimpleNamespace(indexed=len(units), skipped_no_effective_from=0, errors=[])
+
+
+class PartialIndexer(FakeIndexer):
+    """Fake indexer that fails one unit (e.g. an embedding batch error)."""
+
+    def __init__(self, errors: list[str] | None = None) -> None:
+        super().__init__()
+        self._errors = errors if errors is not None else ["batch 0: embedding failed"]
+
+    def __call__(self, client, units: list[RetrievalUnit], **kwargs: object):
+        super().__call__(client, units, **kwargs)
+        return SimpleNamespace(
+            indexed=len(units) - 1, skipped_no_effective_from=0, errors=list(self._errors)
+        )
+
+
+class ErrorIndexer(FakeIndexer):
+    """Fake indexer that reports every unit indexed BUT with recorded errors."""
+
+    def __call__(self, client, units: list[RetrievalUnit], **kwargs: object):
+        super().__call__(client, units, **kwargs)
+        return SimpleNamespace(
+            indexed=len(units), skipped_no_effective_from=0, errors=["p-x: payload build failed"]
+        )
+
+
+class FakeEmbedder:
+    """Minimal dense-embedding fake (``embed``/``embed_batch`` only)."""
+
+    name = "fake-embedder"
+    dims = 4
+    batch_size = 32
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        return [[1.0, 0.0, 0.0, 0.0] for _ in texts]
+
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        return self.embed(texts)
+
+
+class FakeSparseEncoder:
+    """Minimal sparse-encoder fake (``encode``/``encode_batch`` only)."""
+
+    name = "bm25"
+    version = "bm25-v1"
+    vocabulary: dict[str, int] = {"dieu": 1, "khoan": 2}
+
+    def encode(self, text: str) -> dict[int, float]:
+        return {1: 1.0, 2: 0.5}
+
+    def encode_batch(self, texts: list[str]) -> list[dict[int, float]]:
+        return [self.encode(text) for text in texts]
 
 
 def _doc_metadata_rows(
@@ -351,6 +428,8 @@ def _run_reconcile(
     dry_run: bool = False,
     effective_from_required: bool = True,
     collection: str | None = None,
+    embedder: object | None = None,
+    sparse_encoder: object | None = None,
 ) -> tuple[reconcile.ReconciliationReport, FakeIndexer]:
     indexer = indexer or FakeIndexer()
     report = reconcile.reconcile_index(
@@ -358,6 +437,8 @@ def _run_reconcile(
         session=session,  # type: ignore[arg-type]
         index_provision_units=indexer,
         point_id_for=str,
+        embedder=embedder,  # type: ignore[arg-type]
+        sparse_encoder=sparse_encoder,  # type: ignore[arg-type]
         collection=collection,
         effective_from_required=effective_from_required,
         dry_run=dry_run,
@@ -412,6 +493,37 @@ def test_reconcile_index_full_repair_pg_wins() -> None:
         "stale_reindexed": 1,
         "extra_dropped": 1,
     }
+
+
+def test_reconcile_index_threads_encoders_and_produces_vectors() -> None:
+    # Fix 1: repair must thread the configured dense+sparse providers into
+    # index_provision_units so repaired points carry real vectors, never
+    # payload-only points.
+    p1 = _provision(content_hash="sha256:pg-1")
+    pid1 = str(p1.id)
+    client = FakeQdrant(collections=["legal_provisions_v1"])
+    indexer = VectorIndexer()
+    embedder = FakeEmbedder()
+    sparse_encoder = FakeSparseEncoder()
+
+    report, indexer = _run_reconcile(
+        client,
+        FakeSession([p1]),
+        indexer=indexer,
+        embedder=embedder,
+        sparse_encoder=sparse_encoder,
+    )
+
+    assert report.missing == [pid1]
+    assert report.repaired.missing_reindexed == 1
+    assert len(indexer.calls) == 1
+    assert indexer.calls[0]["embedder"] is embedder
+    assert indexer.calls[0]["sparse_encoder"] is sparse_encoder
+    # The points the indexer built carry BOTH vector channels.
+    assert len(indexer.points_built) == 1
+    built = indexer.points_built[0]
+    assert built["vector"]["dense"] == [1.0, 0.0, 0.0, 0.0]
+    assert built["vector"]["sparse"] == {1: 1.0, 2: 0.5}
 
 
 def test_reconcile_index_dry_run_never_mutates() -> None:
@@ -596,7 +708,8 @@ def test_rebuild_index_dry_run_mutates_nothing(monkeypatch: pytest.MonkeyPatch) 
 
 def test_rebuild_alias_noop_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
     # rebuild_alias returns None when the alias already points at the new
-    # collection (idempotent re-run) — rebuild_index passes it through.
+    # collection (idempotent re-run) — rebuild_index passes it through. The
+    # override names a FRESH collection (existing overrides are rejected).
     client = FakeQdrant(collections=["legal_provisions_v1"])
     monkeypatch.setattr(reconcile, "rebuild_alias", lambda c, name: None)
     old = reconcile.rebuild_index(
@@ -604,9 +717,75 @@ def test_rebuild_alias_noop_returns_none(monkeypatch: pytest.MonkeyPatch) -> Non
         session=FakeSession([_provision()]),  # type: ignore[arg-type]
         index_provision_units=FakeIndexer(),
         point_id_for=str,
-        collection_name="legal_provisions_v1",
+        collection_name="legal_provisions_v9",
     )
     assert old is None
+
+
+def test_rebuild_index_rejects_existing_collection_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Rebuilding into an EXISTING collection would leave prior points live
+    # (stale/extra surviving the rebuild) — refuse and touch nothing.
+    client = FakeQdrant(collections=["legal_provisions_v1"])
+    indexer = FakeIndexer()
+    switched: list[str] = []
+    monkeypatch.setattr(reconcile, "rebuild_alias", lambda c, name: switched.append(name) or None)
+    with pytest.raises(reconcile.ReconcileError, match="already exists"):
+        reconcile.rebuild_index(
+            client,  # type: ignore[arg-type]
+            session=FakeSession([_provision()]),  # type: ignore[arg-type]
+            index_provision_units=indexer,
+            point_id_for=str,
+            collection_name="legal_provisions_v1",
+        )
+    assert switched == []  # alias untouched
+    assert indexer.calls == []  # nothing indexed
+    assert client.created == []  # nothing created
+
+
+def test_rebuild_index_aborts_on_partial_index(monkeypatch: pytest.MonkeyPatch) -> None:
+    # A partial indexing pass (e.g. a failed embedding batch) must NOT switch
+    # PROVISION_ALIAS: live retrieval would lose provisions.
+    p1 = _provision(content_hash="sha256:pg-1")
+    p2 = _provision(
+        provision_id="nd-168-2024__dieu-8",
+        node_kind="ARTICLE",
+        source_text="Điều 8. Nội dung điều 8.",
+        content_hash="sha256:pg-2",
+    )
+    client = FakeQdrant(collections=["legal_provisions_v1"])
+    indexer = PartialIndexer()
+    switched: list[str] = []
+    monkeypatch.setattr(reconcile, "rebuild_alias", lambda c, name: switched.append(name) or None)
+    with pytest.raises(reconcile.ReconcileError, match="incomplete"):
+        reconcile.rebuild_index(
+            client,  # type: ignore[arg-type]
+            session=FakeSession([p1, p2]),  # type: ignore[arg-type]
+            index_provision_units=indexer,
+            point_id_for=str,
+        )
+    assert switched == []  # alias NOT switched
+    assert "legal_provisions_v2" in client.created  # partial collection left on disk
+
+
+def test_rebuild_index_aborts_on_indexing_errors_even_when_all_indexed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # indexed == len(units) is NOT enough: any recorded error (e.g. a payload
+    # build failure on one unit) still aborts the alias switch.
+    client = FakeQdrant(collections=["legal_provisions_v1"])
+    indexer = ErrorIndexer()
+    switched: list[str] = []
+    monkeypatch.setattr(reconcile, "rebuild_alias", lambda c, name: switched.append(name) or None)
+    with pytest.raises(reconcile.ReconcileError, match="incomplete"):
+        reconcile.rebuild_index(
+            client,  # type: ignore[arg-type]
+            session=FakeSession([_provision()]),  # type: ignore[arg-type]
+            index_provision_units=indexer,
+            point_id_for=str,
+        )
+    assert switched == []
 
 
 def test_next_collection_name_increments_version() -> None:
