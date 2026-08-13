@@ -18,27 +18,38 @@ from app.evaluation.suites.suite_a import (
     OCR_LANG,
     TESSDATA_DIR,
     TESSERACT_CMD,
+    MetricResult,
     OcrConfig,
     RunMetadata,
+    _aggregate_metrics,
     _cmd_generate_report,
     _discover_variant_runs,
     _make_run_id,
     _ocr_options_kwargs,
+    _point_label_hits,
+    _point_slug,
+    article_p_r_f1,
     check_ocr_readiness,
+    clause_p_r_f1,
     compute_all_metrics,
     create_run_root,
     generate_first_pass_report,
     header_footer_leakage,
     layout_coherence,
+    parent_context_completeness_metric,
     parse_with_docling,
+    point_p_r_f1,
     provenance_coverage,
     run_ocr_dpi_benchmark,
     run_suite,
+    short_point_recall,
     table_detection_rate,
     table_preservation,
     text_extraction_rate,
+    vietnamese_d_recall,
 )
 from app.ingestion.document_ir import ParsedDocument, ParsedPage
+from app.ingestion.structure_extractor import extract_legal_provisions
 
 
 def _element(**overrides: Any) -> dict[str, Any]:
@@ -1220,3 +1231,401 @@ def test_report_uses_recorded_git_commit_not_checkout(
     regenerated = out.read_text(encoding="utf-8")
     assert "`abc123`" in regenerated
     assert "fake-checkout-HEAD" not in regenerated
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# VNLRAG-97 — structure metrics: Article/Clause/Point P/R/F1, Short Point
+# Recall, Vietnamese đ) Recall, Parent Context Completeness (after Enricher)
+# ────────────────────────────────────────────────────────────────────────────
+
+
+def _gold_provision(
+    article: str,
+    clause: str | None = None,
+    point_label: str | None = None,
+    *,
+    short_point: bool = False,
+) -> dict[str, Any]:
+    """One gold provision dict (shape of the parser-benchmark *-gold.json)."""
+    return {
+        "provision_id": "x",
+        "article": article,
+        "clause": clause,
+        "point": f"Điểm {point_label}" if point_label else None,
+        "point_label": point_label,
+        "heading": None,
+        "retained": True,
+        "short_point": short_point,
+    }
+
+
+def _gold(*provisions: dict[str, Any]) -> dict[str, Any]:
+    return {"document_id": "luat-36-2024-qh15", "provisions": list(provisions)}
+
+
+def _structure_document(elements: list[tuple[int, str]]) -> ParsedDocument:
+    """Synthetic ParsedDocument whose elements the Legal Structure State Parser
+    recognizes as ARTICLE/CLAUSE/POINT (e.g. ``(0, "Điều 5. ...")``)."""
+    page_elements = [
+        _element(element_id=f"e{order}", reading_order=order, text=text)
+        for order, text in elements
+    ]
+    return _document([_page(1, page_elements)])
+
+
+_STRUCTURE_ELEMENTS = [
+    (0, "Điều 5. Xử phạt người điều khiển xe ô tô và các loại xe tương tự xe ô tô"),
+    (1, "1. Phạt tiền từ 800.000 đồng đến 1.000.000 đồng đối với người điều khiển xe"),
+    (2, "a) Không chấp hành hiệu lệnh của đèn tín hiệu giao thông"),
+    (3, "đ) Lùi xe không quan sát phía sau, gây nguy hiểm cho người và phương tiện"),
+]
+
+_PERFECT_GOLD = _gold(
+    _gold_provision("Điều 5", "Khoản 1"),
+    _gold_provision("Điều 5", "Khoản 1", "a)"),
+    _gold_provision("Điều 5", "Khoản 1", "đ)"),
+)
+
+
+def test_point_slug_keeps_dd_distinct_from_d() -> None:
+    """The đ) label must normalize to a key distinct from d) (point_label_d_dd.json
+    assertions: both labels distinct, đ keeps its character)."""
+    assert _point_slug("a)") == "a"
+    assert _point_slug("A)") == "a"
+    assert _point_slug("d)") == "d"
+    assert _point_slug("đ)") == "đ"
+    assert _point_slug("Đ)") == "đ"
+    assert _point_slug("d)") != _point_slug("đ)")
+    assert _point_slug(None) is None
+
+
+def test_article_p_r_f1_perfect_extraction_is_one() -> None:
+    doc = _structure_document(_STRUCTURE_ELEMENTS)
+    gold = _PERFECT_GOLD
+    result = article_p_r_f1(gold, extract_legal_provisions(doc))
+    assert result.status == "computed"
+    assert result.value == 1.0
+    assert result.detail["precision"] == 1.0
+    assert result.detail["recall"] == 1.0
+    assert result.numerator == 1
+    assert result.denominator == 1
+
+
+def test_clause_p_r_f1_perfect_extraction_is_one() -> None:
+    doc = _structure_document(_STRUCTURE_ELEMENTS)
+    result = clause_p_r_f1(_PERFECT_GOLD, extract_legal_provisions(doc))
+    assert result.status == "computed"
+    assert result.value == 1.0
+    assert result.detail["matched"] == 1
+    assert result.detail["gold_count"] == 1
+
+
+def test_point_p_r_f1_perfect_extraction_is_one() -> None:
+    doc = _structure_document(_STRUCTURE_ELEMENTS)
+    result = point_p_r_f1(_PERFECT_GOLD, extract_legal_provisions(doc))
+    assert result.status == "computed"
+    assert result.value == 1.0
+    assert result.detail["matched"] == 2
+    assert result.detail["gold_count"] == 2
+    assert result.detail["extracted_count"] == 2
+
+
+def test_point_p_r_f1_missing_point_drops_recall() -> None:
+    # Extraction drops the đ) point -> recall 1/2, precision 1/1, F1 2/3.
+    doc = _structure_document(_STRUCTURE_ELEMENTS[:3])
+    result = point_p_r_f1(_PERFECT_GOLD, extract_legal_provisions(doc))
+    assert result.status == "computed"
+    assert result.detail["matched"] == 1
+    assert result.detail["recall"] == pytest.approx(0.5)
+    assert result.detail["precision"] == 1.0
+    assert result.value == pytest.approx(2 / 3)
+
+
+def test_point_p_r_f1_extra_extraction_drops_precision() -> None:
+    # Extraction adds a point gold does not have -> precision 2/3, recall 1.0.
+    doc = _structure_document(
+        _STRUCTURE_ELEMENTS + [(4, "e) Vượt xe trong các trường hợp không được vượt")]
+    )
+    result = point_p_r_f1(_PERFECT_GOLD, extract_legal_provisions(doc))
+    assert result.detail["extracted_count"] == 3
+    assert result.detail["precision"] == pytest.approx(2 / 3)
+    assert result.detail["recall"] == 1.0
+
+
+def test_structure_prf_empty_extraction_is_measured_zero_not_na() -> None:
+    """Empty extraction against a non-empty gold set is a REAL measured miss
+    (recall 0, F1 0) — never N/A (annotations exist) and never a fabricated 1.0."""
+    doc = _structure_document([])
+    result = article_p_r_f1(_PERFECT_GOLD, extract_legal_provisions(doc))
+    assert result.status == "computed"
+    assert result.value == 0.0
+    assert result.detail["recall"] == 0.0
+    assert result.detail["precision"] is None  # nothing predicted
+
+
+def test_structure_prf_na_without_gold_provisions() -> None:
+    gold = _gold()  # empty provisions list
+    doc = _structure_document(_STRUCTURE_ELEMENTS)
+    result = article_p_r_f1(gold, extract_legal_provisions(doc))
+    assert result.status == "na"
+    assert result.value is None
+    assert "no article annotations" in result.na_reason
+
+
+def test_short_point_recall_retains_short_points() -> None:
+    gold = _gold(
+        _gold_provision("Điều 5", "Khoản 1"),
+        _gold_provision("Điều 5", "Khoản 1", "a)", short_point=True),
+        _gold_provision("Điều 5", "Khoản 1", "đ)", short_point=True),
+    )
+    doc = _structure_document(_STRUCTURE_ELEMENTS)
+    result = short_point_recall(gold, extract_legal_provisions(doc))
+    assert result.status == "computed"
+    assert result.value == 1.0  # no token-length threshold — both retained
+    assert result.detail["dropped_points"] == []
+
+
+def test_short_point_recall_dropped_point_scores_zero() -> None:
+    gold = _gold(
+        _gold_provision("Điều 5", "Khoản 1"),
+        _gold_provision("Điều 5", "Khoản 1", "a)", short_point=True),
+        _gold_provision("Điều 5", "Khoản 1", "đ)", short_point=True),
+    )
+    # Extraction keeps a) but misses đ) -> recall 1/2.
+    doc = _structure_document(_STRUCTURE_ELEMENTS[:3])
+    result = short_point_recall(gold, extract_legal_provisions(doc))
+    assert result.status == "computed"
+    assert result.value == 0.5
+    assert result.detail["dropped_points"] == ["('5', '1', 'đ')"]
+
+
+def test_short_point_recall_na_without_gold_short_points() -> None:
+    gold = _gold(_gold_provision("Điều 5", "Khoản 1"))
+    doc = _structure_document(_STRUCTURE_ELEMENTS)
+    result = short_point_recall(gold, extract_legal_provisions(doc))
+    assert result.status == "na"
+    assert result.value is None
+    assert "no short-point annotations" in result.na_reason
+
+
+def test_vietnamese_d_recall_matches_dd_label() -> None:
+    gold = _gold(
+        _gold_provision("Điều 5", "Khoản 1"),
+        _gold_provision("Điều 5", "Khoản 1", "a)"),
+        _gold_provision("Điều 5", "Khoản 1", "đ)"),
+    )
+    doc = _structure_document(_STRUCTURE_ELEMENTS)
+    result = vietnamese_d_recall(gold, extract_legal_provisions(doc))
+    assert result.status == "computed"
+    assert result.value == 1.0
+    assert result.detail["matched_dd_points"] == ["('5', '1', 'đ')"]
+
+
+def test_vietnamese_d_recall_dd_confused_as_d_scores_zero() -> None:
+    """Gold says đ) but OCR/parser read d) -> the đ) recall must be 0 and the
+    confusion recorded (R4: d) vs đ) labels must never collide)."""
+    gold = _gold(
+        _gold_provision("Điều 5", "Khoản 1"),
+        _gold_provision("Điều 5", "Khoản 1", "đ)"),
+    )
+    elements = [
+        _STRUCTURE_ELEMENTS[0],
+        _STRUCTURE_ELEMENTS[1],
+        (2, "d) Lùi xe không quan sát phía sau, gây nguy hiểm cho người và phương tiện"),
+    ]
+    doc = _structure_document(elements)
+    result = vietnamese_d_recall(gold, extract_legal_provisions(doc))
+    assert result.status == "computed"
+    assert result.value == 0.0
+    assert result.detail["gold_dd_confused_as_d"] == ["('5', '1')"]
+
+
+def test_vietnamese_d_recall_na_without_gold_dd_points() -> None:
+    gold = _gold(
+        _gold_provision("Điều 5", "Khoản 1"),
+        _gold_provision("Điều 5", "Khoản 1", "a)"),
+    )
+    doc = _structure_document(_STRUCTURE_ELEMENTS)
+    result = vietnamese_d_recall(gold, extract_legal_provisions(doc))
+    assert result.status == "na"
+    assert result.value is None
+    assert "đ)" in result.na_reason
+
+
+def test_parent_context_completeness_after_enricher_is_one() -> None:
+    """POINT and CLAUSE both inherit a non-empty resolved parent context after
+    enrich_provision (clause lead-in for the point, article heading for the
+    clause) -> completeness 1.0."""
+    doc = _structure_document(_STRUCTURE_ELEMENTS)
+    result = parent_context_completeness_metric(extract_legal_provisions(doc))
+    assert result.status == "computed"
+    assert result.value == 1.0
+    assert result.numerator == 3  # 2 POINTs + 1 CLAUSE all inherit context
+    assert result.denominator == 3
+    assert result.detail["node_kind_counts"] == {"CLAUSE": 1, "POINT": 2}
+
+
+def test_parent_context_completeness_na_when_no_eligible_provisions() -> None:
+    doc = _structure_document([(0, "Chương I. Những quy định chung")])
+    result = parent_context_completeness_metric(extract_legal_provisions(doc))
+    assert result.status == "na"
+    assert result.value is None
+    assert "no POINT/CLAUSE provisions" in result.na_reason
+
+
+def test_parent_context_completeness_gold_annotation_match(tmp_path: Path) -> None:
+    """The gold `parent_context_annotation.json` cross-check: the enriched
+    retrieval_text of an annotated provision matches the expected text."""
+    gold_dir = tmp_path / "gold"
+    gold_dir.mkdir()
+    gold_path = str(gold_dir / "nd-gold.json")
+    (gold_dir / "parent_context_annotation.json").write_text(
+        json.dumps(
+            {
+                "annotations": [
+                    {
+                        "provision_id": "luat-36-2024__dieu-5__khoan-1__diem-a",
+                        "retrieval_text_expected": (
+                            "Khoản 1. Phạt tiền từ 800.000 đồng đến 1.000.000 đồng "
+                            "đối với người điều khiển xe a) Không chấp hành hiệu lệnh "
+                            "của đèn tín hiệu giao thông"
+                        ),
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    doc = _structure_document(_STRUCTURE_ELEMENTS)
+    result = parent_context_completeness_metric(extract_legal_provisions(doc), gold_path)
+    assert result.status == "computed"
+    annotated = result.detail["gold_annotated"]
+    assert "luat-36-2024__dieu-5__khoan-1__diem-a" in annotated
+    assert annotated["luat-36-2024__dieu-5__khoan-1__diem-a"]["match"] is True
+
+
+def test_compute_all_metrics_bundle_has_nine_metric_set() -> None:
+    doc = _structure_document(_STRUCTURE_ELEMENTS)
+    entry: dict[str, Any] = {
+        "gold_path": None,
+        "document_id": "luat-36-2024-qh15",
+    }
+    metrics = compute_all_metrics(doc, entry)
+    assert set(metrics) == {
+        "text_extraction_rate",
+        "provenance_coverage",
+        "table_detection_rate",
+        "table_preservation",
+        "header_footer_leakage",
+        "layout_coherence",
+        "article_p_r_f1",
+        "clause_p_r_f1",
+        "point_p_r_f1",
+        "short_point_recall",
+        "vietnamese_d_recall",
+        "parent_context_completeness",
+    }
+    # No gold -> the structure metrics are N/A (never fabricated), layout stays computed.
+    for name in (
+        "article_p_r_f1",
+        "clause_p_r_f1",
+        "point_p_r_f1",
+        "short_point_recall",
+        "vietnamese_d_recall",
+        "parent_context_completeness",
+    ):
+        assert metrics[name].status == "na"
+        assert metrics[name].value is None
+    assert metrics["layout_coherence"].status == "computed"
+
+
+def test_aggregate_metrics_pools_structure_fractions() -> None:
+    """Aggregation pools numerators/denominators across docs instead of a plain
+    mean (a doc with more units counts proportionally more)."""
+    short = {
+        "name": "short_point_recall",
+        "status": "computed",
+        "value": 0.5,
+        "numerator": 1,
+        "denominator": 2,
+        "na_reason": None,
+        "detail": {},
+    }
+    short_full = {
+        "name": "short_point_recall",
+        "status": "computed",
+        "value": 1.0,
+        "numerator": 2,
+        "denominator": 2,
+        "na_reason": None,
+        "detail": {},
+    }
+    article_half = {
+        "name": "article_p_r_f1",
+        "status": "computed",
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "na_reason": None,
+        "detail": {"matched": 1, "gold_count": 1, "extracted_count": 2},
+    }
+    article_third = {
+        "name": "article_p_r_f1",
+        "status": "computed",
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "na_reason": None,
+        "detail": {"matched": 1, "gold_count": 2, "extracted_count": 3},
+    }
+
+    def _bundle(name: str, metric: dict[str, Any]) -> dict[str, MetricResult]:
+        metrics: dict[str, MetricResult] = {}
+        for metric_name in (
+            "text_extraction_rate",
+            "provenance_coverage",
+            "table_detection_rate",
+            "table_preservation",
+            "header_footer_leakage",
+            "layout_coherence",
+            "article_p_r_f1",
+            "clause_p_r_f1",
+            "point_p_r_f1",
+            "short_point_recall",
+            "vietnamese_d_recall",
+            "parent_context_completeness",
+        ):
+            metrics[metric_name] = MetricResult(name=metric_name, status="na", na_reason="x")
+        metrics[name] = MetricResult.model_validate(metric)
+        return metrics
+
+    per_doc = {
+        "doc1": _bundle("short_point_recall", short),
+        "doc2": _bundle("short_point_recall", short_full),
+    }
+    agg = _aggregate_metrics(per_doc)
+    assert agg["short_point_recall"]["overall_fraction"] == 0.75  # pooled 3/4, not mean 0.75
+    assert agg["short_point_recall"]["numerator"] == 3
+    assert agg["short_point_recall"]["denominator"] == 4
+
+    per_doc2 = {
+        "doc1": _bundle("article_p_r_f1", article_half),
+        "doc2": _bundle("article_p_r_f1", article_third),
+    }
+    agg2 = _aggregate_metrics(per_doc2)
+    assert agg2["article_p_r_f1"]["matched"] == 2
+    assert agg2["article_p_r_f1"]["gold_count"] == 3
+    assert agg2["article_p_r_f1"]["extracted_count"] == 5
+    assert agg2["article_p_r_f1"]["precision"] == pytest.approx(0.4)
+    assert agg2["article_p_r_f1"]["recall"] == pytest.approx(2 / 3)
+
+
+def test_point_label_hits_detects_d_and_dd() -> None:
+    text = "a) Đường cao tốc; b) Đường quốc lộ; d) Đường huyện; đ) Đường xã; 14.000.000"
+    hits = _point_label_hits(text)
+    assert hits["d_count"] == 1
+    assert hits["dd_count"] == 1
+    assert "đ)" in hits["labels_present"]
+    assert "a)" in hits["labels_present"]
+    # Thousands separators (14.000.000) must never be counted as point labels.
+    assert hits["point_label_count"] == 4
