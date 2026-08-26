@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 import dramatiq
 
 from app.config import get_queue_settings
-from app.ingestion.reference_resolver import (
-    extract_document_relations,
-    resolve_references,
-    review_item_for,
-)
+from app.persistence.repositories.review_items import ReviewItemRepository
 
 from ._state import (
+    STATUS_PENDING_REVIEW,
+    finish_terminal,
     JobNotFoundError,
     load_run,
     new_session,
@@ -42,7 +41,10 @@ def resolve_refs_actor(job_id: str) -> None:
         text = manifest.get("reference_text")
         provisions = manifest.get("provisions")
         known_documents = manifest.get("known_documents", {})
-        if not isinstance(text, str) or not isinstance(provisions, list):
+        malformed = not isinstance(known_documents, Mapping)
+        if malformed:
+            known_documents = {}
+        if not isinstance(text, str) or not isinstance(provisions, list) or malformed:
             manifest["reference_resolution"] = {
                 "status": "PENDING_REVIEW",
                 "reason": "MISSING_REFERENCE_INPUT",
@@ -63,6 +65,18 @@ def resolve_refs_actor(job_id: str) -> None:
                 review_item_for(r, document_id=run.document_id, ingestion_run_id=job_id)
                 for r in refs if r.resolution_status != "RESOLVED"
             ]
+        review_rows = manifest.get("review_items", [])
+        for item in review_rows:
+            ReviewItemRepository(session).create(
+                run.id, run.document_id, item.get("target_type", "REFERENCE_RESOLUTION"),
+                item["target_id"], item["reason_code"], item.get("description"),
+                item.get("evidence"),
+            )
+        run.manifest_json = manifest
+        if review_rows:
+            finish_terminal(run, STATUS_PENDING_REVIEW, stage="RESOLVING_REFS")
+            session.commit()
+            return
         run.manifest_json = manifest
         set_stage(run, "RESOLVING_REFS")
         session.commit()
