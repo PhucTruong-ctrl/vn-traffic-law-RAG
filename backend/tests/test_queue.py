@@ -415,12 +415,14 @@ def test_resolve_refs_second_run_is_noop(_stub_broker: StubBroker, monkeypatch) 
 def test_resolve_temporal_advances_pipeline(
     _stub_broker: StubBroker, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    run = _run(status="RESOLVING_REFS", current_stage="RESOLVING_REFS")
     monkeypatch.setattr(
         resolve_temporal, "latest_document_version",
         lambda session, document_id: Mock(id=uuid.uuid4()),
     )
     monkeypatch.setattr(resolve_temporal, "list_provisions", lambda session, version_id: [])
+    session = _FakeSession()
+    monkeypatch.setattr(resolve_temporal, "new_session", lambda: session)
+    resolve_temporal_actor(job_id="job-1")
     monkeypatch.setattr(resolve_temporal, "resolve_temporal", lambda *args, **kwargs: [])
     monkeypatch.setattr(resolve_temporal.quality_gate_actor, "send", lambda job_id: None)
 
