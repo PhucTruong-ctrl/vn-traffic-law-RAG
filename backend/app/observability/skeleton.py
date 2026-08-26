@@ -48,6 +48,7 @@ def run_legal_query_trace(query: str) -> str:
 
     # analyze_query: query understanding summary.
     analyze = root.start_observation(
+        as_type="span",
         name="analyze_query",
         input={"query": query},
         metadata={"prompt_source": settings.prompt_source},
@@ -59,6 +60,7 @@ def run_legal_query_trace(query: str) -> str:
 
     # dense_retrieval: top-k hit summary, not full document content.
     dense = root.start_observation(
+        as_type="span",
         name="dense_retrieval",
         input={"query": query, "top_k": 8},
         metadata={"embedding_model": EMBEDDING_MODEL, "retriever": "qdrant_dense"},

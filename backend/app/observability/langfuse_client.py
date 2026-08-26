@@ -14,14 +14,15 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 from app.config import get_settings
 
 if TYPE_CHECKING:
-    from langfuse import Langfuse, LangfuseSpan
+    from langfuse import Langfuse
+    from langfuse._client.span import LangfuseObservationWrapper
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -106,7 +107,7 @@ def trace_legal_query(
     trace_id: str,
     user_id: str | None = None,
     metadata: dict[str, Any] | None = None,
-) -> LangfuseSpan | NoOpLangfuse:
+) -> LangfuseObservationWrapper | NoOpLangfuse:
     """Start a ``legal_query`` trace and return its root observation.
 
     The langfuse v4 SDK dropped ``start_trace()``; a trace is created as the
@@ -118,16 +119,19 @@ def trace_legal_query(
     client = get_langfuse()
     settings = get_settings()
     if not settings.langfuse_enabled:
-        return client
-    return client.start_observation(
-        name="legal_query",
-        trace_context={"trace_id": trace_id},
-        input={"query": query},
-        metadata={
-            **(metadata or {}),
-            "user_id": user_id,
-            "prompt_source": settings.prompt_source,
-        },
+        return cast(NoOpLangfuse, client)
+    return cast(
+        LangfuseObservationWrapper,
+        client.start_observation(
+            name="legal_query",
+            trace_context={"trace_id": trace_id},
+            input={"query": query},
+            metadata={
+                **(metadata or {}),
+                "user_id": user_id,
+                "prompt_source": settings.prompt_source,
+            },
+        ),
     )
 
 
@@ -149,7 +153,7 @@ def build_prompt(name: str, fallback_path: str | Path) -> FallbackPrompt:
     if not path.is_absolute():
         path = Path(get_settings().fallback_prompts_dir) / path
     with path.open("r", encoding="utf-8") as handle:
-        data = yaml.safe_load(handle)
+        data: Any = yaml.safe_load(handle)
     if not isinstance(data, dict):
         raise ValueError(f"invalid fallback prompt {path}: expected a YAML mapping")
     template = str(data.get("template") or "")
