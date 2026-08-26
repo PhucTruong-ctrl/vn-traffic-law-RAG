@@ -53,13 +53,17 @@ def parse_query_date(text: str, *, current_date: date) -> ParsedQueryDate | None
     match = re.search(r"(?<!\d)(\d{1,2})/(\d{1,2})/(\d{4})(?!\d)", value)
     if match:
         try:
-            return ParsedQueryDate(date(int(match[3]), int(match[2]), int(match[1])), "absolute")
+            return ParsedQueryDate(
+                date(int(match[3]), int(match[2]), int(match[1])), "absolute"
+            )
         except ValueError:
             return None
     match = re.search(r"(?<!\d)(\d{4})-(\d{2})-(\d{2})(?!\d)", value)
     if match:
         try:
-            return ParsedQueryDate(date(int(match[1]), int(match[2]), int(match[3])), "absolute")
+            return ParsedQueryDate(
+                date(int(match[1]), int(match[2]), int(match[3])), "absolute"
+            )
         except ValueError:
             return None
     match = re.search(r"(?<!\d)(\d{4})(?!\d)", value)
@@ -101,8 +105,17 @@ def resolve_query_date(
         canonical,
         canonical_date=canonical,
         date_source="canonical_date",
-        note=f"no effect change in {parsed.value.year}; applied canonical date {canonical.isoformat()}",
+        note=(
+            f"no effect change in {parsed.value.year}; "
+            f"applied canonical date {canonical.isoformat()}"
+        ),
     )
 
 
-__all__ = ["MISSING_QUERY_DATE", "ParsedQueryDate", "DatePolicyResult", "parse_query_date", "resolve_query_date"]
+__all__ = [
+    "MISSING_QUERY_DATE",
+    "ParsedQueryDate",
+    "DatePolicyResult",
+    "parse_query_date",
+    "resolve_query_date",
+]
