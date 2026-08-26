@@ -16,8 +16,8 @@ from app.ingestion.reference_resolver import (
 from app.persistence.repositories.review_items import ReviewItemRepository
 
 from ._state import (
-    JobNotFoundError,
     STATUS_PENDING_REVIEW,
+    JobNotFoundError,
     finish_terminal,
     load_run,
     new_session,
