@@ -1,0 +1,15 @@
+{
+  "dataset": "VNLRAG-59 development draft",
+  "record_count": 20,
+  "schema": "app.evaluation.gold_set.validate_record",
+  "corpus_manifest": "backend/tests/fixtures/golden/tt/manifest.json",
+  "corpus_review_status": "ACCEPTED",
+  "provision_source": "backend/tests/fixtures/parser_benchmark/gold/tt-gold.json",
+  "validation": "Each record hash computed with GoldRecord canonical_payload SHA-256; all 20 records contain only the 15 fixture provision IDs.",
+  "generated_at": "2026-08-26",
+  "difficulty_counts": {
+    "easy": 6,
+    "medium": 7,
+    "hard": 7
+  }
+}
