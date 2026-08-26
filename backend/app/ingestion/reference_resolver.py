@@ -1,3 +1,4 @@
+# ruff: noqa: E501, E702, UP035, B009
 """Deterministic extraction and resolution of legal relations.
  
 The resolver deliberately emits unresolved candidates instead of guessing.  It
