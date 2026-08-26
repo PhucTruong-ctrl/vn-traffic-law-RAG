@@ -96,6 +96,9 @@ def resolve_temporal(
                 grouped.setdefault(pid, [])
     result: list[ResolvedVersion] = []
     for pid, changes in grouped.items():
+        version = 1
+        start = base
+        lineage: list[dict[str, Any]] = []
         terminal = False
         for when, event, affected in changes:
             status = "PENDING" if review else default_status
@@ -112,7 +115,7 @@ def resolve_temporal(
                 result.append(
                     ResolvedVersion(
                         pid, version, start, when, version + 1,
-                        "PENDING", False, tuple(lineage),
+                        status, indexable, tuple(lineage),
                     )
                 )
                 version += 1
