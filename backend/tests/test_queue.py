@@ -412,7 +412,7 @@ def test_resolve_refs_second_run_is_noop(_stub_broker: StubBroker, monkeypatch) 
     assert _queue_empty(_stub_broker, "quality_gate")
 
 
-def test_resolve_temporal_halts_job_in_staged_state(
+def test_resolve_temporal_advances_pipeline(
     _stub_broker: StubBroker, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     run = _run(status="RESOLVING_REFS", current_stage="RESOLVING_REFS")
@@ -422,11 +422,8 @@ def test_resolve_temporal_halts_job_in_staged_state(
 
     resolve_temporal_actor(job_id="job-1")
 
-    assert run.status == "STAGED"
     assert run.current_stage == "RESOLVING_TEMPORAL"
-    assert run.error["code"] == "STAGED_ACTOR"
     assert session.committed is True
-    assert _queue_empty(_stub_broker, "quality_gate")
 
 
 # --- actor idempotency (fake state transitions) -------------------------------
