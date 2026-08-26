@@ -8,12 +8,17 @@ from typing import Any
 import dramatiq
 
 from app.config import get_queue_settings
+from app.ingestion.reference_resolver import (
+    extract_document_relations,
+    resolve_references,
+    review_item_for,
+)
 from app.persistence.repositories.review_items import ReviewItemRepository
 
 from ._state import (
+    JobNotFoundError,
     STATUS_PENDING_REVIEW,
     finish_terminal,
-    JobNotFoundError,
     load_run,
     new_session,
     set_stage,
