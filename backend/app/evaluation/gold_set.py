@@ -7,7 +7,7 @@ from datetime import date
 from enum import StrEnum
 from typing import Any, ClassVar
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class GoldCategory(StrEnum):
@@ -82,9 +82,27 @@ class GoldRecord(BaseModel):
             raise ValueError("list entries must be non-empty strings")
         return value
 
+    @model_validator(mode="after")
+    def validate_cross_field_invariants(self) -> GoldRecord:
+        expected = set(self.expected_provision_ids)
+        acceptable = set(self.acceptable_provision_ids)
+        if not expected <= acceptable:
+            raise ValueError("expected_provision_ids must be a subset of acceptable_provision_ids")
+        if not self.required_evidence:
+            raise ValueError("required_evidence must not be empty")
+        if not set(self.required_evidence) <= acceptable:
+            raise ValueError("required_evidence must reference acceptable provision ids")
+        if "basis" not in self.temporal_metadata:
+            raise ValueError("temporal_metadata must include basis")
+        if self.query_date is not None and self.temporal_metadata.get("basis") == "query_date":
+            self.temporal_metadata.setdefault("query_date", self.query_date.isoformat())
+        return self
+
     @field_validator("temporal_metadata")
     @classmethod
     def validate_temporal_metadata(cls, value: dict[str, Any]) -> dict[str, Any]:
+        if not value:
+            raise ValueError("temporal_metadata must not be empty")
         return value
 
     def canonical_payload(self) -> dict[str, Any]:
