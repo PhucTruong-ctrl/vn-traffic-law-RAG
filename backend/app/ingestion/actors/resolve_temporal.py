@@ -1,51 +1,19 @@
-"""Temporal resolver actor — STAGED (VNLRAG-133, activated at W4 by VNLRAG-136).
-
-The Temporal and Amendment Resolver (doc 03 §3.15, FR-06) does not exist yet:
-it ships with the W4 ticket VNLRAG-136.  Until then this actor MUST NOT
-compute effective intervals, MUST NOT advance the pipeline and MUST NOT index
-anything — ACCEPTED provisions legally require an ``effective_from`` (DB check
-``legal_provisions_effective_from_accepted_check``), so completing a job
-without temporal resolution would be factually wrong.
-
-Staging contract
-----------------
-Identical to :mod:`app.ingestion.actors.resolve_refs`: the job is moved to the
-terminal ``STAGED`` state (``current_stage=RESOLVING_TEMPORAL``) and no
-next-step message is sent.  This actor is unreachable in the current chain
-(because ``resolve_refs_actor`` already halts the job), but it is declared
-with the same contract so the full documented actor list (doc 03 §3.13.2)
-exists and the W4 swap-in is a drop-in replacement.
-"""
-
+"""Temporal resolution stage (VNLRAG-136)."""
 from __future__ import annotations
 
 from typing import Any
-
 import dramatiq
-
 from app.config import get_queue_settings
-
-from ._state import (
-    STAGED_RESOLVERS_MESSAGE,
-    STATUS_STAGED,
-    JobNotFoundError,
-    finish_terminal,
-    load_run,
-    new_session,
-    stage_done,
-)
+from app.ingestion.temporal_resolver import resolve_temporal
+from app.persistence.repositories.documents import latest_document_version
+from app.persistence.repositories.provisions import list_provisions
+from ._state import JobNotFoundError, load_run, new_session, stage_done, set_stage, STATUS_PENDING_REVIEW
 
 _QUEUE_SETTINGS = get_queue_settings()
-_ACTOR_OPTIONS: dict[str, Any] = {
-    "queue_name": "resolve_temporal",
-    "time_limit": _QUEUE_SETTINGS.actor_timeouts_seconds["resolve_temporal"],
-    "max_retries": _QUEUE_SETTINGS.max_retries,
-}
-
+_ACTOR_OPTIONS: dict[str, Any] = {"queue_name": "resolve_temporal", "time_limit": _QUEUE_SETTINGS.actor_timeouts_seconds["resolve_temporal"], "max_retries": _QUEUE_SETTINGS.max_retries}
 
 @dramatiq.actor(**_ACTOR_OPTIONS)
 def resolve_temporal_actor(job_id: str) -> None:
-    """STAGED: halt the job in STAGED state until W4 activates VNLRAG-136."""
     session = new_session()
     try:
         run = load_run(session, job_id)
@@ -53,20 +21,28 @@ def resolve_temporal_actor(job_id: str) -> None:
             raise JobNotFoundError(f"ingestion run {job_id!r} not found")
         if stage_done(run, "RESOLVING_TEMPORAL"):
             return
-        finish_terminal(
-            run,
-            STATUS_STAGED,
-            stage="RESOLVING_TEMPORAL",
-            error={
-                "code": "STAGED_ACTOR",
-                "actor": "resolve_temporal_actor",
-                "message": STAGED_RESOLVERS_MESSAGE,
-            },
-        )
+        version = latest_document_version(session, run.document_id)
+        if version is None:
+            raise ValueError(f"no document version for run {job_id!r}")
+        rows = list_provisions(session, version.id)
+        result = resolve_temporal(run.manifest_json, run.manifest_json.get("effect_events", []))
+        by_id = {item.provision_id: item for item in result.versions}
+        for row in rows:
+            resolved = by_id.get(row.provision_id)
+            if resolved:
+                row.effective_from = resolved.effective_from
+                row.effective_to = resolved.effective_to
+                row.review_status = resolved.review_status
+        if result.review_required:
+            run.status = STATUS_PENDING_REVIEW
+            run.error = {"code": "TEMPORAL_REVIEW", "errors": list(result.errors)}
+        else:
+            set_stage(run, "RESOLVING_TEMPORAL")
         session.commit()
     finally:
         session.close()
-    # Intentionally no next-stage enqueue: the pipeline stops here.
-
+    if not result.review_required:
+        from .quality_gate import quality_gate_actor
+        quality_gate_actor.send(job_id)
 
 __all__ = ["resolve_temporal_actor"]
