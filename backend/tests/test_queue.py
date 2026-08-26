@@ -411,9 +411,9 @@ def test_resolve_refs_hands_off_to_temporal(
 
     resolve_refs_actor(job_id="job-1")
 
-    assert run.manifest_json["review_items"]
+    assert run.manifest_json["review_items"] == []
     assert session.committed is True
-    assert sent == []
+    assert sent == ["job-1"]
 
 
 def test_resolve_refs_second_run_is_noop(_stub_broker: StubBroker, monkeypatch) -> None:
