@@ -40,9 +40,9 @@ def resolve_temporal_actor(job_id: str) -> None:
             raise ValueError(f"no document version for run {job_id!r}")
         rows = list_provisions(session, version.id)
         result = resolve_temporal(run.manifest_json, run.manifest_json.get("effect_events", []))
-        by_id = {item.provision_id: item for item in result.versions}
+        by_id = {(item.provision_id, item.version): item for item in result.versions}
         for row in rows:
-            resolved = by_id.get(row.provision_id)
+            resolved = by_id.get((row.provision_id, row.version))
             if resolved:
                 row.effective_from = resolved.effective_from
                 row.effective_to = resolved.effective_to
