@@ -29,15 +29,16 @@ embedding -> Qdrant -> search hit`
 1. The actor registry declares the complete handoff sequence, including
    `resolve_refs_actor -> resolve_temporal_actor -> quality_gate_actor ->
    embed_actor -> index_actor`. VNLRAG-31 and VNLRAG-136 are activated in the
-   merged `dev/sprint-3` state; this ticket branch predates that activation.
-2. The real-path integration test was attempted, but its PostgreSQL/Redis
-   fixture skipped because configured external services were unavailable.
-   Therefore this worktree has no honest PostgreSQL `ACCEPTED` observation,
-   Qdrant point, or search hit.
-3. The quality gate contract correctly refuses premature acceptance: an
+   merged `dev/sprint-3` state.
+2. With services unavailable, the activated-path integration test cannot
+   persist its resolver result; no honest PostgreSQL `ACCEPTED` observation,
+   Qdrant point, or search hit is recorded here.
+3. The integration assertion now captures the activated handoff at
+   `current_stage=RESOLVING_REFS`, with a running run and no staging error.
+4. The quality gate contract correctly refuses premature acceptance: an
    `ACCEPTED` provision requires `effective_from`; interval-less rows remain
    `PENDING`.
-4. The activated resolver handoff must be rerun with reachable PostgreSQL,
+5. The activated resolver handoff must be rerun with reachable PostgreSQL,
    embedding, and Qdrant before Gate M2 can close.
 
 ## Pass/fail criteria
@@ -56,16 +57,14 @@ embedding -> Qdrant -> search hit`
 From `backend/`, inspect and run the existing real-path integration test:
 
 ```bash
-uv run pytest tests/integration/test_queue_actors.py -k staged -q
+uv run pytest tests/integration/test_queue_actors.py \
+  -k activated_resolvers -q
 ```
- 
-Observed command result in this environment: `1 skipped in 5.93s` (exit
-status 1), because the integration fixture skips when the configured external
-services are unavailable. This is an additional blocker, not a passing
-observation.
 
-The test demonstrates the external-service prerequisite. After the activated
-resolver handoff is present in the merged branch, rerun the same command with
-PostgreSQL/Redis/Qdrant configured and append actual resolver interval,
-PostgreSQL, embedding, Qdrant, and search observations (timestamps and
+Observed prior run result: `1 skipped in 5.93s` (exit status 1), because the
+integration fixture could not reach configured external services. No gate pass
+is inferred from this skip.
+The test demonstrates the activated resolver handoff prerequisite. After the
+external services are reachable, append actual resolver interval, PostgreSQL,
+embedding, Qdrant, and search observations (timestamps and
 configuration/collection identifiers) to this report.
