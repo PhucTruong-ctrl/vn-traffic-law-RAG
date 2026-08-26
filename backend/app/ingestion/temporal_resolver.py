@@ -1,11 +1,14 @@
 """Resolve legal-effect events into half-open provision intervals (VNLRAG-136)."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import date
-from typing import Any, Mapping
+from typing import Any
 
-EVENT_TYPES = frozenset({"EFFECTIVE", "AMENDED", "PARTIAL_AMENDED", "SUPERSEDED", "REPEALED", "CORRECTED", "EXPIRED"})
+EVENT_TYPES = frozenset(
+    {"EFFECTIVE", "AMENDED", "PARTIAL_AMENDED", "SUPERSEDED", "REPEALED", "CORRECTED", "EXPIRED"}
+)
 TERMINAL_EVENTS = frozenset({"SUPERSEDED", "REPEALED", "EXPIRED"})
 
 @dataclass(frozen=True)
@@ -36,7 +39,6 @@ class ResolutionResult:
     review_required: bool = False
     errors: tuple[str, ...] = ()
 
-
 def _date(value: Any) -> date | None:
     if isinstance(value, date):
         return value
@@ -47,19 +49,13 @@ def _date(value: Any) -> date | None:
             return None
     return None
 
-
 def resolve_temporal(
     manifest: Mapping[str, Any],
     events: list[Mapping[str, Any] | EffectEvent] | None = None,
     *,
     review_status: str | None = None,
 ) -> ResolutionResult:
-    """Resolve a manifest and amendment events without guessing uncertain dates.
-
-    ``affected_provision_versions`` entries identify stable ``provision_id`` and
-    optionally a source version. Every amendment creates the next version;
-    partial amendments retain lineage in the new version's event metadata.
-    """
+    """Resolve intervals without guessing uncertain dates."""
     errors: list[str] = []
     parsed: list[EffectEvent] = []
     for raw in events or []:
@@ -67,8 +63,10 @@ def resolve_temporal(
             event_type=str(raw.get("event_type", "")),
             event_date=_date(raw.get("event_date") or raw.get("effective_from")),
             affected_provision_versions=tuple(raw.get("affected_provision_versions") or ()),
-            confidence=raw.get("confidence"), review_status=str(raw.get("review_status", "PENDING")),
-            source_document_id=raw.get("source_document_id"), description=raw.get("description"),
+            confidence=raw.get("confidence"),
+            review_status=str(raw.get("review_status", "PENDING")),
+            source_document_id=raw.get("source_document_id"),
+            description=raw.get("description"),
         )
         if event.event_type not in EVENT_TYPES:
             errors.append(f"unsupported event type: {event.event_type}")
@@ -79,9 +77,9 @@ def resolve_temporal(
     if base is None:
         errors.append("uncertain effective_from")
     default_status = review_status or str(manifest.get("review_status", "PENDING"))
-    review = bool(errors) or any(e.review_status != "ACCEPTED" for e in parsed)
+    review = bool(errors) or any(event.review_status != "ACCEPTED" for event in parsed)
     grouped: dict[str, list[tuple[date, EffectEvent, dict[str, Any]]]] = {}
-    for event in sorted(parsed, key=lambda e: e.event_date or date.max):
+    for event in sorted(parsed, key=lambda item: item.event_date or date.max):
         if event.event_date is None:
             continue
         for affected in event.affected_provision_versions:
@@ -91,21 +89,26 @@ def resolve_temporal(
     if not grouped:
         for item in manifest.get("provisions", []) or []:
             pid = str(item.get("provision_id", ""))
-            if pid: grouped.setdefault(pid, [])
+            if pid:
+                grouped.setdefault(pid, [])
     result: list[ResolvedVersion] = []
     for pid, changes in grouped.items():
         version = 1
         start = base
         lineage: list[dict[str, Any]] = []
         for when, event, affected in changes:
+            status = "PENDING" if review else default_status
+            indexable = not review and default_status == "ACCEPTED"
             if event.event_type in {"AMENDED", "PARTIAL_AMENDED", "CORRECTED"}:
-                result.append(ResolvedVersion(pid, version, start, when, version + 1, "PENDING" if review else default_status, not review and default_status == "ACCEPTED", tuple(lineage)))
-                version += 1; start = when; lineage.append({"event_type": event.event_type, **affected})
+                result.append(ResolvedVersion(pid, version, start, when, version + 1, status, indexable, tuple(lineage)))
+                version += 1
+                start = when
+                lineage.append({"event_type": event.event_type, **affected})
             elif event.event_type in TERMINAL_EVENTS:
-                result.append(ResolvedVersion(pid, version, start, when, None, "PENDING" if review else default_status, not review and default_status == "ACCEPTED", tuple(lineage)))
+                result.append(ResolvedVersion(pid, version, start, when, None, status, indexable, tuple(lineage)))
                 start = None
         if start is not None:
-            result.append(ResolvedVersion(pid, version, start, None, None, "PENDING" if review else default_status, not review and default_status == "ACCEPTED", tuple(lineage)))
+            result.append(ResolvedVersion(pid, version, start, None, None, "PENDING" if review else default_status, indexable, tuple(lineage)))
     return ResolutionResult(tuple(result), tuple(parsed), review, tuple(errors))
 
 __all__ = ["EVENT_TYPES", "EffectEvent", "ResolvedVersion", "ResolutionResult", "resolve_temporal"]
