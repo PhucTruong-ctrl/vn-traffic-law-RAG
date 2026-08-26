@@ -5,7 +5,7 @@
   "corpus_manifest": "backend/tests/fixtures/golden/tt/manifest.json",
   "corpus_review_status": "ACCEPTED",
   "provision_source": "backend/tests/fixtures/parser_benchmark/gold/tt-gold.json",
-  "validation": "Each record hash computed with GoldRecord canonical_payload SHA-256; all 20 records contain only the 15 fixture provision IDs. Updated exact-reference, out-of-scope, historical, and comparison records use aligned evidence or intentionally empty out-of-scope targets.",
+  "validation": "Each record hash computed with GoldRecord canonical_payload SHA-256; all 20 records contain only the 15 fixture provision IDs. Updated exact-reference, out-of-scope, historical, and comparison records use aligned evidence or intentionally empty out-of-scope targets. Final oracle alignment: must-include facts are confined to acceptable evidence; out-of-scope record has no in-corpus must-include.",
   "generated_at": "2026-08-26",
   "difficulty_counts": {
     "easy": 6,
