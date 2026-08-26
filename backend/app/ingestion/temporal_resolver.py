@@ -90,6 +90,7 @@ def resolve_temporal(
         key=lambda item: item.event_date or date.max,
     ):
         if event.event_date is None:
+            errors.append(f"uncertain event date: {event.event_type}")
             continue
         for affected in event.affected_provision_versions:
             pid = str(affected.get("provision_id", ""))
