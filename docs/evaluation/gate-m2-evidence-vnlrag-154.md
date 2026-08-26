@@ -30,11 +30,12 @@ embedding -> Qdrant -> search hit`
    `resolve_refs_actor -> resolve_temporal_actor -> quality_gate_actor ->
    embed_actor -> index_actor`. VNLRAG-31 and VNLRAG-136 are activated in the
    merged `dev/sprint-3` state.
-2. With services unavailable, the activated-path integration test cannot
-   persist its resolver result; no honest PostgreSQL `ACCEPTED` observation,
+2. With services available, the activated-path integration assertion captures
+   the persisted resolver handoff at `status=RESOLVING_REFS` and
+   `current_stage=RESOLVING_REFS`, with no `STAGED_ACTOR` error. This is not
+   evidence of downstream indexing.
+3. With services unavailable, no honest PostgreSQL `ACCEPTED` observation,
    Qdrant point, or search hit is recorded here.
-3. The integration assertion now captures the activated handoff at
-   `current_stage=RESOLVING_REFS`, with a running run and no staging error.
 4. The quality gate contract correctly refuses premature acceptance: an
    `ACCEPTED` provision requires `effective_from`; interval-less rows remain
    `PENDING`.

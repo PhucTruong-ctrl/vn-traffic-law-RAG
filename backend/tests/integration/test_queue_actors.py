@@ -214,9 +214,8 @@ def test_parse_chain_end_to_end_reaches_activated_resolvers(
 ) -> None:
     """parse -> normalize -> extract -> activated reference resolver handoff.
 
-    Runs against live Redis + migrated scratch PostgreSQL; parser/storage are
-    doubled.  The resolver handoff is asserted without claiming downstream
-    embedding/Qdrant/search completion.
+    The resolver marks the run ``RESOLVING_REFS`` while temporal resolution
+    continues downstream; parser/storage are doubled.
     """
     engine = queue_env
     document_id = _document_id()
@@ -259,7 +258,7 @@ def test_parse_chain_end_to_end_reaches_activated_resolvers(
 
         with Session(engine) as session:
             run = session.scalar(select(IngestionRun).where(IngestionRun.job_id == job_id))
-            assert run.status == "RUNNING"
+            assert run.status == "RESOLVING_REFS"
             assert run.current_stage == "RESOLVING_REFS"
             assert run.error is None
             expected_hash = hashlib.sha256(b"%PDF-1.4 vnlaw integration fixture").hexdigest()
@@ -318,7 +317,7 @@ def test_parse_chain_end_to_end_reaches_activated_resolvers(
             )
             assert len(parsed_rows) == 1  # still one, not two
             run = session.scalar(select(IngestionRun).where(IngestionRun.job_id == job_id))
-            assert run.status == "RUNNING"  # resolver handoff remains idempotent
+            assert run.status == "RESOLVING_REFS"  # idempotent handoff
     finally:
         worker.stop()
 
