@@ -73,10 +73,12 @@ def resolve_temporal(
         )
         if event.event_type not in EVENT_TYPES:
             errors.append(f"unsupported event type: {event.event_type}")
-        if event.event_date is None:
-            errors.append(f"uncertain date for {event.event_type}")
-        parsed.append(event)
     base = _date(manifest.get("effective_from"))
+    if base is None:
+        base = next(
+            (event.event_date for event in parsed if event.event_type == "EFFECTIVE"),
+            None,
+        )
     if base is None:
         errors.append("uncertain effective_from")
     default_status = review_status or str(manifest.get("review_status", "PENDING"))
@@ -141,6 +143,14 @@ def resolve_temporal(
                     tuple(lineage),
                 )
             )
+    if review:
+        result = [
+            ResolvedVersion(
+                item.provision_id, item.version, item.effective_from, item.effective_to,
+                item.superseded_by_version, "PENDING", False, item.lineage,
+            )
+            for item in result
+        ]
     return ResolutionResult(tuple(result), tuple(parsed), review, tuple(errors))
 
 __all__ = ["EVENT_TYPES", "EffectEvent", "ResolvedVersion", "ResolutionResult", "resolve_temporal"]
