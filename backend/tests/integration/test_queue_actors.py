@@ -209,15 +209,14 @@ class _RecordingClient:
 # --- end-to-end chain test ------------------------------------------------------
 
 
-def test_parse_chain_end_to_end_halts_at_staged_resolvers(
+def test_parse_chain_end_to_end_reaches_activated_resolvers(
     queue_env: Any, clean_queues: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """parse -> normalize -> extract -> resolve_refs, then STAGED halt.
+    """parse -> normalize -> extract -> activated reference resolver handoff.
 
-    Runs against live Redis (in-process worker) + the migrated scratch PG;
-    the parser/storage are doubled.  Verifies the IngestionRun state
-    transitions, parsed-document + provision persistence, and that a re-sent
-    parse message duplicates nothing.
+    Runs against live Redis + migrated scratch PostgreSQL; parser/storage are
+    doubled.  The resolver handoff is asserted without claiming downstream
+    embedding/Qdrant/search completion.
     """
     engine = queue_env
     document_id = _document_id()
@@ -260,10 +259,9 @@ def test_parse_chain_end_to_end_halts_at_staged_resolvers(
 
         with Session(engine) as session:
             run = session.scalar(select(IngestionRun).where(IngestionRun.job_id == job_id))
-            assert run is not None
-            assert run.status == "STAGED"
+            assert run.status == "RUNNING"
             assert run.current_stage == "RESOLVING_REFS"
-            assert run.error is not None and run.error["code"] == "STAGED_ACTOR"
+            assert run.error is None
             expected_hash = hashlib.sha256(b"%PDF-1.4 vnlaw integration fixture").hexdigest()
             assert run.file_hash == expected_hash
             assert run.parser_routing["terminal_outcome"] == "accepted"
@@ -320,7 +318,7 @@ def test_parse_chain_end_to_end_halts_at_staged_resolvers(
             )
             assert len(parsed_rows) == 1  # still one, not two
             run = session.scalar(select(IngestionRun).where(IngestionRun.job_id == job_id))
-            assert run.status == "STAGED"  # untouched
+            assert run.status == "RUNNING"  # resolver handoff remains idempotent
     finally:
         worker.stop()
 
