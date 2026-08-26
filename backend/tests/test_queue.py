@@ -388,6 +388,22 @@ def test_resolve_refs_hands_off_to_temporal(
     monkeypatch.setattr(resolve_refs, "load_run", lambda s, job_id: run)
     monkeypatch.setattr(resolve_refs, "new_session", lambda: session)
     monkeypatch.setattr(
+        resolve_refs,
+        "latest_document_version",
+        lambda session, document_id: Mock(id=uuid.uuid4(), version=1),
+    )
+    monkeypatch.setattr(resolve_refs, "list_provisions", lambda session, version_id: [])
+    monkeypatch.setattr(
+        resolve_refs,
+        "RelationRepository",
+        lambda session: Mock(),
+    )
+    monkeypatch.setattr(
+        resolve_refs,
+        "ReviewItemRepository",
+        lambda session: Mock(create=Mock()),
+    )
+    monkeypatch.setattr(
         resolve_temporal,
         "resolve_temporal_actor",
         type("Actor", (), {"send": lambda _, job_id: sent.append(job_id)})(),
