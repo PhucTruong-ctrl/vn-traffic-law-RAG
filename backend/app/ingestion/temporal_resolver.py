@@ -73,6 +73,7 @@ def resolve_temporal(
         )
         if event.event_type not in EVENT_TYPES:
             errors.append(f"unsupported event type: {event.event_type}")
+        parsed.append(event)
     base = _date(manifest.get("effective_from"))
     if base is None:
         base = next(
