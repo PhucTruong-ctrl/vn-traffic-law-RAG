@@ -69,7 +69,13 @@ class GoldRecord(BaseModel):
     gold_version: str = Field(min_length=1)
     hash: str = Field(pattern=r"^[0-9a-f]{64}$")
 
-    @field_validator("expected_provision_ids", "acceptable_provision_ids", "required_evidence", "must_include_facts", "must_not_include_facts")
+    @field_validator(
+        "expected_provision_ids",
+        "acceptable_provision_ids",
+        "required_evidence",
+        "must_include_facts",
+        "must_not_include_facts",
+    )
     @classmethod
     def validate_string_lists(cls, value: list[str]) -> list[str]:
         if any(not isinstance(item, str) or not item.strip() for item in value):
@@ -86,10 +92,15 @@ class GoldRecord(BaseModel):
         return payload
 
     def computed_hash(self) -> str:
-        encoded = json.dumps(self.canonical_payload(), ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+        encoded = json.dumps(
+            self.canonical_payload(),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
         return hashlib.sha256(encoded).hexdigest()
 
-    def validate_hash(self) -> "GoldRecord":
+    def validate_hash(self) -> GoldRecord:
         expected = self.computed_hash()
         if self.hash != expected:
             raise ValueError(f"hash mismatch: expected {expected}, got {self.hash}")
@@ -101,7 +112,11 @@ def assign_split(record_id: str) -> DatasetSplit:
     if not isinstance(record_id, str) or not record_id.strip():
         raise ValueError("record_id must be a non-empty string")
     bucket = int(hashlib.sha256(record_id.encode("utf-8")).hexdigest()[:8], 16) % 10
-    return DatasetSplit.DEVELOPMENT if bucket < 2 else DatasetSplit.VALIDATION if bucket < 4 else DatasetSplit.FINAL_TEST
+    if bucket < 2:
+        return DatasetSplit.DEVELOPMENT
+    if bucket < 4:
+        return DatasetSplit.VALIDATION
+    return DatasetSplit.FINAL_TEST
 
 
 def validate_record(payload: dict[str, Any], *, verify_hash: bool = True) -> GoldRecord:
@@ -112,4 +127,11 @@ def validate_record(payload: dict[str, Any], *, verify_hash: bool = True) -> Gol
     return record
 
 
-__all__ = ["DatasetSplit", "GoldCategory", "GoldRecord", "ReviewStatus", "assign_split", "validate_record"]
+__all__ = [
+    "DatasetSplit",
+    "GoldCategory",
+    "GoldRecord",
+    "ReviewStatus",
+    "assign_split",
+    "validate_record",
+]
