@@ -7,12 +7,12 @@ import dramatiq
 
 from app.config import get_queue_settings
 from app.ingestion.temporal_resolver import resolve_temporal
-from app.persistence.repositories.documents import latest_document_version
-from app.persistence.repositories.provisions import list_provisions
 
 from ._state import (
     STATUS_PENDING_REVIEW,
     JobNotFoundError,
+    latest_document_version,
+    list_provisions,
     load_run,
     new_session,
     set_stage,
