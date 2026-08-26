@@ -39,18 +39,17 @@
     },
     {
       "id": "vnlr59-dev-002",
-      "question": "Khoản 1 Điều 3 quy định chính xác điều gì?",
+      "question": "Khoản 1 Điều 3 của Thông tư 24/2024/TT-BGTVT quy định gì?",
       "category": "EXACT_REFERENCE",
       "query_date": "2026-08-26",
       "expected_provision_ids": [
-        "tt-24-2024__dieu-3__khoan-1__diem-b"
+        "tt-24-2024__dieu-3__khoan-1"
       ],
       "acceptable_provision_ids": [
-        "tt-24-2024__dieu-3__khoan-1__diem-b",
-        "tt-24-2024__dieu-3__khoan-1__diem-c"
+        "tt-24-2024__dieu-3__khoan-1"
       ],
       "required_evidence": [
-        "tt-24-2024__dieu-3__khoan-1__diem-b"
+        "tt-24-2024__dieu-3__khoan-1"
       ],
       "must_include_facts": [
         "cite tt-24-2024__dieu-3__khoan-1__diem-b"
@@ -67,7 +66,7 @@
       "review_status": "DRAFT",
       "reviewed_by": "corpus-reviewer-01",
       "gold_version": "vnlrag-59-dev-2026-08-26",
-      "hash": "04e55fc9b6b8ea88b615cab9132cd3280eed79d9bb3914ee0c883816be327f53"
+      "hash": "2be6b3bdc9e8f6b3be7a82cbce67bb618b8e3d5cdd504f86c2f21d714cc31f14"
     },
     {
       "id": "vnlr59-dev-003",
@@ -327,19 +326,12 @@
     },
     {
       "id": "vnlr59-dev-011",
-      "question": "Nội dung này có thuộc phạm vi văn bản không?",
+      "question": "Quy định về một thủ tục cấp hộ chiếu ngoại giao là gì?",
       "category": "OUT_OF_SCOPE",
       "query_date": "2026-08-26",
-      "expected_provision_ids": [
-        "tt-24-2024__dieu-5__khoan-2"
-      ],
-      "acceptable_provision_ids": [
-        "tt-24-2024__dieu-5__khoan-2",
-        "tt-24-2024__dieu-7__khoan-1__diem-a"
-      ],
-      "required_evidence": [
-        "tt-24-2024__dieu-5__khoan-2"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
+      "required_evidence": [],
       "must_include_facts": [
         "cite tt-24-2024__dieu-5__khoan-2"
       ],
@@ -347,15 +339,15 @@
         "invented provision or unsupported conclusion"
       ],
       "temporal_metadata": {
-        "effective_from": "2024-07-15",
+        "basis": "outside reviewed traffic corpus",
+        "effective_from": null,
         "effective_to": null,
-        "basis": "tt-24-2024-tt-bgtvt manifest",
         "difficulty": "hard"
       },
       "review_status": "DRAFT",
       "reviewed_by": "corpus-reviewer-01",
       "gold_version": "vnlrag-59-dev-2026-08-26",
-      "hash": "8dea26058cce49f9d2bcca3eed2bf9c9dbb50e7a84946f2bfc0a31f146d4fa4b"
+      "hash": "b6bbd9061291872077c64a34618d92add3b9873c4ac0f603a60c1c9d485b8edc"
     },
     {
       "id": "vnlr59-dev-012",
@@ -455,18 +447,17 @@
     },
     {
       "id": "vnlr59-dev-015",
-      "question": "Quy định trước đây khác quy định hiện hành thế nào?",
+      "question": "Trước ngày 01/01/2025, quy định xử phạt giao thông đường bộ theo Nghị định 100/2019 là gì?",
       "category": "HISTORICAL",
       "query_date": "2026-08-26",
       "expected_provision_ids": [
-        "tt-24-2024__dieu-3__khoan-1"
+        "nd-100-2019__dieu-5__khoan-1"
       ],
       "acceptable_provision_ids": [
-        "tt-24-2024__dieu-3__khoan-1",
-        "tt-24-2024__dieu-3__khoan-1__diem-a"
+        "nd-100-2019__dieu-5__khoan-1"
       ],
       "required_evidence": [
-        "tt-24-2024__dieu-3__khoan-1"
+        "nd-100-2019__dieu-5__khoan-1"
       ],
       "must_include_facts": [
         "cite tt-24-2024__dieu-3__khoan-1"
@@ -475,30 +466,32 @@
         "invented provision or unsupported conclusion"
       ],
       "temporal_metadata": {
-        "effective_from": "2024-07-15",
-        "effective_to": null,
-        "basis": "tt-24-2024-tt-bgtvt manifest",
-        "difficulty": "easy"
+        "basis": "nd-100-2019 manifest",
+        "effective_from": "2020-01-01",
+        "effective_to": "2025-01-01",
+        "difficulty": "hard"
       },
       "review_status": "DRAFT",
       "reviewed_by": "corpus-reviewer-01",
       "gold_version": "vnlrag-59-dev-2026-08-26",
-      "hash": "bd83ce71207ce4d1e682b810632a85636e0efbbc07432a8deb4ced4cf113b9c2"
+      "hash": "7741724f13a55f150146e617ce9c8ed7a06e8164d3451a256414616df6dcaa98"
     },
     {
       "id": "vnlr59-dev-016",
-      "question": "So sánh hai quy định liên quan trong văn bản.",
+      "question": "So sánh quy định đăng ký xe trước và sau ngày 01/01/2025.",
       "category": "COMPARISON",
       "query_date": "2026-08-26",
       "expected_provision_ids": [
-        "tt-24-2024__dieu-3__khoan-1__diem-a"
+        "tt-24-2023__dieu-3__khoan-1",
+        "tt-79-2024__dieu-3__khoan-1"
       ],
       "acceptable_provision_ids": [
-        "tt-24-2024__dieu-3__khoan-1__diem-a",
-        "tt-24-2024__dieu-3__khoan-1__diem-b"
+        "tt-24-2023__dieu-3__khoan-1",
+        "tt-79-2024__dieu-3__khoan-1"
       ],
       "required_evidence": [
-        "tt-24-2024__dieu-3__khoan-1__diem-a"
+        "tt-24-2023__dieu-3__khoan-1",
+        "tt-79-2024__dieu-3__khoan-1"
       ],
       "must_include_facts": [
         "cite tt-24-2024__dieu-3__khoan-1__diem-a"
@@ -507,15 +500,15 @@
         "invented provision or unsupported conclusion"
       ],
       "temporal_metadata": {
-        "effective_from": "2024-07-15",
+        "basis": "tt-24-2023 and tt-79-2024 accepted manifests",
+        "effective_from": "2023-08-15",
         "effective_to": null,
-        "basis": "tt-24-2024-tt-bgtvt manifest",
-        "difficulty": "medium"
+        "difficulty": "hard"
       },
       "review_status": "DRAFT",
       "reviewed_by": "corpus-reviewer-01",
       "gold_version": "vnlrag-59-dev-2026-08-26",
-      "hash": "e06dc19883722a46feace18932fb0305f54771108aab384bd0f41dac9132fea0"
+      "hash": "58867ec60c3a68d5cbc75a8c30c3cfdd8043ebe505eeee43dec03dbc2c6d1cce"
     },
     {
       "id": "vnlr59-dev-017",
