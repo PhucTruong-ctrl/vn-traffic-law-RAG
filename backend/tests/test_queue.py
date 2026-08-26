@@ -417,7 +417,9 @@ def test_resolve_temporal_advances_pipeline(
 ) -> None:
     run = _run(status="RESOLVING_REFS", current_stage="RESOLVING_REFS")
     session = _FakeSession()
-    monkeypatch.setattr(session, "scalars", lambda stmt: iter(()))
+    monkeypatch.setattr(
+        session, "scalars", lambda stmt: type("Result", (), {"all": lambda self: []})()
+    )
     monkeypatch.setattr(resolve_temporal, "load_run", lambda s, job_id: run)
     monkeypatch.setattr(resolve_temporal, "new_session", lambda: session)
     monkeypatch.setattr(
