@@ -96,17 +96,23 @@ def resolve_temporal(
                 grouped.setdefault(pid, [])
     result: list[ResolvedVersion] = []
     for pid, changes in grouped.items():
-        version = 1
-        start = base
-        lineage: list[dict[str, Any]] = []
+        terminal = False
         for when, event, affected in changes:
             status = "PENDING" if review else default_status
             indexable = not review and default_status == "ACCEPTED"
+            if terminal or start is None:
+                errors.append(f"event after terminal for {pid}")
+                review = True
+                continue
+            if when <= start:
+                errors.append(f"non-chronological event for {pid}")
+                review = True
+                continue
             if event.event_type in {"AMENDED", "PARTIAL_AMENDED", "CORRECTED"}:
                 result.append(
                     ResolvedVersion(
                         pid, version, start, when, version + 1,
-                        status, indexable, tuple(lineage),
+                        "PENDING", False, tuple(lineage),
                     )
                 )
                 version += 1
@@ -116,16 +122,20 @@ def resolve_temporal(
                 result.append(
                     ResolvedVersion(
                         pid, version, start, when, None,
-                        status, indexable, tuple(lineage),
+                        "PENDING" if review else default_status,
+                        not review and default_status == "ACCEPTED",
+                        tuple(lineage),
                     )
                 )
+                terminal = True
                 start = None
         if start is not None:
             result.append(
                 ResolvedVersion(
                     pid, version, start, None, None,
                     "PENDING" if review else default_status,
-                    indexable, tuple(lineage),
+                    not review and default_status == "ACCEPTED",
+                    tuple(lineage),
                 )
             )
     return ResolutionResult(tuple(result), tuple(parsed), review, tuple(errors))
