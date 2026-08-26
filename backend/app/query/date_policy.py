@@ -45,6 +45,16 @@ def parse_query_date(text: str, *, current_date: date) -> ParsedQueryDate | None
     deterministic. Invalid or ambiguous input returns ``None``.
     """
     value = text.strip().lower()
+    match = re.search(
+        r"\bngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})\b", value
+    )
+    if match:
+        try:
+            return ParsedQueryDate(
+                date(int(match[3]), int(match[2]), int(match[1])), "absolute"
+            )
+        except ValueError:
+            return None
     if re.search(r"\bhôm nay\b|\bhom nay\b", value):
         return ParsedQueryDate(current_date, "relative")
     if re.search(r"\bnăm ngoái\b|\bnam ngoai\b", value):

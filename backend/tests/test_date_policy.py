@@ -13,6 +13,7 @@ from app.query.date_policy import MISSING_QUERY_DATE, parse_query_date, resolve_
         ("năm 2023", date(2023, 1, 1)),
         ("hôm nay", date(2026, 8, 26)),
         ("năm ngoái", date(2025, 1, 1)),
+        ("ngày 26 tháng 12 năm 2024", date(2024, 12, 26)),
     ],
 )
 def test_parse_date_matrix(text: str, expected: date) -> None:
