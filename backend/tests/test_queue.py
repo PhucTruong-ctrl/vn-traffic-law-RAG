@@ -379,26 +379,26 @@ def test_dlq_middleware_ignores_success_and_retryable_failures(
 # --- staged resolvers ---------------------------------------------------------
 
 
-def test_resolve_refs_halts_job_in_staged_state(
+def test_resolve_refs_hands_off_to_temporal(
     _stub_broker: StubBroker, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     run = _run(status="EXTRACTING", current_stage="EXTRACTING")
     session = _FakeSession()
+    sent: list[str] = []
     monkeypatch.setattr(resolve_refs, "load_run", lambda s, job_id: run)
     monkeypatch.setattr(resolve_refs, "new_session", lambda: session)
+    monkeypatch.setattr(
+        resolve_temporal,
+        "resolve_temporal_actor",
+        type("Actor", (), {"send": lambda _, job_id: sent.append(job_id)})(),
+    )
 
     resolve_refs_actor(job_id="job-1")
 
-    assert run.status == "STAGED"
     assert run.current_stage == "RESOLVING_REFS"
-    assert run.error is not None
-    assert run.error["code"] == "STAGED_ACTOR"
-    assert "W4" in run.error["message"]
+    assert run.manifest_json["reference_resolution"]["status"] == "PENDING_REVIEW"
     assert session.committed is True
-    # The chain MUST NOT advance: no quality_gate / embed / index messages.
-    assert _queue_empty(_stub_broker, "quality_gate")
-    assert _queue_empty(_stub_broker, "embed")
-    assert _queue_empty(_stub_broker, "index")
+    assert sent == ["job-1"]
 
 
 def test_resolve_refs_second_run_is_noop(_stub_broker: StubBroker, monkeypatch) -> None:
