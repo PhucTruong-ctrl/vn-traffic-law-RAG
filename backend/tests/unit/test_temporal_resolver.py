@@ -4,10 +4,10 @@ from app.ingestion.temporal_resolver import EVENT_TYPES, resolve_temporal
 
 
 def test_all_event_types_are_supported() -> None:
-    assert EVENT_TYPES == {
+    assert {
         "EFFECTIVE", "AMENDED", "PARTIAL_AMENDED", "SUPERSEDED",
         "REPEALED", "CORRECTED", "EXPIRED",
-    }
+    } == EVENT_TYPES
 
 
 def test_partial_amendment_creates_half_open_lineage() -> None:
