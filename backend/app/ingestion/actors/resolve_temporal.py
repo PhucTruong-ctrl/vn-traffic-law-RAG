@@ -9,6 +9,7 @@ from sqlalchemy import select
 from app.config import get_queue_settings
 from app.ingestion.temporal_resolver import resolve_temporal
 from app.persistence.models import LegalEffectEvent
+
 from ._state import (
     STATUS_PENDING_REVIEW,
     JobNotFoundError,
@@ -39,6 +40,7 @@ def resolve_temporal_actor(job_id: str) -> None:
         version = latest_document_version(session, run.document_id)
         if version is None:
             raise ValueError(f"no document version for run {job_id!r}")
+        rows = list_provisions(session, version.id)
         stored_events = session.scalars(
             select(LegalEffectEvent).where(LegalEffectEvent.document_id == run.document_id)
         ).all()
