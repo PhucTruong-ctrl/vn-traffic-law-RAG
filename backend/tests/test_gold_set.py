@@ -38,6 +38,10 @@ def test_all_categories_are_accepted() -> None:
     for category in GoldCategory:
         item = payload()
         item["category"] = category.value
+        if category is GoldCategory.OUT_OF_SCOPE:
+            item["expected_provision_ids"] = []
+            item["acceptable_provision_ids"] = []
+            item["required_evidence"] = []
         item["hash"] = GoldRecord.model_validate(
             {**item, "hash": "0" * 64}
         ).computed_hash()
@@ -58,6 +62,12 @@ def test_cross_field_invariants_are_rejected() -> None:
         validate_record(item, verify_hash=False)
 
 
+
+def test_out_of_scope_cannot_require_provisions() -> None:
+    item = payload()
+    item["category"] = "OUT_OF_SCOPE"
+    with pytest.raises(ValidationError, match="OUT_OF_SCOPE"):
+        validate_record(item, verify_hash=False)
 def test_required_fields_and_unknown_fields_are_rejected() -> None:
     item = payload()
     del item["question"]
