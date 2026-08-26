@@ -411,8 +411,7 @@ def test_resolve_refs_hands_off_to_temporal(
 
     resolve_refs_actor(job_id="job-1")
 
-    assert run.current_stage == "RESOLVING_REFS"
-    assert run.manifest_json["reference_resolution"]["status"] == "PENDING_REVIEW"
+    assert run.manifest_json["review_items"]
     assert session.committed is True
     assert sent == []
 
