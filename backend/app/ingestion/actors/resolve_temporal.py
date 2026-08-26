@@ -7,7 +7,6 @@ import dramatiq
 from sqlalchemy import select
 
 from app.config import get_queue_settings
-from app.ingestion.temporal_resolver import resolve_temporal
 from app.persistence.models import LegalEffectEvent, ReviewItem
 
 from ._state import (
@@ -44,8 +43,15 @@ def resolve_temporal_actor(job_id: str) -> None:
         stored_events = session.scalars(
             select(LegalEffectEvent).where(LegalEffectEvent.document_id == run.document_id)
         ).all()
+        stored_inputs = [
+            {"event_type": event.event_type, "event_date": event.event_date,
+             "affected_provision_versions": event.affected_provision_versions,
+             "review_status": event.review_status, "confidence": event.confidence,
+             "source_document_id": event.source_document_id, "description": event.description}
+            for event in stored_events
+        ]
         manifest_events = run.manifest_json.get("effect_events", [])
-        event_inputs = [*manifest_events, *stored_events]
+        event_inputs = [*manifest_events, *stored_inputs]
         result = resolve_temporal(run.manifest_json, event_inputs)
         by_id = {(item.provision_id, item.version): item for item in result.versions}
         for row in rows:
