@@ -18,6 +18,7 @@ from ._state import (
     set_stage,
     stage_done,
 )
+
 _QUEUE_SETTINGS = get_queue_settings()
 _ACTOR_OPTIONS: dict[str, Any] = {
     "queue_name": "resolve_temporal",
