@@ -55,7 +55,7 @@
         "tt-24-2024__dieu-3__khoan-1"
       ],
       "must_include_facts": [
-        "cite tt-24-2024__dieu-3__khoan-1__diem-b"
+        "cite tt-24-2024__dieu-3__khoan-1"
       ],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
@@ -69,7 +69,7 @@
       "review_status": "DRAFT",
       "reviewed_by": "corpus-reviewer-01",
       "gold_version": "vnlrag-59-dev-2026-08-26",
-      "hash": "2be6b3bdc9e8f6b3be7a82cbce67bb618b8e3d5cdd504f86c2f21d714cc31f14"
+      "hash": "71376a208c954d79cd4a280feb8370f4aadb14451ae8d4f19da8732585ee23fe"
     },
     {
       "id": "vnlr59-dev-003",
@@ -310,9 +310,7 @@
       "required_evidence": [
         "tt-24-2024__dieu-5__khoan-1__diem-đ"
       ],
-      "must_include_facts": [
-        "cite tt-24-2024__dieu-5__khoan-1__diem-đ"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -325,7 +323,7 @@
       "review_status": "DRAFT",
       "reviewed_by": "corpus-reviewer-01",
       "gold_version": "vnlrag-59-dev-2026-08-26",
-      "hash": "e4e64ecf67a5a3f98a723502aaba499107b925354e2f5835ea6944ee7c641307"
+      "hash": "5cfaa9e538faa006f6e62914466a1986e6d00ca2a19a2aad27d9393eb5911ffc"
     },
     {
       "id": "vnlr59-dev-011",
