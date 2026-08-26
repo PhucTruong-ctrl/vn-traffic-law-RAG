@@ -2,15 +2,27 @@
 from __future__ import annotations
 
 from typing import Any
+
 import dramatiq
+
 from app.config import get_queue_settings
 from app.ingestion.temporal_resolver import resolve_temporal
 from app.persistence.repositories.documents import latest_document_version
 from app.persistence.repositories.provisions import list_provisions
-from ._state import JobNotFoundError, load_run, new_session, stage_done, set_stage, STATUS_PENDING_REVIEW
 
-_QUEUE_SETTINGS = get_queue_settings()
-_ACTOR_OPTIONS: dict[str, Any] = {"queue_name": "resolve_temporal", "time_limit": _QUEUE_SETTINGS.actor_timeouts_seconds["resolve_temporal"], "max_retries": _QUEUE_SETTINGS.max_retries}
+from ._state import (
+    STATUS_PENDING_REVIEW,
+    JobNotFoundError,
+    load_run,
+    new_session,
+    set_stage,
+    stage_done,
+)
+_ACTOR_OPTIONS: dict[str, Any] = {
+    "queue_name": "resolve_temporal",
+    "time_limit": _QUEUE_SETTINGS.actor_timeouts_seconds["resolve_temporal"],
+    "max_retries": _QUEUE_SETTINGS.max_retries,
+}
 
 @dramatiq.actor(**_ACTOR_OPTIONS)
 def resolve_temporal_actor(job_id: str) -> None:
