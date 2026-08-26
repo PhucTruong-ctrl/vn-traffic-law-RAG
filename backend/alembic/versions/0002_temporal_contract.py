@@ -1,5 +1,6 @@
 """W4 temporal contract: allow uncertain effect dates pending review (VNLRAG-136)."""
 from collections.abc import Sequence
+
 from alembic import op
 
 revision: str = "0002"
