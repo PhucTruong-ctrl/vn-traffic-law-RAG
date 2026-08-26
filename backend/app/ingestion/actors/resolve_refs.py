@@ -85,20 +85,20 @@ def resolve_refs_actor(job_id: str) -> None:
                 resolution_status="RESOLVED",
                 review_status="PENDING",
             ))
-        for candidate in docs:
-            if candidate.target_document_id is None:
+        for document_candidate in docs:
+            if document_candidate.target_document_id is None:
                 review_rows.append({
                     "target_type": "DOCUMENT_RELATION",
                     "target_id": run.document_id,
                     "reason_code": "TARGET_NOT_FOUND",
-                    "description": candidate.source_note,
+                    "description": document_candidate.source_note,
                 })
             else:
                 repo.upsert_document_relation(DocumentRelation(
-                    source_document_id=candidate.source_document_id,
-                    target_document_id=candidate.target_document_id,
-                    relation_type=candidate.relation_type,
-                    source_note=candidate.source_note,
+                    source_document_id=document_candidate.source_document_id,
+                    target_document_id=document_candidate.target_document_id,
+                    relation_type=document_candidate.relation_type,
+                    source_note=document_candidate.source_note,
                     source="extracted",
                     resolution_status="RESOLVED",
                     review_status="PENDING",
