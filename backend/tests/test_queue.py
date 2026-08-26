@@ -398,7 +398,7 @@ def test_resolve_refs_hands_off_to_temporal(
     assert run.current_stage == "RESOLVING_REFS"
     assert run.manifest_json["reference_resolution"]["status"] == "PENDING_REVIEW"
     assert session.committed is True
-    assert sent == ["job-1"]
+    assert sent == []
 
 
 def test_resolve_refs_second_run_is_noop(_stub_broker: StubBroker, monkeypatch) -> None:
@@ -417,6 +417,7 @@ def test_resolve_temporal_advances_pipeline(
 ) -> None:
     run = _run(status="RESOLVING_REFS", current_stage="RESOLVING_REFS")
     session = _FakeSession()
+    monkeypatch.setattr(session, "scalars", lambda stmt: iter(()))
     monkeypatch.setattr(resolve_temporal, "load_run", lambda s, job_id: run)
     monkeypatch.setattr(resolve_temporal, "new_session", lambda: session)
     monkeypatch.setattr(
