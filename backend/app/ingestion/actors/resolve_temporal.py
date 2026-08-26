@@ -7,8 +7,7 @@ import dramatiq
 from sqlalchemy import select
 
 from app.config import get_queue_settings
-from app.ingestion.temporal_resolver import resolve_temporal
-from app.persistence.models import LegalEffectEvent
+from app.persistence.models import LegalEffectEvent, ReviewItem
 
 from ._state import (
     STATUS_PENDING_REVIEW,
@@ -54,6 +53,20 @@ def resolve_temporal_actor(job_id: str) -> None:
                 row.effective_from = resolved.effective_from
                 row.effective_to = resolved.effective_to
                 row.review_status = resolved.review_status
+            existing = session.scalar(
+                select(ReviewItem).where(
+                    ReviewItem.ingestion_run_id == run.id,
+                    ReviewItem.reason_code == "UNKNOWN_EFFECTIVE_DATE",
+                )
+            )
+            if existing is None:
+                session.add(ReviewItem(
+                    ingestion_run_id=run.id, document_id=run.document_id,
+                    target_type="document", target_id=run.document_id,
+                    reason_code="UNKNOWN_EFFECTIVE_DATE",
+                    description="Temporal resolution requires review",
+                    evidence={"errors": list(result.errors)},
+                ))
         if result.review_required:
             run.status = STATUS_PENDING_REVIEW
             run.error = {"code": "TEMPORAL_REVIEW", "errors": list(result.errors)}
