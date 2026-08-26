@@ -43,9 +43,12 @@ def resolve_refs_actor(job_id: str) -> None:
         provisions = manifest.get("provisions")
         known_documents = manifest.get("known_documents", {})
         if not isinstance(text, str) or not isinstance(provisions, list):
-            manifest["reference_resolution"] = {"status": "PENDING_REVIEW", "reason": "MISSING_REFERENCE_INPUT"}
-            manifest.setdefault("review_items", []).append({
-                "target_type": "REFERENCE_RESOLUTION",
+            manifest["reference_resolution"] = {
+                "status": "PENDING_REVIEW",
+                "reason": "MISSING_REFERENCE_INPUT",
+            }
+            manifest.setdefault("review_items", []).append(
+                {
                 "target_id": run.document_id,
                 "reason_code": "MISSING_REFERENCE_INPUT",
             })
