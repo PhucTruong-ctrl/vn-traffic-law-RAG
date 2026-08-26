@@ -59,18 +59,27 @@ def extract_provision_references(text: str, source_id: str, *, relation_type: st
     return out
 
 def resolve_candidate(candidate: ReferenceCandidate, provisions: Iterable[object], *, source_version: int | None = None) -> ReferenceCandidate:
-    """Bind a candidate to exactly one provision in the source version.
-
-    Provision objects may be ORM rows or simple objects exposing provision_id,
-    version, and id. Ambiguous or absent matches remain unresolved and require review.
-    """
-    rows = [p for p in provisions if getattr(p, "provision_id", None) == candidate.target_provision_id]
+    """Bind a citation to one canonical provision, including JSON mappings."""
+    def value(row: object, key: str, default: object = None) -> object:
+        return row.get(key, default) if isinstance(row, Mapping) else getattr(row, key, default)
+    def matches(row: object) -> bool:
+        pid = str(value(row, "provision_id", ""))
+        target = candidate.target_provision_id or ""
+        parts = target.split("/")
+        canonical = f"dieu-{parts[0]}"
+        if len(parts) > 1:
+            canonical += f"__khoan-{parts[1]}"
+        if len(parts) > 2:
+            canonical += f"__diem-{parts[2]}"
+        return pid == target or canonical in pid
+    rows = [p for p in provisions if matches(p)]
     if source_version is not None:
-        rows = [p for p in rows if getattr(p, "version", None) == source_version]
+        rows = [p for p in rows if value(p, "version") == source_version]
     if len(rows) != 1:
-        return ReferenceCandidate(**{**candidate.__dict__, "resolution_status": "PENDING_REVIEW", "reason": "AMBIGUOUS_REFERENCE" if rows else "TARGET_NOT_FOUND"})
+        reason = "AMBIGUOUS_REFERENCE" if rows else "TARGET_NOT_FOUND"
+        return ReferenceCandidate(**{**candidate.__dict__, "resolution_status": "PENDING_REVIEW", "reason": reason})
     row = rows[0]
-    return ReferenceCandidate(**{**candidate.__dict__, "target_provision_id": str(getattr(row, "id", candidate.target_provision_id)), "target_version": getattr(row, "version", None), "resolution_status": "RESOLVED"})
+    return ReferenceCandidate(**{**candidate.__dict__, "target_provision_id": str(value(row, "id", value(row, "provision_id", candidate.target_provision_id))), "target_version": value(row, "version"), "resolution_status": "RESOLVED"})
 
 def review_item_for(candidate: ReferenceCandidate, *, document_id: str, ingestion_run_id: str) -> dict[str, object]:
     """Return fields matching ReviewItem for unresolved/ambiguous candidates."""
