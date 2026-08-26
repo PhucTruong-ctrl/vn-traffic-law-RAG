@@ -2,7 +2,10 @@
   "dataset": "VNLRAG-59 development draft",
   "split": "DEVELOPMENT",
   "corpus_documents": [
-    "tt-24-2024-tt-bgtvt"
+    "tt-24-2024-tt-bgtvt",
+    "nd-100-2019",
+    "tt-24-2023",
+    "tt-79-2024"
   ],
   "records": [
     {
