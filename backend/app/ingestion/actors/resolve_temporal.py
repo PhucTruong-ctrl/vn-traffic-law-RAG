@@ -4,10 +4,11 @@ from __future__ import annotations
 from typing import Any
 
 import dramatiq
+from sqlalchemy import select
 
 from app.config import get_queue_settings
 from app.ingestion.temporal_resolver import resolve_temporal
-
+from app.persistence.models import LegalEffectEvent
 from ._state import (
     STATUS_PENDING_REVIEW,
     JobNotFoundError,
@@ -38,8 +39,12 @@ def resolve_temporal_actor(job_id: str) -> None:
         version = latest_document_version(session, run.document_id)
         if version is None:
             raise ValueError(f"no document version for run {job_id!r}")
-        rows = list_provisions(session, version.id)
-        result = resolve_temporal(run.manifest_json, run.manifest_json.get("effect_events", []))
+        stored_events = session.scalars(
+            select(LegalEffectEvent).where(LegalEffectEvent.document_id == run.document_id)
+        ).all()
+        manifest_events = run.manifest_json.get("effect_events", [])
+        event_inputs = [*manifest_events, *stored_events]
+        result = resolve_temporal(run.manifest_json, event_inputs)
         by_id = {(item.provision_id, item.version): item for item in result.versions}
         for row in rows:
             resolved = by_id.get((row.provision_id, row.version))
