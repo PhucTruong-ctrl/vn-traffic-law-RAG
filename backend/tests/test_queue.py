@@ -432,7 +432,7 @@ def test_resolve_temporal_advances_pipeline(
         "resolve_temporal",
         lambda *args, **kwargs: Mock(versions=(), review_required=False, errors=()),
     )
-    monkeypatch.setattr(resolve_temporal.quality_gate_actor, "send", lambda job_id: None)
+    monkeypatch.setattr(quality_gate_actor, "send", lambda job_id: None)
     resolve_temporal_actor(job_id="job-1")
     assert run.current_stage == "RESOLVING_TEMPORAL"
     assert session.committed is True
