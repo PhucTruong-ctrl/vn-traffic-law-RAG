@@ -43,6 +43,20 @@ def test_all_categories_are_accepted() -> None:
         ).computed_hash()
         assert validate_record(item).category is category
 
+def test_cross_field_invariants_are_rejected() -> None:
+    item = payload()
+    item["expected_provision_ids"] = ["not-accepted"]
+    with pytest.raises(ValidationError, match="subset"):
+        validate_record(item, verify_hash=False)
+    item = payload()
+    item["required_evidence"] = []
+    with pytest.raises(ValidationError, match="must not be empty"):
+        validate_record(item, verify_hash=False)
+    item = payload()
+    item["temporal_metadata"] = {}
+    with pytest.raises(ValidationError, match="must not be empty"):
+        validate_record(item, verify_hash=False)
+
 
 def test_required_fields_and_unknown_fields_are_rejected() -> None:
     item = payload()
