@@ -7,7 +7,8 @@ import dramatiq
 from sqlalchemy import select
 
 from app.config import get_queue_settings
-from app.persistence.models import LegalEffectEvent, ReviewItem
+from app.persistence.models import LegalEffectEvent, ProvisionVersion, ReviewItem
+from app.persistence.repositories.provisions import ProvisionRepository
 
 from ._state import (
     STATUS_PENDING_REVIEW,
@@ -53,6 +54,55 @@ def resolve_temporal_actor(job_id: str) -> None:
         manifest_events = run.manifest_json.get("effect_events", [])
         event_inputs = [*manifest_events, *stored_inputs]
         result = resolve_temporal(run.manifest_json, event_inputs)
+        provision_repo = ProvisionRepository(session)
+        for resolved in result.versions:
+            successor = resolved.superseded_by_version
+            if successor is None:
+                continue
+            source_row = next(
+                (row for row in rows
+                 if row.provision_id == resolved.provision_id
+                 and row.version == resolved.version),
+                None,
+            )
+            successor_row = next(
+                (row for row in rows
+                 if row.provision_id == resolved.provision_id
+                 and row.version == successor),
+                None,
+            )
+            if source_row is None or successor_row is None:
+                if session.scalar(select(ReviewItem).where(
+                    ReviewItem.ingestion_run_id == run.id,
+                    ReviewItem.reason_code == "MISSING_SUCCESSOR_CONTENT",
+                )) is None:
+                    session.add(ReviewItem(
+                        ingestion_run_id=run.id, document_id=run.document_id,
+                        target_type="provision", target_id=resolved.provision_id,
+                        reason_code="MISSING_SUCCESSOR_CONTENT",
+                        description="Temporal successor content is not persisted",
+                        evidence={"version": successor},
+                    ))
+                continue
+            predecessor = provision_repo.get_registry_entry(
+                resolved.provision_id, resolved.version,
+            )
+            if predecessor is None:
+                predecessor = provision_repo.register_version(ProvisionVersion(
+                    provision_id=resolved.provision_id, version=resolved.version,
+                    document_version_id=source_row.document_version_id,
+                ))
+            predecessor.superseded_by_version = successor
+            successor_entry = provision_repo.get_registry_entry(
+                resolved.provision_id, successor,
+            )
+            if successor_entry is None:
+                provision_repo.register_version(ProvisionVersion(
+                    provision_id=resolved.provision_id, version=successor,
+                    document_version_id=successor_row.document_version_id,
+                ))
+            else:
+                successor_entry.document_version_id = successor_row.document_version_id
         by_id = {(item.provision_id, item.version): item for item in result.versions}
         for row in rows:
             resolved = by_id.get((row.provision_id, row.version))
