@@ -1,0 +1,649 @@
+{
+  "dataset": "VNLRAG-59 development draft",
+  "split": "DEVELOPMENT",
+  "corpus_documents": [
+    "tt-24-2024-tt-bgtvt"
+  ],
+  "records": [
+    {
+      "id": "vnlr59-dev-001",
+      "question": "Quy định hiện hành về nội dung này là gì?",
+      "category": "CURRENT",
+      "query_date": "2026-08-26",
+      "expected_provision_ids": [
+        "tt-24-2024__dieu-3__khoan-1__diem-a"
+      ],
+      "acceptable_provision_ids": [
+        "tt-24-2024__dieu-3__khoan-1__diem-a",
+        "tt-24-2024__dieu-3__khoan-1__diem-b"
+      ],
+      "required_evidence": [
+        "tt-24-2024__dieu-3__khoan-1__diem-a"
+      ],
+      "must_include_facts": [
+        "cite tt-24-2024__dieu-3__khoan-1__diem-a"
+      ],
+      "must_not_include_facts": [
+        "invented provision or unsupported conclusion"
+      ],
+      "temporal_metadata": {
+        "effective_from": "2024-07-15",
+        "effective_to": null,
+        "basis": "tt-24-2024-tt-bgtvt manifest",
+        "difficulty": "medium"
+      },
+      "review_status": "DRAFT",
+      "reviewed_by": "corpus-reviewer-01",
+      "gold_version": "vnlrag-59-dev-2026-08-26",
+      "hash": "0191f8ab2391f8d18518ac9eafa3f9d362f4f91e1ee44f5e18dedff25d9da98f"
+    },
+    {
+      "id": "vnlr59-dev-002",
+      "question": "Khoản 1 Điều 3 quy định chính xác điều gì?",
+      "category": "EXACT_REFERENCE",
+      "query_date": "2026-08-26",
+      "expected_provision_ids": [
+        "tt-24-2024__dieu-3__khoan-1__diem-b"
+      ],
+      "acceptable_provision_ids": [
+        "tt-24-2024__dieu-3__khoan-1__diem-b",
+        "tt-24-2024__dieu-3__khoan-1__diem-c"
+      ],
+      "required_evidence": [
+        "tt-24-2024__dieu-3__khoan-1__diem-b"
+      ],
+      "must_include_facts": [
+        "cite tt-24-2024__dieu-3__khoan-1__diem-b"
+      ],
+      "must_not_include_facts": [
+        "invented provision or unsupported conclusion"
+      ],
+      "temporal_metadata": {
+        "effective_from": "2024-07-15",
+        "effective_to": null,
+        "basis": "tt-24-2024-tt-bgtvt manifest",
+        "difficulty": "hard"
+      },
+      "review_status": "DRAFT",
+      "reviewed_by": "corpus-reviewer-01",
+      "gold_version": "vnlrag-59-dev-2026-08-26",
+      "hash": "04e55fc9b6b8ea88b615cab9132cd3280eed79d9bb3914ee0c883816be327f53"
+    },
+    {
+      "id": "vnlr59-dev-003",
+      "question": "Điều kiện áp dụng quy định này gồm những gì?",
+      "category": "CONDITION",
+      "query_date": "2026-08-26",
+      "expected_provision_ids": [
+        "tt-24-2024__dieu-3__khoan-1__diem-c"
+      ],
+      "acceptable_provision_ids": [
+        "tt-24-2024__dieu-3__khoan-1__diem-c",
+        "tt-24-2024__dieu-3__khoan-2"
+      ],
+      "required_evidence": [
+        "tt-24-2024__dieu-3__khoan-1__diem-c"
+      ],
+      "must_include_facts": [
+        "cite tt-24-2024__dieu-3__khoan-1__diem-c"
+      ],
+      "must_not_include_facts": [
+        "invented provision or unsupported conclusion"
+      ],
+      "temporal_metadata": {
+        "effective_from": "2024-07-15",
+        "effective_to": null,
+        "basis": "tt-24-2024-tt-bgtvt manifest",
+        "difficulty": "easy"
+      },
+      "review_status": "DRAFT",
+      "reviewed_by": "corpus-reviewer-01",
+      "gold_version": "vnlrag-59-dev-2026-08-26",
+      "hash": "96db291fe053b13b4e3e701526e0ebcf474459a9887ca7cbbb7eedefa5cdca43"
+    },
+    {
+      "id": "vnlr59-dev-004",
+      "question": "Trường hợp ngoại lệ nào được nêu trong quy định?",
+      "category": "EXCEPTION",
+      "query_date": "2026-08-26",
+      "expected_provision_ids": [
+        "tt-24-2024__dieu-3__khoan-2"
+      ],
+      "acceptable_provision_ids": [
+        "tt-24-2024__dieu-3__khoan-2",
+        "tt-24-2024__dieu-5__khoan-1"
+      ],
+      "required_evidence": [
+        "tt-24-2024__dieu-3__khoan-2"
+      ],
+      "must_include_facts": [
+        "cite tt-24-2024__dieu-3__khoan-2"
+      ],
+      "must_not_include_facts": [
+        "invented provision or unsupported conclusion"
+      ],
+      "temporal_metadata": {
+        "effective_from": "2024-07-15",
+        "effective_to": null,
+        "basis": "tt-24-2024-tt-bgtvt manifest",
+        "difficulty": "medium"
+      },
+      "review_status": "DRAFT",
+      "reviewed_by": "corpus-reviewer-01",
+      "gold_version": "vnlrag-59-dev-2026-08-26",
+      "hash": "a98411c7978305ef2721a7ac9887bb6f0627e073820d7b93ad77d9ffe8cbdb1a"
+    },
+    {
+      "id": "vnlr59-dev-005",
+      "question": "Thủ tục thực hiện theo quy định ra sao?",
+      "category": "PROCEDURE",
+      "query_date": "2026-08-26",
+      "expected_provision_ids": [
+        "tt-24-2024__dieu-5__khoan-1"
+      ],
+      "acceptable_provision_ids": [
+        "tt-24-2024__dieu-5__khoan-1",
+        "tt-24-2024__dieu-5__khoan-1__diem-a"
+      ],
+      "required_evidence": [
+        "tt-24-2024__dieu-5__khoan-1"
+      ],
+      "must_include_facts": [
+        "cite tt-24-2024__dieu-5__khoan-1"
+      ],
+      "must_not_include_facts": [
+        "invented provision or unsupported conclusion"
+      ],
+      "temporal_metadata": {
+        "effective_from": "2024-07-15",
+        "effective_to": null,
+        "basis": "tt-24-2024-tt-bgtvt manifest",
+        "difficulty": "hard"
+      },
+      "review_status": "DRAFT",
+      "reviewed_by": "corpus-reviewer-01",
+      "gold_version": "vnlrag-59-dev-2026-08-26",
+      "hash": "00193150fd6d535ad5af27a77b6221f320ed0c829945cd4bab2028fb33b99ab4"
+    },
+    {
+      "id": "vnlr59-dev-006",
+      "question": "Quy định này dẫn chiếu đến nội dung nào khác?",
+      "category": "CROSS_REFERENCE",
+      "query_date": "2026-08-26",
+      "expected_provision_ids": [
+        "tt-24-2024__dieu-5__khoan-1__diem-a"
+      ],
+      "acceptable_provision_ids": [
+        "tt-24-2024__dieu-5__khoan-1__diem-a",
+        "tt-24-2024__dieu-5__khoan-1__diem-b"
+      ],
+      "required_evidence": [
+        "tt-24-2024__dieu-5__khoan-1__diem-a"
+      ],
+      "must_include_facts": [
+        "cite tt-24-2024__dieu-5__khoan-1__diem-a"
+      ],
+      "must_not_include_facts": [
+        "invented provision or unsupported conclusion"
+      ],
+      "temporal_metadata": {
+        "effective_from": "2024-07-15",
+        "effective_to": null,
+        "basis": "tt-24-2024-tt-bgtvt manifest",
+        "difficulty": "easy"
+      },
+      "review_status": "DRAFT",
+      "reviewed_by": "corpus-reviewer-01",
+      "gold_version": "vnlrag-59-dev-2026-08-26",
+      "hash": "cec362d2d64f41d9158d36df456cc406cda15e99fd2dde0929112908028340a4"
+    },
+    {
+      "id": "vnlr59-dev-007",
+      "question": "Hãy tổng hợp các điểm liên quan trong Điều 5.",
+      "category": "MULTI_PROVISION",
+      "query_date": "2026-08-26",
+      "expected_provision_ids": [
+        "tt-24-2024__dieu-5__khoan-1__diem-b"
+      ],
+      "acceptable_provision_ids": [
+        "tt-24-2024__dieu-5__khoan-1__diem-b",
+        "tt-24-2024__dieu-5__khoan-1__diem-c"
+      ],
+      "required_evidence": [
+        "tt-24-2024__dieu-5__khoan-1__diem-b"
+      ],
+      "must_include_facts": [
+        "cite tt-24-2024__dieu-5__khoan-1__diem-b"
+      ],
+      "must_not_include_facts": [
+        "invented provision or unsupported conclusion"
+      ],
+      "temporal_metadata": {
+        "effective_from": "2024-07-15",
+        "effective_to": null,
+        "basis": "tt-24-2024-tt-bgtvt manifest",
+        "difficulty": "medium"
+      },
+      "review_status": "DRAFT",
+      "reviewed_by": "corpus-reviewer-01",
+      "gold_version": "vnlrag-59-dev-2026-08-26",
+      "hash": "f7ac63471611af930c32394f3112af5d9b3108ca22e8a3c9fdad5c31269636f6"
+    },
+    {
+      "id": "vnlr59-dev-008",
+      "question": "Nói đơn giản thì quy định này có ý nghĩa gì?",
+      "category": "COLLOQUIAL_QUERY",
+      "query_date": "2026-08-26",
+      "expected_provision_ids": [
+        "tt-24-2024__dieu-5__khoan-1__diem-c"
+      ],
+      "acceptable_provision_ids": [
+        "tt-24-2024__dieu-5__khoan-1__diem-c",
+        "tt-24-2024__dieu-5__khoan-1__diem-d"
+      ],
+      "required_evidence": [
+        "tt-24-2024__dieu-5__khoan-1__diem-c"
+      ],
+      "must_include_facts": [
+        "cite tt-24-2024__dieu-5__khoan-1__diem-c"
+      ],
+      "must_not_include_facts": [
+        "invented provision or unsupported conclusion"
+      ],
+      "temporal_metadata": {
+        "effective_from": "2024-07-15",
+        "effective_to": null,
+        "basis": "tt-24-2024-tt-bgtvt manifest",
+        "difficulty": "hard"
+      },
+      "review_status": "DRAFT",
+      "reviewed_by": "corpus-reviewer-01",
+      "gold_version": "vnlrag-59-dev-2026-08-26",
+      "hash": "68b5efe13b5c4ac2a747ec64d1d0ddcd7bf9f65c9a069f73c84c7a57afc3abc2"
+    },
+    {
+      "id": "vnlr59-dev-009",
+      "question": "Nếu câu hỏi thiếu thông tin thì cần xác định gì trước?",
+      "category": "AMBIGUOUS",
+      "query_date": "2026-08-26",
+      "expected_provision_ids": [
+        "tt-24-2024__dieu-5__khoan-1__diem-d"
+      ],
+      "acceptable_provision_ids": [
+        "tt-24-2024__dieu-5__khoan-1__diem-d",
+        "tt-24-2024__dieu-5__khoan-1__diem-đ"
+      ],
+      "required_evidence": [
+        "tt-24-2024__dieu-5__khoan-1__diem-d"
+      ],
+      "must_include_facts": [
+        "cite tt-24-2024__dieu-5__khoan-1__diem-d"
+      ],
+      "must_not_include_facts": [
+        "invented provision or unsupported conclusion"
+      ],
+      "temporal_metadata": {
+        "effective_from": "2024-07-15",
+        "effective_to": null,
+        "basis": "tt-24-2024-tt-bgtvt manifest",
+        "difficulty": "easy"
+      },
+      "review_status": "DRAFT",
+      "reviewed_by": "corpus-reviewer-01",
+      "gold_version": "vnlrag-59-dev-2026-08-26",
+      "hash": "f74eedf6ba1faa8806a1d03b8de95b4c960b4f642550bb3bb37fa38685fed2b5"
+    },
+    {
+      "id": "vnlr59-dev-010",
+      "question": "Có thể kết luận gì khi dữ kiện chưa đầy đủ?",
+      "category": "MISSING_INFORMATION",
+      "query_date": "2026-08-26",
+      "expected_provision_ids": [
+        "tt-24-2024__dieu-5__khoan-1__diem-đ"
+      ],
+      "acceptable_provision_ids": [
+        "tt-24-2024__dieu-5__khoan-1__diem-đ",
+        "tt-24-2024__dieu-5__khoan-2"
+      ],
+      "required_evidence": [
+        "tt-24-2024__dieu-5__khoan-1__diem-đ"
+      ],
+      "must_include_facts": [
+        "cite tt-24-2024__dieu-5__khoan-1__diem-đ"
+      ],
+      "must_not_include_facts": [
+        "invented provision or unsupported conclusion"
+      ],
+      "temporal_metadata": {
+        "effective_from": "2024-07-15",
+        "effective_to": null,
+        "basis": "tt-24-2024-tt-bgtvt manifest",
+        "difficulty": "medium"
+      },
+      "review_status": "DRAFT",
+      "reviewed_by": "corpus-reviewer-01",
+      "gold_version": "vnlrag-59-dev-2026-08-26",
+      "hash": "e4e64ecf67a5a3f98a723502aaba499107b925354e2f5835ea6944ee7c641307"
+    },
+    {
+      "id": "vnlr59-dev-011",
+      "question": "Nội dung này có thuộc phạm vi văn bản không?",
+      "category": "OUT_OF_SCOPE",
+      "query_date": "2026-08-26",
+      "expected_provision_ids": [
+        "tt-24-2024__dieu-5__khoan-2"
+      ],
+      "acceptable_provision_ids": [
+        "tt-24-2024__dieu-5__khoan-2",
+        "tt-24-2024__dieu-7__khoan-1__diem-a"
+      ],
+      "required_evidence": [
+        "tt-24-2024__dieu-5__khoan-2"
+      ],
+      "must_include_facts": [
+        "cite tt-24-2024__dieu-5__khoan-2"
+      ],
+      "must_not_include_facts": [
+        "invented provision or unsupported conclusion"
+      ],
+      "temporal_metadata": {
+        "effective_from": "2024-07-15",
+        "effective_to": null,
+        "basis": "tt-24-2024-tt-bgtvt manifest",
+        "difficulty": "hard"
+      },
+      "review_status": "DRAFT",
+      "reviewed_by": "corpus-reviewer-01",
+      "gold_version": "vnlrag-59-dev-2026-08-26",
+      "hash": "8dea26058cce49f9d2bcca3eed2bf9c9dbb50e7a84946f2bfc0a31f146d4fa4b"
+    },
+    {
+      "id": "vnlr59-dev-012",
+      "question": "Có phải điều luật được trích dẫn này áp dụng không?",
+      "category": "ADVERSARIAL_CITATION",
+      "query_date": "2026-08-26",
+      "expected_provision_ids": [
+        "tt-24-2024__dieu-7__khoan-1__diem-a"
+      ],
+      "acceptable_provision_ids": [
+        "tt-24-2024__dieu-7__khoan-1__diem-a",
+        "tt-24-2024__dieu-7__khoan-1__diem-b"
+      ],
+      "required_evidence": [
+        "tt-24-2024__dieu-7__khoan-1__diem-a"
+      ],
+      "must_include_facts": [
+        "cite tt-24-2024__dieu-7__khoan-1__diem-a"
+      ],
+      "must_not_include_facts": [
+        "invented provision or unsupported conclusion"
+      ],
+      "temporal_metadata": {
+        "effective_from": "2024-07-15",
+        "effective_to": null,
+        "basis": "tt-24-2024-tt-bgtvt manifest",
+        "difficulty": "easy"
+      },
+      "review_status": "DRAFT",
+      "reviewed_by": "corpus-reviewer-01",
+      "gold_version": "vnlrag-59-dev-2026-08-26",
+      "hash": "86c4247fb1546aff5b4648e12fe20bb56c7bbbe985206d3efccc1688672d0631"
+    },
+    {
+      "id": "vnlr59-dev-013",
+      "question": "Mức xử phạt hoặc hậu quả pháp lý liên quan là gì?",
+      "category": "PENALTY",
+      "query_date": "2026-08-26",
+      "expected_provision_ids": [
+        "tt-24-2024__dieu-7__khoan-1__diem-b"
+      ],
+      "acceptable_provision_ids": [
+        "tt-24-2024__dieu-7__khoan-1__diem-b",
+        "tt-24-2024__dieu-7__khoan-2"
+      ],
+      "required_evidence": [
+        "tt-24-2024__dieu-7__khoan-1__diem-b"
+      ],
+      "must_include_facts": [
+        "cite tt-24-2024__dieu-7__khoan-1__diem-b"
+      ],
+      "must_not_include_facts": [
+        "invented provision or unsupported conclusion"
+      ],
+      "temporal_metadata": {
+        "effective_from": "2024-07-15",
+        "effective_to": null,
+        "basis": "tt-24-2024-tt-bgtvt manifest",
+        "difficulty": "medium"
+      },
+      "review_status": "DRAFT",
+      "reviewed_by": "corpus-reviewer-01",
+      "gold_version": "vnlrag-59-dev-2026-08-26",
+      "hash": "c98b7f96946b67b5c66979a321d10c01f21b66744a2ab0e12ead18774f09761a"
+    },
+    {
+      "id": "vnlr59-dev-014",
+      "question": "Yêu cầu về giấy phép trong trường hợp này là gì?",
+      "category": "LICENSE_POINTS",
+      "query_date": "2026-08-26",
+      "expected_provision_ids": [
+        "tt-24-2024__dieu-7__khoan-2"
+      ],
+      "acceptable_provision_ids": [
+        "tt-24-2024__dieu-7__khoan-2",
+        "tt-24-2024__dieu-3__khoan-1"
+      ],
+      "required_evidence": [
+        "tt-24-2024__dieu-7__khoan-2"
+      ],
+      "must_include_facts": [
+        "cite tt-24-2024__dieu-7__khoan-2"
+      ],
+      "must_not_include_facts": [
+        "invented provision or unsupported conclusion"
+      ],
+      "temporal_metadata": {
+        "effective_from": "2024-07-15",
+        "effective_to": null,
+        "basis": "tt-24-2024-tt-bgtvt manifest",
+        "difficulty": "hard"
+      },
+      "review_status": "DRAFT",
+      "reviewed_by": "corpus-reviewer-01",
+      "gold_version": "vnlrag-59-dev-2026-08-26",
+      "hash": "00638f46dee539eb8abed31380f89b144a867d228fc773721892291506b9cdeb"
+    },
+    {
+      "id": "vnlr59-dev-015",
+      "question": "Quy định trước đây khác quy định hiện hành thế nào?",
+      "category": "HISTORICAL",
+      "query_date": "2026-08-26",
+      "expected_provision_ids": [
+        "tt-24-2024__dieu-3__khoan-1"
+      ],
+      "acceptable_provision_ids": [
+        "tt-24-2024__dieu-3__khoan-1",
+        "tt-24-2024__dieu-3__khoan-1__diem-a"
+      ],
+      "required_evidence": [
+        "tt-24-2024__dieu-3__khoan-1"
+      ],
+      "must_include_facts": [
+        "cite tt-24-2024__dieu-3__khoan-1"
+      ],
+      "must_not_include_facts": [
+        "invented provision or unsupported conclusion"
+      ],
+      "temporal_metadata": {
+        "effective_from": "2024-07-15",
+        "effective_to": null,
+        "basis": "tt-24-2024-tt-bgtvt manifest",
+        "difficulty": "easy"
+      },
+      "review_status": "DRAFT",
+      "reviewed_by": "corpus-reviewer-01",
+      "gold_version": "vnlrag-59-dev-2026-08-26",
+      "hash": "bd83ce71207ce4d1e682b810632a85636e0efbbc07432a8deb4ced4cf113b9c2"
+    },
+    {
+      "id": "vnlr59-dev-016",
+      "question": "So sánh hai quy định liên quan trong văn bản.",
+      "category": "COMPARISON",
+      "query_date": "2026-08-26",
+      "expected_provision_ids": [
+        "tt-24-2024__dieu-3__khoan-1__diem-a"
+      ],
+      "acceptable_provision_ids": [
+        "tt-24-2024__dieu-3__khoan-1__diem-a",
+        "tt-24-2024__dieu-3__khoan-1__diem-b"
+      ],
+      "required_evidence": [
+        "tt-24-2024__dieu-3__khoan-1__diem-a"
+      ],
+      "must_include_facts": [
+        "cite tt-24-2024__dieu-3__khoan-1__diem-a"
+      ],
+      "must_not_include_facts": [
+        "invented provision or unsupported conclusion"
+      ],
+      "temporal_metadata": {
+        "effective_from": "2024-07-15",
+        "effective_to": null,
+        "basis": "tt-24-2024-tt-bgtvt manifest",
+        "difficulty": "medium"
+      },
+      "review_status": "DRAFT",
+      "reviewed_by": "corpus-reviewer-01",
+      "gold_version": "vnlrag-59-dev-2026-08-26",
+      "hash": "e06dc19883722a46feace18932fb0305f54771108aab384bd0f41dac9132fea0"
+    },
+    {
+      "id": "vnlr59-dev-017",
+      "question": "Ngày hôm nay quy định nào đang có hiệu lực?",
+      "category": "CURRENT",
+      "query_date": "2026-08-26",
+      "expected_provision_ids": [
+        "tt-24-2024__dieu-3__khoan-1__diem-b"
+      ],
+      "acceptable_provision_ids": [
+        "tt-24-2024__dieu-3__khoan-1__diem-b",
+        "tt-24-2024__dieu-3__khoan-1__diem-c"
+      ],
+      "required_evidence": [
+        "tt-24-2024__dieu-3__khoan-1__diem-b"
+      ],
+      "must_include_facts": [
+        "cite tt-24-2024__dieu-3__khoan-1__diem-b"
+      ],
+      "must_not_include_facts": [
+        "invented provision or unsupported conclusion"
+      ],
+      "temporal_metadata": {
+        "effective_from": "2024-07-15",
+        "effective_to": null,
+        "basis": "tt-24-2024-tt-bgtvt manifest",
+        "difficulty": "hard"
+      },
+      "review_status": "DRAFT",
+      "reviewed_by": "corpus-reviewer-01",
+      "gold_version": "vnlrag-59-dev-2026-08-26",
+      "hash": "7ab2c02bd610b3e8f96947fe5f70d50abef0fc8e4794996a474c21d4fba92109"
+    },
+    {
+      "id": "vnlr59-dev-018",
+      "question": "Khi điều kiện thay đổi thì kết quả có thay đổi không?",
+      "category": "CONDITION",
+      "query_date": "2026-08-26",
+      "expected_provision_ids": [
+        "tt-24-2024__dieu-3__khoan-1__diem-c"
+      ],
+      "acceptable_provision_ids": [
+        "tt-24-2024__dieu-3__khoan-1__diem-c",
+        "tt-24-2024__dieu-3__khoan-2"
+      ],
+      "required_evidence": [
+        "tt-24-2024__dieu-3__khoan-1__diem-c"
+      ],
+      "must_include_facts": [
+        "cite tt-24-2024__dieu-3__khoan-1__diem-c"
+      ],
+      "must_not_include_facts": [
+        "invented provision or unsupported conclusion"
+      ],
+      "temporal_metadata": {
+        "effective_from": "2024-07-15",
+        "effective_to": null,
+        "basis": "tt-24-2024-tt-bgtvt manifest",
+        "difficulty": "easy"
+      },
+      "review_status": "DRAFT",
+      "reviewed_by": "corpus-reviewer-01",
+      "gold_version": "vnlrag-59-dev-2026-08-26",
+      "hash": "5ca3826f2dd594f500774d7aa3ee33147cf6d16f5a78cf44574c6e1ece75c3d1"
+    },
+    {
+      "id": "vnlr59-dev-019",
+      "question": "Tổng hợp các căn cứ cần kiểm tra để trả lời.",
+      "category": "MULTI_PROVISION",
+      "query_date": "2026-08-26",
+      "expected_provision_ids": [
+        "tt-24-2024__dieu-3__khoan-2"
+      ],
+      "acceptable_provision_ids": [
+        "tt-24-2024__dieu-3__khoan-2",
+        "tt-24-2024__dieu-5__khoan-1"
+      ],
+      "required_evidence": [
+        "tt-24-2024__dieu-3__khoan-2"
+      ],
+      "must_include_facts": [
+        "cite tt-24-2024__dieu-3__khoan-2"
+      ],
+      "must_not_include_facts": [
+        "invented provision or unsupported conclusion"
+      ],
+      "temporal_metadata": {
+        "effective_from": "2024-07-15",
+        "effective_to": null,
+        "basis": "tt-24-2024-tt-bgtvt manifest",
+        "difficulty": "medium"
+      },
+      "review_status": "DRAFT",
+      "reviewed_by": "corpus-reviewer-01",
+      "gold_version": "vnlrag-59-dev-2026-08-26",
+      "hash": "27c514b2a01be2b58cd301679cdeb2ae038793c36eeff96f06d6a4b53c68f2f2"
+    },
+    {
+      "id": "vnlr59-dev-020",
+      "question": "Các bước và căn cứ pháp lý cần viện dẫn là gì?",
+      "category": "PROCEDURE",
+      "query_date": "2026-08-26",
+      "expected_provision_ids": [
+        "tt-24-2024__dieu-5__khoan-1"
+      ],
+      "acceptable_provision_ids": [
+        "tt-24-2024__dieu-5__khoan-1",
+        "tt-24-2024__dieu-5__khoan-1__diem-a"
+      ],
+      "required_evidence": [
+        "tt-24-2024__dieu-5__khoan-1"
+      ],
+      "must_include_facts": [
+        "cite tt-24-2024__dieu-5__khoan-1"
+      ],
+      "must_not_include_facts": [
+        "invented provision or unsupported conclusion"
+      ],
+      "temporal_metadata": {
+        "effective_from": "2024-07-15",
+        "effective_to": null,
+        "basis": "tt-24-2024-tt-bgtvt manifest",
+        "difficulty": "hard"
+      },
+      "review_status": "DRAFT",
+      "reviewed_by": "corpus-reviewer-01",
+      "gold_version": "vnlrag-59-dev-2026-08-26",
+      "hash": "ca18b50c6326501b2af66e04f5793cf8601ce080dca6ef1ccc7390c24e4e5ad8"
+    }
+  ]
+}
