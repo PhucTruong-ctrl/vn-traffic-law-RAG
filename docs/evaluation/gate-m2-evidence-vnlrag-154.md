@@ -26,29 +26,30 @@ embedding -> Qdrant -> search hit`
 
 ## Observations
 
-1. `backend/app/ingestion/actors/__init__.py` documents the intended actor
-   sequence, but explicitly says both resolver actors are **STAGED**.
-2. `resolve_refs_actor` transitions the run to terminal `STAGED` with
-   `STAGED_ACTOR` and sends no next-stage message. Therefore the temporal
-   actor, quality gate, embedding, indexing, and search cannot be reached by
-   the real actor pipeline.
-3. `resolve_temporal_actor` independently has the same staged behavior and
-   explicitly does not compute an interval.
-4. The quality gate correctly refuses premature acceptance: an `ACCEPTED`
-   provision requires `effective_from`; interval-less rows remain `PENDING`.
-5. Consequently there is no honest PostgreSQL `ACCEPTED` observation, Qdrant
-   point, or search hit to record from this pipeline state.
+1. The actor registry declares the complete handoff sequence, including
+   `resolve_refs_actor -> resolve_temporal_actor -> quality_gate_actor ->
+   embed_actor -> index_actor`. VNLRAG-31 and VNLRAG-136 are activated in the
+   merged `dev/sprint-3` state; this ticket branch predates that activation.
+2. The real-path integration test was attempted, but its PostgreSQL/Redis
+   fixture skipped because configured external services were unavailable.
+   Therefore this worktree has no honest PostgreSQL `ACCEPTED` observation,
+   Qdrant point, or search hit.
+3. The quality gate contract correctly refuses premature acceptance: an
+   `ACCEPTED` provision requires `effective_from`; interval-less rows remain
+   `PENDING`.
+4. The activated resolver handoff must be rerun with reachable PostgreSQL,
+   embedding, and Qdrant before Gate M2 can close.
 
 ## Pass/fail criteria
 
 - [FAIL] Accepted provision has an interval returned by the temporal resolver:
-  resolver actor is staged.
-- [FAIL] PostgreSQL row is `ACCEPTED` with that interval: downstream gate is
-  unreachable.
-- [FAIL] Embedding and Qdrant indexing: index actor is unreachable.
-- [FAIL] Search returns the provision: no point is produced.
-- [PASS] No interval-less `ACCEPTED` row is indexed: staged resolver and quality
-  gate prevent premature acceptance/indexing.
+  execution was blocked by unavailable external services.
+- [FAIL] PostgreSQL row is `ACCEPTED` with that interval: no reachable DB
+  observation.
+- [FAIL] Embedding and Qdrant indexing: no reachable external services.
+- [FAIL] Search returns the provision: no point was observed.
+- [PASS] No interval-less `ACCEPTED` row is indexed: the quality gate requires
+  `effective_from` before acceptance.
 
 ## Reproduction
 
@@ -63,7 +64,8 @@ status 1), because the integration fixture skips when the configured external
 services are unavailable. This is an additional blocker, not a passing
 observation.
 
-The test demonstrates the resolver halt. A Gate M2 closure run must be added
-only after VNLRAG-31 and VNLRAG-136 replace the staged actor bodies; it must
-capture actual PostgreSQL, embedding, Qdrant, and search responses in this
-report (including timestamps and configuration/collection identifiers).
+The test demonstrates the external-service prerequisite. After the activated
+resolver handoff is present in the merged branch, rerun the same command with
+PostgreSQL/Redis/Qdrant configured and append actual resolver interval,
+PostgreSQL, embedding, Qdrant, and search observations (timestamps and
+configuration/collection identifiers) to this report.
