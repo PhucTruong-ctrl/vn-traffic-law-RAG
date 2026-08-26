@@ -7,7 +7,10 @@ from datetime import date
 from typing import Any
 
 EVENT_TYPES = frozenset(
-    {"EFFECTIVE", "AMENDED", "PARTIAL_AMENDED", "SUPERSEDED", "REPEALED", "CORRECTED", "EXPIRED"}
+    {
+        "EFFECTIVE", "AMENDED", "PARTIAL_AMENDED", "SUPERSEDED",
+        "REPEALED", "CORRECTED", "EXPIRED",
+    }
 )
 TERMINAL_EVENTS = frozenset({"SUPERSEDED", "REPEALED", "EXPIRED"})
 
@@ -100,15 +103,31 @@ def resolve_temporal(
             status = "PENDING" if review else default_status
             indexable = not review and default_status == "ACCEPTED"
             if event.event_type in {"AMENDED", "PARTIAL_AMENDED", "CORRECTED"}:
-                result.append(ResolvedVersion(pid, version, start, when, version + 1, status, indexable, tuple(lineage)))
+                result.append(
+                    ResolvedVersion(
+                        pid, version, start, when, version + 1,
+                        status, indexable, tuple(lineage),
+                    )
+                )
                 version += 1
                 start = when
                 lineage.append({"event_type": event.event_type, **affected})
             elif event.event_type in TERMINAL_EVENTS:
-                result.append(ResolvedVersion(pid, version, start, when, None, status, indexable, tuple(lineage)))
+                result.append(
+                    ResolvedVersion(
+                        pid, version, start, when, None,
+                        status, indexable, tuple(lineage),
+                    )
+                )
                 start = None
         if start is not None:
-            result.append(ResolvedVersion(pid, version, start, None, None, "PENDING" if review else default_status, indexable, tuple(lineage)))
+            result.append(
+                ResolvedVersion(
+                    pid, version, start, None, None,
+                    "PENDING" if review else default_status,
+                    indexable, tuple(lineage),
+                )
+            )
     return ResolutionResult(tuple(result), tuple(parsed), review, tuple(errors))
 
 __all__ = ["EVENT_TYPES", "EffectEvent", "ResolvedVersion", "ResolutionResult", "resolve_temporal"]
