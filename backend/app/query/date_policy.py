@@ -6,10 +6,10 @@ applies the historical year disambiguation rule.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import date
 import re
 from collections.abc import Iterable
+from dataclasses import dataclass
+from datetime import date
 
 MISSING_QUERY_DATE = "MISSING_QUERY_DATE"
 
