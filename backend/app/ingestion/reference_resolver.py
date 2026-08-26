@@ -1,8 +1,10 @@
 """Deterministic extraction and resolution of legal relations.
-
+ 
 The resolver deliberately emits unresolved candidates instead of guessing.  It
 is persistence-agnostic so ingestion and tests can use the same contract.
 """
+
+
 from __future__ import annotations
 
 import re
@@ -73,6 +75,21 @@ def review_item_for(candidate: ReferenceCandidate, *, document_id: str, ingestio
     """Return fields matching ReviewItem for unresolved/ambiguous candidates."""
     return {"ingestion_run_id": ingestion_run_id, "document_id": document_id, "target_type": "PROVISION_REFERENCE", "target_id": candidate.source_provision_id, "reason_code": candidate.reason or "UNRESOLVED_REFERENCE", "description": candidate.source_text, "evidence": {"relation_type": candidate.relation_type}}
 
+_PENALTY = re.compile(r"(?:mức phạt|hình phạt|phạt tiền)[^.;]*(?:quy định tại|theo)\s+(?P<citation>(?:điểm\s+[a-zđ]\s+)?(?:khoản\s+\d+\s+)?điều\s+\d+)", re.I)
+
+def infer_penalty_companions(text: str, source_id: str) -> list[ReferenceCandidate]:
+    """Infer companions only from an explicit penalty-to-provision citation."""
+    out = []
+    for m in _PENALTY.finditer(text):
+        citation = _CITATION.search(m.group("citation"))
+        if citation:
+            out.append(ReferenceCandidate(source_id, "PENALTY_COMPANION", m.group(0), target_provision_id=citation.group(0), extraction_method="explicit_penalty"))
+    return out
+
+def resolve_references(text: str, source_id: str, provisions: Iterable[object], *, source_version: int | None = None) -> list[ReferenceCandidate]:
+    candidates = extract_provision_references(text, source_id)
+    candidates.extend(infer_penalty_companions(text, source_id))
+    return [resolve_candidate(c, provisions, source_version=source_version) for c in candidates]
 def extract_document_relations(text: str, source_document_id: str, known_documents: Mapping[str, str]) -> list[DocumentCandidate]:
     out = []
     for relation, pattern in _DOC_PATTERNS.items():
