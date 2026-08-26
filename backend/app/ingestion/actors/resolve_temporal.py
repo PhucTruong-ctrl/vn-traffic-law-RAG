@@ -7,7 +7,6 @@ import dramatiq
 from sqlalchemy import select
 
 from app.config import get_queue_settings
-from app.ingestion.temporal_resolver import resolve_temporal
 from app.persistence.models import LegalEffectEvent, ReviewItem
 
 from ._state import (
@@ -44,8 +43,15 @@ def resolve_temporal_actor(job_id: str) -> None:
         stored_events = session.scalars(
             select(LegalEffectEvent).where(LegalEffectEvent.document_id == run.document_id)
         ).all()
+        stored_inputs = [
+            {"event_type": event.event_type, "event_date": event.event_date,
+             "affected_provision_versions": event.affected_provision_versions,
+             "review_status": event.review_status, "confidence": event.confidence,
+             "source_document_id": event.source_document_id, "description": event.description}
+            for event in stored_events
+        ]
         manifest_events = run.manifest_json.get("effect_events", [])
-        event_inputs = [*manifest_events, *stored_events]
+        event_inputs = [*manifest_events, *stored_inputs]
         result = resolve_temporal(run.manifest_json, event_inputs)
         by_id = {(item.provision_id, item.version): item for item in result.versions}
         for row in rows:
@@ -54,20 +60,21 @@ def resolve_temporal_actor(job_id: str) -> None:
                 row.effective_from = resolved.effective_from
                 row.effective_to = resolved.effective_to
                 row.review_status = resolved.review_status
-            existing = session.scalar(
-                select(ReviewItem).where(
-                    ReviewItem.ingestion_run_id == run.id,
-                    ReviewItem.reason_code == "UNKNOWN_EFFECTIVE_DATE",
+            if result.review_required and result.errors:
+                existing = session.scalar(
+                    select(ReviewItem).where(
+                        ReviewItem.ingestion_run_id == run.id,
+                        ReviewItem.reason_code == "UNKNOWN_EFFECTIVE_DATE",
+                    )
                 )
-            )
-            if existing is None:
-                session.add(ReviewItem(
-                    ingestion_run_id=run.id, document_id=run.document_id,
-                    target_type="document", target_id=run.document_id,
-                    reason_code="UNKNOWN_EFFECTIVE_DATE",
-                    description="Temporal resolution requires review",
-                    evidence={"errors": list(result.errors)},
-                ))
+                if existing is None:
+                    session.add(ReviewItem(
+                        ingestion_run_id=run.id, document_id=run.document_id,
+                        target_type="document", target_id=run.document_id,
+                        reason_code="UNKNOWN_EFFECTIVE_DATE",
+                        description="Temporal resolution requires review",
+                        evidence={"errors": list(result.errors)},
+                    ))
         if result.review_required:
             run.status = STATUS_PENDING_REVIEW
             run.error = {"code": "TEMPORAL_REVIEW", "errors": list(result.errors)}
