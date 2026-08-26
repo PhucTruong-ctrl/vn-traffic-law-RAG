@@ -88,10 +88,19 @@ class GoldRecord(BaseModel):
         acceptable = set(self.acceptable_provision_ids)
         if not expected <= acceptable:
             raise ValueError("expected_provision_ids must be a subset of acceptable_provision_ids")
-        if not self.required_evidence:
+        if not self.required_evidence and self.category is not GoldCategory.OUT_OF_SCOPE:
             raise ValueError("required_evidence must not be empty")
         if not set(self.required_evidence) <= acceptable:
             raise ValueError("required_evidence must reference acceptable provision ids")
+        referenced_facts = {
+            fact for fact in self.must_include_facts if fact in expected or fact.startswith("p-")
+        }
+        if not referenced_facts <= acceptable:
+            raise ValueError("must_include_facts must reference acceptable provision ids")
+        if self.category is GoldCategory.OUT_OF_SCOPE and (
+            self.expected_provision_ids or self.acceptable_provision_ids or self.required_evidence
+        ):
+            raise ValueError("OUT_OF_SCOPE records cannot require corpus provisions")
         if "basis" not in self.temporal_metadata:
             raise ValueError("temporal_metadata must include basis")
         if self.query_date is not None and self.temporal_metadata.get("basis") == "query_date":
