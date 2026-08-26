@@ -84,6 +84,7 @@ def resolve_temporal(
         errors.append("uncertain effective_from")
     default_status = review_status or str(manifest.get("review_status", "PENDING"))
     review = bool(errors) or any(event.review_status != "ACCEPTED" for event in parsed)
+    grouped: dict[str, list[tuple[date, EffectEvent, dict[str, Any]]]] = {}
     for event in sorted(
         (item for item in parsed if item.event_type != "EFFECTIVE"),
         key=lambda item: item.event_date or date.max,
