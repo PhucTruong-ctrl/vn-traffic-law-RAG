@@ -11,6 +11,7 @@ from sqlalchemy import select
 from app.config import get_queue_settings
 from app.ingestion.reference_resolver import (
     extract_document_relations,
+    infer_parent_relations,
     resolve_references,
     review_item_for,
 )
@@ -53,10 +54,10 @@ def _persist_reference(
 
     target = (
         targets.get(candidate.target_provision_id)
-        if candidate.resolution_status == "RESOLVED"
+        if candidate.resolution_status in {"RESOLVED", "PENDING_REVIEW"}
         else None
     )
-    resolved = target is not None
+    resolved = candidate.resolution_status in {"RESOLVED", "PENDING_REVIEW"} and target is not None
     target_id = target.id if target is not None else None
     target_provision_id = target.provision_id if target is not None else None
     target_version = target.version if target is not None else None
@@ -74,8 +75,14 @@ def _persist_reference(
             confidence=candidate.confidence,
             extraction_method=candidate.extraction_method,
             source_text=candidate.source_text,
-            resolution_status="RESOLVED" if resolved else "UNRESOLVED",
-            review_status="ACCEPTED" if resolved else "PENDING",
+            resolution_status=(
+                candidate.resolution_status if resolved else "UNRESOLVED"
+            ),
+            review_status=(
+                "PENDING"
+                if candidate.resolution_status == "PENDING_REVIEW"
+                else "ACCEPTED" if resolved else "PENDING"
+            ),
         )
     )
 
@@ -105,7 +112,12 @@ def resolve_refs_actor(job_id: str) -> None:
         refs: list[Any] = []
         review_rows: list[dict[str, Any]] = []
         if persisted:
-            targets = {str(row.id): row for row in persisted}
+            targets = {
+                key: row
+                for row in persisted
+                for key in (str(row.id), row.provision_id)
+            }
+            sources = {row.provision_id: row for row in persisted}
             for source in persisted:
                 candidates = resolve_references(
                     source.source_text,
@@ -124,6 +136,11 @@ def resolve_refs_actor(job_id: str) -> None:
                                 ingestion_run_id=job_id,
                             )
                         )
+            for candidate in infer_parent_relations(persisted):
+                refs.append(candidate)
+                _persist_reference(
+                    session, sources[candidate.source_provision_id], candidate, targets
+                )
         elif (
             isinstance(legacy_text, str)
             and isinstance(legacy_provisions, list)
@@ -138,9 +155,14 @@ def resolve_refs_actor(job_id: str) -> None:
         elif not persisted:
             review_rows = [{"target_id": run.document_id, "reason_code": "MISSING_REFERENCE_INPUT"}]
 
+        relation_text = (
+            "\n".join(row.source_text for row in persisted)
+            if persisted
+            else legacy_text
+        )
         docs = (
-            extract_document_relations(legacy_text, run.document_id, known_documents)
-            if isinstance(legacy_text, str) and not malformed_documents
+            extract_document_relations(relation_text, run.document_id, known_documents)
+            if isinstance(relation_text, str) and not malformed_documents
             else []
         )
         relation_repo = RelationRepository(session)
