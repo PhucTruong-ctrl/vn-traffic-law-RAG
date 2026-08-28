@@ -7,9 +7,9 @@ import dramatiq
 from sqlalchemy import select
 
 from app.config import get_queue_settings
+from app.ingestion.temporal_resolver import resolve_temporal
 from app.persistence.models import LegalEffectEvent, ProvisionVersion, ReviewItem
 from app.persistence.repositories.provisions import ProvisionRepository
-from app.ingestion.temporal_resolver import resolve_temporal
 
 from ._state import (
     STATUS_PENDING_REVIEW,
