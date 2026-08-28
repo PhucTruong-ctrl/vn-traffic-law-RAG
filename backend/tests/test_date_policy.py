@@ -60,6 +60,15 @@ def test_document_number_year_is_not_treated_as_query_date(document_number: str)
     assert parse_query_date(document_number, current_date=date(2026, 8, 26)) is None
 
 
+def test_year_fallback_skips_document_number_year() -> None:
+    parsed = parse_query_date(
+        "Nghị định 168/2024/NĐ-CP áp dụng năm 2025",
+        current_date=date(2026, 8, 26),
+    )
+    assert parsed is not None
+    assert parsed.value == date(2025, 1, 1)
+
+
 def test_explicit_year_query_still_uses_year_fallback() -> None:
     parsed = parse_query_date("năm 2024", current_date=date(2026, 8, 26))
     assert parsed is not None
