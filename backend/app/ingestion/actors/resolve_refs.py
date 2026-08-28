@@ -103,7 +103,7 @@ def resolve_refs_actor(job_id: str) -> None:
             known_documents = {}
 
         refs: list[Any] = []
-        review_rows: list[dict[str, object]] = []
+        review_rows: list[dict[str, Any]] = []
         if persisted:
             targets = {str(row.id): row for row in persisted}
             for source in persisted:
