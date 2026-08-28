@@ -106,11 +106,11 @@ def resolve_temporal_actor(job_id: str) -> None:
                 successor_entry.document_version_id = successor_row.document_version_id
         by_id = {(item.provision_id, item.version): item for item in result.versions}
         for row in rows:
-            resolved = by_id.get((row.provision_id, row.version))
-            if resolved:
-                row.effective_from = resolved.effective_from
-                row.effective_to = resolved.effective_to
-                row.review_status = resolved.review_status
+            matching_version = by_id.get((row.provision_id, row.version))
+            if matching_version:
+                row.effective_from = matching_version.effective_from
+                row.effective_to = matching_version.effective_to
+                row.review_status = matching_version.review_status
             if result.review_required and result.errors:
                 existing = session.scalar(
                     select(ReviewItem).where(
