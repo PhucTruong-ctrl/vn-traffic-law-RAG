@@ -57,10 +57,35 @@ def test_clause_reference_matches_only_same_hierarchy_level() -> None:
 
 def test_hierarchy_relations_include_parent_and_sibling_edges() -> None:
     provisions = [
-        {"provision_id": "d__dieu-1", "document_version_id": "v", "node_kind": "ARTICLE", "article": "1"},
-        {"provision_id": "d__dieu-1__khoan-1", "document_version_id": "v", "node_kind": "CLAUSE", "article": "1", "clause": "1"},
-        {"provision_id": "d__dieu-1__khoan-1__diem-a", "document_version_id": "v", "node_kind": "POINT", "article": "1", "clause": "1", "point": "a"},
-        {"provision_id": "d__dieu-1__khoan-1__diem-b", "document_version_id": "v", "node_kind": "POINT", "article": "1", "clause": "1", "point": "b"},
+        {
+            "provision_id": "d__dieu-1",
+            "document_version_id": "v",
+            "node_kind": "ARTICLE",
+            "article": "1",
+        },
+        {
+            "provision_id": "d__dieu-1__khoan-1",
+            "document_version_id": "v",
+            "node_kind": "CLAUSE",
+            "article": "1",
+            "clause": "1",
+        },
+        {
+            "provision_id": "d__dieu-1__khoan-1__diem-a",
+            "document_version_id": "v",
+            "node_kind": "POINT",
+            "article": "1",
+            "clause": "1",
+            "point": "a",
+        },
+        {
+            "provision_id": "d__dieu-1__khoan-1__diem-b",
+            "document_version_id": "v",
+            "node_kind": "POINT",
+            "article": "1",
+            "clause": "1",
+            "point": "b",
+        },
     ]
 
     relations = infer_parent_relations(provisions)
