@@ -48,5 +48,23 @@ def test_year_intersecting_effect_change_requires_specific_date() -> None:
     assert result.should_abstain
 
 
+@pytest.mark.parametrize(
+    "document_number",
+    [
+        "Nghị định 168/2024/NĐ-CP",
+        "Luật 36/2024/QH15",
+        "Số: 36/2024/QH15",
+    ],
+)
+def test_document_number_year_is_not_treated_as_query_date(document_number: str) -> None:
+    assert parse_query_date(document_number, current_date=date(2026, 8, 26)) is None
+
+
+def test_explicit_year_query_still_uses_year_fallback() -> None:
+    parsed = parse_query_date("năm 2024", current_date=date(2026, 8, 26))
+    assert parsed is not None
+    assert parsed.value == date(2024, 1, 1)
+
+
 def test_invalid_date_is_not_guessed() -> None:
     assert parse_query_date("31/02/2024", current_date=date(2026, 8, 26)) is None

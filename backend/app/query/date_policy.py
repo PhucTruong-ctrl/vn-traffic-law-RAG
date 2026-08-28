@@ -11,6 +11,17 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
 
+_DOCUMENT_NUMBER_YEAR_RE = re.compile(r"(?<![\d/])\d{1,4}/\d{4}/(?=[a-z0-9])")
+
+
+def _is_document_number_year(text: str, year_match: re.Match[str]) -> bool:
+    """Return whether a year is the middle component of a document number."""
+    return any(
+        candidate.start() < year_match.start() < candidate.end()
+        for candidate in _DOCUMENT_NUMBER_YEAR_RE.finditer(text)
+    )
+
+
 MISSING_QUERY_DATE = "MISSING_QUERY_DATE"
 
 
@@ -77,7 +88,7 @@ def parse_query_date(text: str, *, current_date: date) -> ParsedQueryDate | None
         except ValueError:
             return None
     match = re.search(r"(?<!\d)(\d{4})(?!\d)", value)
-    if match:
+    if match and not _is_document_number_year(value, match):
         return ParsedQueryDate(date(int(match[1]), 1, 1), "year", True)
     return None
 
