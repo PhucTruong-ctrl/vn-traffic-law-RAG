@@ -81,7 +81,12 @@ def resolve_candidate(candidate: ReferenceCandidate, provisions: Iterable[object
         reason = "AMBIGUOUS_REFERENCE" if rows else "TARGET_NOT_FOUND"
         return ReferenceCandidate(**{**candidate.__dict__, "resolution_status": "PENDING_REVIEW", "reason": reason})
     row = rows[0]
-    return ReferenceCandidate(**{**candidate.__dict__, "target_provision_id": str(value(row, "id", value(row, "provision_id", candidate.target_provision_id))), "target_version": value(row, "version"), "resolution_status": "RESOLVED"})
+    resolution_status = (
+        "PENDING_REVIEW"
+        if candidate.relation_type == "PENALTY_COMPANION"
+        else "RESOLVED"
+    )
+    return ReferenceCandidate(**{**candidate.__dict__, "target_provision_id": str(value(row, "id", value(row, "provision_id", candidate.target_provision_id))), "target_version": value(row, "version"), "resolution_status": resolution_status})
 
 def review_item_for(candidate: ReferenceCandidate, *, document_id: str, ingestion_run_id: str) -> dict[str, object]:
     """Return fields matching ReviewItem for unresolved/ambiguous candidates."""
@@ -95,7 +100,15 @@ def infer_penalty_companions(text: str, source_id: str) -> list[ReferenceCandida
     for m in _PENALTY.finditer(text):
         citation = _CITATION.search(m.group("citation"))
         if citation:
-            out.append(ReferenceCandidate(source_id, "PENALTY_COMPANION", m.group(0), target_provision_id=citation.group(0), extraction_method="explicit_penalty"))
+            target = "/".join(
+                value for value in (
+                    citation.group("article"),
+                    citation.group("clause"),
+                    citation.group("point"),
+                )
+                if value
+            )
+            out.append(ReferenceCandidate(source_id, "PENALTY_COMPANION", m.group(0), target_provision_id=target, extraction_method="explicit_penalty"))
     return out
 
 def resolve_references(text: str, source_id: str, provisions: Iterable[object], *, source_version: int | None = None) -> list[ReferenceCandidate]:
@@ -113,10 +126,74 @@ def extract_document_relations(text: str, source_document_id: str, known_documen
     return out
 
 def infer_parent_relations(provisions: Iterable[object]) -> list[ReferenceCandidate]:
-    """Derive hierarchy edges only when article/clause/point ancestry is explicit."""
-    rows = list(provisions); out = []
+    """Derive parent and sibling edges from explicit provision hierarchy fields."""
+    rows = list(provisions)
+    out: list[ReferenceCandidate] = []
+    by_level: dict[tuple[object, ...], list[object]] = {}
+
+    def field(row: object, name: str) -> object:
+        return row.get(name) if isinstance(row, Mapping) else getattr(row, name, None)
+
+    def key(row: object) -> tuple[object, ...] | None:
+        document = field(row, "document_version_id")
+        kind = field(row, "node_kind")
+        article = field(row, "article")
+        clause = field(row, "clause")
+        point = field(row, "point")
+        if kind == "ARTICLE" and article is not None:
+            return (document, "ARTICLE", article)
+        if kind == "CLAUSE" and article is not None and clause is not None:
+            return (document, "CLAUSE", article)
+        if kind == "POINT" and article is not None and clause is not None and point is not None:
+            return (document, "POINT", article, clause)
+        return None
+
+    for row in rows:
+        row_key = key(row)
+        if row_key is not None:
+            by_level.setdefault(row_key, []).append(row)
+
+    for row_key, siblings in by_level.items():
+        for index, source in enumerate(siblings):
+            source_id = str(field(source, "provision_id"))
+            for target in siblings[index + 1 :]:
+                out.append(
+                    ReferenceCandidate(
+                        source_id,
+                        "SIBLING_OF",
+                        "hierarchy",
+                        str(field(target, "provision_id")),
+                        field(target, "version"),
+                        "RESOLVED",
+                        extraction_method="hierarchy",
+                    )
+                )
+
     for child in rows:
-        parent = next((p for p in rows if getattr(p, "document_version_id", None) == getattr(child, "document_version_id", None) and getattr(p, "article", None) == getattr(child, "article", None) and getattr(p, "clause", None) == getattr(child, "clause", None) and getattr(p, "point", None) is None and getattr(child, "point", None) is not None), None)
+        kind = field(child, "node_kind")
+        document = field(child, "document_version_id")
+        article = field(child, "article")
+        clause = field(child, "clause")
+        parent_key = (
+            (document, "CLAUSE", article)
+            if kind == "POINT" and clause is not None
+            else (document, "ARTICLE", article)
+            if kind == "CLAUSE"
+            else None
+        )
+        if parent_key is None:
+            continue
+        parent = next(iter(by_level.get(parent_key, [])), None)
         if parent is not None:
-            out.append(ReferenceCandidate(str(getattr(parent, "provision_id")), "PARENT_OF", "hierarchy", str(getattr(child, "provision_id")), getattr(child, "version", None), "RESOLVED", extraction_method="hierarchy"))
+            out.append(
+                ReferenceCandidate(
+                    str(field(parent, "provision_id")),
+                    "PARENT_OF",
+                    "hierarchy",
+                    str(field(child, "provision_id")),
+                    field(child, "version"),
+                    "RESOLVED",
+                    extraction_method="hierarchy",
+                )
+            )
     return out
