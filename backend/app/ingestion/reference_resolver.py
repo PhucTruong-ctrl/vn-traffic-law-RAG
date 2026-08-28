@@ -130,6 +130,7 @@ def infer_parent_relations(provisions: Iterable[object]) -> list[ReferenceCandid
     rows = list(provisions)
     out: list[ReferenceCandidate] = []
     by_level: dict[tuple[object, ...], list[object]] = {}
+    clauses_by_key: dict[tuple[object, ...], list[object]] = {}
 
     def field(row: object, name: str) -> object:
         return row.get(name) if isinstance(row, Mapping) else getattr(row, name, None)
@@ -155,6 +156,12 @@ def infer_parent_relations(provisions: Iterable[object]) -> list[ReferenceCandid
         row_key = key(row)
         if row_key is not None:
             by_level.setdefault(row_key, []).append(row)
+        if field(row, "node_kind") == "CLAUSE":
+            document = field(row, "document_version_id")
+            article = field(row, "article")
+            clause = field(row, "clause")
+            if article is not None and clause is not None:
+                clauses_by_key.setdefault((document, article, clause), []).append(row)
 
     for _row_key, siblings in by_level.items():
         for index, source in enumerate(siblings):
@@ -178,7 +185,7 @@ def infer_parent_relations(provisions: Iterable[object]) -> list[ReferenceCandid
         article = field(child, "article")
         clause = field(child, "clause")
         parent_key = (
-            (document, "CLAUSE", article)
+            (document, article, clause)
             if kind == "POINT" and clause is not None
             else (document, "ARTICLE", article)
             if kind == "CLAUSE"
@@ -186,7 +193,11 @@ def infer_parent_relations(provisions: Iterable[object]) -> list[ReferenceCandid
         )
         if parent_key is None:
             continue
-        parent = next(iter(by_level.get(parent_key, [])), None)
+        parent = (
+            next(iter(clauses_by_key.get((document, article, clause), [])), None)
+            if kind == "POINT"
+            else next(iter(by_level.get(parent_key, [])), None)
+        )
         if parent is not None:
             out.append(
                 ReferenceCandidate(
