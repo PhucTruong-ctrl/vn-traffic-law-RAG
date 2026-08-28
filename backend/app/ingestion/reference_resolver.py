@@ -66,12 +66,14 @@ def resolve_candidate(candidate: ReferenceCandidate, provisions: Iterable[object
         pid = str(value(row, "provision_id", ""))
         target = candidate.target_provision_id or ""
         parts = target.split("/")
-        canonical = f"dieu-{parts[0]}"
+        hierarchy = [f"dieu-{parts[0]}"]
         if len(parts) > 1:
-            canonical += f"__khoan-{parts[1]}"
+            hierarchy.append(f"khoan-{parts[1]}")
         if len(parts) > 2:
-            canonical += f"__diem-{parts[2]}"
-        return pid == target or canonical in pid
+            hierarchy.append(f"diem-{parts[2]}")
+        if pid == target:
+            return True
+        return pid.split("__")[1:] == hierarchy
     rows = [p for p in provisions if matches(p)]
     if source_version is not None:
         rows = [p for p in rows if value(p, "version") == source_version]
