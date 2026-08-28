@@ -133,6 +133,9 @@ def infer_parent_relations(provisions: Iterable[object]) -> list[ReferenceCandid
 
     def field(row: object, name: str) -> object:
         return row.get(name) if isinstance(row, Mapping) else getattr(row, name, None)
+    def version(row: object) -> int | None:
+        value = field(row, "version")
+        return value if isinstance(value, int) else None
 
     def key(row: object) -> tuple[object, ...] | None:
         document = field(row, "document_version_id")
@@ -163,7 +166,7 @@ def infer_parent_relations(provisions: Iterable[object]) -> list[ReferenceCandid
                         "SIBLING_OF",
                         "hierarchy",
                         str(field(target, "provision_id")),
-                        field(target, "version"),
+                        version(target),
                         "RESOLVED",
                         extraction_method="hierarchy",
                     )
@@ -191,7 +194,7 @@ def infer_parent_relations(provisions: Iterable[object]) -> list[ReferenceCandid
                     "PARENT_OF",
                     "hierarchy",
                     str(field(child, "provision_id")),
-                    field(child, "version"),
+                    version(child),
                     "RESOLVED",
                     extraction_method="hierarchy",
                 )
