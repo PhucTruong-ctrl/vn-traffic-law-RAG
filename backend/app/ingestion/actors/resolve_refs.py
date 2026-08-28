@@ -1,4 +1,4 @@
-"""Resolve explicit legal references and hand off to temporal resolution."""
+"""Resolve legal references from persisted provisions and hand off to temporal resolution."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from typing import Any
 
 import dramatiq
+from sqlalchemy import select
 
 from app.config import get_queue_settings
 from app.ingestion.reference_resolver import (
@@ -13,12 +14,15 @@ from app.ingestion.reference_resolver import (
     resolve_references,
     review_item_for,
 )
+from app.persistence.models import ProvisionReference
 from app.persistence.repositories.review_items import ReviewItemRepository
 
 from ._state import (
     STATUS_PENDING_REVIEW,
     JobNotFoundError,
     finish_terminal,
+    latest_document_version,
+    list_provisions,
     load_run,
     new_session,
     set_stage,
@@ -32,9 +36,41 @@ _ACTOR_OPTIONS: dict[str, Any] = {
 }
 
 
+def _persist_reference(session: Any, source: Any, candidate: Any, targets: Mapping[str, Any]) -> None:
+    """Persist one candidate, keeping retries idempotent."""
+    existing = session.scalar(
+        select(ProvisionReference).where(
+            ProvisionReference.source_legal_provision_id == source.id,
+            ProvisionReference.relation_type == candidate.relation_type,
+            ProvisionReference.source_text == candidate.source_text,
+        )
+    )
+    if existing is not None:
+        return
+
+    target = targets.get(candidate.target_provision_id) if candidate.resolution_status == "RESOLVED" else None
+    resolved = target is not None
+    session.add(
+        ProvisionReference(
+            source_legal_provision_id=source.id,
+            target_legal_provision_id=target.id if resolved else None,
+            source_provision_id=source.provision_id,
+            source_provision_version_id=str(source.version),
+            target_provision_id=target.provision_id if resolved else None,
+            target_provision_version_id=str(target.version) if resolved else None,
+            relation_type=candidate.relation_type,
+            confidence=candidate.confidence,
+            extraction_method=candidate.extraction_method,
+            source_text=candidate.source_text,
+            resolution_status="RESOLVED" if resolved else "UNRESOLVED",
+            review_status="ACCEPTED" if resolved else "PENDING",
+        )
+    )
+
+
 @dramatiq.actor(**_ACTOR_OPTIONS)
 def resolve_refs_actor(job_id: str) -> None:
-    """Resolve manifest-provided references without fabricating persistence rows."""
+    """Resolve references using the canonical provisions persisted by extraction."""
     session = new_session()
     try:
         run = load_run(session, job_id)
@@ -42,39 +78,67 @@ def resolve_refs_actor(job_id: str) -> None:
             raise JobNotFoundError(f"ingestion run {job_id!r} not found")
         if stage_done(run, "RESOLVING_REFS"):
             return
+
         manifest = dict(run.manifest_json or {})
-        text = manifest.get("reference_text")
-        provisions = manifest.get("provisions")
+        version = latest_document_version(session, run.document_id)
+        persisted = list_provisions(session, version.id) if version is not None else []
+        legacy_text = manifest.get("reference_text")
+        legacy_provisions = manifest.get("provisions")
         known_documents = manifest.get("known_documents", {})
-        malformed = not isinstance(known_documents, Mapping)
-        if malformed:
+        malformed_documents = not isinstance(known_documents, Mapping)
+        if malformed_documents:
             known_documents = {}
-        if not isinstance(text, str) or not isinstance(provisions, list) or malformed:
-            manifest["reference_resolution"] = {
-                "status": "PENDING_REVIEW",
-                "reason": "MISSING_REFERENCE_INPUT",
-            }
-            manifest.setdefault("review_items", []).append(
-                {
-                "target_id": run.document_id,
-                "reason_code": "MISSING_REFERENCE_INPUT",
-            })
-        else:
-            refs = resolve_references(text, run.document_id, provisions)
-            docs = extract_document_relations(text, run.document_id, known_documents)
-            manifest["reference_resolution"] = {
-                "provision_references": [r.__dict__ for r in refs],
-                "document_relations": [r.__dict__ for r in docs],
-            }
-            manifest["review_items"] = [
+
+        refs: list[Any] = []
+        review_rows: list[dict[str, object]] = []
+        if persisted:
+            targets = {str(row.id): row for row in persisted}
+            for source in persisted:
+                candidates = resolve_references(
+                    source.source_text,
+                    source.provision_id,
+                    persisted,
+                    source_version=source.version,
+                )
+                refs.extend(candidates)
+                for candidate in candidates:
+                    _persist_reference(session, source, candidate, targets)
+                    if candidate.resolution_status != "RESOLVED":
+                        review_rows.append(
+                            review_item_for(
+                                candidate,
+                                document_id=run.document_id,
+                                ingestion_run_id=job_id,
+                            )
+                        )
+        elif isinstance(legacy_text, str) and isinstance(legacy_provisions, list) and not malformed_documents:
+            refs = resolve_references(legacy_text, run.document_id, legacy_provisions)
+            review_rows = [
                 review_item_for(r, document_id=run.document_id, ingestion_run_id=job_id)
-                for r in refs if r.resolution_status != "RESOLVED"
+                for r in refs
+                if r.resolution_status != "RESOLVED"
             ]
-        review_rows = manifest.get("review_items", [])
+        elif not persisted:
+            review_rows = [{"target_id": run.document_id, "reason_code": "MISSING_REFERENCE_INPUT"}]
+
+        docs = (
+            extract_document_relations(legacy_text, run.document_id, known_documents)
+            if isinstance(legacy_text, str) and not malformed_documents
+            else []
+        )
+        manifest["reference_resolution"] = {
+            "provision_references": [r.__dict__ for r in refs],
+            "document_relations": [r.__dict__ for r in docs],
+        }
+        manifest["review_items"] = review_rows
         for item in review_rows:
             ReviewItemRepository(session).create(
-                run.id, run.document_id, item.get("target_type", "REFERENCE_RESOLUTION"),
-                item["target_id"], item["reason_code"], item.get("description"),
+                run.id,
+                run.document_id,
+                item.get("target_type", "REFERENCE_RESOLUTION"),
+                item["target_id"],
+                item["reason_code"],
+                item.get("description"),
                 item.get("evidence"),
             )
         run.manifest_json = manifest
@@ -82,14 +146,14 @@ def resolve_refs_actor(job_id: str) -> None:
             finish_terminal(run, STATUS_PENDING_REVIEW, stage="RESOLVING_REFS")
             session.commit()
             return
-        run.manifest_json = manifest
         set_stage(run, "RESOLVING_REFS")
         session.commit()
     finally:
         session.close()
+
     from .resolve_temporal import resolve_temporal_actor
+
     resolve_temporal_actor.send(job_id)
 
 
 __all__ = ["resolve_refs_actor"]
-
