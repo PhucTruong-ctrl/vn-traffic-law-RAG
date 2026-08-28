@@ -2,8 +2,9 @@
 
 Drives the REAL Redis broker and REAL PostgreSQL through the actor state
 machine (doc 03 §3.13): parse -> normalize -> extract -> resolve_refs
-(STAGED halt), plus the quality_gate -> embed -> index tail with an idempotent
-index re-run, and the dead-letter queue.
+-> resolve_temporal, plus the quality_gate -> embed -> index tail with an
+idempotent index re-run, missing-successor review handoff, and the dead-letter
+queue.
 
 Guards (module-scoped fixture, following the ``tests/integration/conftest.py``
 reachability pattern): the whole module is SKIPPED when PostgreSQL
@@ -21,6 +22,7 @@ import os
 import uuid
 from datetime import UTC, date, datetime
 from typing import Any
+from unittest.mock import Mock
 
 import dramatiq
 import pytest
@@ -36,6 +38,8 @@ from app.ingestion.actors import index as index_module
 from app.ingestion.actors import parse as parse_module
 from app.ingestion.actors.index import index_actor
 from app.ingestion.actors.quality_gate import quality_gate_actor
+from app.ingestion.actors import quality_gate as quality_gate_module
+from app.ingestion.actors.resolve_temporal import resolve_temporal_actor
 from app.ingestion.document_ir import BoundingBox, DocumentElement, ParsedDocument, ParsedPage
 from app.ingestion.queue import get_broker
 from app.persistence.models import (
@@ -53,7 +57,16 @@ from app.persistence.models import (
     ParsedDocument as ParsedDocumentRow,
 )
 
-_QUEUES = ("parse", "normalize", "extract", "resolve_refs", "quality_gate", "embed", "index")
+_QUEUES = (
+    "parse",
+    "normalize",
+    "extract",
+    "resolve_refs",
+    "resolve_temporal",
+    "quality_gate",
+    "embed",
+    "index",
+)
 
 
 # --- module-scoped environment: PG scratch DB + Redis reachability ------------
@@ -320,6 +333,70 @@ def test_parse_chain_end_to_end_reaches_activated_resolvers(
             assert run.status == "RESOLVING_REFS"  # idempotent handoff
     finally:
         worker.stop()
+
+
+def test_temporal_missing_successor_hands_off_to_review(
+    queue_env: Any, clean_queues: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Missing amendment successor content halts before the quality gate."""
+    engine = queue_env
+    document_id = _document_id()
+    job_id = _unique("job")
+    run_id, provision_ids = _seed_gate_pipeline(engine, document_id, job_id)
+
+    with Session(engine) as session:
+        run = session.get(IngestionRun, run_id)
+        assert run is not None
+        run.manifest_json = {
+            "effective_from": "2025-01-01",
+            "review_status": "ACCEPTED",
+            "effect_events": [
+                {
+                    "event_type": "AMENDED",
+                    "event_date": "2025-02-01",
+                    "review_status": "ACCEPTED",
+                    "affected_provision_versions": [
+                        {"provision_id": provision_ids[0]}
+                    ],
+                }
+            ],
+        }
+        session.commit()
+
+    quality_gate_send = Mock()
+    monkeypatch.setattr(quality_gate_module.quality_gate_actor, "send", quality_gate_send)
+    broker = get_broker()
+    worker = Worker(
+        broker,
+        queues={"resolve_temporal", "quality_gate"},
+        worker_timeout=30_000,
+    )
+    worker.start()
+    try:
+        resolve_temporal_actor.send(job_id)
+        broker.join("resolve_temporal", timeout=60_000)
+        broker.join("quality_gate", timeout=60_000)
+        worker.join()
+    finally:
+        worker.stop()
+
+    with Session(engine) as session:
+        run = session.get(IngestionRun, run_id)
+        assert run is not None
+        assert run.status == "PENDING_REVIEW"
+        assert run.current_stage == "RESOLVING_TEMPORAL"
+        assert run.error is not None
+        assert run.error["code"] == "TEMPORAL_REVIEW"
+        items = list(
+            session.scalars(
+                select(ReviewItem).where(ReviewItem.ingestion_run_id == run_id)
+            )
+        )
+        assert len(items) == 1
+        assert items[0].reason_code == "MISSING_SUCCESSOR_CONTENT"
+        assert items[0].status == "PENDING"
+
+    assert quality_gate_send.call_count == 0
 
 
 # --- quality_gate -> embed -> index tail ----------------------------------------
