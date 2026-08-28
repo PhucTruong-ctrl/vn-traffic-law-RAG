@@ -57,14 +57,19 @@ def _persist_reference(
         else None
     )
     resolved = target is not None
+    target_id = target.id if target is not None else None
+    target_provision_id = target.provision_id if target is not None else None
+    target_version = target.version if target is not None else None
     session.add(
         ProvisionReference(
             source_legal_provision_id=source.id,
-            target_legal_provision_id=target.id if resolved else None,
+            target_legal_provision_id=target_id,
             source_provision_id=source.provision_id,
             source_provision_version_id=str(source.version),
-            target_provision_id=target.provision_id if resolved else None,
-            target_provision_version_id=str(target.version) if resolved else None,
+            target_provision_id=target_provision_id,
+            target_provision_version_id=(
+                str(target_version) if target_version is not None else None
+            ),
             relation_type=candidate.relation_type,
             confidence=candidate.confidence,
             extraction_method=candidate.extraction_method,
@@ -79,7 +84,7 @@ def _persist_reference(
 def resolve_refs_actor(job_id: str) -> None:
     """Resolve references using the canonical provisions persisted by extraction."""
     session = new_session()
-    review_rows: list[dict[str, Any]] = []
+
     try:
         run = load_run(session, job_id)
         if run is None:
