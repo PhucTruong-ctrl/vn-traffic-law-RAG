@@ -379,7 +379,7 @@ def test_dlq_middleware_ignores_success_and_retryable_failures(
 # --- staged resolvers ---------------------------------------------------------
 
 
-def test_resolve_refs_hands_off_to_temporal(
+def test_resolve_refs_requests_review_when_inputs_missing(
     _stub_broker: StubBroker, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     run = _run(status="EXTRACTING", current_stage="EXTRACTING")
@@ -411,9 +411,12 @@ def test_resolve_refs_hands_off_to_temporal(
 
     resolve_refs_actor(job_id="job-1")
 
-    assert run.manifest_json["review_items"] == []
+    assert run.manifest_json["review_items"] == [
+        {"target_id": "nd-168-2024", "reason_code": "MISSING_REFERENCE_INPUT"}
+    ]
+    assert run.status == "PENDING_REVIEW"
     assert session.committed is True
-    assert sent == ["job-1"]
+    assert sent == []
 
 
 def test_resolve_refs_second_run_is_noop(_stub_broker: StubBroker, monkeypatch) -> None:
