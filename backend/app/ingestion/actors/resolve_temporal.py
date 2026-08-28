@@ -54,7 +54,23 @@ def resolve_temporal_actor(job_id: str) -> None:
         ]
         manifest_events = run.manifest_json.get("effect_events", [])
         event_inputs = [*manifest_events, *stored_inputs]
-        result = resolve_temporal(run.manifest_json, event_inputs)
+        manifest = dict(run.manifest_json)
+        manifest_provisions = list(manifest.get("provisions", []) or [])
+        known_provisions = {
+            (str(item.get("provision_id", "")), item.get("version"))
+            for item in manifest_provisions
+            if isinstance(item, dict)
+        }
+        for row in rows:
+            provision_key = (row.provision_id, row.version)
+            if provision_key not in known_provisions:
+                manifest_provisions.append(
+                    {"provision_id": row.provision_id, "version": row.version}
+                )
+        manifest["provisions"] = manifest_provisions
+        if manifest.get("effective_from") is None and version.effective_from is not None:
+            manifest["effective_from"] = version.effective_from
+        result = resolve_temporal(manifest, event_inputs)
         provision_repo = ProvisionRepository(session)
         for resolved in result.versions:
             successor = resolved.superseded_by_version

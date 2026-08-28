@@ -96,11 +96,10 @@ def resolve_temporal(
             pid = str(affected.get("provision_id", ""))
             if pid:
                 grouped.setdefault(pid, []).append((event.event_date, event, affected))
-    if not grouped:
-        for item in manifest.get("provisions", []) or []:
-            pid = str(item.get("provision_id", ""))
-            if pid:
-                grouped.setdefault(pid, [])
+    for item in manifest.get("provisions", []) or []:
+        pid = str(item.get("provision_id", ""))
+        if pid:
+            grouped.setdefault(pid, [])
     result: list[ResolvedVersion] = []
     for pid, changes in grouped.items():
         version = 1
