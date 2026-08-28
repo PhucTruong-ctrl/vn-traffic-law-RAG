@@ -22,6 +22,19 @@ def test_partial_amendment_creates_half_open_lineage() -> None:
     assert result.versions[0].superseded_by_version == 2
     assert result.versions[1].lineage[0]["event_type"] == "PARTIAL_AMENDED"
 
+def test_manifest_provisions_resolve_without_effect_events() -> None:
+    result = resolve_temporal(
+        {
+            "effective_from": "2024-01-01",
+            "review_status": "ACCEPTED",
+            "provisions": [{"provision_id": "p", "version": 1}],
+        }
+    )
+
+    assert result.review_required is False
+    assert [(item.provision_id, item.version, item.effective_from) for item in result.versions] == [
+        ("p", 1, date(2024, 1, 1))
+    ]
 
 def test_uncertain_date_routes_review_and_blocks_index() -> None:
     result = resolve_temporal(
