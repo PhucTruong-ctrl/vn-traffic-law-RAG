@@ -83,7 +83,6 @@ def resolve_temporal(
     if base is None:
         errors.append("uncertain effective_from")
     default_status = review_status or str(manifest.get("review_status", "PENDING"))
-    review = bool(errors) or any(event.review_status != "ACCEPTED" for event in parsed)
     grouped: dict[str, list[tuple[date, EffectEvent, dict[str, Any]]]] = {}
     for event in sorted(
         (item for item in parsed if item.event_type != "EFFECTIVE"),
@@ -100,6 +99,7 @@ def resolve_temporal(
         pid = str(item.get("provision_id", ""))
         if pid:
             grouped.setdefault(pid, [])
+    review = bool(errors) or any(event.review_status != "ACCEPTED" for event in parsed)
     result: list[ResolvedVersion] = []
     for pid, changes in grouped.items():
         version = 1
@@ -147,6 +147,7 @@ def resolve_temporal(
                     tuple(lineage),
                 )
             )
+    review = bool(errors) or any(event.review_status != "ACCEPTED" for event in parsed)
     if review:
         result = [
             ResolvedVersion(
