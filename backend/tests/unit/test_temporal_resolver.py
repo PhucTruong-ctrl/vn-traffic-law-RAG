@@ -47,6 +47,21 @@ def test_uncertain_date_routes_review_and_blocks_index() -> None:
     assert all(not item.indexable for item in result.versions)
 
 
+def test_missing_event_date_requires_review_with_manifest_base_date() -> None:
+    result = resolve_temporal(
+        {
+            "effective_from": "2024-01-01",
+            "review_status": "ACCEPTED",
+            "provisions": [{"provision_id": "p", "version": 1}],
+        },
+        [{"event_type": "AMENDED", "event_date": None,
+          "review_status": "ACCEPTED", "affected_provision_versions": [{"provision_id": "p"}]}],
+    )
+
+    assert result.review_required is True
+    assert result.errors == ("uncertain event date: AMENDED",)
+    assert result.versions[0].indexable is False
+
 def test_terminal_event_closes_interval_at_event_date() -> None:
     result = resolve_temporal(
         {"effective_from": "2024-01-01", "review_status": "ACCEPTED"},
