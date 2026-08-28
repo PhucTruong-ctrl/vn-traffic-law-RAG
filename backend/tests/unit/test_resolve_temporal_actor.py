@@ -48,7 +48,11 @@ def test_actor_resolves_persisted_provisions_without_manifest_provisions(monkeyp
     monkeypatch.setattr(temporal_actor, "load_run", lambda _session, _job_id: run)
     monkeypatch.setattr(quality_gate_module.quality_gate_actor, "send", quality_gate_send)
     monkeypatch.setattr(temporal_actor, "stage_done", lambda _run, _stage: False)
-    monkeypatch.setattr(temporal_actor, "latest_document_version", lambda _session, _document_id: version)
+    monkeypatch.setattr(
+        temporal_actor,
+        "latest_document_version",
+        lambda _session, _document_id: version,
+    )
     monkeypatch.setattr(temporal_actor, "list_provisions", lambda _session, _version_id: [row])
 
 

@@ -37,7 +37,9 @@ _ACTOR_OPTIONS: dict[str, Any] = {
 }
 
 
-def _persist_reference(session: Any, source: Any, candidate: Any, targets: Mapping[str, Any]) -> None:
+def _persist_reference(
+    session: Any, source: Any, candidate: Any, targets: Mapping[str, Any]
+) -> None:
     """Persist one candidate, keeping retries idempotent."""
     existing = session.scalar(
         select(ProvisionReference).where(
@@ -49,7 +51,11 @@ def _persist_reference(session: Any, source: Any, candidate: Any, targets: Mappi
     if existing is not None:
         return
 
-    target = targets.get(candidate.target_provision_id) if candidate.resolution_status == "RESOLVED" else None
+    target = (
+        targets.get(candidate.target_provision_id)
+        if candidate.resolution_status == "RESOLVED"
+        else None
+    )
     resolved = target is not None
     session.add(
         ProvisionReference(
@@ -113,7 +119,11 @@ def resolve_refs_actor(job_id: str) -> None:
                                 ingestion_run_id=job_id,
                             )
                         )
-        elif isinstance(legacy_text, str) and isinstance(legacy_provisions, list) and not malformed_documents:
+        elif (
+            isinstance(legacy_text, str)
+            and isinstance(legacy_provisions, list)
+            and not malformed_documents
+        ):
             refs = resolve_references(legacy_text, run.document_id, legacy_provisions)
             review_rows = [
                 review_item_for(r, document_id=run.document_id, ingestion_run_id=job_id)
