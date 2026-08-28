@@ -5,15 +5,17 @@ ships with the W4 ticket VNLRAG-31.  Until then this actor MUST NOT resolve
 references, MUST NOT advance the pipeline and MUST NOT index anything — doing
 so would falsely complete a job whose cross-references are unresolved.
 
-Staging contract
-----------------
-When the job reaches RESOLVING_REFS the actor moves ``ingestion_runs`` to the
-terminal ``STAGED`` state (``current_stage=RESOLVING_REFS``, ``error`` carries
-the staging code) and sends NO next-step message.  The pipeline halts here —
-quality gates, embedding and indexing never run for the job.  ``STAGED`` is a
-terminal state: re-delivering the message is a no-op, and reconciliation
-(``reconcile_index.py``) cannot pick the job up because nothing was indexed.
+import dramatiq
+from sqlalchemy import select
 
+from app.config import get_queue_settings
+from app.ingestion.reference_resolver import (
+    extract_document_relations,
+    resolve_references,
+    review_item_for,
+)
+from app.persistence.models import ProvisionReference
+from app.persistence.repositories.review_items import ReviewItemRepository
 At W4 the VNLRAG-31 implementation replaces the short-circuit body with the
 real resolution + ``finish_terminal(run, ...)`` / ``resolve_temporal_actor.send``
 chain; the state-machine helpers in ``_state`` already support it.

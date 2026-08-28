@@ -1,23 +1,29 @@
 modelRoleStorage: project
+
 modelRoles:
-  default: opencode-go/deepseek-v4-flash:medium
-  smol: opencode-go/deepseek-v4-flash:low
-  task: opencode-go/deepseek-v4-flash:medium
-  commit: opencode-go/deepseek-v4-flash:low
-  plan: openai-codex/gpt-5.6-terra:high
-  slow: openai-codex/gpt-5.6-terra:high
-  vision: openai-codex/gpt-5.6-luna:medium
-  advisor: opencode-go/deepseek-v4-flash:medium
+  default: openai-codex/gpt-5.6-luna:xhigh
+  smol: openai-codex/gpt-5.6-luna:low
+  tiny: openai-codex/gpt-5.6-luna:low
+  commit: openai-codex/gpt-5.6-luna:low
+  task: openai-codex/gpt-5.6-luna:medium
+  plan: openai-codex/gpt-5.6-sol:high
+  slow: openai-codex/gpt-5.6-sol:medium
+  vision: openai-codex/gpt-5.6-luna:low
+  designer: openai-codex/gpt-5.6-luna:medium
+  advisor: openai-codex/gpt-5.6-luna:low
 tools:
   approvalMode: yolo
+
 advisor:
   enabled: true
+  syncBacklog: 1
+  immuneTurns: 5
+
+debug:
+  enabled: true
+
 skills:
   includeSkills:
-    - python-pro
-    - fastapi-expert
-    - debugging-wizard
-    - test-master
     - verification-before-completion
     - simplify
     - ask-matt
@@ -49,3 +55,14 @@ skills:
     - migrate-to-shoehorn
     - scaffold-exercises
     - setup-pre-commit
+    - library-skills
+    - martin-clean-code
+    - computer-use
+    - orca-cli
+    - ui-ux-pro-max
+    - ponytail
+    - ponytail-review
+    - ponytail-audit
+    - ponytail-debt
+    - ponytail-gain
+    - ponytail-help
