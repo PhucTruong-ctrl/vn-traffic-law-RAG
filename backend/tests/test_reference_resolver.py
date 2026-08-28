@@ -98,6 +98,52 @@ def test_hierarchy_relations_include_parent_and_sibling_edges() -> None:
     }
 
 
+def test_points_link_to_their_own_clause_parent() -> None:
+    provisions = [
+        {
+            "provision_id": "d__dieu-1__khoan-1",
+            "document_version_id": "v",
+            "node_kind": "CLAUSE",
+            "article": "1",
+            "clause": "1",
+        },
+        {
+            "provision_id": "d__dieu-1__khoan-1__diem-a",
+            "document_version_id": "v",
+            "node_kind": "POINT",
+            "article": "1",
+            "clause": "1",
+            "point": "a",
+        },
+        {
+            "provision_id": "d__dieu-1__khoan-2",
+            "document_version_id": "v",
+            "node_kind": "CLAUSE",
+            "article": "1",
+            "clause": "2",
+        },
+        {
+            "provision_id": "d__dieu-1__khoan-2__diem-a",
+            "document_version_id": "v",
+            "node_kind": "POINT",
+            "article": "1",
+            "clause": "2",
+            "point": "a",
+        },
+    ]
+
+    relations = infer_parent_relations(provisions)
+
+    assert {
+        (r.source_provision_id, r.target_provision_id)
+        for r in relations
+        if r.relation_type == "PARENT_OF"
+    } == {
+        ("d__dieu-1__khoan-1", "d__dieu-1__khoan-1__diem-a"),
+        ("d__dieu-1__khoan-2", "d__dieu-1__khoan-2__diem-a"),
+    }
+
+
 def test_penalty_companion_stays_pending_after_unique_resolution() -> None:
     provisions = [{"id": "target", "provision_id": "d__dieu-7", "version": 1}]
 
