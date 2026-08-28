@@ -87,9 +87,9 @@ def parse_query_date(text: str, *, current_date: date) -> ParsedQueryDate | None
             )
         except ValueError:
             return None
-    match = re.search(r"(?<!\d)(\d{4})(?!\d)", value)
-    if match and not _is_document_number_year(value, match):
-        return ParsedQueryDate(date(int(match[1]), 1, 1), "year", True)
+    for match in re.finditer(r"(?<!\d)(\d{4})(?!\d)", value):
+        if not _is_document_number_year(value, match):
+            return ParsedQueryDate(date(int(match[1]), 1, 1), "year", True)
     return None
 
 
