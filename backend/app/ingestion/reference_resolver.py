@@ -153,7 +153,7 @@ def infer_parent_relations(provisions: Iterable[object]) -> list[ReferenceCandid
         if row_key is not None:
             by_level.setdefault(row_key, []).append(row)
 
-    for row_key, siblings in by_level.items():
+    for _row_key, siblings in by_level.items():
         for index, source in enumerate(siblings):
             source_id = str(field(source, "provision_id"))
             for target in siblings[index + 1 :]:
