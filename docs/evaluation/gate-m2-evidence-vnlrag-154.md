@@ -4,7 +4,7 @@
 
 **FAIL / BLOCKED (2026-08-26).** This report is reproducible evidence that the
 current checked-out pipeline does not yet satisfy Gate M2; it does not assert
-closure or fabricate external-service observations.
+closure or fabricate downstream-service observations.
 
 ## Required chain
 
@@ -22,7 +22,7 @@ embedding -> Qdrant -> search hit`
 | Source provision | Deterministic Vietnamese provision fixture must be supplied by the W4 E2E run |
 | Resolver identifiers | `app.ingestion.reference_resolver.resolve_references`; `app.ingestion.temporal_resolver.resolve_temporal` |
 | Database/Qdrant config | Repository settings (`DATABASE_URL`, `QDRANT_URL`, collection alias `legal_provisions_active`) |
-| Run timestamp | 2026-08-26 (report generation) |
+| Run timestamp | 2026-08-26 (report generation; resolver rerun 2026-08-26) |
 
 ## Observations
 
@@ -34,21 +34,24 @@ embedding -> Qdrant -> search hit`
    the persisted resolver handoff at `status=RESOLVING_REFS` and
    `current_stage=RESOLVING_REFS`, with no `STAGED_ACTOR` error. This is not
    evidence of downstream indexing.
-3. With services unavailable, no honest PostgreSQL `ACCEPTED` observation,
-   Qdrant point, or search hit is recorded here.
+3. PostgreSQL and Redis are reachable for the current host-mapped verification
+   rerun, but the existing test does not execute embedding, Qdrant, or search.
+   No honest PostgreSQL `ACCEPTED` observation, Qdrant point, or search hit is
+   recorded here.
 4. The quality gate contract correctly refuses premature acceptance: an
    `ACCEPTED` provision requires `effective_from`; interval-less rows remain
    `PENDING`.
-5. The activated resolver handoff must be rerun with reachable PostgreSQL,
-   embedding, and Qdrant before Gate M2 can close.
+5. The activated resolver handoff must be extended to exercise reachable
+   embedding and Qdrant services before Gate M2 can close.
 
 ## Pass/fail criteria
 
 - [FAIL] Accepted provision has an interval returned by the temporal resolver:
-  execution was blocked by unavailable external services.
-- [FAIL] PostgreSQL row is `ACCEPTED` with that interval: no reachable DB
+  the current integration test stops at the resolver handoff.
+- [FAIL] PostgreSQL row is `ACCEPTED` with that interval: no end-to-end
   observation.
-- [FAIL] Embedding and Qdrant indexing: no reachable external services.
+- [FAIL] Embedding and Qdrant indexing: the current integration test mocks or
+  does not exercise these downstream stages.
 - [FAIL] Search returns the provision: no point was observed.
 - [PASS] No interval-less `ACCEPTED` row is indexed: the quality gate requires
   `effective_from` before acceptance.
@@ -62,10 +65,8 @@ uv run pytest tests/integration/test_queue_actors.py \
   -k activated_resolvers -q
 ```
 
-Observed prior run result: `1 skipped in 5.93s` (exit status 1), because the
-integration fixture could not reach configured external services. No gate pass
-is inferred from this skip.
-The test demonstrates the activated resolver handoff prerequisite. After the
-external services are reachable, append actual resolver interval, PostgreSQL,
-embedding, Qdrant, and search observations (timestamps and
-configuration/collection identifiers) to this report.
+Observed current host-mapped run result: `1 passed, 3 deselected in 60.07s`
+for `-k activated_resolvers`. This proves the activated resolver handoff only;
+it does not prove the downstream Gate M2 criteria above. A complete Gate M2
+run must append actual resolver interval, PostgreSQL, embedding, Qdrant, and
+search observations (timestamps and configuration/collection identifiers).
