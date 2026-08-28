@@ -27,6 +27,8 @@ class ReferenceCandidate:
     extraction_method: str = "explicit"
     confidence: float | None = None
     reason: str | None = None
+    target_document_id: str | None = None
+
 
 @dataclass(frozen=True)
 class DocumentCandidate:
@@ -46,16 +48,49 @@ _DOC_PATTERNS = {
  "GUIDES": re.compile(r"hướng dẫn\s+(?:thi hành\s+)?(?P<doc>[^.;,]+)", re.I),
  "RELATED_TO": re.compile(r"liên quan đến\s+(?P<doc>[^.;,]+)", re.I),
 }
-_CITATION = re.compile(r"(?:(?:điểm\s+(?P<point>[a-zđ]))\s+)?(?:(?:khoản|mục)\s+(?P<clause>\d+))?\s*điều\s+(?P<article>\d+)", re.I)
+_DOCUMENT = r"(?P<document>(?P<kind>luật|bộ luật|nghị định|thông tư|quyết định|nghị quyết|pháp lệnh)\s+(?:số\s+)?(?P<number>\d+)(?:/(?P<year>\d{4}))?(?:/[a-zđ-]+)?)"
+_CITATION = re.compile(
+    rf"(?:(?:điểm\s+(?P<point>[a-zđ]))\s+)?"
+    rf"(?:(?:khoản|mục)\s+(?P<clause>\d+))?\s*điều\s+(?P<article>\d+)"
+    rf"(?:\s+{_DOCUMENT})?",
+    re.I,
+)
+
+_DOCUMENT_SLUG_PREFIX = {
+    "luật": "luat",
+    "bộ luật": "luat",
+    "nghị định": "nd",
+    "thông tư": "tt",
+    "quyết định": "qd",
+    "nghị quyết": "nq",
+    "pháp lệnh": "pl",
+}
+
+def _target_document_id(match: re.Match[str]) -> str | None:
+    if match.group("document") is None:
+        return None
+    kind = " ".join(match.group("kind").split()).casefold()
+    slug = _DOCUMENT_SLUG_PREFIX[kind]
+    number = match.group("number")
+    year = match.group("year")
+    return f"{slug}-{number}" + (f"-{year}" if year else "")
 
 def extract_provision_references(text: str, source_id: str, *, relation_type: str = "REFERS_TO") -> list[ReferenceCandidate]:
-    """Extract only explicit citations, normalized to ``article/clause/point`` keys."""
+    """Extract explicit citations, retaining any named target document."""
     if relation_type not in PROVISION_RELATIONS:
         raise ValueError(f"invalid provision relation: {relation_type}")
     out = []
     for m in _CITATION.finditer(text):
         key = "/".join(x for x in (m.group("article"), m.group("clause"), m.group("point")) if x)
-        out.append(ReferenceCandidate(source_id, relation_type, m.group(0), target_provision_id=key))
+        out.append(
+            ReferenceCandidate(
+                source_id,
+                relation_type,
+                m.group(0),
+                target_provision_id=key,
+                target_document_id=_target_document_id(m),
+            )
+        )
     return out
 
 def resolve_candidate(candidate: ReferenceCandidate, provisions: Iterable[object], *, source_version: int | None = None) -> ReferenceCandidate:
@@ -64,6 +99,11 @@ def resolve_candidate(candidate: ReferenceCandidate, provisions: Iterable[object
         return row.get(key, default) if isinstance(row, Mapping) else getattr(row, key, default)
     def matches(row: object) -> bool:
         pid = str(value(row, "provision_id", ""))
+        if candidate.target_document_id and not (
+            pid == candidate.target_document_id
+            or pid.startswith(f"{candidate.target_document_id}__")
+        ):
+            return False
         target = candidate.target_provision_id or ""
         parts = target.split("/")
         hierarchy = [f"dieu-{parts[0]}"]
@@ -73,7 +113,7 @@ def resolve_candidate(candidate: ReferenceCandidate, provisions: Iterable[object
             hierarchy.append(f"diem-{parts[2]}")
         if pid == target:
             return True
-        return pid.split("__")[1:] == hierarchy
+        return len(pid.split("__")) > 1 and pid.split("__")[1:] == hierarchy
     rows = [p for p in provisions if matches(p)]
     if source_version is not None:
         rows = [p for p in rows if value(p, "version") == source_version]
@@ -88,11 +128,16 @@ def resolve_candidate(candidate: ReferenceCandidate, provisions: Iterable[object
     )
     return ReferenceCandidate(**{**candidate.__dict__, "target_provision_id": str(value(row, "id", value(row, "provision_id", candidate.target_provision_id))), "target_version": value(row, "version"), "resolution_status": resolution_status})
 
+
 def review_item_for(candidate: ReferenceCandidate, *, document_id: str, ingestion_run_id: str) -> dict[str, object]:
     """Return fields matching ReviewItem for unresolved/ambiguous candidates."""
     return {"ingestion_run_id": ingestion_run_id, "document_id": document_id, "target_type": "PROVISION_REFERENCE", "target_id": candidate.source_provision_id, "reason_code": candidate.reason or "UNRESOLVED_REFERENCE", "description": candidate.source_text, "evidence": {"relation_type": candidate.relation_type}}
 
-_PENALTY = re.compile(r"(?:mức phạt|hình phạt|phạt tiền)[^.;]*(?:quy định tại|theo)\s+(?P<citation>(?:điểm\s+[a-zđ]\s+)?(?:khoản\s+\d+\s+)?điều\s+\d+)", re.I)
+_PENALTY = re.compile(
+    rf"(?:mức phạt|hình phạt|phạt tiền)[^.;]*(?:quy định tại|theo)\s+"
+    rf"(?P<citation>(?:điểm\s+[a-zđ]\s+)?(?:khoản\s+\d+\s+)?điều\s+\d+(?:\s+{_DOCUMENT})?)",
+    re.I,
+)
 
 def infer_penalty_companions(text: str, source_id: str) -> list[ReferenceCandidate]:
     """Infer companions only from an explicit penalty-to-provision citation."""
@@ -108,7 +153,16 @@ def infer_penalty_companions(text: str, source_id: str) -> list[ReferenceCandida
                 )
                 if value
             )
-            out.append(ReferenceCandidate(source_id, "PENALTY_COMPANION", m.group(0), target_provision_id=target, extraction_method="explicit_penalty"))
+            out.append(
+                ReferenceCandidate(
+                    source_id,
+                    "PENALTY_COMPANION",
+                    m.group(0),
+                    target_provision_id=target,
+                    target_document_id=_target_document_id(citation),
+                    extraction_method="explicit_penalty",
+                )
+            )
     return out
 
 def resolve_references(text: str, source_id: str, provisions: Iterable[object], *, source_version: int | None = None) -> list[ReferenceCandidate]:

@@ -157,3 +157,19 @@ def test_penalty_companion_stays_pending_after_unique_resolution() -> None:
 
     assert candidate.target_provision_id == "target"
     assert candidate.resolution_status == "PENDING_REVIEW"
+
+
+def test_explicit_foreign_document_citation_stays_pending() -> None:
+    candidates = resolve_references(
+        "Khoản 1 Điều 5 Nghị định 100/2019/NĐ-CP.",
+        "nd-168-2024__dieu-7",
+        [{"id": "current", "provision_id": "nd-168-2024__dieu-5__khoan-1", "version": 1}],
+        source_version=1,
+    )
+
+    candidate = candidates[0]
+    assert candidate.source_text == "Khoản 1 Điều 5 Nghị định 100/2019/NĐ-CP"
+    assert candidate.target_document_id == "nd-100-2019"
+    assert candidate.resolution_status == "PENDING_REVIEW"
+    assert candidate.reason == "TARGET_NOT_FOUND"
+    assert candidate.target_provision_id == "5/1"
