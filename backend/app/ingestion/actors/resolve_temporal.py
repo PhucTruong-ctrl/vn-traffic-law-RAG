@@ -14,6 +14,7 @@ from app.persistence.repositories.provisions import ProvisionRepository
 from ._state import (
     STATUS_PENDING_REVIEW,
     JobNotFoundError,
+    finish_terminal,
     latest_document_version,
     list_provisions,
     load_run,
@@ -72,6 +73,7 @@ def resolve_temporal_actor(job_id: str) -> None:
             manifest["effective_from"] = version.effective_from
         result = resolve_temporal(manifest, event_inputs)
         provision_repo = ProvisionRepository(session)
+        has_missing_successor = False
         for resolved in result.versions:
             successor = resolved.superseded_by_version
             if successor is None:
@@ -89,6 +91,7 @@ def resolve_temporal_actor(job_id: str) -> None:
                 None,
             )
             if source_row is None or successor_row is None:
+                has_missing_successor = True
                 if session.scalar(select(ReviewItem).where(
                     ReviewItem.ingestion_run_id == run.id,
                     ReviewItem.reason_code == "MISSING_SUCCESSOR_CONTENT",
@@ -142,15 +145,23 @@ def resolve_temporal_actor(job_id: str) -> None:
                         description="Temporal resolution requires review",
                         evidence={"errors": list(result.errors)},
                     ))
-        if result.review_required:
-            run.status = STATUS_PENDING_REVIEW
-            run.error = {"code": "TEMPORAL_REVIEW", "errors": list(result.errors)}
+        review_required = result.review_required or has_missing_successor
+        if review_required:
+            errors = list(result.errors)
+            if has_missing_successor:
+                errors.append("missing temporal successor content")
+            finish_terminal(
+                run,
+                STATUS_PENDING_REVIEW,
+                stage="RESOLVING_TEMPORAL",
+                error={"code": "TEMPORAL_REVIEW", "errors": errors},
+            )
         else:
             set_stage(run, "RESOLVING_TEMPORAL")
         session.commit()
     finally:
         session.close()
-    if not result.review_required:
+    if not review_required:
         from .quality_gate import quality_gate_actor
         quality_gate_actor.send(job_id)
 
