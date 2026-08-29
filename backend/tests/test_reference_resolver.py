@@ -194,7 +194,6 @@ def test_foreign_law_identifier_preserves_authority_suffix() -> None:
     assert candidates[0].resolution_status == "RESOLVED"
 
 
-
 def test_circular_authority_suffix_normalizes_to_canonical_document() -> None:
     candidates = resolve_references(
         "Theo khoản 1 Điều 5 Thông tư 35/2024/TT-BGTVT.",
@@ -260,6 +259,7 @@ def test_foreign_target_collision_without_unique_version_stays_pending() -> None
 
     assert resolved.resolution_status == "PENDING_REVIEW"
     assert resolved.reason == "AMBIGUOUS_REFERENCE"
+
 
 def test_manifest_relations_are_parsed_as_authoritative_edges() -> None:
     relations = extract_manifest_relations(
