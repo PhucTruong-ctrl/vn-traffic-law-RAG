@@ -91,6 +91,19 @@ def resolve_temporal_actor(job_id: str) -> None:
                     if target_version is not None
                     else []
                 )
+        target_rows = [
+            row for document_rows in target_rows_by_document.values() for row in document_rows
+        ]
+        rows_for_resolution = list(
+            {
+                (
+                    getattr(row, "document_version_id", None),
+                    row.provision_id,
+                    row.version,
+                ): row
+                for row in [*rows, *target_rows]
+            }.values()
+        )
         relation_inputs = [
             {
                 "event_type": relation_event_types[relation.relation_type],
@@ -115,7 +128,7 @@ def resolve_temporal_actor(job_id: str) -> None:
             for item in manifest_provisions
             if isinstance(item, dict)
         }
-        for row in rows:
+        for row in rows_for_resolution:
             provision_key = (row.provision_id, row.version)
             if provision_key not in known_provisions:
                 manifest_provisions.append(
@@ -139,7 +152,7 @@ def resolve_temporal_actor(job_id: str) -> None:
             source_row = next(
                 (
                     row
-                    for row in rows
+                    for row in rows_for_resolution
                     if row.provision_id == resolved.provision_id and row.version == resolved.version
                 ),
                 None,
@@ -147,7 +160,7 @@ def resolve_temporal_actor(job_id: str) -> None:
             successor_row = next(
                 (
                     row
-                    for row in rows
+                    for row in rows_for_resolution
                     if row.provision_id == resolved.provision_id and row.version == successor
                 ),
                 None,
@@ -203,7 +216,7 @@ def resolve_temporal_actor(job_id: str) -> None:
             else:
                 successor_entry.document_version_id = successor_row.document_version_id
         by_id = {(item.provision_id, item.version): item for item in result.versions}
-        for row in rows:
+        for row in rows_for_resolution:
             matching_version = by_id.get((row.provision_id, row.version))
             if matching_version:
                 row.effective_from = matching_version.effective_from

@@ -91,11 +91,13 @@ def _target_document_id(match: re.Match[str]) -> str | None:
         "nq": "nq",
         "pl": "pl",
     }[slug]
-    if normalized_suffix == "nđ-cp":
-        normalized_suffix = None
-    elif normalized_suffix and re.fullmatch(
-        rf"{re.escape(authority_prefix)}-[a-zđ0-9]+(?:-[a-zđ0-9]+)*",
-        normalized_suffix,
+    if (
+        normalized_suffix == "nđ-cp"
+        or normalized_suffix
+        and re.fullmatch(
+            rf"{re.escape(authority_prefix)}-[a-zđ0-9]+(?:-[a-zđ0-9]+)*",
+            normalized_suffix,
+        )
     ):
         normalized_suffix = None
     return (
@@ -118,6 +120,7 @@ def _contains(interval_start: object, interval_end: object, point: object) -> bo
         )
     except TypeError:
         return False
+
 
 def extract_provision_references(
     text: str, source_id: str, *, relation_type: str = "REFERS_TO"
@@ -183,7 +186,7 @@ def resolve_candidate(
         ]
         if applicable:
             rows = applicable
-        elif source_version is not None:
+        elif source_version is not None and len(rows) > 1:
             rows = [p for p in rows if _field(p, "version") == source_version]
 
     if len(rows) != 1:
