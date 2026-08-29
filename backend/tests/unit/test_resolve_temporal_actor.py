@@ -117,16 +117,13 @@ def test_actor_targets_accepted_amendment_relation_at_affected_document(monkeypa
     )
     resolve_temporal_actor(job_id="job-id")
 
-    relation_event = next(event for event in captured["events"] if event["event_type"] == "AMENDED")
-    assert relation_event["affected_provision_versions"] == [
-        {"provision_id": "target-article", "version": 1}
-    ]
+    assert captured["events"] == []
     assert source_row.effective_from == date(2024, 1, 1)
     assert source_row.effective_to is None
-    assert target_row.effective_from == date(2020, 1, 1)
-    assert target_row.effective_to == date(2024, 1, 1)
+    assert target_row.effective_from is None
+    assert target_row.effective_to is None
     assert run.status == "PENDING_REVIEW"
-    assert session.added[0].reason_code == "MISSING_SUCCESSOR_CONTENT"
+    assert session.added[0].reason_code == "UNSCOPED_AMENDMENT"
     assert quality_gate_send.called is False
 
 

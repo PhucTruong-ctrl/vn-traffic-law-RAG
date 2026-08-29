@@ -82,6 +82,16 @@ def resolve_temporal_actor(job_id: str) -> None:
                 DocumentRelation.effective_from,
             )
         ).all()
+        unscoped_relations = [
+            relation
+            for relation in stored_relations
+            if relation.relation_type in {"AMENDS", "CORRECTS"}
+        ]
+        stored_relations = [
+            relation
+            for relation in stored_relations
+            if relation.relation_type not in {"AMENDS", "CORRECTS"}
+        ]
         target_rows_by_document: dict[str, list[Any]] = {}
         for relation in stored_relations:
             target_document_id = relation.target_document_id
@@ -155,7 +165,19 @@ def resolve_temporal_actor(job_id: str) -> None:
                     (target_rows, resolve_temporal(target_manifest, target_events))
                 )
         provision_repo = ProvisionRepository(session)
-        has_missing_successor = False
+        has_missing_successor = bool(unscoped_relations)
+        for relation in unscoped_relations:
+            session.add(
+                ReviewItem(
+                    ingestion_run_id=run.id,
+                    document_id=run.document_id,
+                    target_type="document",
+                    target_id=relation.target_document_id,
+                    reason_code="UNSCOPED_AMENDMENT",
+                    description="Document amendment lacks affected provision scope",
+                    evidence={"relation_type": relation.relation_type},
+                )
+            )
         for document_rows, result in document_results:
             for resolved in result.versions:
                 successor = resolved.superseded_by_version
