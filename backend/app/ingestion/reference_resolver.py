@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Iterable, Mapping
+from typing import Any, Iterable, Mapping, cast
 
 PROVISION_RELATIONS = frozenset({"PARENT_OF", "REFERS_TO", "SIBLING_OF", "PENALTY_COMPANION"})
 DOCUMENT_RELATIONS = frozenset(
@@ -115,9 +115,10 @@ def _contains(interval_start: object, interval_end: object, point: object) -> bo
     if point is None:
         return False
     try:
-        return (interval_start is None or interval_start <= point) and (
-            interval_end is None or point < interval_end
-        )
+        start = cast(Any, interval_start)
+        end = cast(Any, interval_end)
+        value = cast(Any, point)
+        return (start is None or start <= value) and (end is None or value < end)
     except TypeError:
         return False
 
