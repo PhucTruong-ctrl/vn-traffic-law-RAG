@@ -79,9 +79,7 @@ def test_actor_targets_accepted_amendment_relation_at_affected_document(monkeypa
     session = RelationSession()
     captured = {}
     quality_gate_send = Mock()
-    result = ResolutionResult(
-        (ResolvedVersion("source-article", 1, date(2024, 1, 1), None),), ()
-    )
+    result = ResolutionResult((ResolvedVersion("source-article", 1, date(2024, 1, 1), None),), ())
     monkeypatch.setattr(temporal_actor, "new_session", lambda: session)
     monkeypatch.setattr(temporal_actor, "load_run", lambda *_: run)
     monkeypatch.setattr(temporal_actor, "stage_done", lambda *_: False)
