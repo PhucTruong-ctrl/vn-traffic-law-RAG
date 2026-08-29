@@ -64,9 +64,7 @@ def _persist_reference(
     if candidate.resolution_status in {"RESOLVED", "PENDING_REVIEW"}:
         target = targets.get(str(candidate.target_provision_id))
         if target is None and candidate.target_version is not None:
-            target = targets.get(
-                (candidate.target_provision_id, candidate.target_version)
-            )
+            target = targets.get((candidate.target_provision_id, candidate.target_version))
     resolved = candidate.resolution_status in {"RESOLVED", "PENDING_REVIEW"} and target is not None
     target_id = target.id if target is not None else None
     target_provision_id = target.provision_id if target is not None else None
@@ -151,18 +149,12 @@ def resolve_refs_actor(job_id: str) -> None:
         review_rows: list[dict[str, Any]] = []
         if persisted:
             resolution_rows = [*persisted, *canonical_targets]
-            targets: dict[object, Any] = {
-                str(row.id): row for row in resolution_rows
-            }
+            targets: dict[object, Any] = {str(row.id): row for row in resolution_rows}
             by_identity: dict[tuple[str, int], list[Any]] = {}
             for row in resolution_rows:
                 by_identity.setdefault((row.provision_id, row.version), []).append(row)
             targets.update(
-                {
-                    identity: rows[0]
-                    for identity, rows in by_identity.items()
-                    if len(rows) == 1
-                }
+                {identity: rows[0] for identity, rows in by_identity.items() if len(rows) == 1}
             )
             sources = {row.provision_id: row for row in persisted}
             for source in persisted:
