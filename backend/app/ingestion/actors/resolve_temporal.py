@@ -92,16 +92,20 @@ def resolve_temporal_actor(job_id: str) -> None:
             for relation in stored_relations
             if relation.relation_type not in {"AMENDS", "CORRECTS"}
         ]
+        missing_target_relations: list[Any] = []
         target_rows_by_document: dict[str, list[Any]] = {}
         for relation in stored_relations:
             target_document_id = relation.target_document_id
             if target_document_id not in target_rows_by_document:
                 target_version = latest_document_version(session, target_document_id)
-                target_rows_by_document[target_document_id] = (
+                target_rows = (
                     list_provisions(session, target_version.id)
                     if target_version is not None
                     else []
                 )
+                target_rows_by_document[target_document_id] = target_rows
+                if not target_rows:
+                    missing_target_relations.append(relation)
         source_manifest = dict(run.manifest_json)
         source_manifest_provisions = list(source_manifest.get("provisions", []) or [])
         known_provisions = {
@@ -165,7 +169,7 @@ def resolve_temporal_actor(job_id: str) -> None:
                     (target_rows, resolve_temporal(target_manifest, target_events))
                 )
         provision_repo = ProvisionRepository(session)
-        has_missing_successor = bool(unscoped_relations)
+        has_missing_successor = bool(unscoped_relations or missing_target_relations)
         for relation in unscoped_relations:
             session.add(
                 ReviewItem(
@@ -175,6 +179,18 @@ def resolve_temporal_actor(job_id: str) -> None:
                     target_id=relation.target_document_id,
                     reason_code="UNSCOPED_AMENDMENT",
                     description="Document amendment lacks affected provision scope",
+                    evidence={"relation_type": relation.relation_type},
+                )
+            )
+        for relation in missing_target_relations:
+            session.add(
+                ReviewItem(
+                    ingestion_run_id=run.id,
+                    document_id=run.document_id,
+                    target_type="document",
+                    target_id=relation.target_document_id,
+                    reason_code="MISSING_TARGET_CONTENT",
+                    description="Temporal relation target has no persisted provision content",
                     evidence={"relation_type": relation.relation_type},
                 )
             )
