@@ -81,7 +81,22 @@ def _target_document_id(match: re.Match[str]) -> str | None:
     year = match.group("year")
     suffix = match.group("suffix")
     normalized_suffix = suffix.casefold() if suffix else None
+    # NĐ-CP and issuer-qualified authority suffixes identify the issuing
+    # authority, not a distinct canonical document.
+    authority_prefix = {
+        "luat": "luat",
+        "nd": "nd",
+        "tt": "tt",
+        "qd": "qd",
+        "nq": "nq",
+        "pl": "pl",
+    }[slug]
     if normalized_suffix == "nđ-cp":
+        normalized_suffix = None
+    elif normalized_suffix and re.fullmatch(
+        rf"{re.escape(authority_prefix)}-[a-zđ0-9]+(?:-[a-zđ0-9]+)*",
+        normalized_suffix,
+    ):
         normalized_suffix = None
     return (
         f"{slug}-{number}"
@@ -89,6 +104,20 @@ def _target_document_id(match: re.Match[str]) -> str | None:
         + (f"-{normalized_suffix}" if normalized_suffix else "")
     )
 
+
+def _field(row: object, key: str, default: object = None) -> object:
+    return row.get(key, default) if isinstance(row, Mapping) else getattr(row, key, default)
+
+
+def _contains(interval_start: object, interval_end: object, point: object) -> bool:
+    if point is None:
+        return False
+    try:
+        return (interval_start is None or interval_start <= point) and (
+            interval_end is None or point < interval_end
+        )
+    except TypeError:
+        return False
 
 def extract_provision_references(
     text: str, source_id: str, *, relation_type: str = "REFERS_TO"
@@ -118,12 +147,10 @@ def resolve_candidate(
     source_version: int | None = None,
 ) -> ReferenceCandidate:
     """Bind a citation to one canonical provision, including JSON mappings."""
-
-    def value(row: object, key: str, default: object = None) -> object:
-        return row.get(key, default) if isinstance(row, Mapping) else getattr(row, key, default)
+    rows_all = list(provisions)
 
     def matches(row: object) -> bool:
-        pid = str(value(row, "provision_id", ""))
+        pid = str(_field(row, "provision_id", ""))
         if candidate.target_document_id and not (
             pid == candidate.target_document_id
             or pid.startswith(f"{candidate.target_document_id}__")
@@ -140,11 +167,25 @@ def resolve_candidate(
             return True
         return len(pid.split("__")) > 1 and pid.split("__")[1:] == hierarchy
 
-    rows = [p for p in provisions if matches(p)]
-    # A foreign citation is resolved against its canonical document version,
-    # not the version currently being ingested.
-    if source_version is not None and candidate.target_document_id is None:
-        rows = [p for p in rows if value(p, "version") == source_version]
+    rows = [p for p in rows_all if matches(p)]
+    if candidate.target_document_id is None and source_version is not None:
+        rows = [p for p in rows if _field(p, "version") == source_version]
+    elif candidate.target_document_id:
+        source = next(
+            (p for p in rows_all if _field(p, "provision_id") == candidate.source_provision_id),
+            None,
+        )
+        source_start = _field(source, "effective_from")
+        applicable = [
+            p
+            for p in rows
+            if _contains(_field(p, "effective_from"), _field(p, "effective_to"), source_start)
+        ]
+        if applicable:
+            rows = applicable
+        elif source_version is not None:
+            rows = [p for p in rows if _field(p, "version") == source_version]
+
     if len(rows) != 1:
         reason = "AMBIGUOUS_REFERENCE" if len(rows) > 1 else "TARGET_NOT_FOUND"
         return ReferenceCandidate(
@@ -158,9 +199,9 @@ def resolve_candidate(
         **{
             **candidate.__dict__,
             "target_provision_id": str(
-                value(row, "id", value(row, "provision_id", candidate.target_provision_id))
+                _field(row, "id", _field(row, "provision_id", candidate.target_provision_id))
             ),
-            "target_version": value(row, "version"),
+            "target_version": _field(row, "version"),
             "resolution_status": resolution_status,
         }
     )

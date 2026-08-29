@@ -194,6 +194,73 @@ def test_foreign_law_identifier_preserves_authority_suffix() -> None:
     assert candidates[0].resolution_status == "RESOLVED"
 
 
+
+def test_circular_authority_suffix_normalizes_to_canonical_document() -> None:
+    candidates = resolve_references(
+        "Theo khoản 1 Điều 5 Thông tư 35/2024/TT-BGTVT.",
+        "nd-168-2024__dieu-7",
+        [{"id": "target", "provision_id": "tt-35-2024__dieu-5__khoan-1", "version": 1}],
+    )
+
+    assert candidates[0].target_document_id == "tt-35-2024"
+    assert candidates[0].resolution_status == "RESOLVED"
+
+
+def test_foreign_target_selects_version_applicable_to_source_interval() -> None:
+    provisions = [
+        {
+            "provision_id": "source__dieu-1",
+            "version": 2,
+            "effective_from": "2023-01-01",
+            "effective_to": None,
+        },
+        {
+            "id": "old",
+            "provision_id": "nd-100-2019__dieu-5__khoan-1",
+            "version": 1,
+            "effective_from": "2020-01-01",
+            "effective_to": "2022-01-01",
+        },
+        {
+            "id": "current",
+            "provision_id": "nd-100-2019__dieu-5__khoan-1",
+            "version": 2,
+            "effective_from": "2022-01-01",
+            "effective_to": None,
+        },
+    ]
+    candidate = ReferenceCandidate(
+        "source__dieu-1",
+        "REFERS_TO",
+        "Điều 5 Nghị định 100/2019/NĐ-CP",
+        target_provision_id="5/1",
+        target_document_id="nd-100-2019",
+    )
+
+    resolved = resolve_candidate(candidate, provisions, source_version=2)
+
+    assert resolved.target_provision_id == "current"
+    assert resolved.target_version == 2
+
+
+def test_foreign_target_collision_without_unique_version_stays_pending() -> None:
+    candidate = ReferenceCandidate(
+        "source",
+        "REFERS_TO",
+        "Điều 5 Nghị định 100/2019/NĐ-CP",
+        target_provision_id="5",
+        target_document_id="nd-100-2019",
+    )
+    provisions = [
+        {"id": "one", "provision_id": "nd-100-2019__dieu-5", "version": 1},
+        {"id": "two", "provision_id": "nd-100-2019__dieu-5", "version": 2},
+    ]
+
+    resolved = resolve_candidate(candidate, provisions)
+
+    assert resolved.resolution_status == "PENDING_REVIEW"
+    assert resolved.reason == "AMBIGUOUS_REFERENCE"
+
 def test_manifest_relations_are_parsed_as_authoritative_edges() -> None:
     relations = extract_manifest_relations(
         "Thông tư này GUIDES với luat-36-2024-qh15; RELATED_TO nd-168-2024.",
