@@ -13,6 +13,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app.config import get_embedding_settings, get_qdrant_settings
+from app.ingestion.temporal_resolver import resolve_temporal
 from app.persistence.models import DocumentVersion, LegalDocument, LegalProvision
 from app.persistence.repositories import TemporalRepository, content_hash
 from app.retrieval import qdrant_store
@@ -92,6 +93,23 @@ def test_gate_m2_accepts_temporal_provision_and_finds_it(
     client, collection = gate_m2_qdrant
     ensure_qdrant_collection(client)
     retrieval_text = "Điều 7. Quy định xác định cho bằng chứng Gate M2."
+    temporal = resolve_temporal(
+        {
+            "effective_from": _ACCEPTED_AT.isoformat(),
+            "review_status": "ACCEPTED",
+            "provisions": [{"provision_id": _PROVISION_ID}],
+        },
+        [
+            {
+                "event_type": "EFFECTIVE",
+                "event_date": _ACCEPTED_AT.isoformat(),
+                "affected_provision_versions": [{"provision_id": _PROVISION_ID}],
+                "review_status": "ACCEPTED",
+            }
+        ],
+    )
+    assert temporal.review_required is False
+    assert temporal.versions[0].effective_from == _ACCEPTED_AT
     with clean_transaction(gate_m2_engine) as conn, Session(bind=conn) as session:
         document = LegalDocument(
             document_id="gate-m2-deterministic-document",
