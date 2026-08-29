@@ -15,7 +15,6 @@ from sqlalchemy.orm import Session
 
 from app.config import get_embedding_settings, get_qdrant_settings
 from app.ingestion.actors.resolve_refs import resolve_refs_actor
-from app.ingestion.actors.resolve_temporal import resolve_temporal_actor
 from app.ingestion.queue import get_broker
 from app.persistence.models import (
     DocumentElement,
