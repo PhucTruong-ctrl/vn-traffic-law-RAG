@@ -36,9 +36,9 @@ from app.ingestion.actors import embed as embed_module
 from app.ingestion.actors import enqueue_parse
 from app.ingestion.actors import index as index_module
 from app.ingestion.actors import parse as parse_module
+from app.ingestion.actors import quality_gate as quality_gate_module
 from app.ingestion.actors.index import index_actor
 from app.ingestion.actors.quality_gate import quality_gate_actor
-from app.ingestion.actors import quality_gate as quality_gate_module
 from app.ingestion.actors.resolve_temporal import resolve_temporal_actor
 from app.ingestion.document_ir import BoundingBox, DocumentElement, ParsedDocument, ParsedPage
 from app.ingestion.queue import get_broker
