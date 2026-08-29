@@ -118,14 +118,16 @@ def resolve_temporal(
             pid = str(affected.get("provision_id", ""))
             if pid:
                 grouped.setdefault(pid, []).append((event.event_date, event, affected))
+    initial_versions: dict[str, int] = {}
     for item in manifest.get("provisions", []) or []:
         pid = str(item.get("provision_id", ""))
         if pid:
             grouped.setdefault(pid, [])
+            initial_versions[pid] = int(item.get("version", 1))
     review = bool(errors) or any(event.review_status != "ACCEPTED" for event in parsed)
     result: list[ResolvedVersion] = []
     for pid, changes in grouped.items():
-        version = 1
+        version = initial_versions.get(pid, 1)
         start = base
         lineage: list[dict[str, Any]] = []
         terminal = False
