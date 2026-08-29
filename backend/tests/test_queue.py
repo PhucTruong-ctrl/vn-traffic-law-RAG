@@ -445,9 +445,7 @@ def test_resolve_temporal_advances_pipeline(
         "latest_document_version",
         lambda session, document_id: Mock(id=uuid.uuid4()),
     )
-    monkeypatch.setattr(
-        resolve_temporal, "list_provisions", lambda session, version_id: []
-    )
+    monkeypatch.setattr(resolve_temporal, "list_provisions", lambda session, version_id: [])
     monkeypatch.setattr(
         resolve_temporal,
         "resolve_temporal",
@@ -542,7 +540,9 @@ def test_parse_actor_bootstraps_run_and_chains(
     assert bootstrapped.status == "PARSING"
     assert bootstrapped.current_stage == "PARSING"
     # sha256 of the fake PDF bytes
-    assert bootstrapped.file_hash == "2825bfc89e1fae627faeee6aa8007367636d00604e36f711fb12b8dee3255ad5"  # noqa: E501
+    assert (
+        bootstrapped.file_hash == "2825bfc89e1fae627faeee6aa8007367636d00604e36f711fb12b8dee3255ad5"
+    )  # noqa: E501
     assert bootstrapped.parser_routing == {
         "schema": "parser_routing-v1",
         "terminal_outcome": "accepted",
@@ -627,18 +627,14 @@ def test_index_sparse_vocabulary_is_stable_across_jobs(
     assert (tmp_path / "vocab" / "bm25-test-v2.json").is_file()
 
 
-def test_index_sparse_vocabulary_round_trip(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_index_sparse_vocabulary_round_trip(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     """persist_vocabulary / load_vocabulary round-trip and missing-version None."""
     from app.ingestion.actors import index as index_module
 
     monkeypatch.setattr(index_module, "_VOCAB_DIR", tmp_path / "vocab")
     assert index_module.load_vocabulary(version="bm25-test-v1") is None
 
-    encoder = index_module._fit_sparse_encoder(
-        ["Tòa án nhân dân tối cao"], version="bm25-test-v1"
-    )
+    encoder = index_module._fit_sparse_encoder(["Tòa án nhân dân tối cao"], version="bm25-test-v1")
     path = index_module.persist_vocabulary(encoder, version="bm25-test-v1")
     assert path == tmp_path / "vocab" / "bm25-test-v1.json"
     assert index_module.load_vocabulary(version="bm25-test-v1") == encoder.vocabulary
@@ -690,9 +686,7 @@ def test_load_or_fit_converges_under_concurrent_first_persist(
     assert encoder_a.vocabulary == encoder_b.vocabulary  # no divergent spaces
 
 
-def test_load_or_fit_raises_on_empty_corpus(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_load_or_fit_raises_on_empty_corpus(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An empty corpus must raise (a degenerate encoder would diverge)."""
     from app.ingestion.actors import index as index_module
 

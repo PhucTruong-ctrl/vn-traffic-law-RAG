@@ -1,4 +1,5 @@
 """Gold-set records and deterministic validation utilities."""
+
 from __future__ import annotations
 
 import hashlib
@@ -48,10 +49,20 @@ class GoldRecord(BaseModel):
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     REQUIRED_FIELDS: ClassVar[tuple[str, ...]] = (
-        "id", "question", "category", "query_date", "expected_provision_ids",
-        "acceptable_provision_ids", "required_evidence", "must_include_facts",
-        "must_not_include_facts", "temporal_metadata", "review_status", "reviewed_by",
-        "gold_version", "hash",
+        "id",
+        "question",
+        "category",
+        "query_date",
+        "expected_provision_ids",
+        "acceptable_provision_ids",
+        "required_evidence",
+        "must_include_facts",
+        "must_not_include_facts",
+        "temporal_metadata",
+        "review_status",
+        "reviewed_by",
+        "gold_version",
+        "hash",
     )
 
     id: str = Field(min_length=1)

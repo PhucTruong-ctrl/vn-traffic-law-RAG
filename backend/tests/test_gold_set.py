@@ -28,9 +28,7 @@ def payload() -> dict:
         "reviewed_by": "reviewer",
         "gold_version": "v1",
     }
-    value["hash"] = GoldRecord.model_validate(
-        {**value, "hash": "0" * 64}
-    ).computed_hash()
+    value["hash"] = GoldRecord.model_validate({**value, "hash": "0" * 64}).computed_hash()
     return value
 
 
@@ -42,10 +40,9 @@ def test_all_categories_are_accepted() -> None:
             item["expected_provision_ids"] = []
             item["acceptable_provision_ids"] = []
             item["required_evidence"] = []
-        item["hash"] = GoldRecord.model_validate(
-            {**item, "hash": "0" * 64}
-        ).computed_hash()
+        item["hash"] = GoldRecord.model_validate({**item, "hash": "0" * 64}).computed_hash()
         assert validate_record(item).category is category
+
 
 def test_cross_field_invariants_are_rejected() -> None:
     item = payload()
@@ -62,12 +59,13 @@ def test_cross_field_invariants_are_rejected() -> None:
         validate_record(item, verify_hash=False)
 
 
-
 def test_out_of_scope_cannot_require_provisions() -> None:
     item = payload()
     item["category"] = "OUT_OF_SCOPE"
     with pytest.raises(ValidationError, match="OUT_OF_SCOPE"):
         validate_record(item, verify_hash=False)
+
+
 def test_required_fields_and_unknown_fields_are_rejected() -> None:
     item = payload()
     del item["question"]
@@ -82,9 +80,7 @@ def test_required_fields_and_unknown_fields_are_rejected() -> None:
 def test_hash_is_stable_for_equivalent_json_order() -> None:
     first = payload()
     second = dict(reversed(list(first.items())))
-    assert validate_record(first).computed_hash() == (
-        validate_record(second).computed_hash()
-    )
+    assert validate_record(first).computed_hash() == (validate_record(second).computed_hash())
 
 
 def test_hash_tampering_fails_clearly() -> None:

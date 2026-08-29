@@ -4,6 +4,7 @@ This module deliberately does not compute temporal intervals.  It converts the
 small, explicit date vocabulary understood by query analysis into a date and
 applies the historical year disambiguation rule.
 """
+
 from __future__ import annotations
 
 import re
@@ -56,14 +57,10 @@ def parse_query_date(text: str, *, current_date: date) -> ParsedQueryDate | None
     deterministic. Invalid or ambiguous input returns ``None``.
     """
     value = text.strip().lower()
-    match = re.search(
-        r"\bngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})\b", value
-    )
+    match = re.search(r"\bngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})\b", value)
     if match:
         try:
-            return ParsedQueryDate(
-                date(int(match[3]), int(match[2]), int(match[1])), "absolute"
-            )
+            return ParsedQueryDate(date(int(match[3]), int(match[2]), int(match[1])), "absolute")
         except ValueError:
             return None
     if re.search(r"\bhôm nay\b|\bhom nay\b", value):
@@ -74,17 +71,13 @@ def parse_query_date(text: str, *, current_date: date) -> ParsedQueryDate | None
     match = re.search(r"(?<!\d)(\d{1,2})/(\d{1,2})/(\d{4})(?!\d)", value)
     if match:
         try:
-            return ParsedQueryDate(
-                date(int(match[3]), int(match[2]), int(match[1])), "absolute"
-            )
+            return ParsedQueryDate(date(int(match[3]), int(match[2]), int(match[1])), "absolute")
         except ValueError:
             return None
     match = re.search(r"(?<!\d)(\d{4})-(\d{2})-(\d{2})(?!\d)", value)
     if match:
         try:
-            return ParsedQueryDate(
-                date(int(match[1]), int(match[2]), int(match[3])), "absolute"
-            )
+            return ParsedQueryDate(date(int(match[1]), int(match[2]), int(match[3])), "absolute")
         except ValueError:
             return None
     for match in re.finditer(r"(?<!\d)(\d{4})(?!\d)", value):

@@ -1,4 +1,5 @@
 """Temporal resolution stage (VNLRAG-136)."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -30,6 +31,7 @@ _ACTOR_OPTIONS: dict[str, Any] = {
     "max_retries": _QUEUE_SETTINGS.max_retries,
 }
 
+
 @dramatiq.actor(**_ACTOR_OPTIONS)
 def resolve_temporal_actor(job_id: str) -> None:
     session = new_session()
@@ -47,10 +49,15 @@ def resolve_temporal_actor(job_id: str) -> None:
             select(LegalEffectEvent).where(LegalEffectEvent.document_id == run.document_id)
         ).all()
         stored_inputs = [
-            {"event_type": event.event_type, "event_date": event.event_date,
-             "affected_provision_versions": event.affected_provision_versions,
-             "review_status": event.review_status, "confidence": event.confidence,
-             "source_document_id": event.source_document_id, "description": event.description}
+            {
+                "event_type": event.event_type,
+                "event_date": event.event_date,
+                "affected_provision_versions": event.affected_provision_versions,
+                "review_status": event.review_status,
+                "confidence": event.confidence,
+                "source_document_id": event.source_document_id,
+                "description": event.description,
+            }
             for event in stored_events
         ]
         manifest_events = run.manifest_json.get("effect_events", [])
@@ -79,48 +86,69 @@ def resolve_temporal_actor(job_id: str) -> None:
             if successor is None:
                 continue
             source_row = next(
-                (row for row in rows
-                 if row.provision_id == resolved.provision_id
-                 and row.version == resolved.version),
+                (
+                    row
+                    for row in rows
+                    if row.provision_id == resolved.provision_id and row.version == resolved.version
+                ),
                 None,
             )
             successor_row = next(
-                (row for row in rows
-                 if row.provision_id == resolved.provision_id
-                 and row.version == successor),
+                (
+                    row
+                    for row in rows
+                    if row.provision_id == resolved.provision_id and row.version == successor
+                ),
                 None,
             )
             if source_row is None or successor_row is None:
                 has_missing_successor = True
-                if session.scalar(select(ReviewItem).where(
-                    ReviewItem.ingestion_run_id == run.id,
-                    ReviewItem.reason_code == "MISSING_SUCCESSOR_CONTENT",
-                )) is None:
-                    session.add(ReviewItem(
-                        ingestion_run_id=run.id, document_id=run.document_id,
-                        target_type="provision", target_id=resolved.provision_id,
-                        reason_code="MISSING_SUCCESSOR_CONTENT",
-                        description="Temporal successor content is not persisted",
-                        evidence={"version": successor},
-                    ))
+                if (
+                    session.scalar(
+                        select(ReviewItem).where(
+                            ReviewItem.ingestion_run_id == run.id,
+                            ReviewItem.reason_code == "MISSING_SUCCESSOR_CONTENT",
+                        )
+                    )
+                    is None
+                ):
+                    session.add(
+                        ReviewItem(
+                            ingestion_run_id=run.id,
+                            document_id=run.document_id,
+                            target_type="provision",
+                            target_id=resolved.provision_id,
+                            reason_code="MISSING_SUCCESSOR_CONTENT",
+                            description="Temporal successor content is not persisted",
+                            evidence={"version": successor},
+                        )
+                    )
                 continue
             predecessor = provision_repo.get_registry_entry(
-                resolved.provision_id, resolved.version,
+                resolved.provision_id,
+                resolved.version,
             )
             if predecessor is None:
-                predecessor = provision_repo.register_version(ProvisionVersion(
-                    provision_id=resolved.provision_id, version=resolved.version,
-                    document_version_id=source_row.document_version_id,
-                ))
+                predecessor = provision_repo.register_version(
+                    ProvisionVersion(
+                        provision_id=resolved.provision_id,
+                        version=resolved.version,
+                        document_version_id=source_row.document_version_id,
+                    )
+                )
             predecessor.superseded_by_version = successor
             successor_entry = provision_repo.get_registry_entry(
-                resolved.provision_id, successor,
+                resolved.provision_id,
+                successor,
             )
             if successor_entry is None:
-                provision_repo.register_version(ProvisionVersion(
-                    provision_id=resolved.provision_id, version=successor,
-                    document_version_id=successor_row.document_version_id,
-                ))
+                provision_repo.register_version(
+                    ProvisionVersion(
+                        provision_id=resolved.provision_id,
+                        version=successor,
+                        document_version_id=successor_row.document_version_id,
+                    )
+                )
             else:
                 successor_entry.document_version_id = successor_row.document_version_id
         by_id = {(item.provision_id, item.version): item for item in result.versions}
@@ -138,13 +166,17 @@ def resolve_temporal_actor(job_id: str) -> None:
                     )
                 )
                 if existing is None:
-                    session.add(ReviewItem(
-                        ingestion_run_id=run.id, document_id=run.document_id,
-                        target_type="document", target_id=run.document_id,
-                        reason_code="UNKNOWN_EFFECTIVE_DATE",
-                        description="Temporal resolution requires review",
-                        evidence={"errors": list(result.errors)},
-                    ))
+                    session.add(
+                        ReviewItem(
+                            ingestion_run_id=run.id,
+                            document_id=run.document_id,
+                            target_type="document",
+                            target_id=run.document_id,
+                            reason_code="UNKNOWN_EFFECTIVE_DATE",
+                            description="Temporal resolution requires review",
+                            evidence={"errors": list(result.errors)},
+                        )
+                    )
         review_required = result.review_required or has_missing_successor
         if review_required:
             errors = list(result.errors)
@@ -163,6 +195,8 @@ def resolve_temporal_actor(job_id: str) -> None:
         session.close()
     if not review_required:
         from .quality_gate import quality_gate_actor
+
         quality_gate_actor.send(job_id)
+
 
 __all__ = ["resolve_temporal_actor"]

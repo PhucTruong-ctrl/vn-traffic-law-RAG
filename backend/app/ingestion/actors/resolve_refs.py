@@ -75,13 +75,13 @@ def _persist_reference(
             confidence=candidate.confidence,
             extraction_method=candidate.extraction_method,
             source_text=candidate.source_text,
-            resolution_status=(
-                candidate.resolution_status if resolved else "UNRESOLVED"
-            ),
+            resolution_status=(candidate.resolution_status if resolved else "UNRESOLVED"),
             review_status=(
                 "PENDING"
                 if candidate.resolution_status == "PENDING_REVIEW"
-                else "ACCEPTED" if resolved else "PENDING"
+                else "ACCEPTED"
+                if resolved
+                else "PENDING"
             ),
         )
     )
@@ -112,11 +112,7 @@ def resolve_refs_actor(job_id: str) -> None:
         refs: list[Any] = []
         review_rows: list[dict[str, Any]] = []
         if persisted:
-            targets = {
-                key: row
-                for row in persisted
-                for key in (str(row.id), row.provision_id)
-            }
+            targets = {key: row for row in persisted for key in (str(row.id), row.provision_id)}
             sources = {row.provision_id: row for row in persisted}
             for source in persisted:
                 candidates = resolve_references(
@@ -156,9 +152,7 @@ def resolve_refs_actor(job_id: str) -> None:
             review_rows = [{"target_id": run.document_id, "reason_code": "MISSING_REFERENCE_INPUT"}]
 
         relation_text = (
-            "\n".join(row.source_text for row in persisted)
-            if persisted
-            else legacy_text
+            "\n".join(row.source_text for row in persisted) if persisted else legacy_text
         )
         docs = (
             extract_document_relations(relation_text, run.document_id, known_documents)
@@ -168,22 +162,26 @@ def resolve_refs_actor(job_id: str) -> None:
         relation_repo = RelationRepository(session)
         for document_candidate in docs:
             if document_candidate.target_document_id is None:
-                review_rows.append({
-                    "target_type": "DOCUMENT_RELATION",
-                    "target_id": run.document_id,
-                    "reason_code": "TARGET_NOT_FOUND",
-                    "description": document_candidate.source_note,
-                })
+                review_rows.append(
+                    {
+                        "target_type": "DOCUMENT_RELATION",
+                        "target_id": run.document_id,
+                        "reason_code": "TARGET_NOT_FOUND",
+                        "description": document_candidate.source_note,
+                    }
+                )
                 continue
-            relation_repo.upsert_document_relation(DocumentRelation(
-                source_document_id=document_candidate.source_document_id,
-                target_document_id=document_candidate.target_document_id,
-                relation_type=document_candidate.relation_type,
-                source_note=document_candidate.source_note,
-                source="extracted",
-                resolution_status="RESOLVED",
-                review_status="PENDING",
-            ))
+            relation_repo.upsert_document_relation(
+                DocumentRelation(
+                    source_document_id=document_candidate.source_document_id,
+                    target_document_id=document_candidate.target_document_id,
+                    relation_type=document_candidate.relation_type,
+                    source_note=document_candidate.source_note,
+                    source="extracted",
+                    resolution_status="RESOLVED",
+                    review_status="PENDING",
+                )
+            )
         manifest["reference_resolution"] = {
             "provision_references": [r.__dict__ for r in refs],
             "document_relations": [r.__dict__ for r in docs],

@@ -1,4 +1,5 @@
 """Resolve legal-effect events into half-open provision intervals (VNLRAG-136)."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -8,11 +9,17 @@ from typing import Any
 
 EVENT_TYPES = frozenset(
     {
-        "EFFECTIVE", "AMENDED", "PARTIAL_AMENDED", "SUPERSEDED",
-        "REPEALED", "CORRECTED", "EXPIRED",
+        "EFFECTIVE",
+        "AMENDED",
+        "PARTIAL_AMENDED",
+        "SUPERSEDED",
+        "REPEALED",
+        "CORRECTED",
+        "EXPIRED",
     }
 )
 TERMINAL_EVENTS = frozenset({"SUPERSEDED", "REPEALED", "EXPIRED"})
+
 
 @dataclass(frozen=True)
 class EffectEvent:
@@ -23,6 +30,7 @@ class EffectEvent:
     review_status: str = "PENDING"
     source_document_id: str | None = None
     description: str | None = None
+
 
 @dataclass(frozen=True)
 class ResolvedVersion:
@@ -35,12 +43,14 @@ class ResolvedVersion:
     indexable: bool = False
     lineage: tuple[dict[str, Any], ...] = ()
 
+
 @dataclass(frozen=True)
 class ResolutionResult:
     versions: tuple[ResolvedVersion, ...]
     events: tuple[EffectEvent, ...]
     review_required: bool = False
     errors: tuple[str, ...] = ()
+
 
 def _date(value: Any) -> date | None:
     if isinstance(value, date):
@@ -52,6 +62,7 @@ def _date(value: Any) -> date | None:
             return None
     return None
 
+
 def resolve_temporal(
     manifest: Mapping[str, Any],
     events: list[Mapping[str, Any] | EffectEvent] | None = None,
@@ -62,14 +73,18 @@ def resolve_temporal(
     errors: list[str] = []
     parsed: list[EffectEvent] = []
     for raw in events or []:
-        event = raw if isinstance(raw, EffectEvent) else EffectEvent(
-            event_type=str(raw.get("event_type", "")),
-            event_date=_date(raw.get("event_date") or raw.get("effective_from")),
-            affected_provision_versions=tuple(raw.get("affected_provision_versions") or ()),
-            confidence=raw.get("confidence"),
-            review_status=str(raw.get("review_status", "PENDING")),
-            source_document_id=raw.get("source_document_id"),
-            description=raw.get("description"),
+        event = (
+            raw
+            if isinstance(raw, EffectEvent)
+            else EffectEvent(
+                event_type=str(raw.get("event_type", "")),
+                event_date=_date(raw.get("event_date") or raw.get("effective_from")),
+                affected_provision_versions=tuple(raw.get("affected_provision_versions") or ()),
+                confidence=raw.get("confidence"),
+                review_status=str(raw.get("review_status", "PENDING")),
+                source_document_id=raw.get("source_document_id"),
+                description=raw.get("description"),
+            )
         )
         if event.event_type not in EVENT_TYPES:
             errors.append(f"unsupported event type: {event.event_type}")
@@ -120,8 +135,14 @@ def resolve_temporal(
             if event.event_type in {"AMENDED", "PARTIAL_AMENDED", "CORRECTED"}:
                 result.append(
                     ResolvedVersion(
-                        pid, version, start, when, version + 1,
-                        status, indexable, tuple(lineage),
+                        pid,
+                        version,
+                        start,
+                        when,
+                        version + 1,
+                        status,
+                        indexable,
+                        tuple(lineage),
                     )
                 )
                 version += 1
@@ -130,7 +151,11 @@ def resolve_temporal(
             elif event.event_type in TERMINAL_EVENTS:
                 result.append(
                     ResolvedVersion(
-                        pid, version, start, when, None,
+                        pid,
+                        version,
+                        start,
+                        when,
+                        None,
                         "PENDING" if review else default_status,
                         not review and default_status == "ACCEPTED",
                         tuple(lineage),
@@ -141,7 +166,11 @@ def resolve_temporal(
         if start is not None:
             result.append(
                 ResolvedVersion(
-                    pid, version, start, None, None,
+                    pid,
+                    version,
+                    start,
+                    None,
+                    None,
                     "PENDING" if review else default_status,
                     not review and default_status == "ACCEPTED",
                     tuple(lineage),
@@ -151,11 +180,18 @@ def resolve_temporal(
     if review:
         result = [
             ResolvedVersion(
-                item.provision_id, item.version, item.effective_from, item.effective_to,
-                item.superseded_by_version, "PENDING", False, item.lineage,
+                item.provision_id,
+                item.version,
+                item.effective_from,
+                item.effective_to,
+                item.superseded_by_version,
+                "PENDING",
+                False,
+                item.lineage,
             )
             for item in result
         ]
     return ResolutionResult(tuple(result), tuple(parsed), review, tuple(errors))
+
 
 __all__ = ["EVENT_TYPES", "EffectEvent", "ResolvedVersion", "ResolutionResult", "resolve_temporal"]

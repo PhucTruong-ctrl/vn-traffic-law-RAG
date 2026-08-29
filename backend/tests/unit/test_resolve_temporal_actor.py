@@ -39,12 +39,14 @@ def test_actor_halts_for_missing_successor_content(monkeypatch) -> None:
             "effective_from": "2024-01-01",
             "review_status": "ACCEPTED",
             "provisions": [{"provision_id": "article-1", "version": 1}],
-            "effect_events": [{
-                "event_type": "AMENDED",
-                "event_date": "2024-02-01",
-                "affected_provision_versions": [{"provision_id": "article-1"}],
-                "review_status": "ACCEPTED",
-            }],
+            "effect_events": [
+                {
+                    "event_type": "AMENDED",
+                    "event_date": "2024-02-01",
+                    "affected_provision_versions": [{"provision_id": "article-1"}],
+                    "review_status": "ACCEPTED",
+                }
+            ],
         },
     )
     version = SimpleNamespace(id="version-id", effective_from=date(2024, 1, 1))
@@ -80,7 +82,6 @@ def test_actor_halts_for_missing_successor_content(monkeypatch) -> None:
     assert session.added[0].reason_code == "MISSING_SUCCESSOR_CONTENT"
 
 
-
 def test_actor_resolves_persisted_provisions_without_manifest_provisions(monkeypatch) -> None:
     run = SimpleNamespace(
         id="run-id",
@@ -108,7 +109,6 @@ def test_actor_resolves_persisted_provisions_without_manifest_provisions(monkeyp
         lambda _session, _document_id: version,
     )
     monkeypatch.setattr(temporal_actor, "list_provisions", lambda _session, _version_id: [row])
-
 
     resolve_temporal_actor(job_id="job-id")
 

@@ -299,9 +299,7 @@ def test_parse_chain_end_to_end_reaches_activated_resolvers(
             assert version is not None
             provisions = list(
                 session.scalars(
-                    select(LegalProvision).where(
-                        LegalProvision.document_version_id == version.id
-                    )
+                    select(LegalProvision).where(LegalProvision.document_version_id == version.id)
                 )
             )
             assert len(provisions) >= 3
@@ -355,9 +353,7 @@ def test_temporal_missing_successor_hands_off_to_review(
                     "event_type": "AMENDED",
                     "event_date": "2025-02-01",
                     "review_status": "ACCEPTED",
-                    "affected_provision_versions": [
-                        {"provision_id": provision_ids[0]}
-                    ],
+                    "affected_provision_versions": [{"provision_id": provision_ids[0]}],
                 }
             ],
         }
@@ -388,9 +384,7 @@ def test_temporal_missing_successor_hands_off_to_review(
         assert run.error is not None
         assert run.error["code"] == "TEMPORAL_REVIEW"
         items = list(
-            session.scalars(
-                select(ReviewItem).where(ReviewItem.ingestion_run_id == run_id)
-            )
+            session.scalars(select(ReviewItem).where(ReviewItem.ingestion_run_id == run_id))
         )
         assert len(items) == 1
         assert items[0].reason_code == "MISSING_SUCCESSOR_CONTENT"
@@ -477,9 +471,27 @@ def _seed_gate_pipeline(engine: Any, document_id: str, job_id: str) -> tuple[uui
                 )
             )
         sources = {
-            provision_ids[0]: ("Điều 7. Xử phạt người điều khiển xe mô tô", "ARTICLE", "7", None, None),  # noqa: E501
-            provision_ids[1]: ("1. Phạt tiền từ 400.000 đồng đến 600.000 đồng", "CLAUSE", "7", "1", None),  # noqa: E501
-            provision_ids[2]: ("a) Không chấp hành hiệu lệnh của đèn tín hiệu", "POINT", "7", "1", "a)"),  # noqa: E501
+            provision_ids[0]: (
+                "Điều 7. Xử phạt người điều khiển xe mô tô",
+                "ARTICLE",
+                "7",
+                None,
+                None,
+            ),  # noqa: E501
+            provision_ids[1]: (
+                "1. Phạt tiền từ 400.000 đồng đến 600.000 đồng",
+                "CLAUSE",
+                "7",
+                "1",
+                None,
+            ),  # noqa: E501
+            provision_ids[2]: (
+                "a) Không chấp hành hiệu lệnh của đèn tín hiệu",
+                "POINT",
+                "7",
+                "1",
+                "a)",
+            ),  # noqa: E501
         }
         session.flush()
         for pid, (text, kind, article, clause, point) in sources.items():
@@ -553,18 +565,14 @@ def test_quality_gate_embed_index_completes_without_duplicates(
 
             rows = list(
                 session.scalars(
-                    select(LegalProvision).where(
-                        LegalProvision.provision_id.in_(provision_ids)
-                    )
+                    select(LegalProvision).where(LegalProvision.provision_id.in_(provision_ids))
                 )
             )
             assert len(rows) == 3
             assert all(row.review_status == "ACCEPTED" for row in rows)
 
             review_items = list(
-                session.scalars(
-                    select(ReviewItem).where(ReviewItem.ingestion_run_id == run_id)
-                )
+                session.scalars(select(ReviewItem).where(ReviewItem.ingestion_run_id == run_id))
             )
             assert review_items == []  # all ACCEPTED: no review items created
 
@@ -577,9 +585,7 @@ def test_quality_gate_embed_index_completes_without_duplicates(
             row_ids = {
                 str(row.id)
                 for row in session.scalars(
-                    select(LegalProvision).where(
-                        LegalProvision.provision_id.in_(provision_ids)
-                    )
+                    select(LegalProvision).where(LegalProvision.provision_id.in_(provision_ids))
                 )
             }
         assert {point.id for point in points} == row_ids
@@ -667,9 +673,7 @@ def test_needs_review_creates_review_items_and_halts(
     # (policy row 6: uncertain effective date is never auto-accepted).
     with Session(engine) as session:
         point = session.scalar(
-            select(LegalProvision).where(
-                LegalProvision.provision_id == provision_ids[2]
-            )
+            select(LegalProvision).where(LegalProvision.provision_id == provision_ids[2])
         )
         point.effective_from = None
         session.commit()
@@ -688,9 +692,7 @@ def test_needs_review_creates_review_items_and_halts(
             assert run.status == "PENDING_REVIEW"
             assert run.current_stage == "QUALITY_CHECK"
             items = list(
-                session.scalars(
-                    select(ReviewItem).where(ReviewItem.ingestion_run_id == run_id)
-                )
+                session.scalars(select(ReviewItem).where(ReviewItem.ingestion_run_id == run_id))
             )
             assert len(items) == 1
             assert items[0].target_id == provision_ids[2]
@@ -703,9 +705,7 @@ def test_needs_review_creates_review_items_and_halts(
         worker.join()
         with Session(engine) as session:
             items = list(
-                session.scalars(
-                    select(ReviewItem).where(ReviewItem.ingestion_run_id == run_id)
-                )
+                session.scalars(select(ReviewItem).where(ReviewItem.ingestion_run_id == run_id))
             )
             assert len(items) == 1
     finally:
