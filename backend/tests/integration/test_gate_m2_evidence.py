@@ -26,7 +26,7 @@ from app.persistence.models import (
     ParsedDocument,
 )
 from app.persistence.repositories import content_hash
-from app.retrieval import qdrant_store
+from app.retrieval import indexing, qdrant_store
 from app.retrieval.embedding import ConfigError, get_embedding_provider
 from app.retrieval.qdrant_store import DENSE_VECTOR_NAME, ensure_qdrant_collection
 
@@ -38,6 +38,8 @@ pytestmark = pytest.mark.integration
 
 _ACCEPTED_AT = date(2026, 1, 15)
 _PROVISION_ID = "gate-m2-deterministic__article-7"
+_CLAUSE_ID = f"{_PROVISION_ID}__clause-1"
+_POINT_ID = f"{_CLAUSE_ID}__point-a"
 
 
 @pytest.fixture()
@@ -109,7 +111,8 @@ def test_gate_m2_accepts_temporal_provision_and_finds_it(
 
     client, collection = gate_m2_qdrant
     ensure_qdrant_collection(client)
-    retrieval_text = "Điều 7. Quy định xác định cho bằng chứng Gate M2."
+    monkeypatch.setattr(indexing, "PROVISION_ALIAS", collection)
+    retrieval_text = "Quy định xác định cho bằng chứng Gate M2."
     document_id = "gate-m2-deterministic-document"
     job_id = "gate-m2-deterministic-job"
     with Session(gate_m2_engine) as session:
@@ -126,6 +129,7 @@ def test_gate_m2_accepts_temporal_provision_and_finds_it(
         version = DocumentVersion(
             document_id=document_id,
             version=1,
+            manifest_json={"fixture": "gate-m2"},
             content_hash=content_hash("gate-m2-version"),
             review_status="PENDING",
         )
@@ -137,13 +141,19 @@ def test_gate_m2_accepts_temporal_provision_and_finds_it(
                 "fixture": "gate-m2",
                 "effective_from": _ACCEPTED_AT.isoformat(),
                 "review_status": "ACCEPTED",
-                "provisions": [{"provision_id": _PROVISION_ID, "version": 1}],
+                "provisions": [
+                    {"provision_id": _PROVISION_ID, "version": 1},
+                    {"provision_id": _CLAUSE_ID, "version": 1},
+                    {"provision_id": _POINT_ID, "version": 1},
+                ],
                 "effect_events": [
                     {
                         "event_type": "EFFECTIVE",
                         "event_date": _ACCEPTED_AT.isoformat(),
                         "affected_provision_versions": [
-                            {"provision_id": _PROVISION_ID, "version": 1}
+                            {"provision_id": _PROVISION_ID, "version": 1},
+                            {"provision_id": _CLAUSE_ID, "version": 1},
+                            {"provision_id": _POINT_ID, "version": 1},
                         ],
                         "review_status": "ACCEPTED",
                     }
@@ -182,23 +192,56 @@ def test_gate_m2_accepts_temporal_provision_and_finds_it(
                 raw_reference={},
             )
         )
-        provision = LegalProvision(
-            provision_id=_PROVISION_ID,
-            document_version_id=version.id,
-            node_kind="ARTICLE",
-            article="7",
-            source_text=retrieval_text,
-            retrieval_text=retrieval_text,
-            status="EFFECTIVE",
-            page_number=1,
-            source_element_ids=["gate-m2"],
-            content_hash=content_hash("gate-m2-provision"),
-            version=1,
-            review_status="PENDING",
-        )
-        session.add(provision)
+        provisions = [
+            LegalProvision(
+                provision_id=_PROVISION_ID,
+                document_version_id=version.id,
+                node_kind="ARTICLE",
+                article="7",
+                source_text=retrieval_text,
+                retrieval_text=retrieval_text,
+                status="EFFECTIVE",
+                page_number=1,
+                source_element_ids=["gate-m2"],
+                content_hash=content_hash("gate-m2-provision"),
+                version=1,
+                review_status="PENDING",
+            ),
+            LegalProvision(
+                provision_id=_CLAUSE_ID,
+                document_version_id=version.id,
+                node_kind="CLAUSE",
+                article="7",
+                clause="1",
+                source_text=retrieval_text,
+                retrieval_text=retrieval_text,
+                status="EFFECTIVE",
+                page_number=1,
+                source_element_ids=["gate-m2"],
+                content_hash=content_hash("gate-m2-clause"),
+                version=1,
+                review_status="PENDING",
+            ),
+            LegalProvision(
+                provision_id=_POINT_ID,
+                document_version_id=version.id,
+                node_kind="POINT",
+                article="7",
+                clause="1",
+                point="a)",
+                source_text=retrieval_text,
+                retrieval_text=retrieval_text,
+                status="EFFECTIVE",
+                page_number=1,
+                source_element_ids=["gate-m2"],
+                content_hash=content_hash("gate-m2-point"),
+                version=1,
+                review_status="PENDING",
+            ),
+        ]
+        session.add_all(provisions)
         session.commit()
-        provision_id = provision.id
+        provision_id = provisions[0].id
         run_id = run.id
 
     worker = Worker(
