@@ -32,9 +32,7 @@ from app.ingestion.structure_extractor import ExtractedLegalProvision
 
 #: Provenance roles — mirror the ``provision_provenances.role`` CHECK
 #: constraint and ``ProvisionProvenanceRole`` in doc 03 §3.9.14.
-ProvisionProvenanceRole = Literal[
-    "BASE_TEXT", "AMENDMENT_TEXT", "CORRECTION_TEXT", "EFFECT_SOURCE"
-]
+ProvisionProvenanceRole = Literal["BASE_TEXT", "AMENDMENT_TEXT", "CORRECTION_TEXT", "EFFECT_SOURCE"]
 
 #: A single-source provenance "source": (source_document_version_id, role,
 #: (element_id, page_number, bbox) tuples contributed by that source

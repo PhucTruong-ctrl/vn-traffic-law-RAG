@@ -162,8 +162,6 @@ def test_upload_flow(
             storage.delete("source-pdfs", expected_key)
             with Session(api_db.get_engine()) as session:
                 session.execute(delete(IngestionRun).where(IngestionRun.job_id == job_id))
-                session.execute(
-                    delete(LegalDocument).where(LegalDocument.document_id == doc_id)
-                )
+                session.execute(delete(LegalDocument).where(LegalDocument.document_id == doc_id))
                 session.commit()
         assert storage.list("source-pdfs", prefix=f"{doc_id}/") == []

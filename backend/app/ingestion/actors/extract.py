@@ -49,9 +49,7 @@ _ACTOR_OPTIONS: dict[str, Any] = {
 }
 
 
-def _ensure_document_version(
-    session, run, *, ir
-) -> DocumentVersion:
+def _ensure_document_version(session, run, *, ir) -> DocumentVersion:
     """Reuse the latest document version or create version 1 (PENDING)."""
     version = latest_document_version(session, run.document_id)
     if version is not None:
@@ -94,9 +92,7 @@ def extract_actor(job_id: str) -> None:
             session.commit()
             return
 
-        extracted = extract_legal_provisions(
-            ir, document_version_id=str(version.id)
-        )
+        extracted = extract_legal_provisions(ir, document_version_id=str(version.id))
         extracted = [enrich_provision(provision) for provision in extracted]
         rows = project_provisions(extracted, document_version_id=version.id)
         errors = validate_provisions(rows)

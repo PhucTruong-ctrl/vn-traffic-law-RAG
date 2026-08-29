@@ -94,9 +94,7 @@ def _probe_text_layer(pdf_path: Path) -> bool:
         return False
 
 
-def _routing_inputs(
-    pdf_path: Path, *, document_id: str, has_text_layer: bool
-) -> RoutingInputs:
+def _routing_inputs(pdf_path: Path, *, document_id: str, has_text_layer: bool) -> RoutingInputs:
     return RoutingInputs(
         document_id=document_id,
         file_mime="application/pdf",
@@ -172,9 +170,7 @@ def route_and_parse(
         alternate_docs.append(parsed)
         return parsed
 
-    decision, outcome = router.route_and_gate(
-        inputs, _primary, alternate_runner=_alternate
-    )
+    decision, outcome = router.route_and_gate(inputs, _primary, alternate_runner=_alternate)
     record = router.record_decision(decision, outcome)
 
     if outcome.terminal_outcome != "accepted":

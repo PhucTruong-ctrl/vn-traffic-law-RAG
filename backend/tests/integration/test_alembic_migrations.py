@@ -227,10 +227,10 @@ def test_normalize_ref_text_installed_and_deterministic(
 
 
 def test_alembic_version_at_head(upgraded_engine: Engine) -> None:
-    """The session scratch database sits exactly at the initial revision."""
+    """The session scratch database sits exactly at the current head revision."""
     with upgraded_engine.connect() as conn:
         version = conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-    assert version == "0001"
+    assert version == "0002"
 
 
 def test_upgrade_downgrade_roundtrip(cycle_db_url: str) -> None:

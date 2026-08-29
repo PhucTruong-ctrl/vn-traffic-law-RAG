@@ -507,9 +507,7 @@ def test_index_units_payload_only_points_when_no_providers() -> None:
 
 
 def test_index_units_batches_embedding_by_batch_size() -> None:
-    units = [
-        _unit(unit_id=f"u{index}", provision_id=f"p-{index}") for index in range(5)
-    ]
+    units = [_unit(unit_id=f"u{index}", provision_id=f"p-{index}") for index in range(5)]
     point_ids = {unit.unit_id: f"point-{index}" for index, unit in enumerate(units)}
     embedder = _FakeEmbedder()
     client = _RecordingClient()
@@ -564,9 +562,7 @@ def test_only_accepted_rows_are_indexed() -> None:
     accepted_1 = _row(id=uuid.uuid4(), provision_id="nd-1__dieu-1")
     accepted_2 = _row(id=uuid.uuid4(), provision_id="nd-1__dieu-2")
     pending = _row(id=uuid.uuid4(), provision_id="nd-1__dieu-3", review_status="PENDING")
-    needs_review = _row(
-        id=uuid.uuid4(), provision_id="nd-1__dieu-4", review_status="NEEDS_REVIEW"
-    )
+    needs_review = _row(id=uuid.uuid4(), provision_id="nd-1__dieu-4", review_status="NEEDS_REVIEW")
     rejected = _row(id=uuid.uuid4(), provision_id="nd-1__dieu-5", review_status="REJECTED")
     dropped = _row(id=uuid.uuid4(), provision_id="nd-1__dieu-6", review_status="DROPPED")
     client = _RecordingClient()
@@ -584,9 +580,7 @@ def test_only_accepted_rows_are_indexed() -> None:
         LegalProvision.review_status == ACCEPTED_REVIEW_STATUS
     )
     point_ids = [point.id for _c, points in client.upserts for point in points]
-    assert sorted(point_ids) == sorted(
-        point_id_for(row.id) for row in (accepted_1, accepted_2)
-    )
+    assert sorted(point_ids) == sorted(point_id_for(row.id) for row in (accepted_1, accepted_2))
     for _c, points in client.upserts:
         for point in points:
             assert point.payload["review_status"] == ACCEPTED_REVIEW_STATUS
@@ -594,9 +588,7 @@ def test_only_accepted_rows_are_indexed() -> None:
 
 def test_effective_from_none_skipped_and_counted() -> None:
     with_interval = _row(id=uuid.uuid4(), provision_id="nd-1__dieu-1")
-    without_interval = _row(
-        id=uuid.uuid4(), provision_id="nd-1__dieu-2", effective_from=None
-    )
+    without_interval = _row(id=uuid.uuid4(), provision_id="nd-1__dieu-2", effective_from=None)
     client = _RecordingClient()
 
     result = index_accepted_provisions(
@@ -610,9 +602,7 @@ def test_effective_from_none_skipped_and_counted() -> None:
 
 
 def test_effective_from_not_required_indexes_missing_interval() -> None:
-    without_interval = _row(
-        id=uuid.uuid4(), provision_id="nd-1__dieu-2", effective_from=None
-    )
+    without_interval = _row(id=uuid.uuid4(), provision_id="nd-1__dieu-2", effective_from=None)
     client = _RecordingClient()
 
     result = index_accepted_provisions(
@@ -735,9 +725,7 @@ def test_provision_row_to_unit_short_point_rule() -> None:
         node_kind="POINT",
         source_text="a) Một điểm có nội dung dài hơn ba từ",
     )
-    article = _row(
-        id=uuid.uuid4(), node_kind="ARTICLE", source_text="Điều 7. Xử phạt vi phạm"
-    )
+    article = _row(id=uuid.uuid4(), node_kind="ARTICLE", source_text="Điều 7. Xử phạt vi phạm")
     assert provision_row_to_unit(long_point).short_point is False
     assert provision_row_to_unit(article).short_point is False  # POINT rule only
 

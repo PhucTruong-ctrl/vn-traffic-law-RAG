@@ -379,26 +379,44 @@ def test_dlq_middleware_ignores_success_and_retryable_failures(
 # --- staged resolvers ---------------------------------------------------------
 
 
-def test_resolve_refs_halts_job_in_staged_state(
+def test_resolve_refs_requests_review_when_inputs_missing(
     _stub_broker: StubBroker, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     run = _run(status="EXTRACTING", current_stage="EXTRACTING")
     session = _FakeSession()
+    sent: list[str] = []
     monkeypatch.setattr(resolve_refs, "load_run", lambda s, job_id: run)
     monkeypatch.setattr(resolve_refs, "new_session", lambda: session)
+    monkeypatch.setattr(
+        resolve_refs,
+        "latest_document_version",
+        lambda session, document_id: Mock(id=uuid.uuid4(), version=1),
+    )
+    monkeypatch.setattr(resolve_refs, "list_provisions", lambda session, version_id: [])
+    monkeypatch.setattr(
+        resolve_refs,
+        "RelationRepository",
+        lambda session: Mock(),
+    )
+    monkeypatch.setattr(
+        resolve_refs,
+        "ReviewItemRepository",
+        lambda session: Mock(create=Mock()),
+    )
+    monkeypatch.setattr(
+        resolve_temporal,
+        "resolve_temporal_actor",
+        type("Actor", (), {"send": lambda _, job_id: sent.append(job_id)})(),
+    )
 
     resolve_refs_actor(job_id="job-1")
 
-    assert run.status == "STAGED"
-    assert run.current_stage == "RESOLVING_REFS"
-    assert run.error is not None
-    assert run.error["code"] == "STAGED_ACTOR"
-    assert "W4" in run.error["message"]
+    assert run.manifest_json["review_items"] == [
+        {"target_id": "nd-168-2024", "reason_code": "MISSING_REFERENCE_INPUT"}
+    ]
+    assert run.status == "PENDING_REVIEW"
     assert session.committed is True
-    # The chain MUST NOT advance: no quality_gate / embed / index messages.
-    assert _queue_empty(_stub_broker, "quality_gate")
-    assert _queue_empty(_stub_broker, "embed")
-    assert _queue_empty(_stub_broker, "index")
+    assert sent == []
 
 
 def test_resolve_refs_second_run_is_noop(_stub_broker: StubBroker, monkeypatch) -> None:
@@ -412,21 +430,31 @@ def test_resolve_refs_second_run_is_noop(_stub_broker: StubBroker, monkeypatch) 
     assert _queue_empty(_stub_broker, "quality_gate")
 
 
-def test_resolve_temporal_halts_job_in_staged_state(
+def test_resolve_temporal_advances_pipeline(
     _stub_broker: StubBroker, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     run = _run(status="RESOLVING_REFS", current_stage="RESOLVING_REFS")
     session = _FakeSession()
+    monkeypatch.setattr(
+        session, "scalars", lambda stmt: type("Result", (), {"all": lambda self: []})()
+    )
     monkeypatch.setattr(resolve_temporal, "load_run", lambda s, job_id: run)
     monkeypatch.setattr(resolve_temporal, "new_session", lambda: session)
-
+    monkeypatch.setattr(
+        resolve_temporal,
+        "latest_document_version",
+        lambda session, document_id: Mock(id=uuid.uuid4()),
+    )
+    monkeypatch.setattr(resolve_temporal, "list_provisions", lambda session, version_id: [])
+    monkeypatch.setattr(
+        resolve_temporal,
+        "resolve_temporal",
+        lambda *args, **kwargs: Mock(versions=(), review_required=False, errors=()),
+    )
+    monkeypatch.setattr(quality_gate_actor, "send", lambda job_id: None)
     resolve_temporal_actor(job_id="job-1")
-
-    assert run.status == "STAGED"
     assert run.current_stage == "RESOLVING_TEMPORAL"
-    assert run.error["code"] == "STAGED_ACTOR"
     assert session.committed is True
-    assert _queue_empty(_stub_broker, "quality_gate")
 
 
 # --- actor idempotency (fake state transitions) -------------------------------
@@ -512,7 +540,9 @@ def test_parse_actor_bootstraps_run_and_chains(
     assert bootstrapped.status == "PARSING"
     assert bootstrapped.current_stage == "PARSING"
     # sha256 of the fake PDF bytes
-    assert bootstrapped.file_hash == "2825bfc89e1fae627faeee6aa8007367636d00604e36f711fb12b8dee3255ad5"  # noqa: E501
+    assert (
+        bootstrapped.file_hash == "2825bfc89e1fae627faeee6aa8007367636d00604e36f711fb12b8dee3255ad5"
+    )  # noqa: E501
     assert bootstrapped.parser_routing == {
         "schema": "parser_routing-v1",
         "terminal_outcome": "accepted",
@@ -597,18 +627,14 @@ def test_index_sparse_vocabulary_is_stable_across_jobs(
     assert (tmp_path / "vocab" / "bm25-test-v2.json").is_file()
 
 
-def test_index_sparse_vocabulary_round_trip(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_index_sparse_vocabulary_round_trip(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     """persist_vocabulary / load_vocabulary round-trip and missing-version None."""
     from app.ingestion.actors import index as index_module
 
     monkeypatch.setattr(index_module, "_VOCAB_DIR", tmp_path / "vocab")
     assert index_module.load_vocabulary(version="bm25-test-v1") is None
 
-    encoder = index_module._fit_sparse_encoder(
-        ["Tòa án nhân dân tối cao"], version="bm25-test-v1"
-    )
+    encoder = index_module._fit_sparse_encoder(["Tòa án nhân dân tối cao"], version="bm25-test-v1")
     path = index_module.persist_vocabulary(encoder, version="bm25-test-v1")
     assert path == tmp_path / "vocab" / "bm25-test-v1.json"
     assert index_module.load_vocabulary(version="bm25-test-v1") == encoder.vocabulary
@@ -660,9 +686,7 @@ def test_load_or_fit_converges_under_concurrent_first_persist(
     assert encoder_a.vocabulary == encoder_b.vocabulary  # no divergent spaces
 
 
-def test_load_or_fit_raises_on_empty_corpus(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_load_or_fit_raises_on_empty_corpus(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An empty corpus must raise (a degenerate encoder would diverge)."""
     from app.ingestion.actors import index as index_module
 

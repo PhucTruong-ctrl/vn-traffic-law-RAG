@@ -383,7 +383,10 @@ class GeminiEmbeddingAdapter(_HttpEmbeddingAdapter):
             vectors.append(entry.get("values"))
             statistics = entry.get("statistics")
             if isinstance(statistics, dict):
-                tokens += int(statistics.get("token_count") or 0)
+                tokens += int(statistics.get("token_count") or statistics.get("tokenCount") or 0)
+        usage = data.get("usageMetadata") if isinstance(data, dict) else None
+        if isinstance(usage, dict):
+            tokens = int(usage.get("totalTokenCount") or usage.get("promptTokenCount") or tokens)
         self._account(tokens)
         return self._verified(vectors, len(texts))
 

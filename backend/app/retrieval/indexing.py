@@ -258,9 +258,7 @@ def index_provision_units(
                 sparse_encoder.encode_batch(texts) if sparse_encoder is not None else None
             )
         except Exception as exc:
-            result.errors.append(
-                f"batch {start // batch_size}: embedding/encoding failed: {exc}"
-            )
+            result.errors.append(f"batch {start // batch_size}: embedding/encoding failed: {exc}")
             continue
         points: list[models.PointStruct] = []
         for index, unit in enumerate(batch):

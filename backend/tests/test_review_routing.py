@@ -34,9 +34,7 @@ from app.ingestion.structure_extractor import ExtractedLegalProvision
 _DOC_VERSION = "dv-nd-168-2024"
 _SLUG = "nd-168-2024"
 
-_HEADER_FOOTER_TEXT = (
-    "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM — Độc lập - Tự do - Hạnh phúc"
-)
+_HEADER_FOOTER_TEXT = "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM — Độc lập - Tự do - Hạnh phúc"
 
 
 def _provision(**overrides: object) -> ExtractedLegalProvision:
@@ -219,9 +217,7 @@ def test_route_provision_accepts_clean_point_with_đ_label() -> None:
 
 
 def test_route_provision_drops_duplicate_provision() -> None:
-    decision = _route(
-        _article(), duplicated_ids=frozenset({f"{_SLUG}__dieu-5"})
-    )
+    decision = _route(_article(), duplicated_ids=frozenset({f"{_SLUG}__dieu-5"}))
     assert decision.status == "DROPPED"
     assert decision.reason_codes == [DUPLICATE_PROVISION]
     assert decision.auto_accepted is False
@@ -276,7 +272,8 @@ def test_evaluate_and_route_duplicate_fails_group_b_document_wide() -> None:
 def test_route_provision_needs_review_d_d_ambiguity_from_extractor() -> None:
     # Extractor normalized a duplicate d) run to đ) and flagged review.
     provision = _provision(
-        point_label="đ)", needs_review=True,
+        point_label="đ)",
+        needs_review=True,
         ambiguity="OCR d/đ ambiguity normalized from duplicate d)",
     )
     decision = _route(provision)
@@ -419,9 +416,7 @@ def test_evaluate_and_route_mixed_document_matches_per_provision() -> None:
     ]
     # Precomputed passing Group B isolates the per-provision reasons (the
     # invalid labels in this tree would otherwise fail the document gate).
-    decisions = evaluate_and_route(
-        tree, group_a=_passing_group_a(), group_b=_clean_group_b()
-    )
+    decisions = evaluate_and_route(tree, group_a=_passing_group_a(), group_b=_clean_group_b())
     by_id = {d.provision_id: d for d in decisions}
     assert by_id[f"{_SLUG}__dieu-5"].status == "DROPPED"  # duplicate
     assert by_id[f"{_SLUG}__dieu-5__khoan-1"].status == "ACCEPTED"
@@ -434,9 +429,7 @@ def test_evaluate_and_route_mixed_document_matches_per_provision() -> None:
 
 def test_evaluate_and_route_accepts_precomputed_group_b() -> None:
     group_b = _clean_group_b()
-    decisions = evaluate_and_route(
-        _clean_tree(), group_a=_passing_group_a(), group_b=group_b
-    )
+    decisions = evaluate_and_route(_clean_tree(), group_a=_passing_group_a(), group_b=group_b)
     assert all(d.status == "ACCEPTED" for d in decisions)
 
 

@@ -1,37 +1,27 @@
-"""Temporal resolver actor — STAGED (VNLRAG-133, activated at W4 by VNLRAG-136).
-
-The Temporal and Amendment Resolver (doc 03 §3.15, FR-06) does not exist yet:
-it ships with the W4 ticket VNLRAG-136.  Until then this actor MUST NOT
-compute effective intervals, MUST NOT advance the pipeline and MUST NOT index
-anything — ACCEPTED provisions legally require an ``effective_from`` (DB check
-``legal_provisions_effective_from_accepted_check``), so completing a job
-without temporal resolution would be factually wrong.
-
-Staging contract
-----------------
-Identical to :mod:`app.ingestion.actors.resolve_refs`: the job is moved to the
-terminal ``STAGED`` state (``current_stage=RESOLVING_TEMPORAL``) and no
-next-step message is sent.  This actor is unreachable in the current chain
-(because ``resolve_refs_actor`` already halts the job), but it is declared
-with the same contract so the full documented actor list (doc 03 §3.13.2)
-exists and the W4 swap-in is a drop-in replacement.
-"""
+"""Temporal resolution stage (VNLRAG-136)."""
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 import dramatiq
+from sqlalchemy import select
 
 from app.config import get_queue_settings
+from app.ingestion.temporal_resolver import EffectEvent, resolve_temporal
+from app.persistence.models import DocumentRelation, LegalEffectEvent, ProvisionVersion, ReviewItem
+from app.persistence.repositories.provisions import ProvisionRepository
 
 from ._state import (
-    STAGED_RESOLVERS_MESSAGE,
-    STATUS_STAGED,
+    STATUS_PENDING_REVIEW,
     JobNotFoundError,
     finish_terminal,
+    latest_document_version,
+    list_provisions,
     load_run,
     new_session,
+    set_stage,
     stage_done,
 )
 
@@ -45,7 +35,6 @@ _ACTOR_OPTIONS: dict[str, Any] = {
 
 @dramatiq.actor(**_ACTOR_OPTIONS)
 def resolve_temporal_actor(job_id: str) -> None:
-    """STAGED: halt the job in STAGED state until W4 activates VNLRAG-136."""
     session = new_session()
     try:
         run = load_run(session, job_id)
@@ -53,20 +42,275 @@ def resolve_temporal_actor(job_id: str) -> None:
             raise JobNotFoundError(f"ingestion run {job_id!r} not found")
         if stage_done(run, "RESOLVING_TEMPORAL"):
             return
-        finish_terminal(
-            run,
-            STATUS_STAGED,
-            stage="RESOLVING_TEMPORAL",
-            error={
-                "code": "STAGED_ACTOR",
-                "actor": "resolve_temporal_actor",
-                "message": STAGED_RESOLVERS_MESSAGE,
-            },
+        version = latest_document_version(session, run.document_id)
+        if version is None:
+            raise ValueError(f"no document version for run {job_id!r}")
+        rows = list_provisions(session, version.id)
+        stored_events = session.scalars(
+            select(LegalEffectEvent).where(LegalEffectEvent.document_id == run.document_id)
+        ).all()
+        stored_inputs = [
+            {
+                "event_type": event.event_type,
+                "event_date": event.event_date,
+                "affected_provision_versions": event.affected_provision_versions,
+                "review_status": event.review_status,
+                "confidence": event.confidence,
+                "source_document_id": event.source_document_id,
+                "description": event.description,
+            }
+            for event in stored_events
+        ]
+        relation_event_types = {
+            "AMENDS": "AMENDED",
+            "REPEALS": "REPEALED",
+            "SUPERSEDES": "SUPERSEDED",
+            "CORRECTS": "CORRECTED",
+        }
+        stored_relations = session.scalars(
+            select(DocumentRelation)
+            .where(
+                DocumentRelation.source_document_id == run.document_id,
+                DocumentRelation.review_status == "ACCEPTED",
+                DocumentRelation.resolution_status == "RESOLVED",
+                DocumentRelation.relation_type.in_(sorted(relation_event_types)),
+                DocumentRelation.effective_from.is_not(None),
+            )
+            .order_by(
+                DocumentRelation.relation_type,
+                DocumentRelation.target_document_id,
+                DocumentRelation.effective_from,
+            )
+        ).all()
+        unscoped_relations = [
+            relation
+            for relation in stored_relations
+            if relation.relation_type in {"AMENDS", "CORRECTS"}
+        ]
+        stored_relations = [
+            relation
+            for relation in stored_relations
+            if relation.relation_type not in {"AMENDS", "CORRECTS"}
+        ]
+        missing_target_relations: list[Any] = []
+        target_rows_by_document: dict[str, list[Any]] = {}
+        for relation in stored_relations:
+            target_document_id = relation.target_document_id
+            if target_document_id not in target_rows_by_document:
+                target_version = latest_document_version(session, target_document_id)
+                target_rows = (
+                    list_provisions(session, target_version.id)
+                    if target_version is not None
+                    else []
+                )
+                target_rows_by_document[target_document_id] = target_rows
+                if not target_rows:
+                    missing_target_relations.append(relation)
+        source_manifest = dict(run.manifest_json)
+        source_manifest_provisions = list(source_manifest.get("provisions", []) or [])
+        known_provisions = {
+            (str(item.get("provision_id", "")), item.get("version"))
+            for item in source_manifest_provisions
+            if isinstance(item, dict)
+        }
+        for row in rows:
+            provision_key = (row.provision_id, row.version)
+            if provision_key not in known_provisions:
+                source_manifest_provisions.append(
+                    {"provision_id": row.provision_id, "version": row.version}
+                )
+        source_manifest["provisions"] = source_manifest_provisions
+        if source_manifest.get("effective_from") is None and version.effective_from is not None:
+            source_manifest["effective_from"] = version.effective_from
+        if (
+            source_manifest.get("effective_to") is None
+            and getattr(version, "effective_to", None) is not None
+        ):
+            source_manifest["effective_to"] = version.effective_to
+        manifest_events = run.manifest_json.get("effect_events", [])
+        source_result = resolve_temporal(
+            source_manifest,
+            [*manifest_events, *stored_inputs],
         )
+        document_results = [(rows, source_result)]
+        for target_document_id, target_rows in target_rows_by_document.items():
+            target_version = latest_document_version(session, target_document_id)
+            if target_version is None:
+                continue
+            for target_row in target_rows:
+                target_manifest = {
+                    "effective_from": target_row.effective_from or target_version.effective_from,
+                    "effective_to": target_row.effective_to
+                    or getattr(target_version, "effective_to", None),
+                    "review_status": target_row.review_status,
+                    "provisions": [
+                        {"provision_id": target_row.provision_id, "version": target_row.version}
+                    ],
+                }
+                target_events: list[Mapping[str, Any] | EffectEvent] = [
+                    {
+                        "event_type": relation_event_types[relation.relation_type],
+                        "event_date": relation.effective_from,
+                        "affected_provision_versions": [
+                            {
+                                "provision_id": target_row.provision_id,
+                                "version": target_row.version,
+                            }
+                        ],
+                        "review_status": relation.review_status,
+                        "confidence": relation.confidence,
+                        "source_document_id": relation.source_document_id,
+                        "description": relation.source_note,
+                    }
+                    for relation in stored_relations
+                    if relation.target_document_id == target_document_id
+                ]
+                document_results.append(
+                    (target_rows, resolve_temporal(target_manifest, target_events))
+                )
+        provision_repo = ProvisionRepository(session)
+        has_missing_successor = bool(unscoped_relations or missing_target_relations)
+        for relation in unscoped_relations:
+            session.add(
+                ReviewItem(
+                    ingestion_run_id=run.id,
+                    document_id=run.document_id,
+                    target_type="document",
+                    target_id=relation.target_document_id,
+                    reason_code="UNSCOPED_AMENDMENT",
+                    description="Document amendment lacks affected provision scope",
+                    evidence={"relation_type": relation.relation_type},
+                )
+            )
+        for relation in missing_target_relations:
+            session.add(
+                ReviewItem(
+                    ingestion_run_id=run.id,
+                    document_id=run.document_id,
+                    target_type="document",
+                    target_id=relation.target_document_id,
+                    reason_code="MISSING_TARGET_CONTENT",
+                    description="Temporal relation target has no persisted provision content",
+                    evidence={"relation_type": relation.relation_type},
+                )
+            )
+        for document_rows, result in document_results:
+            for resolved in result.versions:
+                successor = resolved.superseded_by_version
+                if successor is None:
+                    continue
+                source_row = next(
+                    (
+                        row
+                        for row in document_rows
+                        if row.provision_id == resolved.provision_id
+                        and row.version == resolved.version
+                    ),
+                    None,
+                )
+                successor_row = next(
+                    (
+                        row
+                        for row in document_rows
+                        if row.provision_id == resolved.provision_id and row.version == successor
+                    ),
+                    None,
+                )
+                if source_row is None or successor_row is None:
+                    has_missing_successor = True
+                    if (
+                        session.scalar(
+                            select(ReviewItem).where(
+                                ReviewItem.ingestion_run_id == run.id,
+                                ReviewItem.reason_code == "MISSING_SUCCESSOR_CONTENT",
+                            )
+                        )
+                        is None
+                    ):
+                        session.add(
+                            ReviewItem(
+                                ingestion_run_id=run.id,
+                                document_id=run.document_id,
+                                target_type="provision",
+                                target_id=resolved.provision_id,
+                                reason_code="MISSING_SUCCESSOR_CONTENT",
+                                description="Temporal successor content is not persisted",
+                                evidence={"version": successor},
+                            )
+                        )
+                    continue
+                predecessor = provision_repo.get_registry_entry(
+                    resolved.provision_id, resolved.version
+                )
+                if predecessor is None:
+                    predecessor = provision_repo.register_version(
+                        ProvisionVersion(
+                            provision_id=resolved.provision_id,
+                            version=resolved.version,
+                            document_version_id=source_row.document_version_id,
+                        )
+                    )
+                predecessor.superseded_by_version = successor
+                successor_entry = provision_repo.get_registry_entry(
+                    resolved.provision_id, successor
+                )
+                if successor_entry is None:
+                    provision_repo.register_version(
+                        ProvisionVersion(
+                            provision_id=resolved.provision_id,
+                            version=successor,
+                            document_version_id=successor_row.document_version_id,
+                        )
+                    )
+                else:
+                    successor_entry.document_version_id = successor_row.document_version_id
+            by_id = {(item.provision_id, item.version): item for item in result.versions}
+            for row in document_rows:
+                matching_version = by_id.get((row.provision_id, row.version))
+                if matching_version:
+                    row.effective_from = matching_version.effective_from
+                    row.effective_to = matching_version.effective_to
+                    row.review_status = matching_version.review_status
+            if result.review_required and result.errors:
+                existing = session.scalar(
+                    select(ReviewItem).where(
+                        ReviewItem.ingestion_run_id == run.id,
+                        ReviewItem.reason_code == "UNKNOWN_EFFECTIVE_DATE",
+                    )
+                )
+                if existing is None:
+                    session.add(
+                        ReviewItem(
+                            ingestion_run_id=run.id,
+                            document_id=run.document_id,
+                            target_type="document",
+                            target_id=run.document_id,
+                            reason_code="UNKNOWN_EFFECTIVE_DATE",
+                            description="Temporal resolution requires review",
+                            evidence={"errors": list(result.errors)},
+                        )
+                    )
+        review_required = any(result.review_required for _, result in document_results)
+        review_required = review_required or has_missing_successor
+        errors = [error for _, result in document_results for error in result.errors]
+        if review_required:
+            if has_missing_successor:
+                errors.append("missing temporal successor content")
+            finish_terminal(
+                run,
+                STATUS_PENDING_REVIEW,
+                stage="RESOLVING_TEMPORAL",
+                error={"code": "TEMPORAL_REVIEW", "errors": errors},
+            )
+        else:
+            set_stage(run, "RESOLVING_TEMPORAL")
         session.commit()
     finally:
         session.close()
-    # Intentionally no next-stage enqueue: the pipeline stops here.
+    if not review_required:
+        from .quality_gate import quality_gate_actor
+
+        quality_gate_actor.send(job_id)
 
 
 __all__ = ["resolve_temporal_actor"]
