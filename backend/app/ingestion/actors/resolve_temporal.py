@@ -107,7 +107,10 @@ def resolve_temporal_actor(job_id: str) -> None:
         manifest["provisions"] = manifest_provisions
         if manifest.get("effective_from") is None and version.effective_from is not None:
             manifest["effective_from"] = version.effective_from
-        if manifest.get("effective_to") is None and getattr(version, "effective_to", None) is not None:
+        if (
+            manifest.get("effective_to") is None
+            and getattr(version, "effective_to", None) is not None
+        ):
             manifest["effective_to"] = version.effective_to
         result = resolve_temporal(manifest, event_inputs)
         provision_repo = ProvisionRepository(session)

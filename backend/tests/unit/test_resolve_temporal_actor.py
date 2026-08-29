@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 from types import SimpleNamespace
 from unittest.mock import Mock
+
 from app.ingestion.actors import quality_gate as quality_gate_module
 from app.ingestion.actors import resolve_temporal as temporal_actor
 from app.ingestion.actors.resolve_temporal import resolve_temporal_actor
@@ -33,18 +34,27 @@ class _Session:
 
 def test_actor_translates_dated_accepted_amendment_relation(monkeypatch) -> None:
     run = SimpleNamespace(
-        id="run-id", document_id="doc-id",
+        id="run-id",
+        document_id="doc-id",
         manifest_json={"effective_from": "2024-01-01", "review_status": "ACCEPTED"},
     )
     version = SimpleNamespace(id="version-id", effective_from=date(2024, 1, 1))
     row = SimpleNamespace(
-        provision_id="article-1", version=1, effective_from=None, effective_to=None,
-        review_status="PENDING", document_version_id="version-id",
+        provision_id="article-1",
+        version=1,
+        effective_from=None,
+        effective_to=None,
+        review_status="PENDING",
+        document_version_id="version-id",
     )
     relation = SimpleNamespace(
-        relation_type="AMENDS", effective_from=date(2025, 1, 1),
-        review_status="ACCEPTED", resolution_status="RESOLVED",
-        confidence=1.0, source_document_id="doc-id", source_note="amendment",
+        relation_type="AMENDS",
+        effective_from=date(2025, 1, 1),
+        review_status="ACCEPTED",
+        resolution_status="RESOLVED",
+        confidence=1.0,
+        source_document_id="doc-id",
+        source_note="amendment",
     )
 
     class RelationSession(_Session):
@@ -58,9 +68,7 @@ def test_actor_translates_dated_accepted_amendment_relation(monkeypatch) -> None
 
     session = RelationSession()
     captured = {}
-    result = ResolutionResult(
-        (ResolvedVersion("article-1", 1, date(2024, 1, 1), None),), ()
-    )
+    result = ResolutionResult((ResolvedVersion("article-1", 1, date(2024, 1, 1), None),), ())
     monkeypatch.setattr(temporal_actor, "new_session", lambda: session)
     monkeypatch.setattr(temporal_actor, "load_run", lambda *_: run)
     monkeypatch.setattr(temporal_actor, "stage_done", lambda *_: False)

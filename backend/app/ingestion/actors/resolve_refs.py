@@ -17,7 +17,13 @@ from app.ingestion.reference_resolver import (
     resolve_references,
     review_item_for,
 )
-from app.persistence.models import DocumentRelation, DocumentVersion, LegalDocument, LegalProvision, ProvisionReference
+from app.persistence.models import (
+    DocumentRelation,
+    DocumentVersion,
+    LegalDocument,
+    LegalProvision,
+    ProvisionReference,
+)
 from app.persistence.repositories.relations import RelationRepository
 from app.persistence.repositories.review_items import ReviewItemRepository
 
@@ -113,9 +119,7 @@ def resolve_refs_actor(job_id: str) -> None:
 
         # Canonical metadata and provisions are the authority for explicit
         # foreign citations; the current ingestion rows are only the source.
-        canonical_documents = (
-            list(session.scalars(select(LegalDocument))) if persisted else []
-        )
+        canonical_documents = list(session.scalars(select(LegalDocument))) if persisted else []
         for document in canonical_documents:
             for key in (document.document_id, document.document_number, document.document_title):
                 known_documents.setdefault(key, document.document_id)
@@ -145,7 +149,9 @@ def resolve_refs_actor(job_id: str) -> None:
         review_rows: list[dict[str, Any]] = []
         if persisted:
             resolution_rows = [*persisted, *canonical_targets]
-            targets = {key: row for row in resolution_rows for key in (str(row.id), row.provision_id)}
+            targets = {
+                key: row for row in resolution_rows for key in (str(row.id), row.provision_id)
+            }
             sources = {row.provision_id: row for row in persisted}
             for source in persisted:
                 candidates = resolve_references(
