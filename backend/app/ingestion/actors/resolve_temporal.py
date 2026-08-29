@@ -9,7 +9,7 @@ from sqlalchemy import select
 
 from app.config import get_queue_settings
 from app.ingestion.temporal_resolver import resolve_temporal
-from app.persistence.models import LegalEffectEvent, ProvisionVersion, ReviewItem
+from app.persistence.models import DocumentRelation, LegalEffectEvent, ProvisionVersion, ReviewItem
 from app.persistence.repositories.provisions import ProvisionRepository
 
 from ._state import (
@@ -60,8 +60,37 @@ def resolve_temporal_actor(job_id: str) -> None:
             }
             for event in stored_events
         ]
+        stored_relations = session.scalars(
+            select(DocumentRelation).where(
+                DocumentRelation.source_document_id == run.document_id,
+                DocumentRelation.review_status == "ACCEPTED",
+                DocumentRelation.resolution_status == "RESOLVED",
+            )
+        ).all()
+        relation_event_types = {
+            "AMENDS": "AMENDED",
+            "REPEALS": "REPEALED",
+            "SUPERSEDES": "SUPERSEDED",
+            "CORRECTS": "CORRECTED",
+        }
+        relation_inputs = [
+            {
+                "event_type": relation_event_types[relation.relation_type],
+                "event_date": relation.effective_from,
+                "affected_provision_versions": [
+                    {"provision_id": row.provision_id, "version": row.version} for row in rows
+                ],
+                "review_status": relation.review_status,
+                "confidence": relation.confidence,
+                "source_document_id": relation.source_document_id,
+                "description": relation.source_note,
+            }
+            for relation in stored_relations
+            if relation.relation_type in relation_event_types
+            and relation.effective_from is not None
+        ]
         manifest_events = run.manifest_json.get("effect_events", [])
-        event_inputs = [*manifest_events, *stored_inputs]
+        event_inputs = [*manifest_events, *stored_inputs, *relation_inputs]
         manifest = dict(run.manifest_json)
         manifest_provisions = list(manifest.get("provisions", []) or [])
         known_provisions = {
@@ -78,6 +107,8 @@ def resolve_temporal_actor(job_id: str) -> None:
         manifest["provisions"] = manifest_provisions
         if manifest.get("effective_from") is None and version.effective_from is not None:
             manifest["effective_from"] = version.effective_from
+        if manifest.get("effective_to") is None and getattr(version, "effective_to", None) is not None:
+            manifest["effective_to"] = version.effective_to
         result = resolve_temporal(manifest, event_inputs)
         provision_repo = ProvisionRepository(session)
         has_missing_successor = False

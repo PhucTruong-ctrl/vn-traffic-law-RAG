@@ -49,6 +49,41 @@ def test_manifest_provisions_resolve_without_effect_events() -> None:
         ("p", 1, date(2024, 1, 1))
     ]
 
+def test_manifest_effective_to_closes_no_event_interval() -> None:
+    result = resolve_temporal(
+        {
+            "effective_from": "2024-01-01",
+            "effective_to": "2025-01-01",
+            "review_status": "ACCEPTED",
+            "provisions": [{"provision_id": "p", "version": 1}],
+        }
+    )
+
+    assert result.versions[0].effective_to == date(2025, 1, 1)
+
+
+def test_manifest_effective_to_caps_amendment_intervals() -> None:
+    result = resolve_temporal(
+        {
+            "effective_from": "2024-01-01",
+            "effective_to": "2026-01-01",
+            "review_status": "ACCEPTED",
+        },
+        [
+            {
+                "event_type": "AMENDED",
+                "event_date": "2025-01-01",
+                "review_status": "ACCEPTED",
+                "affected_provision_versions": [{"provision_id": "p"}],
+            }
+        ],
+    )
+
+    assert [(item.effective_from, item.effective_to) for item in result.versions] == [
+        (date(2024, 1, 1), date(2025, 1, 1)),
+        (date(2025, 1, 1), date(2026, 1, 1)),
+    ]
+
 
 def test_uncertain_date_routes_review_and_blocks_index() -> None:
     result = resolve_temporal(

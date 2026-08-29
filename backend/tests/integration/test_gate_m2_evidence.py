@@ -126,7 +126,6 @@ def test_gate_m2_accepts_temporal_provision_and_finds_it(
         version = DocumentVersion(
             document_id=document_id,
             version=1,
-            manifest_json={"fixture": "gate-m2"},
             content_hash=content_hash("gate-m2-version"),
             review_status="PENDING",
         )
@@ -137,6 +136,7 @@ def test_gate_m2_accepts_temporal_provision_and_finds_it(
             manifest_json={
                 "fixture": "gate-m2",
                 "effective_from": _ACCEPTED_AT.isoformat(),
+                "review_status": "ACCEPTED",
                 "provisions": [{"provision_id": _PROVISION_ID, "version": 1}],
                 "effect_events": [
                     {

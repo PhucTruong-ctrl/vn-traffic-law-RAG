@@ -90,6 +90,9 @@ def resolve_temporal(
             errors.append(f"unsupported event type: {event.event_type}")
         parsed.append(event)
     base = _date(manifest.get("effective_from"))
+    manifest_end = _date(manifest.get("effective_to"))
+    if manifest.get("effective_to") is not None and manifest_end is None:
+        errors.append("uncertain effective_to")
     if base is None:
         base = next(
             (event.event_date for event in parsed if event.event_type == "EFFECTIVE"),
@@ -97,6 +100,8 @@ def resolve_temporal(
         )
     if base is None:
         errors.append("uncertain effective_from")
+    if base is not None and manifest_end is not None and manifest_end <= base:
+        errors.append("non-chronological manifest interval")
     default_status = review_status or str(manifest.get("review_status", "PENDING"))
     grouped: dict[str, list[tuple[date, EffectEvent, dict[str, Any]]]] = {}
     for event in sorted(
@@ -105,6 +110,9 @@ def resolve_temporal(
     ):
         if event.event_date is None:
             errors.append(f"uncertain event date: {event.event_type}")
+            continue
+        if manifest_end is not None and event.event_date > manifest_end:
+            errors.append(f"event after manifest effective_to: {event.event_type}")
             continue
         for affected in event.affected_provision_versions:
             pid = str(affected.get("provision_id", ""))
@@ -124,6 +132,10 @@ def resolve_temporal(
         for when, event, affected in changes:
             status = "PENDING" if review else default_status
             indexable = not review and default_status == "ACCEPTED"
+            if manifest_end is not None and when >= manifest_end:
+                if when == manifest_end and event.event_type in TERMINAL_EVENTS:
+                    terminal = True
+                continue
             if terminal or start is None:
                 errors.append(f"event after terminal for {pid}")
                 review = True
@@ -169,7 +181,7 @@ def resolve_temporal(
                     pid,
                     version,
                     start,
-                    None,
+                    manifest_end,
                     None,
                     "PENDING" if review else default_status,
                     not review and default_status == "ACCEPTED",
