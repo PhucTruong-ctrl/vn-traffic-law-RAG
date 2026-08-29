@@ -58,7 +58,7 @@ def test_actor_targets_accepted_amendment_relation_at_affected_document(monkeypa
     )
     relation = SimpleNamespace(
         relation_type="AMENDS",
-        effective_from=date(2025, 1, 1),
+        effective_from=date(2024, 1, 1),
         review_status="ACCEPTED",
         resolution_status="RESOLVED",
         confidence=1.0,
@@ -79,7 +79,16 @@ def test_actor_targets_accepted_amendment_relation_at_affected_document(monkeypa
     session = RelationSession()
     captured = {}
     quality_gate_send = Mock()
-    result = ResolutionResult((ResolvedVersion("source-article", 1, date(2024, 1, 1), None),), ())
+    source_result = ResolutionResult(
+        (ResolvedVersion("source-article", 1, date(2024, 1, 1), None),), ()
+    )
+    target_result = ResolutionResult(
+        (
+            ResolvedVersion("target-article", 1, date(2020, 1, 1), date(2024, 1, 1), 2),
+            ResolvedVersion("target-article", 2, date(2024, 1, 1), None),
+        ),
+        (),
+    )
     monkeypatch.setattr(temporal_actor, "new_session", lambda: session)
     monkeypatch.setattr(temporal_actor, "load_run", lambda *_: run)
     monkeypatch.setattr(temporal_actor, "stage_done", lambda *_: False)
@@ -101,7 +110,10 @@ def test_actor_targets_accepted_amendment_relation_at_affected_document(monkeypa
     monkeypatch.setattr(
         temporal_actor,
         "resolve_temporal",
-        lambda _manifest, events: (captured.setdefault("events", events), result)[1],
+        lambda manifest, events: (
+            captured.setdefault("events", []).extend(events),
+            target_result if events else source_result,
+        )[1],
     )
     resolve_temporal_actor(job_id="job-id")
 
@@ -109,8 +121,13 @@ def test_actor_targets_accepted_amendment_relation_at_affected_document(monkeypa
     assert relation_event["affected_provision_versions"] == [
         {"provision_id": "target-article", "version": 1}
     ]
-    assert session.added == []
-    assert quality_gate_send.called is True
+    assert source_row.effective_from == date(2024, 1, 1)
+    assert source_row.effective_to is None
+    assert target_row.effective_from == date(2020, 1, 1)
+    assert target_row.effective_to == date(2024, 1, 1)
+    assert run.status == "PENDING_REVIEW"
+    assert session.added[0].reason_code == "MISSING_SUCCESSOR_CONTENT"
+    assert quality_gate_send.called is False
 
 
 def test_actor_halts_for_missing_successor_content(monkeypatch) -> None:

@@ -91,137 +91,145 @@ def resolve_temporal_actor(job_id: str) -> None:
                     if target_version is not None
                     else []
                 )
-        target_rows = [
-            row for document_rows in target_rows_by_document.values() for row in document_rows
-        ]
-        rows_for_resolution = list(
-            {
-                (
-                    getattr(row, "document_version_id", None),
-                    row.provision_id,
-                    row.version,
-                ): row
-                for row in [*rows, *target_rows]
-            }.values()
-        )
-        relation_inputs = [
-            {
-                "event_type": relation_event_types[relation.relation_type],
-                "event_date": relation.effective_from,
-                "affected_provision_versions": [
-                    {"provision_id": row.provision_id, "version": row.version}
-                    for row in target_rows_by_document[relation.target_document_id]
-                ],
-                "review_status": relation.review_status,
-                "confidence": relation.confidence,
-                "source_document_id": relation.source_document_id,
-                "description": relation.source_note,
-            }
-            for relation in stored_relations
-        ]
-        manifest_events = run.manifest_json.get("effect_events", [])
-        event_inputs = [*manifest_events, *stored_inputs, *relation_inputs]
-        manifest = dict(run.manifest_json)
-        manifest_provisions = list(manifest.get("provisions", []) or [])
+        source_manifest = dict(run.manifest_json)
+        source_manifest_provisions = list(source_manifest.get("provisions", []) or [])
         known_provisions = {
             (str(item.get("provision_id", "")), item.get("version"))
-            for item in manifest_provisions
+            for item in source_manifest_provisions
             if isinstance(item, dict)
         }
-        for row in rows_for_resolution:
+        for row in rows:
             provision_key = (row.provision_id, row.version)
             if provision_key not in known_provisions:
-                manifest_provisions.append(
+                source_manifest_provisions.append(
                     {"provision_id": row.provision_id, "version": row.version}
                 )
-        manifest["provisions"] = manifest_provisions
-        if manifest.get("effective_from") is None and version.effective_from is not None:
-            manifest["effective_from"] = version.effective_from
+        source_manifest["provisions"] = source_manifest_provisions
+        if source_manifest.get("effective_from") is None and version.effective_from is not None:
+            source_manifest["effective_from"] = version.effective_from
         if (
-            manifest.get("effective_to") is None
+            source_manifest.get("effective_to") is None
             and getattr(version, "effective_to", None) is not None
         ):
-            manifest["effective_to"] = version.effective_to
-        result = resolve_temporal(manifest, event_inputs)
+            source_manifest["effective_to"] = version.effective_to
+        manifest_events = run.manifest_json.get("effect_events", [])
+        source_result = resolve_temporal(
+            source_manifest,
+            [*manifest_events, *stored_inputs],
+        )
+        document_results = [(rows, source_result)]
+        for target_document_id, target_rows in target_rows_by_document.items():
+            target_version = latest_document_version(session, target_document_id)
+            if target_version is None:
+                continue
+            target_manifest = {
+                "effective_from": target_version.effective_from,
+                "effective_to": getattr(target_version, "effective_to", None),
+                "review_status": source_manifest.get("review_status", "PENDING"),
+                "provisions": [
+                    {"provision_id": row.provision_id, "version": row.version}
+                    for row in target_rows
+                ],
+            }
+            target_events = [
+                {
+                    "event_type": relation_event_types[relation.relation_type],
+                    "event_date": relation.effective_from,
+                    "affected_provision_versions": [
+                        {"provision_id": row.provision_id, "version": row.version}
+                        for row in target_rows
+                    ],
+                    "review_status": relation.review_status,
+                    "confidence": relation.confidence,
+                    "source_document_id": relation.source_document_id,
+                    "description": relation.source_note,
+                }
+                for relation in stored_relations
+                if relation.target_document_id == target_document_id
+            ]
+            document_results.append(
+                (target_rows, resolve_temporal(target_manifest, target_events))
+            )
         provision_repo = ProvisionRepository(session)
         has_missing_successor = False
-        for resolved in result.versions:
-            successor = resolved.superseded_by_version
-            if successor is None:
-                continue
-            source_row = next(
-                (
-                    row
-                    for row in rows_for_resolution
-                    if row.provision_id == resolved.provision_id and row.version == resolved.version
-                ),
-                None,
-            )
-            successor_row = next(
-                (
-                    row
-                    for row in rows_for_resolution
-                    if row.provision_id == resolved.provision_id and row.version == successor
-                ),
-                None,
-            )
-            if source_row is None or successor_row is None:
-                has_missing_successor = True
-                if (
-                    session.scalar(
-                        select(ReviewItem).where(
-                            ReviewItem.ingestion_run_id == run.id,
-                            ReviewItem.reason_code == "MISSING_SUCCESSOR_CONTENT",
+        for document_rows, result in document_results:
+            for resolved in result.versions:
+                successor = resolved.superseded_by_version
+                if successor is None:
+                    continue
+                source_row = next(
+                    (
+                        row
+                        for row in document_rows
+                        if row.provision_id == resolved.provision_id
+                        and row.version == resolved.version
+                    ),
+                    None,
+                )
+                successor_row = next(
+                    (
+                        row
+                        for row in document_rows
+                        if row.provision_id == resolved.provision_id
+                        and row.version == successor
+                    ),
+                    None,
+                )
+                if source_row is None or successor_row is None:
+                    has_missing_successor = True
+                    if (
+                        session.scalar(
+                            select(ReviewItem).where(
+                                ReviewItem.ingestion_run_id == run.id,
+                                ReviewItem.reason_code == "MISSING_SUCCESSOR_CONTENT",
+                            )
+                        )
+                        is None
+                    ):
+                        session.add(
+                            ReviewItem(
+                                ingestion_run_id=run.id,
+                                document_id=run.document_id,
+                                target_type="provision",
+                                target_id=resolved.provision_id,
+                                reason_code="MISSING_SUCCESSOR_CONTENT",
+                                description="Temporal successor content is not persisted",
+                                evidence={"version": successor},
+                            )
+                        )
+                    continue
+                predecessor = provision_repo.get_registry_entry(
+                    resolved.provision_id, resolved.version
+                )
+                if predecessor is None:
+                    predecessor = provision_repo.register_version(
+                        ProvisionVersion(
+                            provision_id=resolved.provision_id,
+                            version=resolved.version,
+                            document_version_id=source_row.document_version_id,
                         )
                     )
-                    is None
-                ):
-                    session.add(
-                        ReviewItem(
-                            ingestion_run_id=run.id,
-                            document_id=run.document_id,
-                            target_type="provision",
-                            target_id=resolved.provision_id,
-                            reason_code="MISSING_SUCCESSOR_CONTENT",
-                            description="Temporal successor content is not persisted",
-                            evidence={"version": successor},
+                predecessor.superseded_by_version = successor
+                successor_entry = provision_repo.get_registry_entry(
+                    resolved.provision_id, successor
+                )
+                if successor_entry is None:
+                    provision_repo.register_version(
+                        ProvisionVersion(
+                            provision_id=resolved.provision_id,
+                            version=successor,
+                            document_version_id=successor_row.document_version_id,
                         )
                     )
-                continue
-            predecessor = provision_repo.get_registry_entry(
-                resolved.provision_id,
-                resolved.version,
-            )
-            if predecessor is None:
-                predecessor = provision_repo.register_version(
-                    ProvisionVersion(
-                        provision_id=resolved.provision_id,
-                        version=resolved.version,
-                        document_version_id=source_row.document_version_id,
-                    )
-                )
-            predecessor.superseded_by_version = successor
-            successor_entry = provision_repo.get_registry_entry(
-                resolved.provision_id,
-                successor,
-            )
-            if successor_entry is None:
-                provision_repo.register_version(
-                    ProvisionVersion(
-                        provision_id=resolved.provision_id,
-                        version=successor,
-                        document_version_id=successor_row.document_version_id,
-                    )
-                )
-            else:
-                successor_entry.document_version_id = successor_row.document_version_id
-        by_id = {(item.provision_id, item.version): item for item in result.versions}
-        for row in rows_for_resolution:
-            matching_version = by_id.get((row.provision_id, row.version))
-            if matching_version:
-                row.effective_from = matching_version.effective_from
-                row.effective_to = matching_version.effective_to
-                row.review_status = matching_version.review_status
+                else:
+                    successor_entry.document_version_id = successor_row.document_version_id
+            by_id = {(item.provision_id, item.version): item for item in result.versions}
+            for row in document_rows:
+                matching_version = by_id.get((row.provision_id, row.version))
+                if matching_version:
+                    row.effective_from = matching_version.effective_from
+                    row.effective_to = matching_version.effective_to
+                    row.review_status = matching_version.review_status
             if result.review_required and result.errors:
                 existing = session.scalar(
                     select(ReviewItem).where(
@@ -241,9 +249,10 @@ def resolve_temporal_actor(job_id: str) -> None:
                             evidence={"errors": list(result.errors)},
                         )
                     )
-        review_required = result.review_required or has_missing_successor
+        review_required = any(result.review_required for _, result in document_results)
+        review_required = review_required or has_missing_successor
+        errors = [error for _, result in document_results for error in result.errors]
         if review_required:
-            errors = list(result.errors)
             if has_missing_successor:
                 errors.append("missing temporal successor content")
             finish_terminal(
