@@ -68,9 +68,14 @@ def test_actor_translates_dated_accepted_amendment_relation(monkeypatch) -> None
 
     session = RelationSession()
     captured = {}
+    quality_gate_send = Mock()
     result = ResolutionResult((ResolvedVersion("article-1", 1, date(2024, 1, 1), None),), ())
     monkeypatch.setattr(temporal_actor, "new_session", lambda: session)
     monkeypatch.setattr(temporal_actor, "load_run", lambda *_: run)
+    monkeypatch.setattr(temporal_actor, "stage_done", lambda *_: False)
+    monkeypatch.setattr(temporal_actor, "latest_document_version", lambda *_: version)
+    monkeypatch.setattr(temporal_actor, "list_provisions", lambda *_: [row])
+    monkeypatch.setattr(quality_gate_module.quality_gate_actor, "send", quality_gate_send)
     monkeypatch.setattr(temporal_actor, "stage_done", lambda *_: False)
     monkeypatch.setattr(temporal_actor, "latest_document_version", lambda *_: version)
     monkeypatch.setattr(temporal_actor, "list_provisions", lambda *_: [row])
