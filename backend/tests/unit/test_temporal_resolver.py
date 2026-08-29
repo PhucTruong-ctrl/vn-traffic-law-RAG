@@ -49,6 +49,7 @@ def test_manifest_provisions_resolve_without_effect_events() -> None:
         ("p", 1, date(2024, 1, 1))
     ]
 
+
 def test_manifest_effective_to_closes_no_event_interval() -> None:
     result = resolve_temporal(
         {

@@ -104,9 +104,7 @@ def test_gate_m2_accepts_temporal_provision_and_finds_it(
         broker.client.ping()
     except Exception:
         pytest.skip("Redis unavailable")
-    monkeypatch.setenv(
-        "DATABASE_URL", gate_m2_engine.url.render_as_string(hide_password=False)
-    )
+    monkeypatch.setenv("DATABASE_URL", gate_m2_engine.url.render_as_string(hide_password=False))
 
     client, collection = gate_m2_qdrant
     ensure_qdrant_collection(client)
@@ -257,17 +255,19 @@ def test_gate_m2_accepts_temporal_provision_and_finds_it(
 
     with Session(gate_m2_engine) as session:
         run = session.get(IngestionRun, run_id)
-        provision = session.scalar(
-            select(LegalProvision).where(LegalProvision.id == provision_id)
-        )
+        provision = session.scalar(select(LegalProvision).where(LegalProvision.id == provision_id))
         assert run is not None and run.current_stage == "INDEXING"
         assert run.status == "COMPLETED"
         assert provision is not None
         assert provision.review_status == "ACCEPTED"
         assert provision.effective_from == _ACCEPTED_AT
-        assert [row.provision_id for row in session.scalars(
-            select(LegalProvision).where(LegalProvision.review_status == "ACCEPTED")
-        ) if row.provision_id == _PROVISION_ID] == [_PROVISION_ID]
+        assert [
+            row.provision_id
+            for row in session.scalars(
+                select(LegalProvision).where(LegalProvision.review_status == "ACCEPTED")
+            )
+            if row.provision_id == _PROVISION_ID
+        ] == [_PROVISION_ID]
 
     query_vector = embedder.embed([retrieval_text])[0]
     response = client.query_points(
