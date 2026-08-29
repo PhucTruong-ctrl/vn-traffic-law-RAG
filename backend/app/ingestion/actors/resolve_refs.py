@@ -225,11 +225,7 @@ def resolve_refs_actor(job_id: str) -> None:
                     source_note=document_candidate.source_note,
                     source="extracted",
                     resolution_status=document_candidate.resolution_status,
-                    review_status=(
-                        "ACCEPTED"
-                        if document_candidate.resolution_status == "RESOLVED"
-                        else "PENDING"
-                    ),
+                    review_status=document_candidate.review_status,
                 )
             )
         manifest["reference_resolution"] = {
