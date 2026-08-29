@@ -32,20 +32,29 @@ class _Session:
         self.closed = True
 
 
-def test_actor_translates_dated_accepted_amendment_relation(monkeypatch) -> None:
+def test_actor_targets_accepted_amendment_relation_at_affected_document(monkeypatch) -> None:
     run = SimpleNamespace(
         id="run-id",
-        document_id="doc-id",
+        document_id="source-doc",
         manifest_json={"effective_from": "2024-01-01", "review_status": "ACCEPTED"},
     )
-    version = SimpleNamespace(id="version-id", effective_from=date(2024, 1, 1))
-    row = SimpleNamespace(
-        provision_id="article-1",
+    source_version = SimpleNamespace(id="source-version", effective_from=date(2024, 1, 1))
+    target_version = SimpleNamespace(id="target-version", effective_from=date(2020, 1, 1))
+    source_row = SimpleNamespace(
+        provision_id="source-article",
         version=1,
         effective_from=None,
         effective_to=None,
         review_status="PENDING",
-        document_version_id="version-id",
+        document_version_id="source-version",
+    )
+    target_row = SimpleNamespace(
+        provision_id="target-article",
+        version=1,
+        effective_from=None,
+        effective_to=None,
+        review_status="ACCEPTED",
+        document_version_id="target-version",
     )
     relation = SimpleNamespace(
         relation_type="AMENDS",
@@ -53,7 +62,8 @@ def test_actor_translates_dated_accepted_amendment_relation(monkeypatch) -> None
         review_status="ACCEPTED",
         resolution_status="RESOLVED",
         confidence=1.0,
-        source_document_id="doc-id",
+        source_document_id="source-doc",
+        target_document_id="target-doc",
         source_note="amendment",
     )
 
@@ -69,16 +79,27 @@ def test_actor_translates_dated_accepted_amendment_relation(monkeypatch) -> None
     session = RelationSession()
     captured = {}
     quality_gate_send = Mock()
-    result = ResolutionResult((ResolvedVersion("article-1", 1, date(2024, 1, 1), None),), ())
+    result = ResolutionResult(
+        (ResolvedVersion("source-article", 1, date(2024, 1, 1), None),), ()
+    )
     monkeypatch.setattr(temporal_actor, "new_session", lambda: session)
     monkeypatch.setattr(temporal_actor, "load_run", lambda *_: run)
     monkeypatch.setattr(temporal_actor, "stage_done", lambda *_: False)
-    monkeypatch.setattr(temporal_actor, "latest_document_version", lambda *_: version)
-    monkeypatch.setattr(temporal_actor, "list_provisions", lambda *_: [row])
+    monkeypatch.setattr(
+        temporal_actor,
+        "latest_document_version",
+        lambda _session, document_id: (
+            source_version if document_id == "source-doc" else target_version
+        ),
+    )
+    monkeypatch.setattr(
+        temporal_actor,
+        "list_provisions",
+        lambda _session, version_id: (
+            [source_row] if version_id == "source-version" else [target_row]
+        ),
+    )
     monkeypatch.setattr(quality_gate_module.quality_gate_actor, "send", quality_gate_send)
-    monkeypatch.setattr(temporal_actor, "stage_done", lambda *_: False)
-    monkeypatch.setattr(temporal_actor, "latest_document_version", lambda *_: version)
-    monkeypatch.setattr(temporal_actor, "list_provisions", lambda *_: [row])
     monkeypatch.setattr(
         temporal_actor,
         "resolve_temporal",
@@ -86,8 +107,12 @@ def test_actor_translates_dated_accepted_amendment_relation(monkeypatch) -> None
     )
     resolve_temporal_actor(job_id="job-id")
 
-    assert captured["events"][0]["event_type"] == "AMENDED"
-    assert captured["events"][0]["event_date"] == date(2025, 1, 1)
+    relation_event = next(event for event in captured["events"] if event["event_type"] == "AMENDED")
+    assert relation_event["affected_provision_versions"] == [
+        {"provision_id": "target-article", "version": 1}
+    ]
+    assert session.added == []
+    assert quality_gate_send.called is True
 
 
 def test_actor_halts_for_missing_successor_content(monkeypatch) -> None:

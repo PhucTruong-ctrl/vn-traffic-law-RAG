@@ -60,25 +60,44 @@ def resolve_temporal_actor(job_id: str) -> None:
             }
             for event in stored_events
         ]
-        stored_relations = session.scalars(
-            select(DocumentRelation).where(
-                DocumentRelation.source_document_id == run.document_id,
-                DocumentRelation.review_status == "ACCEPTED",
-                DocumentRelation.resolution_status == "RESOLVED",
-            )
-        ).all()
         relation_event_types = {
             "AMENDS": "AMENDED",
             "REPEALS": "REPEALED",
             "SUPERSEDES": "SUPERSEDED",
             "CORRECTS": "CORRECTED",
         }
+        stored_relations = session.scalars(
+            select(DocumentRelation)
+            .where(
+                DocumentRelation.source_document_id == run.document_id,
+                DocumentRelation.review_status == "ACCEPTED",
+                DocumentRelation.resolution_status == "RESOLVED",
+                DocumentRelation.relation_type.in_(sorted(relation_event_types)),
+                DocumentRelation.effective_from.is_not(None),
+            )
+            .order_by(
+                DocumentRelation.relation_type,
+                DocumentRelation.target_document_id,
+                DocumentRelation.effective_from,
+            )
+        ).all()
+        target_rows_by_document: dict[str, list[Any]] = {}
+        for relation in stored_relations:
+            target_document_id = relation.target_document_id
+            if target_document_id not in target_rows_by_document:
+                target_version = latest_document_version(session, target_document_id)
+                target_rows_by_document[target_document_id] = (
+                    list_provisions(session, target_version.id)
+                    if target_version is not None
+                    else []
+                )
         relation_inputs = [
             {
                 "event_type": relation_event_types[relation.relation_type],
                 "event_date": relation.effective_from,
                 "affected_provision_versions": [
-                    {"provision_id": row.provision_id, "version": row.version} for row in rows
+                    {"provision_id": row.provision_id, "version": row.version}
+                    for row in target_rows_by_document[relation.target_document_id]
                 ],
                 "review_status": relation.review_status,
                 "confidence": relation.confidence,
@@ -86,8 +105,6 @@ def resolve_temporal_actor(job_id: str) -> None:
                 "description": relation.source_note,
             }
             for relation in stored_relations
-            if relation.relation_type in relation_event_types
-            and relation.effective_from is not None
         ]
         manifest_events = run.manifest_json.get("effect_events", [])
         event_inputs = [*manifest_events, *stored_inputs, *relation_inputs]
