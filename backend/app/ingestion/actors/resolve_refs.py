@@ -228,6 +228,15 @@ def resolve_refs_actor(job_id: str) -> None:
                     review_status=document_candidate.review_status,
                 )
             )
+            if document_candidate.review_status != "ACCEPTED":
+                review_rows.append(
+                    {
+                        "target_type": "DOCUMENT_RELATION",
+                        "target_id": document_candidate.target_document_id,
+                        "reason_code": "RELATION_REVIEW_REQUIRED",
+                        "description": document_candidate.source_note,
+                    }
+                )
         manifest["reference_resolution"] = {
             "provision_references": [r.__dict__ for r in refs],
             "document_relations": [r.__dict__ for r in docs],
