@@ -150,14 +150,18 @@ def resolve_candidate(
     *,
     source_version: int | None = None,
 ) -> ReferenceCandidate:
-    """Bind a citation to one canonical provision, including JSON mappings."""
     rows_all = list(provisions)
 
     def matches(row: object) -> bool:
         pid = str(_field(row, "provision_id", ""))
-        if candidate.target_document_id and not (
-            pid == candidate.target_document_id
-            or pid.startswith(f"{candidate.target_document_id}__")
+        document_id = candidate.target_document_id
+        document_aliases = {document_id} if document_id else set()
+        if document_id and document_id.startswith("luat-"):
+            document_aliases.add(re.sub(r"-qh\d+$", "", document_id))
+        if document_id and document_id.startswith("tt-"):
+            document_aliases.add(re.sub(r"-[a-zđ0-9]+(?:-[a-zđ0-9]+)*$", "", document_id))
+        if document_aliases and not any(
+            pid == alias or pid.startswith(f"{alias}__") for alias in document_aliases
         ):
             return False
         target = candidate.target_provision_id or ""
@@ -187,7 +191,7 @@ def resolve_candidate(
         ]
         if applicable:
             rows = applicable
-        elif source_version is not None and len(rows) > 1:
+        elif source_start is not None and source_version is not None and len(rows) > 1:
             rows = [p for p in rows if _field(p, "version") == source_version]
 
     if len(rows) != 1:

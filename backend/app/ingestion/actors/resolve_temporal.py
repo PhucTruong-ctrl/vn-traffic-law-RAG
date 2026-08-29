@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 import dramatiq
 from sqlalchemy import select
 
 from app.config import get_queue_settings
-from app.ingestion.temporal_resolver import resolve_temporal
+from app.ingestion.temporal_resolver import EffectEvent, resolve_temporal
 from app.persistence.models import DocumentRelation, LegalEffectEvent, ProvisionVersion, ReviewItem
 from app.persistence.repositories.provisions import ProvisionRepository
 
@@ -131,7 +132,7 @@ def resolve_temporal_actor(job_id: str) -> None:
                     for row in target_rows
                 ],
             }
-            target_events = [
+            target_events: list[Mapping[str, Any] | EffectEvent] = [
                 {
                     "event_type": relation_event_types[relation.relation_type],
                     "event_date": relation.effective_from,
@@ -147,9 +148,7 @@ def resolve_temporal_actor(job_id: str) -> None:
                 for relation in stored_relations
                 if relation.target_document_id == target_document_id
             ]
-            document_results.append(
-                (target_rows, resolve_temporal(target_manifest, target_events))
-            )
+            document_results.append((target_rows, resolve_temporal(target_manifest, target_events)))
         provision_repo = ProvisionRepository(session)
         has_missing_successor = False
         for document_rows, result in document_results:
@@ -170,8 +169,7 @@ def resolve_temporal_actor(job_id: str) -> None:
                     (
                         row
                         for row in document_rows
-                        if row.provision_id == resolved.provision_id
-                        and row.version == successor
+                        if row.provision_id == resolved.provision_id and row.version == successor
                     ),
                     None,
                 )

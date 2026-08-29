@@ -7,11 +7,11 @@ host-mapped PostgreSQL, Qdrant, Redis, and the configured Gemini embedding
 provider. The test uses a disposable Qdrant collection and a deterministic
 dated provision hierarchy; it does not modify the production collection.
 
-## Required chain
+## Verified chain
 
-`Parser -> IR -> Legal Structure Extractor -> Legal Reference Resolver ->
+`Persisted IR/provision rows -> Legal Reference Resolver ->
 Temporal/Amendment Resolver -> PostgreSQL ACCEPTED + resolver interval ->
-embedding -> Qdrant -> search hit`
+embedding -> Qdrant -> direct dense search`
 
 ## Run manifest
 
@@ -20,7 +20,7 @@ embedding -> Qdrant -> search hit`
 | Ticket | VNLRAG-154 |
 | Gate | M2 |
 | Worktree | `vnlaw-agentic-rag-phase3-t154` |
-| Source provision | Deterministic Vietnamese provision fixture must be supplied by the W4 E2E run |
+| Source provision | Deterministic Vietnamese provision hierarchy persisted by the evidence fixture |
 | Resolver identifiers | `app.ingestion.reference_resolver.resolve_references`; `app.ingestion.temporal_resolver.resolve_temporal` |
 | Run timestamp | 2026-08-29T04:29:49Z |
 
