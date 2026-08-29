@@ -108,9 +108,7 @@ def api_client(
 
 def _upload(client: TestClient, **kwargs: object) -> object:
     """POST a PDF to /api/v1/documents with default fixtures."""
-    files = kwargs.pop("files", None) or {
-        "file": ("document.pdf", PDF_BYTES, "application/pdf")
-    }
+    files = kwargs.pop("files", None) or {"file": ("document.pdf", PDF_BYTES, "application/pdf")}
     return client.post("/api/v1/documents", files=files, data=kwargs)
 
 

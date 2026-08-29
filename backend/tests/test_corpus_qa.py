@@ -179,9 +179,7 @@ def test_empty_corpus_all_metrics_zero(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_report_shape_matches_corpus_qa_report_fields(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_contracts(monkeypatch)
 
-    report = run_corpus_qa(
-        [_provision()], corpus_version="v1", corpus_hash="sha256:corpus"
-    )
+    report = run_corpus_qa([_provision()], corpus_version="v1", corpus_hash="sha256:corpus")
 
     # CorpusQaReport fields minus the DB-generated id.
     expected_fields = set(CorpusQaReport.__table__.columns.keys()) - {"id"}
@@ -439,9 +437,7 @@ def test_structural_qa_report_reuses_validate_hierarchy(monkeypatch: pytest.Monk
     result = structural_qa_report([_provision()], document_id="nd-168-2024")
     assert result["document_id"] == "nd-168-2024"
     assert result["provision_count"] == 1
-    assert result["hierarchy_violations"] == [
-        {"provision_id": "p-1", "kind": "orphan_point"}
-    ]
+    assert result["hierarchy_violations"] == [{"provision_id": "p-1", "kind": "orphan_point"}]
     assert result["hierarchy_metrics"] == HIERARCHY_METRICS
 
 
@@ -784,9 +780,7 @@ class _FakeSession:
 def test_report_row_kwargs_serialization(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_contracts(monkeypatch)
 
-    report = run_corpus_qa(
-        [_provision()], corpus_version="v1", corpus_hash="sha256:corpus"
-    )
+    report = run_corpus_qa([_provision()], corpus_version="v1", corpus_hash="sha256:corpus")
     kwargs = report_row_kwargs(report)
 
     assert set(kwargs) == {
@@ -812,9 +806,7 @@ def test_report_row_kwargs_serialization(monkeypatch: pytest.MonkeyPatch) -> Non
 def test_repository_save_and_get_latest(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_contracts(monkeypatch)
 
-    report = run_corpus_qa(
-        [_provision()], corpus_version="v1", corpus_hash="sha256:corpus"
-    )
+    report = run_corpus_qa([_provision()], corpus_version="v1", corpus_hash="sha256:corpus")
 
     session = _FakeSession()
     repository = CorpusQaReportRepository(session)  # type: ignore[arg-type]

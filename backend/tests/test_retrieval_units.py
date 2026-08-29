@@ -41,6 +41,7 @@ SHORT_POINT_ANNOTATION = json.loads(
 # Fixtures / helpers
 # ────────────────────────────────────────────────────────────────────────────
 
+
 def _provision(
     *,
     provision_id: str,
@@ -108,6 +109,7 @@ def _gold_parent_context_enricher() -> Any:
 # One unit per provision — short points included, no length filtering
 # ────────────────────────────────────────────────────────────────────────────
 
+
 def test_one_unit_per_provision_including_short_points(monkeypatch: pytest.MonkeyPatch) -> None:
     provisions = [
         _provision(
@@ -174,6 +176,7 @@ def test_short_points_retained_per_gold_annotation(monkeypatch: pytest.MonkeyPat
 # retrieval_text flows through the enricher
 # ────────────────────────────────────────────────────────────────────────────
 
+
 def test_retrieval_text_flows_through_enricher(monkeypatch: pytest.MonkeyPatch) -> None:
     provisions = [
         _provision(
@@ -212,6 +215,7 @@ def test_retrieval_text_flows_through_enricher(monkeypatch: pytest.MonkeyPatch) 
 # source_text preserved verbatim (immutability contract)
 # ────────────────────────────────────────────────────────────────────────────
 
+
 def test_source_text_byte_identical_to_provision(monkeypatch: pytest.MonkeyPatch) -> None:
     provisions = [
         _provision(
@@ -242,6 +246,7 @@ def test_source_text_byte_identical_to_provision(monkeypatch: pytest.MonkeyPatch
 # ────────────────────────────────────────────────────────────────────────────
 # Unit boundaries == provision boundaries (no token cuts) vs gold fixtures
 # ────────────────────────────────────────────────────────────────────────────
+
 
 def test_boundaries_match_gold_parent_context_annotation(monkeypatch: pytest.MonkeyPatch) -> None:
     annotations = PARENT_CONTEXT_ANNOTATION["annotations"]
@@ -300,6 +305,7 @@ def test_boundaries_match_gold_for_dieu7_khoan4_diem_a(monkeypatch: pytest.Monke
 # unit_id format
 # ────────────────────────────────────────────────────────────────────────────
 
+
 def test_unit_id_format_and_version_distinctness(monkeypatch: pytest.MonkeyPatch) -> None:
     v1 = _provision(
         provision_id="nd-168-2024__dieu-7__khoan-4__diem-a",
@@ -343,6 +349,7 @@ def test_retrieval_unit_forbids_extra_fields() -> None:
 # ────────────────────────────────────────────────────────────────────────────
 # retrieval_unit_stats
 # ────────────────────────────────────────────────────────────────────────────
+
 
 def test_retrieval_unit_stats_counts_by_node_kind(monkeypatch: pytest.MonkeyPatch) -> None:
     provisions = [

@@ -94,9 +94,7 @@ def _build_document(text: str, document_id: str) -> ParsedDocument:
                 element_type="paragraph",
                 text=line,
                 page_number=1,
-                bbox=BoundingBox(
-                    left=0.1, top=index / 100, right=0.9, bottom=(index + 1) / 100
-                ),
+                bbox=BoundingBox(left=0.1, top=index / 100, right=0.9, bottom=(index + 1) / 100),
                 reading_order=index,
                 parent_element_id=None,
                 source_parser="TEST",
@@ -122,9 +120,7 @@ def _build_document(text: str, document_id: str) -> ParsedDocument:
 def _extract(doc_type: str) -> list[dict]:
     expected = _expected(doc_type)
     fixture_path = _golden_dir(doc_type) / expected["fixture"]
-    document = _build_document(
-        fixture_path.read_text(encoding="utf-8"), expected["document_id"]
-    )
+    document = _build_document(fixture_path.read_text(encoding="utf-8"), expected["document_id"])
     provisions = LegalStructureExtractor().extract(
         document,
         document_version_id=expected["document_version_id"],
@@ -300,9 +296,7 @@ def test_short_points_are_retained() -> None:
                 )
 
     # The ticket-named luat Điều 8 Khoản 1 cases survive extraction (retained).
-    assert all_ids >= SHORT_POINT_IDS, (
-        f"thiếu Point đã đặt tên: {SHORT_POINT_IDS - all_ids}"
-    )
+    assert all_ids >= SHORT_POINT_IDS, f"thiếu Point đã đặt tên: {SHORT_POINT_IDS - all_ids}"
     # d/đ are flagged short_point=True by the extractor (the a) case carries the
     # label token too, so its source_text is 4 tokens — the golden set locks the
     # extractor's actual output rather than an assumed threshold).

@@ -119,9 +119,7 @@ FIXTURE_INPUTS: dict[str, str] = {
 #: Source-PDF text-layer kind per the batch-01 README (VNLRAG-97 notes).
 #: Only luat-36 has a born-digital text layer; the other four are scan-only
 #: 1-bit CCITT scans (pdftotext yields only digital-signature metadata).
-SCAN_ONLY_DOCUMENTS = frozenset(
-    {"nd-168-2024", "nd-100-2019", "tt-79-2024", "tt-24-2023"}
-)
+SCAN_ONLY_DOCUMENTS = frozenset({"nd-168-2024", "nd-100-2019", "tt-79-2024", "tt-24-2023"})
 
 _IR_SCHEMA_VERSION = "document-ir-v2"
 _PARSER_LABEL = "FIXTURE_TEXT"
@@ -169,9 +167,7 @@ def build_ir_from_lines(
                 element_type="paragraph",
                 text=text,
                 page_number=1,
-                bbox=BoundingBox(
-                    left=0.1, top=index / 100, right=0.9, bottom=(index + 1) / 100
-                ),
+                bbox=BoundingBox(left=0.1, top=index / 100, right=0.9, bottom=(index + 1) / 100),
                 reading_order=index,
                 parent_element_id=None,
                 source_parser=parser,
@@ -232,9 +228,7 @@ def apply_manifest_interval(
     ]
 
 
-def certifying_group_a(
-    measured: GroupAResult, *, scan_only: bool
-) -> GroupAResult:
+def certifying_group_a(measured: GroupAResult, *, scan_only: bool) -> GroupAResult:
     """Group A used for ROUTING (certification view).
 
     For born-digital sources the measured gates certify the parse, so the
@@ -286,9 +280,7 @@ def aggregate_routing(decisions: list[RoutingDecision]) -> dict:
     """
 
     states: dict[str, int] = Counter(decision.status for decision in decisions)
-    reasons = Counter(
-        code for decision in decisions for code in decision.reason_codes
-    )
+    reasons = Counter(code for decision in decisions for code in decision.reason_codes)
     return {
         "provision_states": {
             "ACCEPTED": states.get("ACCEPTED", 0),
@@ -356,9 +348,7 @@ def quality_stats_for(
 
     group_b = evaluate_group_b(provisions)
     kinds = Counter(provision.node_kind for provision in provisions)
-    corpus_hash = hashlib.sha256(
-        json.dumps(manifest, sort_keys=True).encode("utf-8")
-    ).hexdigest()
+    corpus_hash = hashlib.sha256(json.dumps(manifest, sort_keys=True).encode("utf-8")).hexdigest()
     corpus_qa = run_corpus_qa(
         provisions,
         corpus_version=f"batch-01-w3/{document_id}",
@@ -370,9 +360,7 @@ def quality_stats_for(
             "total": len(provisions),
             **{kind: kinds.get(kind, 0) for kind in ("ARTICLE", "CLAUSE", "POINT")},
             "other": sum(
-                count
-                for kind, count in kinds.items()
-                if kind not in ("ARTICLE", "CLAUSE", "POINT")
+                count for kind, count in kinds.items() if kind not in ("ARTICLE", "CLAUSE", "POINT")
             ),
         },
         "group_b_metrics": dict(group_b.metrics),
@@ -467,9 +455,7 @@ def run_batch01_routing(manifests_dir: Path, repo_root: Path) -> dict:
             provisions = [enrich_provision(provision) for provision in provisions]
             provisions = apply_manifest_interval(provisions, manifest)
             group_b = evaluate_group_b(provisions, group_b_thresholds)
-            decisions = evaluate_and_route(
-                provisions, group_a=routing_group_a, group_b=group_b
-            )
+            decisions = evaluate_and_route(provisions, group_a=routing_group_a, group_b=group_b)
             document_entry["extraction_input"] = {
                 "kind": "fixture_text_excerpt",
                 "path": str(fixture_path.relative_to(repo_root)),
@@ -514,9 +500,7 @@ def run_batch01_routing(manifests_dir: Path, repo_root: Path) -> dict:
                     for decision in decisions
                 ],
             }
-            document_entry["quality_stats"] = quality_stats_for(
-                provisions, manifest, document_id
-            )
+            document_entry["quality_stats"] = quality_stats_for(provisions, manifest, document_id)
             document_entry["review_backlog"] = {
                 "count": aggregated["provision_states"]["NEEDS_REVIEW"],
                 "items": [
@@ -566,8 +550,11 @@ def run_batch01_routing(manifests_dir: Path, repo_root: Path) -> dict:
 
         states = document_entry["routing"]["provision_states"]
         total_states.update(
-            {"ACCEPTED": states["ACCEPTED"], "NEEDS_REVIEW": states["NEEDS_REVIEW"],
-             "DROPPED": states["DROPPED"]}
+            {
+                "ACCEPTED": states["ACCEPTED"],
+                "NEEDS_REVIEW": states["NEEDS_REVIEW"],
+                "DROPPED": states["DROPPED"],
+            }
         )
         total_provisions += document_entry["quality_stats"]["provision_counts"]["total"]
         documents[document_id] = document_entry
@@ -601,9 +588,7 @@ def run_batch01_routing(manifests_dir: Path, repo_root: Path) -> dict:
             "documents_routed": len(documents),
             "documents_by_decision": {
                 decision: sum(
-                    1
-                    for entry in documents.values()
-                    if entry["routing"]["decision"] == decision
+                    1 for entry in documents.values() if entry["routing"]["decision"] == decision
                 )
                 for decision in ("ACCEPTED", "NEEDS_REVIEW", "DROPPED")
             },
@@ -720,9 +705,11 @@ def render_report(artifact: dict) -> str:
             f"{', '.join(entry['routing']['reason_codes']) or '—'} |"
         )
     add("")
-    add("Aggregate: "
+    add(
+        "Aggregate: "
         + f"{summary['documents']}/{summary['documents_routed']} documents routed; "
-        + f"provisions {summary['provision_states']}.")
+        + f"provisions {summary['provision_states']}."
+    )
     add("")
     add(
         "The document-level decision mirrors the quality-gate actor job outcome "
@@ -784,15 +771,15 @@ def render_report(artifact: dict) -> str:
         f"{nd_states['NEEDS_REVIEW']}; plus `D_D_AMBIGUITY` on the "
         f"{nd['routing']['reason_histogram'].get('D_D_AMBIGUITY', 0)} bare `d)` points)."
     )
-    add("- `nd-100-2019`, `tt-79-2024`, `tt-24-2023`: no extraction input in this W3 "
-        "run — zero provisions, document-level NEEDS_REVIEW (`LOW_OCR_COVERAGE`).")
+    add(
+        "- `nd-100-2019`, `tt-79-2024`, `tt-24-2023`: no extraction input in this W3 "
+        "run — zero provisions, document-level NEEDS_REVIEW (`LOW_OCR_COVERAGE`)."
+    )
     add("")
 
     add("## 5. Review backlog summary")
     add("")
-    total_review = sum(
-        docs[document_id]["review_backlog"]["count"] for document_id in doc_order
-    )
+    total_review = sum(docs[document_id]["review_backlog"]["count"] for document_id in doc_order)
     add(
         f"**{total_review} provisions route NEEDS_REVIEW** in batch 01 (the would-be "
         "`ReviewItem` rows, status PENDING, that the quality-gate actor "

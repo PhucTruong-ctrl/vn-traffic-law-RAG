@@ -289,9 +289,7 @@ def load_parsed_document(
     return row, elements
 
 
-def rebuild_ir(
-    row: ParsedDocumentRow, elements: list[DocumentElementRow]
-) -> ParsedDocument:
+def rebuild_ir(row: ParsedDocumentRow, elements: list[DocumentElementRow]) -> ParsedDocument:
     """Reconstruct the canonical IR from persisted rows (normalize/extract).
 
     Every IR field is persisted (document_ir v2 stores all element fields,
@@ -356,9 +354,7 @@ def latest_document_version(session: Session, document_id: str) -> DocumentVersi
     )
 
 
-def list_provisions(
-    session: Session, document_version_id: UUID
-) -> list[LegalProvision]:
+def list_provisions(session: Session, document_version_id: UUID) -> list[LegalProvision]:
     """All provision rows of one document version (stable order)."""
     stmt = (
         select(LegalProvision)

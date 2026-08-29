@@ -1267,8 +1267,7 @@ def _structure_document(elements: list[tuple[int, str]]) -> ParsedDocument:
     """Synthetic ParsedDocument whose elements the Legal Structure State Parser
     recognizes as ARTICLE/CLAUSE/POINT (e.g. ``(0, "Điều 5. ...")``)."""
     page_elements = [
-        _element(element_id=f"e{order}", reading_order=order, text=text)
-        for order, text in elements
+        _element(element_id=f"e{order}", reading_order=order, text=text) for order, text in elements
     ]
     return _document([_page(1, page_elements)])
 

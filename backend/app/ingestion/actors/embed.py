@@ -65,9 +65,7 @@ def embed_actor(job_id: str) -> None:
             return
         version = latest_document_version(session, run.document_id)
         if version is None:
-            raise JobStateError(
-                f"no document version for run {job_id!r}; extract must run first"
-            )
+            raise JobStateError(f"no document version for run {job_id!r}; extract must run first")
         accepted = [
             row
             for row in list_provisions(session, version.id)

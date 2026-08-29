@@ -169,9 +169,7 @@ def persist_vocabulary(encoder: BM25SparseEncoder, *, version: str) -> Path:
     tokens = sorted(encoder.vocabulary, key=lambda token: encoder.vocabulary[token])
     path = _vocab_path(version)
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps(
-        {"version": version, "tokens": tokens}, ensure_ascii=False, indent=2
-    )
+    payload = json.dumps({"version": version, "tokens": tokens}, ensure_ascii=False, indent=2)
     # Per-caller unique tmp name: a shared ".tmp" path could be unlinked by a
     # racing creator between another creator's write and os.link, turning the
     # create-if-absent into FileNotFoundError instead of converging on the
@@ -325,9 +323,7 @@ def index_actor(job_id: str) -> None:
             return
         accepted, version = _accepted_rows(session, run.document_id)
         if version is None:
-            raise JobStateError(
-                f"no document version for run {job_id!r}; extract must run first"
-            )
+            raise JobStateError(f"no document version for run {job_id!r}; extract must run first")
         # Build every upsert input while the rows are still bound to the
         # session (commit expires them; detached rows cannot be read).
         for row in accepted:

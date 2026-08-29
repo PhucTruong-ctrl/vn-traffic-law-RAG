@@ -224,9 +224,7 @@ def payload_for_unit(
 
     if document_id is None and unit.provision_id:
         # Logical document id: the provision_id slug prefix (doc 03 §3.11.3).
-        document_id = (
-            unit.provision_id.split("__", 1)[0] if "__" in unit.provision_id else None
-        )
+        document_id = unit.provision_id.split("__", 1)[0] if "__" in unit.provision_id else None
 
     return {
         "provision_id": unit.provision_id,
