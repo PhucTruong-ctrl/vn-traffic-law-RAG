@@ -2,10 +2,10 @@
 
 ## Status
 
-**PASS (2026-08-29).** The opt-in Gate M2 evidence test passed against
-host-mapped PostgreSQL, Qdrant, and the configured Gemini embedding provider.
-The test uses a disposable Qdrant collection and a deterministic dated
-provision; it does not modify the production collection.
+**BLOCKED (2026-08-29).** The expanded production-handoff evidence test
+reaches the real queue pipeline but ends at `QUALITY_CHECK` with
+`PENDING_REVIEW`; it does not yet prove automatic acceptance and indexing.
+The earlier direct resolver result is insufficient evidence for Gate M2.
 
 ## Required chain
 
