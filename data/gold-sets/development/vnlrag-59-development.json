@@ -333,9 +333,7 @@
       "expected_provision_ids": [],
       "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite tt-24-2024__dieu-5__khoan-2"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -348,7 +346,7 @@
       "review_status": "DRAFT",
       "reviewed_by": "corpus-reviewer-01",
       "gold_version": "vnlrag-59-dev-2026-08-26",
-      "hash": "b6bbd9061291872077c64a34618d92add3b9873c4ac0f603a60c1c9d485b8edc"
+      "hash": "67acaf27f618c57b349f9b25593d571d977dec7231c49982a87d2ef817d7e7be"
     },
     {
       "id": "vnlr59-dev-012",
@@ -461,7 +459,7 @@
         "nd-100-2019__dieu-5__khoan-1"
       ],
       "must_include_facts": [
-        "cite tt-24-2024__dieu-3__khoan-1"
+        "cite nd-100-2019__dieu-5__khoan-1"
       ],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
@@ -475,7 +473,7 @@
       "review_status": "DRAFT",
       "reviewed_by": "corpus-reviewer-01",
       "gold_version": "vnlrag-59-dev-2026-08-26",
-      "hash": "7741724f13a55f150146e617ce9c8ed7a06e8164d3451a256414616df6dcaa98"
+      "hash": "7c2ae12a92b1a864adb5e85891c6172095dafbaf7d8815c4d8aac833db216161"
     },
     {
       "id": "vnlr59-dev-016",
@@ -495,7 +493,8 @@
         "tt-79-2024__dieu-3__khoan-1"
       ],
       "must_include_facts": [
-        "cite tt-24-2024__dieu-3__khoan-1__diem-a"
+        "cite tt-24-2023__dieu-3__khoan-1",
+        "cite tt-79-2024__dieu-3__khoan-1"
       ],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
@@ -509,7 +508,7 @@
       "review_status": "DRAFT",
       "reviewed_by": "corpus-reviewer-01",
       "gold_version": "vnlrag-59-dev-2026-08-26",
-      "hash": "58867ec60c3a68d5cbc75a8c30c3cfdd8043ebe505eeee43dec03dbc2c6d1cce"
+      "hash": "18aee4dac6d8a23b257b8ec1b98bd8c5a0eb4c834edfd3e025509dff711b4e48"
     },
     {
       "id": "vnlr59-dev-017",
