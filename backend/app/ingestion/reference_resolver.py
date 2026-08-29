@@ -191,8 +191,6 @@ def resolve_candidate(
         ]
         if applicable:
             rows = applicable
-        elif source_start is not None and source_version is not None and len(rows) > 1:
-            rows = [p for p in rows if _field(p, "version") == source_version]
 
     if len(rows) != 1:
         reason = "AMBIGUOUS_REFERENCE" if len(rows) > 1 else "TARGET_NOT_FOUND"

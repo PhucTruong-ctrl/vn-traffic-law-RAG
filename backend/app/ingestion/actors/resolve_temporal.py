@@ -123,32 +123,37 @@ def resolve_temporal_actor(job_id: str) -> None:
             target_version = latest_document_version(session, target_document_id)
             if target_version is None:
                 continue
-            target_manifest = {
-                "effective_from": target_version.effective_from,
-                "effective_to": getattr(target_version, "effective_to", None),
-                "review_status": source_manifest.get("review_status", "PENDING"),
-                "provisions": [
-                    {"provision_id": row.provision_id, "version": row.version}
-                    for row in target_rows
-                ],
-            }
-            target_events: list[Mapping[str, Any] | EffectEvent] = [
-                {
-                    "event_type": relation_event_types[relation.relation_type],
-                    "event_date": relation.effective_from,
-                    "affected_provision_versions": [
-                        {"provision_id": row.provision_id, "version": row.version}
-                        for row in target_rows
+            for target_row in target_rows:
+                target_manifest = {
+                    "effective_from": target_row.effective_from or target_version.effective_from,
+                    "effective_to": target_row.effective_to
+                    or getattr(target_version, "effective_to", None),
+                    "review_status": target_row.review_status,
+                    "provisions": [
+                        {"provision_id": target_row.provision_id, "version": target_row.version}
                     ],
-                    "review_status": relation.review_status,
-                    "confidence": relation.confidence,
-                    "source_document_id": relation.source_document_id,
-                    "description": relation.source_note,
                 }
-                for relation in stored_relations
-                if relation.target_document_id == target_document_id
-            ]
-            document_results.append((target_rows, resolve_temporal(target_manifest, target_events)))
+                target_events: list[Mapping[str, Any] | EffectEvent] = [
+                    {
+                        "event_type": relation_event_types[relation.relation_type],
+                        "event_date": relation.effective_from,
+                        "affected_provision_versions": [
+                            {
+                                "provision_id": target_row.provision_id,
+                                "version": target_row.version,
+                            }
+                        ],
+                        "review_status": relation.review_status,
+                        "confidence": relation.confidence,
+                        "source_document_id": relation.source_document_id,
+                        "description": relation.source_note,
+                    }
+                    for relation in stored_relations
+                    if relation.target_document_id == target_document_id
+                ]
+                document_results.append(
+                    (target_rows, resolve_temporal(target_manifest, target_events))
+                )
         provision_repo = ProvisionRepository(session)
         has_missing_successor = False
         for document_rows, result in document_results:
