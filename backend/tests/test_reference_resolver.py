@@ -1,5 +1,6 @@
 from app.ingestion.reference_resolver import (
     ReferenceCandidate,
+    extract_manifest_relations,
     infer_parent_relations,
     resolve_candidate,
     resolve_references,
@@ -173,3 +174,37 @@ def test_explicit_foreign_document_citation_stays_pending() -> None:
     assert candidate.resolution_status == "PENDING_REVIEW"
     assert candidate.reason == "TARGET_NOT_FOUND"
     assert candidate.target_provision_id == "5/1"
+
+
+def test_foreign_law_identifier_preserves_authority_suffix() -> None:
+    candidates = resolve_references(
+        "Theo khoản 1 Điều 5 Luật 36/2024/QH15.",
+        "nd-168-2024__dieu-7",
+        [
+            {
+                "id": "target",
+                "provision_id": "luat-36-2024-qh15__dieu-5__khoan-1",
+                "version": 2,
+            }
+        ],
+        source_version=1,
+    )
+
+    assert candidates[0].target_document_id == "luat-36-2024-qh15"
+    assert candidates[0].resolution_status == "RESOLVED"
+
+
+def test_manifest_relations_are_parsed_as_authoritative_edges() -> None:
+    relations = extract_manifest_relations(
+        "Thông tư này GUIDES với luat-36-2024-qh15; RELATED_TO nd-168-2024.",
+        "tt-35-2024",
+        {
+            "luat-36-2024-qh15": "luat-36-2024-qh15",
+            "nd-168-2024": "nd-168-2024",
+        },
+    )
+
+    assert [(r.relation_type, r.target_document_id) for r in relations] == [
+        ("GUIDES", "luat-36-2024-qh15"),
+        ("RELATED_TO", "nd-168-2024"),
+    ]

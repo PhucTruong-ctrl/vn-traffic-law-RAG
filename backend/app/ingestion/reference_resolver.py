@@ -53,7 +53,7 @@ _DOC_PATTERNS = {
     "GUIDES": re.compile(r"hướng dẫn\s+(?:thi hành\s+)?(?P<doc>[^.;,]+)", re.I),
     "RELATED_TO": re.compile(r"liên quan đến\s+(?P<doc>[^.;,]+)", re.I),
 }
-_DOCUMENT = r"(?P<document>(?P<kind>luật|bộ luật|nghị định|thông tư|quyết định|nghị quyết|pháp lệnh)\s+(?:số\s+)?(?P<number>\d+)(?:/(?P<year>\d{4}))?(?:/[a-zđ-]+)?)"
+_DOCUMENT = r"(?P<document>(?P<kind>luật|bộ luật|nghị định|thông tư|quyết định|nghị quyết|pháp lệnh)\s+(?:số\s+)?(?P<number>\d+)(?:/(?P<year>\d{4}))?(?:/(?P<suffix>[a-zđ-]+[a-zđ0-9-]*))?)"
 _CITATION = re.compile(
     rf"(?:(?:điểm\s+(?P<point>[a-zđ]))\s+)?"
     rf"(?:(?:khoản|mục)\s+(?P<clause>\d+))?\s*điều\s+(?P<article>\d+)"
@@ -79,7 +79,15 @@ def _target_document_id(match: re.Match[str]) -> str | None:
     slug = _DOCUMENT_SLUG_PREFIX[kind]
     number = match.group("number")
     year = match.group("year")
-    return f"{slug}-{number}" + (f"-{year}" if year else "")
+    suffix = match.group("suffix")
+    normalized_suffix = suffix.casefold() if suffix else None
+    if normalized_suffix == "nđ-cp":
+        normalized_suffix = None
+    return (
+        f"{slug}-{number}"
+        + (f"-{year}" if year else "")
+        + (f"-{normalized_suffix}" if normalized_suffix else "")
+    )
 
 
 def extract_provision_references(
@@ -133,10 +141,12 @@ def resolve_candidate(
         return len(pid.split("__")) > 1 and pid.split("__")[1:] == hierarchy
 
     rows = [p for p in provisions if matches(p)]
-    if source_version is not None:
+    # A foreign citation is resolved against its canonical document version,
+    # not the version currently being ingested.
+    if source_version is not None and candidate.target_document_id is None:
         rows = [p for p in rows if value(p, "version") == source_version]
     if len(rows) != 1:
-        reason = "AMBIGUOUS_REFERENCE" if rows else "TARGET_NOT_FOUND"
+        reason = "AMBIGUOUS_REFERENCE" if len(rows) > 1 else "TARGET_NOT_FOUND"
         return ReferenceCandidate(
             **{**candidate.__dict__, "resolution_status": "PENDING_REVIEW", "reason": reason}
         )
@@ -234,6 +244,41 @@ def extract_document_relations(
                     "RESOLVED" if target else "PENDING_REVIEW",
                 )
             )
+    return out
+
+
+_MANIFEST_RELATION = re.compile(
+    r"\b(?P<relation>AMENDS|REPEALS|SUPERSEDES|CORRECTS|GUIDES|RELATED_TO)\b"
+    r"(?:\s+(?:với|with|to|document))?\s+(?P<document>[a-z0-9-]+)",
+    re.I,
+)
+
+
+def extract_manifest_relations(
+    relation_notes: object,
+    source_document_id: str,
+    known_documents: Mapping[str, str],
+) -> list[DocumentCandidate]:
+    """Read reviewer-authored relation edges from manifest notes."""
+    if not isinstance(relation_notes, str):
+        return []
+    out = []
+    for match in _MANIFEST_RELATION.finditer(relation_notes):
+        relation = match.group("relation").upper()
+        token = match.group("document").casefold()
+        target = next(
+            (doc_id for key, doc_id in known_documents.items() if key.casefold() == token),
+            None,
+        )
+        out.append(
+            DocumentCandidate(
+                source_document_id,
+                target,
+                relation,
+                match.group(0),
+                "RESOLVED" if target else "PENDING_REVIEW",
+            )
+        )
     return out
 
 

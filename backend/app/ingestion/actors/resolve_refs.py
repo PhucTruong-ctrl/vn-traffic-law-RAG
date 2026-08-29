@@ -11,11 +11,13 @@ from sqlalchemy import select
 from app.config import get_queue_settings
 from app.ingestion.reference_resolver import (
     extract_document_relations,
+    extract_manifest_relations,
+    extract_provision_references,
     infer_parent_relations,
     resolve_references,
     review_item_for,
 )
-from app.persistence.models import DocumentRelation, ProvisionReference
+from app.persistence.models import DocumentRelation, DocumentVersion, LegalDocument, LegalProvision, ProvisionReference
 from app.persistence.repositories.relations import RelationRepository
 from app.persistence.repositories.review_items import ReviewItemRepository
 
@@ -109,16 +111,47 @@ def resolve_refs_actor(job_id: str) -> None:
         if malformed_documents:
             known_documents = {}
 
+        # Canonical metadata and provisions are the authority for explicit
+        # foreign citations; the current ingestion rows are only the source.
+        canonical_documents = (
+            list(session.scalars(select(LegalDocument))) if persisted else []
+        )
+        for document in canonical_documents:
+            for key in (document.document_id, document.document_number, document.document_title):
+                known_documents.setdefault(key, document.document_id)
+        foreign_document_ids = {
+            candidate.target_document_id
+            for source in persisted
+            for candidate in extract_provision_references(source.source_text, source.provision_id)
+            if candidate.target_document_id
+        }
+        canonical_targets = (
+            list(
+                session.scalars(
+                    select(LegalProvision)
+                    .join(DocumentVersion)
+                    .where(
+                        DocumentVersion.document_id.in_(foreign_document_ids),
+                        LegalProvision.review_status == "ACCEPTED",
+                        DocumentVersion.review_status == "ACCEPTED",
+                    )
+                )
+            )
+            if foreign_document_ids
+            else []
+        )
+
         refs: list[Any] = []
         review_rows: list[dict[str, Any]] = []
         if persisted:
-            targets = {key: row for row in persisted for key in (str(row.id), row.provision_id)}
+            resolution_rows = [*persisted, *canonical_targets]
+            targets = {key: row for row in resolution_rows for key in (str(row.id), row.provision_id)}
             sources = {row.provision_id: row for row in persisted}
             for source in persisted:
                 candidates = resolve_references(
                     source.source_text,
                     source.provision_id,
-                    persisted,
+                    resolution_rows,
                     source_version=source.version,
                 )
                 refs.extend(candidates)
@@ -150,11 +183,13 @@ def resolve_refs_actor(job_id: str) -> None:
             ]
         elif not persisted:
             review_rows = [{"target_id": run.document_id, "reason_code": "MISSING_REFERENCE_INPUT"}]
-
         relation_text = (
             "\n".join(row.source_text for row in persisted) if persisted else legacy_text
         )
-        docs = (
+        manifest_docs = extract_manifest_relations(
+            manifest.get("relation_notes"), run.document_id, known_documents
+        )
+        docs = manifest_docs or (
             extract_document_relations(relation_text, run.document_id, known_documents)
             if isinstance(relation_text, str) and not malformed_documents
             else []
