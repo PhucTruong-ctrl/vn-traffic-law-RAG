@@ -18,6 +18,24 @@ from .query_understanding_types import EvidenceType, QueryIntent
 FallbackAnalyzer: TypeAlias = Callable[[str, date], "QueryPlan"]
 
 
+def _safe_fallback_plan(question: str) -> QueryPlan:
+    return QueryPlan(
+        intent=QueryIntent.OUT_OF_SCOPE,
+        effective_date=None,
+        comparison_from=None,
+        comparison_to=None,
+        vehicle_type=None,
+        document_number=None,
+        article=None,
+        clause=None,
+        point=None,
+        legal_entities=[],
+        normalized_query=_normalize(question),
+        required_evidence=[],
+        missing_query_information=["query_analysis"],
+    )
+
+
 class QueryPlan(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -34,6 +52,56 @@ class QueryPlan(BaseModel):
     normalized_query: str
     required_evidence: list[EvidenceType]
     missing_query_information: list[str]
+
+
+class QueryPlanFallback:
+    """Structured Gemini fallback for questions deterministic parsing cannot resolve."""
+
+    def __init__(
+        self,
+        client: object | None = None,
+        *,
+        model: str | None = None,
+    ) -> None:
+        self._client = client
+        self._model = model
+
+    def analyze(self, question: str, *, current_date: date) -> QueryPlan:
+        try:
+            client = self._client
+            model = self._model
+            if client is None or model is None:
+                from app.config import get_generation_settings
+
+                settings = get_generation_settings()
+                model = model or settings.model
+                if client is None:
+                    from google import genai
+
+                    client = genai.Client(api_key=settings.gemini_api_key)
+            from google.genai import types
+
+            response = client.models.generate_content(
+                model=model,
+                contents=(
+                    "Analyze this Vietnamese legal question and return only a QueryPlan "
+                    f"JSON object. Current date: {current_date.isoformat()}. "
+                    f"Question: {question}"
+                ),
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=QueryPlan,
+                    temperature=0.2,
+                ),
+            )
+            parsed = getattr(response, "parsed", None)
+            if parsed is None:
+                parsed = getattr(response, "text", None)
+            if parsed is None:
+                raise ValueError("Gemini returned no structured query plan")
+            return QueryPlan.model_validate(parsed)
+        except Exception:
+            return _safe_fallback_plan(question)
 
 
 def _date_signals(text: str, current_date: date) -> list[date]:
@@ -177,7 +245,10 @@ class QueryAnalyzer:
         if self.fallback_analyzer and not (
             document or hierarchy or clause or point or vehicle or dates or out_of_scope
         ):
-            return self.fallback_analyzer(text, current_date)
+            try:
+                return QueryPlan.model_validate(self.fallback_analyzer(text, current_date))
+            except Exception:
+                return _safe_fallback_plan(text)
         plan = QueryPlan(
             intent=intent,
             effective_date=effective,
@@ -205,6 +276,7 @@ __all__ = [
     "EvidenceType",
     "QueryIntent",
     "QueryPlan",
+    "QueryPlanFallback",
     "QueryAnalyzer",
     "TERMINOLOGY_VERSION",
 ]
