@@ -111,6 +111,23 @@ def test_start_storage_failure_does_not_add_dangling_run_row() -> None:
     session.add.assert_not_called()
     session.flush.assert_not_called()
 
+def test_start_flush_failure_cleans_descriptor_for_retry() -> None:
+    run_id = "retryable-start"
+    storage = MemoryStorage()
+    session = Mock()
+    session.scalar.return_value = None
+    session.flush.side_effect = [RuntimeError("flush failed"), None]
+    writer = EvaluationRunWriter()
+
+    with pytest.raises(RuntimeError, match="flush failed"):
+        writer.start(manifest(run_id=run_id), session=session, storage=storage)
+    descriptor_path = EvaluationRunWriter._run_path(run_id)
+    assert descriptor_path not in storage.data
+    session.expunge.assert_called_once()
+
+    writer.start(manifest(run_id=run_id), session=session, storage=storage)
+    assert descriptor_path in storage.data
+
 
 def test_append_storage_failure_does_not_add_dangling_result_row() -> None:
     run_id = "running-run"

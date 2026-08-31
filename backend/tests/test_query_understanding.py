@@ -95,6 +95,16 @@ def test_out_of_scope_has_no_evidence_plan() -> None:
     assert plan.intent is QueryIntent.OUT_OF_SCOPE
     assert plan.required_evidence == []
 
+def test_out_of_scope_precedes_comparison_dates() -> None:
+    plan = QueryAnalyzer().analyze(
+        "So sánh luật Mỹ năm 2023 và năm 2025 về tư vấn cá nhân",
+        current_date=TODAY,
+    )
+    assert plan.intent is QueryIntent.OUT_OF_SCOPE
+    assert plan.comparison_from is None
+    assert plan.comparison_to is None
+    assert plan.missing_query_information == []
+
 
 def test_fallback_is_injected_not_called_for_deterministic_reference() -> None:
     calls: list[str] = []

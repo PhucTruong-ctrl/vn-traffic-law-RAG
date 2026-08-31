@@ -263,7 +263,14 @@ class QueryAnalyzer:
             for token in date_tokens
         ):
             missing.append("query_date")
-        if comparison:
+        if out_of_scope:
+            intent, effective, comparison_from, comparison_to = (
+                QueryIntent.OUT_OF_SCOPE,
+                None,
+                None,
+                None,
+            )
+        elif comparison:
             intent = QueryIntent.COMPARISON
             comparison_dates = dates[:2]
             comparison_from = comparison_dates[0] if comparison_dates else None
@@ -271,13 +278,6 @@ class QueryAnalyzer:
             if comparison_from is None or comparison_to is None:
                 missing.append("comparison_dates")
             effective = None
-        elif out_of_scope:
-            intent, effective, comparison_from, comparison_to = (
-                QueryIntent.OUT_OF_SCOPE,
-                None,
-                None,
-                None,
-            )
         elif document or hierarchy or clause or point:
             intent, effective, comparison_from, comparison_to = (
                 QueryIntent.SOURCE_SEARCH,

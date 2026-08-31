@@ -115,7 +115,7 @@ class EvaluationRunWriter:
             }).encode(),
             content_type="application/json",
         )
-        session.add(EvaluationRun(
+        row = EvaluationRun(
             run_id=run_id, git_commit=manifest.git_commit, corpus_version=manifest.corpus_version,
             corpus_hash=manifest.corpus_hash, gold_set_version=manifest.gold_set_version,
             gold_set_hash=manifest.gold_set_hash, suite=manifest.suite, variant=manifest.variant,
@@ -123,8 +123,16 @@ class EvaluationRunWriter:
             model_ids=manifest.model_ids, prompt_versions=manifest.prompt_versions,
             parser_versions=manifest.parser_versions, raw_results_path=descriptor_path,
             status="RUNNING", metric_availability={},
-        ))
-        session.flush()
+        )
+        try:
+            session.add(row)
+            session.flush()
+        except Exception:
+            with contextlib.suppress(Exception):
+                session.expunge(row)
+            with contextlib.suppress(Exception):
+                storage.delete(_BUCKET, descriptor_path)
+            raise
         return run_id
 
     def append_result(
