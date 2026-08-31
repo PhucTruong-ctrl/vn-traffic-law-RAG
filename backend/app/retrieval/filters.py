@@ -7,10 +7,25 @@ from datetime import UTC, date, datetime, time
 
 from qdrant_client import models
 
+from app.ingestion.terminology import canonical_term
+
 from .contracts import RetrievalResult
 
 _ACCEPTED = "ACCEPTED"
+_VEHICLE_TYPE_ALIASES = {
+    "xe đạp": "BICYCLE",
+    "xe máy": "MOTORCYCLE",
+    "xe mô tô": "MOTORCYCLE",
+    "xe gắn máy": "MOTORCYCLE",
+    "ô tô": "CAR",
+    "xe ô tô": "CAR",
+}
 
+
+def normalize_vehicle_type(vehicle_type: str) -> str:
+    """Map Vietnamese query terms to the enum values stored in Qdrant."""
+    normalized = canonical_term(vehicle_type)
+    return _VEHICLE_TYPE_ALIASES.get(normalized.casefold(), normalized.upper())
 
 def _at_midnight(value: date) -> datetime:
     return datetime.combine(value, time.min, tzinfo=UTC)
@@ -32,9 +47,19 @@ def build_temporal_filter(
         ),
     ]
     if vehicle_type is not None:
+        normalized_vehicle_type = normalize_vehicle_type(vehicle_type)
         must.append(
-            models.FieldCondition(
-                key="vehicle_types", match=models.MatchValue(value=vehicle_type)
+            models.Filter(
+                should=[
+                    models.FieldCondition(
+                        key="vehicle_types",
+                        match=models.MatchValue(value=normalized_vehicle_type),
+                    ),
+                    # Indexing stores [] when no vehicle restriction was given.
+                    models.IsEmptyCondition(
+                        is_empty=models.PayloadField(key="vehicle_types")
+                    ),
+                ]
             )
         )
 
@@ -79,8 +104,16 @@ def is_payload_temporally_valid(
     if effective_to is not None and query_date >= effective_to:
         return False
     if vehicle_type is not None:
+        normalized_vehicle_type = normalize_vehicle_type(vehicle_type)
         vehicle_types = payload.get("vehicle_types")
-        if not isinstance(vehicle_types, (list, tuple, set)) or vehicle_type not in vehicle_types:
+        # [] is the explicit unrestricted value emitted by accepted indexing.
+        if vehicle_types == []:
+            return True
+        if not isinstance(vehicle_types, (list, tuple, set)) or not any(
+            isinstance(value, str)
+            and normalize_vehicle_type(value) == normalized_vehicle_type
+            for value in vehicle_types
+        ):
             return False
     return True
 
@@ -166,5 +199,6 @@ __all__ = [
     "filter_payloads",
     "filter_payloads_temporally",
     "is_payload_temporally_valid",
+    "normalize_vehicle_type",
     "payload_is_valid_at",
 ]

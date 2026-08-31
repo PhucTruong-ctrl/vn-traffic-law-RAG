@@ -10,6 +10,7 @@ from app.retrieval.filters import (
     deduplicate_results,
     filter_payloads_temporally,
     is_payload_temporally_valid,
+    normalize_vehicle_type,
 )
 
 
@@ -74,7 +75,19 @@ def test_review_status_and_vehicle_type_are_enforced() -> None:
     assert not is_payload_temporally_valid(_payload(review_status="PENDING"), START)
     assert is_payload_temporally_valid(_payload(), START, vehicle_type="CAR")
     assert not is_payload_temporally_valid(_payload(), START, vehicle_type="TRUCK")
-    assert not is_payload_temporally_valid(_payload(vehicle_types=[]), START, vehicle_type="CAR")
+
+
+def test_vehicle_terms_normalize_and_unrestricted_payloads_are_kept() -> None:
+    assert normalize_vehicle_type("xe máy") == "MOTORCYCLE"
+    assert normalize_vehicle_type(" ô tô ") == "CAR"
+    assert normalize_vehicle_type("xe đạp") == "BICYCLE"
+    assert is_payload_temporally_valid(_payload(vehicle_types=[]), START, vehicle_type="xe máy")
+    assert is_payload_temporally_valid(
+        _payload(vehicle_types=["MOTORCYCLE"]), START, vehicle_type="xe máy"
+    )
+    assert not is_payload_temporally_valid(
+        _payload(vehicle_types=["CAR"]), START, vehicle_type="xe máy"
+    )
 
 
 def test_filter_preserves_valid_payloads_and_order() -> None:
@@ -84,7 +97,7 @@ def test_filter_preserves_valid_payloads_and_order() -> None:
 
 
 def test_qdrant_filter_requires_accepted_half_open_interval_and_vehicle() -> None:
-    temporal_filter = build_temporal_filter(START, vehicle_type="CAR")
+    temporal_filter = build_temporal_filter(START, vehicle_type="xe máy")
 
     assert temporal_filter.must is not None
     assert any(
@@ -93,11 +106,22 @@ def test_qdrant_filter_requires_accepted_half_open_interval_and_vehicle() -> Non
         and condition.match == models.MatchValue(value="ACCEPTED")
         for condition in temporal_filter.must
     )
+    vehicle_filter = next(
+        condition
+        for condition in temporal_filter.must
+        if isinstance(condition, models.Filter)
+    )
+    assert vehicle_filter.should is not None
     assert any(
         isinstance(condition, models.FieldCondition)
         and condition.key == "vehicle_types"
-        and condition.match == models.MatchValue(value="CAR")
-        for condition in temporal_filter.must
+        and condition.match == models.MatchValue(value="MOTORCYCLE")
+        for condition in vehicle_filter.should
+    )
+    assert any(
+        isinstance(condition, models.IsEmptyCondition)
+        and condition.is_empty == models.PayloadField(key="vehicle_types")
+        for condition in vehicle_filter.should
     )
     assert any(
         isinstance(condition, models.IsNullCondition)
