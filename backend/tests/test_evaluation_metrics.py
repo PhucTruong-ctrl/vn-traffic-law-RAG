@@ -16,14 +16,18 @@ def test_hand_computed_ranking_metrics_and_duplicate_ids():
     assert recall_at(retrieved, ["p1", "p2"], 5) == 1
     assert reciprocal_rank(retrieved, ["p1", "p2"]) == 0.5
     ideal = 1 + 1 / log2(3)
-    assert round(ndcg_at(retrieved, ["p1", "p2"]) or 0, 6) == round((1 / log2(3) + 1 / log2(4)) / ideal, 6)
+    assert round(ndcg_at(retrieved, ["p1", "p2"]) or 0, 6) == round(
+        (1 / log2(3) + 1 / log2(4)) / ideal, 6
+    )
 
 
 def test_retrieval_reports_na_for_empty_gold_and_category_breakdown():
-    report = evaluate_retrieval([
-        {"id": "a", "category": "CURRENT", "retrieved": ["p1"], "relevant": ["p1"]},
-        {"id": "b", "category": "CURRENT", "retrieved": ["p1"], "relevant": []},
-    ])
+    report = evaluate_retrieval(
+        [
+            {"id": "a", "category": "CURRENT", "retrieved": ["p1"], "relevant": ["p1"]},
+            {"id": "b", "category": "CURRENT", "retrieved": ["p1"], "relevant": []},
+        ]
+    )
     assert report["recall@5"].value == 1
     assert report["recall@5"].by_category == {"CURRENT": 1}
     assert report["mrr@10"].per_query["b"] is None
