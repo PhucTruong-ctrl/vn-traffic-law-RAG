@@ -268,6 +268,53 @@ def test_retrieval_uses_expansion_variants() -> None:
     graph.invoke({"question": "question", "max_repair_attempts": 0})
     assert calls == [("original", date(2025, 1, 1)), ("rewrite", date(2025, 1, 1))]
 
+def test_hyde_variant_uses_dense_path_without_exact_or_sparse_retrieval() -> None:
+    calls = []
+    plan = SimpleNamespace(
+        normalized_query="normalized",
+        intent="CURRENT",
+        effective_date=date(2025, 1, 1),
+        missing_query_information=[],
+    )
+    complete_gate = type(
+        "CompleteGate",
+        (),
+        {
+            "evaluate": lambda self, plan, context: type(
+                "Result",
+                (),
+                {"status": EvidenceStatus.COMPLETE, "evidence_gaps": []},
+            )()
+        },
+    )()
+
+    def general_retrieval(query, **kwargs):
+        calls.append(("general", query))
+        return [query]
+
+    def dense_retrieval(query, **kwargs):
+        calls.append(("dense", query, kwargs["query_date"]))
+        return [query]
+
+    graph = build_query_graph(
+        services(
+            analyzer=lambda question, **_: plan,
+            expander=lambda plan, **_: [
+                SimpleNamespace(text="original", source="original"),
+                SimpleNamespace(text="synthetic answer", source="hyde"),
+            ],
+            retriever=general_retrieval,
+            dense_retriever=dense_retrieval,
+            evidence_gate=complete_gate,
+        )
+    )
+
+    graph.invoke({"question": "question", "max_repair_attempts": 0})
+    assert calls == [
+        ("general", "original"),
+        ("dense", "synthetic answer", date(2025, 1, 1)),
+    ]
+
 def test_comparison_retrieval_keeps_independent_before_and_after() -> None:
     calls = []
     plan = SimpleNamespace(

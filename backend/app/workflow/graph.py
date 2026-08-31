@@ -59,6 +59,7 @@ class GraphServices:
     temporal: Service = None
     expander: Service = None
     retriever: Service = None
+    dense_retriever: Service = None
     comparison: Service = None
     fusion: Service = None
     reranker: Service = None
@@ -189,12 +190,14 @@ def _expand_query(state: QueryState, services: GraphServices) -> QueryState:
 def _variant_text(variant: Any) -> str:
     return getattr(variant, "text", None) or str(variant)
 
-
-def _variant_queries(state: QueryState, plan: Any) -> list[str]:
+def _variant_queries(state: QueryState, plan: Any) -> list[tuple[str, str]]:
     variants = state.get("expansion_set")
     if variants:
-        return [_variant_text(variant) for variant in variants]
-    return [getattr(plan, "normalized_query", None) or _question(state)]
+        return [
+            (_variant_text(variant), getattr(variant, "source", "original"))
+            for variant in variants
+        ]
+    return [(getattr(plan, "normalized_query", None) or _question(state), "original")]
 
 
 def _retrieve_one(
@@ -202,9 +205,19 @@ def _retrieve_one(
     services: GraphServices,
     query: str,
     *,
+    source: str,
     query_date: date,
 ) -> Any:
     plan = state.get("query_understanding")
+    if source == "hyde":
+        return _call(
+            services.dense_retriever,
+            query,
+            service_name="dense_retriever",
+            method_names=("retrieve", "search"),
+            query_date=query_date,
+            vehicle_type=getattr(plan, "vehicle_type", None) or state.get("vehicle_type"),
+        )
     return _call(
         services.retriever,
         query,
@@ -227,8 +240,21 @@ def _retrieve(state: QueryState, services: GraphServices) -> QueryState:
             return {"recall_candidates": []}
         before: Any = []
         after: Any = []
-        for query in queries:
-            if services.comparison is not None:
+        for query, source in queries:
+            if source == "hyde":
+                before = _merge_results(
+                    before,
+                    _retrieve_one(
+                        state, services, query, source=source, query_date=date_from
+                    ),
+                )
+                after = _merge_results(
+                    after,
+                    _retrieve_one(
+                        state, services, query, source=source, query_date=date_to
+                    ),
+                )
+            elif services.comparison is not None:
                 comparison_plan = plan
                 if query != getattr(plan, "normalized_query", None) and hasattr(
                     plan, "model_copy"
@@ -246,10 +272,16 @@ def _retrieve(state: QueryState, services: GraphServices) -> QueryState:
                 after = _merge_results(after, result.after)
             else:
                 before = _merge_results(
-                    before, _retrieve_one(state, services, query, query_date=date_from)
+                    before,
+                    _retrieve_one(
+                        state, services, query, source=source, query_date=date_from
+                    ),
                 )
                 after = _merge_results(
-                    after, _retrieve_one(state, services, query, query_date=date_to)
+                    after,
+                    _retrieve_one(
+                        state, services, query, source=source, query_date=date_to
+                    ),
                 )
         if isinstance(before, CandidateSet) and isinstance(after, CandidateSet):
             comparison = ComparisonResult(before=before, after=after)
@@ -260,9 +292,10 @@ def _retrieve(state: QueryState, services: GraphServices) -> QueryState:
     if query_date is None:
         return {"recall_candidates": []}
     candidates: Any = []
-    for query in queries:
+    for query, source in queries:
         candidates = _merge_results(
-            candidates, _retrieve_one(state, services, query, query_date=query_date)
+            candidates,
+            _retrieve_one(state, services, query, source=source, query_date=query_date),
         )
     return {"recall_candidates": candidates}
 
