@@ -1,10 +1,24 @@
 from __future__ import annotations
 
+from unittest.mock import Mock
+
 import pytest
 from sqlalchemy import CheckConstraint
 
-from app.evaluation.run import EvaluationRunManifest
+from app.evaluation.run import EvaluationRunManifest, EvaluationRunWriter
 from app.persistence.models import EvaluationRun
+
+
+class MemoryStorage:
+    def __init__(self, keys: set[str] | None = None) -> None:
+        self.keys = keys or set()
+        self.puts: list[str] = []
+
+    def list(self, bucket: str, prefix: str = "") -> list[str]:
+        return sorted(key for key in self.keys if key.startswith(prefix))
+
+    def put(self, bucket: str, key: str, data: bytes, *, content_type: str | None = None) -> None:
+        self.puts.append(key)
 
 
 def manifest(**overrides: object) -> EvaluationRunManifest:
@@ -22,6 +36,43 @@ def test_manifest_hash_is_stable_and_changes_with_inputs() -> None:
     assert manifest().manifest_hash() == manifest().manifest_hash()
     assert manifest(config_snapshot={"k": 2}).manifest_hash() != manifest().manifest_hash()
 
+
+
+def test_start_rejects_preexisting_per_question_artifact() -> None:
+    run_id = "run-with-existing-result"
+    question_id = "q1"
+    result_path = EvaluationRunWriter._result_path(run_id, question_id)
+    storage = MemoryStorage({result_path})
+    session = Mock()
+    session.scalar.return_value = None
+
+    with pytest.raises(ValueError, match="evaluation artifacts already exist"):
+        EvaluationRunWriter().start(
+            manifest(run_id=run_id),
+            session=session,
+            storage=storage,
+        )
+
+    session.add.assert_not_called()
+    assert storage.puts == []
+
+
+def test_append_rejects_preexisting_per_question_artifact() -> None:
+    run_id = "running-run"
+    question_id = "q1"
+    result_path = EvaluationRunWriter._result_path(run_id, question_id)
+    storage = MemoryStorage({result_path})
+    session = Mock()
+    run = Mock(id="database-run", status="RUNNING")
+    session.scalar.side_effect = [run, None]
+    writer = EvaluationRunWriter()
+    writer._storage_by_run[run_id] = storage
+
+    with pytest.raises(ValueError, match="evaluation artifact already exists"):
+        writer.append_result(run_id, {"question_id": question_id}, session=session)
+
+    session.add.assert_not_called()
+    assert storage.puts == []
 
 def test_manifest_rejects_unknown_fields() -> None:
     with pytest.raises(ValueError):

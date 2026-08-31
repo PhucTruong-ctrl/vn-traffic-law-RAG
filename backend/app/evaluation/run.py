@@ -80,9 +80,13 @@ class EvaluationRunWriter:
         run_id = manifest.run_id or str(uuid.uuid4())
         if session.scalar(select(EvaluationRun).where(EvaluationRun.run_id == run_id)):
             raise ValueError(f"evaluation run already exists: {run_id}")
-        path = self._run_path(run_id)
-        if storage.list(_BUCKET, prefix=path):
-            raise ValueError(f"evaluation artifact already exists: {path}")
+        descriptor_path = self._run_path(run_id)
+        results_prefix = f"{run_id}/results/"
+        if descriptor_path in storage.list(_BUCKET, prefix=descriptor_path):
+            raise ValueError(f"evaluation artifact already exists: {descriptor_path}")
+        if storage.list(_BUCKET, prefix=results_prefix):
+            raise ValueError(f"evaluation artifacts already exist: {results_prefix}")
+        path = descriptor_path
         session.add(EvaluationRun(
             run_id=run_id, git_commit=manifest.git_commit, corpus_version=manifest.corpus_version,
             corpus_hash=manifest.corpus_hash, gold_set_version=manifest.gold_set_version,
@@ -121,6 +125,10 @@ class EvaluationRunWriter:
             EvaluationResult.question_id == question_id,
         )):
             raise ValueError(f"result already appended: {question_id}")
+        result_path = self._result_path(run_id, question_id)
+        storage = self._storage_by_run[run_id]
+        if result_path in storage.list(_BUCKET, prefix=result_path):
+            raise ValueError(f"evaluation artifact already exists: {result_path}")
 
         def obj(name: str) -> dict[str, Any]:
             value = result.get(name, {})
@@ -128,7 +136,6 @@ class EvaluationRunWriter:
                 raise ValueError(f"result.{name} must be an object")
             return dict(value)
 
-        result_path = self._result_path(run_id, question_id)
         session.add(EvaluationResult(
             evaluation_run_id=run.id, question_id=question_id, input=obj("input"),
             retrieval=obj("retrieval"), output=obj("output"), metrics=obj("metrics"),
