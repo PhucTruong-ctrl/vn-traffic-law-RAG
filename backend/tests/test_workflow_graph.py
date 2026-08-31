@@ -3,6 +3,8 @@ from types import SimpleNamespace
 
 from app.query.evidence_gate import EvidenceStatus
 from app.query.query_understanding_types import EvidenceType
+from app.retrieval.comparison import ComparisonResult
+from app.retrieval.contracts import CandidateSet
 from app.workflow.graph import GraphServices, build_query_graph
 
 
@@ -355,6 +357,73 @@ def test_comparison_retrieval_keeps_independent_before_and_after() -> None:
         "before": ["variant:2023-01-01"],
         "after": ["variant:2025-01-01"],
     }
+
+
+def test_comparison_sides_stay_separate_through_downstream_nodes() -> None:
+    before_date, after_date = date(2023, 1, 1), date(2025, 1, 1)
+    plan = SimpleNamespace(
+        normalized_query="compare",
+        intent="COMPARISON",
+        comparison_from=before_date,
+        comparison_to=after_date,
+        missing_query_information=[],
+    )
+    seen: dict[str, list[str]] = {"fusion": [], "rerank": [], "expand": [], "gate": []}
+
+    def compare(plan, *, date_from, date_to):
+        return ComparisonResult(
+            before=CandidateSet(query="before", results=[], applied_date=date_from),
+            after=CandidateSet(query="after", results=[], applied_date=date_to),
+        )
+
+    def fusion(candidates):
+        assert isinstance(candidates, CandidateSet)
+        seen["fusion"].append(candidates.query)
+        return candidates
+
+    def rerank(question, candidates):
+        assert isinstance(candidates, CandidateSet)
+        seen["rerank"].append(candidates.query)
+        return candidates
+
+    def expand(candidates, *, query_date):
+        assert isinstance(candidates, CandidateSet)
+        seen["expand"].append(f"{candidates.query}:{query_date}")
+        return []
+
+    class CompleteGate:
+        def evaluate(self, plan, context):
+            assert isinstance(context, CandidateSet)
+            seen["gate"].append(context.query)
+            return SimpleNamespace(status=EvidenceStatus.COMPLETE, evidence_gaps=[])
+
+    graph = build_query_graph(
+        services(
+            analyzer=lambda question, **_: plan,
+            expander=lambda plan, **_: [SimpleNamespace(text="compare")],
+            comparison=compare,
+            fusion=fusion,
+            reranker=rerank,
+            context_expander=expand,
+            evidence_gate=CompleteGate(),
+            context_builder=lambda candidates: candidates,
+        )
+    )
+    state = graph.invoke({"question": "compare", "max_repair_attempts": 0})
+
+    assert seen["fusion"] == ["before", "after"]
+    assert seen["rerank"] == ["before", "after"]
+    assert seen["expand"] == [
+        f"before:{before_date}",
+        f"after:{after_date}",
+    ]
+    assert seen["gate"] == ["before", "after"]
+    assert isinstance(state["expanded_context"], ComparisonResult)
+    assert state["expanded_context"].before.applied_date == before_date
+    assert state["expanded_context"].after.applied_date == after_date
+    assert isinstance(state["context_package"], ComparisonResult)
+    assert state["context_package"].before.query == "before"
+    assert state["context_package"].after.query == "after"
 
 
 def test_context_expansion_uses_resolved_plan_date() -> None:
