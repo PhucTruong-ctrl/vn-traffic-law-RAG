@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from unittest.mock import Mock
 
 import pytest
@@ -11,13 +12,24 @@ from app.persistence.models import EvaluationRun
 
 class MemoryStorage:
     def __init__(self, keys: set[str] | None = None) -> None:
-        self.keys = keys or set()
+        self.data = {
+            key: json.dumps({
+                "run_id": key.split("/", 1)[0],
+                "format": "per-question-jsonl",
+                "results_prefix": f"{key.split('/', 1)[0]}/results/",
+            }).encode()
+            for key in (keys or set())
+        }
         self.puts: list[str] = []
 
     def list(self, bucket: str, prefix: str = "") -> list[str]:
-        return sorted(key for key in self.keys if key.startswith(prefix))
+        return sorted(key for key in self.data if key.startswith(prefix))
+
+    def get(self, bucket: str, key: str) -> bytes:
+        return self.data[key]
 
     def put(self, bucket: str, key: str, data: bytes, *, content_type: str | None = None) -> None:
+        self.data[key] = data
         self.puts.append(key)
 
 
@@ -37,6 +49,11 @@ def manifest(**overrides: object) -> EvaluationRunManifest:
     return EvaluationRunManifest.model_validate(values)
 
 
+def running(run_id: str) -> Mock:
+    return Mock(id="database-run", run_id=run_id, status="RUNNING",
+                raw_results_path=EvaluationRunWriter._run_path(run_id))
+
+
 def test_manifest_hash_is_stable_and_changes_with_inputs() -> None:
     assert manifest().manifest_hash() == manifest().manifest_hash()
     assert manifest(config_snapshot={"k": 2}).manifest_hash() != manifest().manifest_hash()
@@ -44,75 +61,76 @@ def test_manifest_hash_is_stable_and_changes_with_inputs() -> None:
 
 def test_start_rejects_preexisting_per_question_artifact() -> None:
     run_id = "run-with-existing-result"
-    question_id = "q1"
-    result_path = EvaluationRunWriter._result_path(run_id, question_id)
+    result_path = EvaluationRunWriter._result_path(run_id, "q1")
     storage = MemoryStorage({result_path})
     session = Mock()
     session.scalar.return_value = None
-
     with pytest.raises(ValueError, match="evaluation artifacts already exist"):
         EvaluationRunWriter().start(manifest(run_id=run_id), session=session, storage=storage)
-
     session.add.assert_not_called()
     assert storage.puts == []
 
 
 def test_append_rejects_preexisting_per_question_artifact() -> None:
     run_id = "running-run"
-    question_id = "q1"
-    result_path = EvaluationRunWriter._result_path(run_id, question_id)
-    storage = MemoryStorage({result_path})
+    storage = MemoryStorage({EvaluationRunWriter._run_path(run_id),
+                             EvaluationRunWriter._result_path(run_id, "q1")})
     session = Mock()
-    run = Mock(id="database-run", status="RUNNING")
-    session.scalar.side_effect = [run, None]
-    writer = EvaluationRunWriter()
-    writer._storage_by_run[run_id] = storage
-
+    session.scalar.side_effect = [running(run_id), None]
     with pytest.raises(ValueError, match="evaluation artifact already exists"):
-        writer.append_result(run_id, {"question_id": question_id}, session=session)
-
+        EvaluationRunWriter().append_result(run_id, {"question_id": "q1"},
+                                            session=session, storage=storage)
     session.add.assert_not_called()
     assert storage.puts == []
+
+
+def test_running_run_resumes_after_writer_restart() -> None:
+    run_id = "resumable-run"
+    storage = MemoryStorage()
+    start_session = Mock()
+    start_session.scalar.return_value = None
+    EvaluationRunWriter().start(manifest(run_id=run_id), session=start_session, storage=storage)
+    session = Mock()
+    session.scalar.side_effect = [running(run_id), None, running(run_id)]
+    EvaluationRunWriter().append_result(run_id, {"question_id": "q1"},
+                                        session=session, storage=storage)
+    resumed_storage = MemoryStorage(set(storage.data))
+    EvaluationRunWriter().finish(run_id, metrics={"recall": 1}, metric_availability={},
+                                 status="COMPLETED", session=session, storage=resumed_storage)
+    assert EvaluationRunWriter._finish_path(run_id) in resumed_storage.data
 
 
 def test_start_storage_failure_does_not_add_dangling_run_row() -> None:
     session = Mock()
     session.scalar.return_value = None
-
     with pytest.raises(OSError, match="object storage unavailable"):
         EvaluationRunWriter().start(manifest(run_id="storage-failure"), session=session,
                                     storage=FailingStorage())
-
     session.add.assert_not_called()
     session.flush.assert_not_called()
 
 
 def test_append_storage_failure_does_not_add_dangling_result_row() -> None:
+    run_id = "running-run"
+    storage = FailingStorage({EvaluationRunWriter._run_path(run_id)})
     session = Mock()
-    run = Mock(id="database-run", status="RUNNING")
-    session.scalar.side_effect = [run, None]
-    writer = EvaluationRunWriter()
-    writer._storage_by_run["running-run"] = FailingStorage()
-
+    session.scalar.side_effect = [running(run_id), None]
     with pytest.raises(OSError, match="object storage unavailable"):
-        writer.append_result("running-run", {"question_id": "q1"}, session=session)
-
+        EvaluationRunWriter().append_result(run_id, {"question_id": "q1"},
+                                            session=session, storage=storage)
     session.add.assert_not_called()
     session.flush.assert_not_called()
 
 
 def test_finish_storage_failure_does_not_mutate_run_row() -> None:
+    run_id = "running-run"
+    storage = FailingStorage({EvaluationRunWriter._run_path(run_id)})
     session = Mock()
-    run = Mock(id="database-run", status="RUNNING")
+    run = running(run_id)
     session.scalar.return_value = run
-    storage = FailingStorage()
-    writer = EvaluationRunWriter()
-    writer._storage_by_run["running-run"] = storage
-
     with pytest.raises(OSError, match="object storage unavailable"):
-        writer.finish("running-run", metrics={"recall": 1}, metric_availability={},
-                      status="COMPLETED", session=session, storage=storage)
-
+        EvaluationRunWriter().finish(run_id, metrics={"recall": 1}, metric_availability={},
+                                     status="COMPLETED", session=session, storage=storage)
     assert run.status == "RUNNING"
     session.flush.assert_not_called()
 

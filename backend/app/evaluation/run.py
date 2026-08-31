@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.persistence.models import EvaluationResult, EvaluationRun
-from app.storage.object_storage import ObjectStoragePort
+from app.storage.object_storage import ObjectStoragePort, get_object_storage
 
 _BUCKET = "evaluation-artifacts"
 
@@ -52,8 +52,25 @@ class EvaluationRunManifest(BaseModel):
 class EvaluationRunWriter:
     """Persist a run and append one durable raw result at a time."""
 
-    def __init__(self) -> None:
-        self._storage_by_run: dict[str, ObjectStoragePort] = {}
+    @staticmethod
+    def _storage(storage: ObjectStoragePort | None) -> ObjectStoragePort:
+        """Resolve storage from composition, never from writer-local state."""
+        return storage if storage is not None else get_object_storage()
+
+    @staticmethod
+    def _validate_descriptor(run: EvaluationRun, storage: ObjectStoragePort) -> None:
+        """Load the durable descriptor before mutating a persisted run."""
+        try:
+            descriptor = json.loads(storage.get(_BUCKET, run.raw_results_path))
+        except (OSError, KeyError, TypeError, ValueError) as exc:
+            raise ValueError(f"evaluation run artifact is unavailable: {run.run_id}") from exc
+        if (
+            not isinstance(descriptor, dict)
+            or descriptor.get("run_id") != run.run_id
+            or descriptor.get("format") != "per-question-jsonl"
+            or descriptor.get("results_prefix") != f"{run.run_id}/results/"
+        ):
+            raise ValueError(f"invalid evaluation run artifact: {run.run_id}")
 
     @staticmethod
     def _result_path(run_id: str, question_id: str) -> str:
@@ -107,13 +124,17 @@ class EvaluationRunWriter:
             status="RUNNING", metric_availability={},
         ))
         session.flush()
-        self._storage_by_run[run_id] = storage
         return run_id
 
-    def append_result(self, run_id: str, result: Mapping[str, object], *, session: Session) -> None:
+    def append_result(
+        self, run_id: str, result: Mapping[str, object], *, session: Session,
+        storage: ObjectStoragePort | None = None,
+    ) -> None:
         run = self._run(run_id, session)
         if run.status != "RUNNING":
             raise ValueError(f"evaluation run is terminal: {run_id}")
+        resolved_storage = self._storage(storage)
+        self._validate_descriptor(run, resolved_storage)
         question_id = result.get("question_id")
         if not isinstance(question_id, str) or not question_id:
             raise ValueError("result.question_id must be a non-empty string")
@@ -123,8 +144,7 @@ class EvaluationRunWriter:
         )):
             raise ValueError(f"result already appended: {question_id}")
         result_path = self._result_path(run_id, question_id)
-        storage = self._storage_by_run[run_id]
-        if result_path in storage.list(_BUCKET, prefix=result_path):
+        if result_path in resolved_storage.list(_BUCKET, prefix=result_path):
             raise ValueError(f"evaluation artifact already exists: {result_path}")
 
         def obj(name: str) -> dict[str, Any]:
@@ -134,8 +154,7 @@ class EvaluationRunWriter:
             return dict(value)
 
         payload = json.dumps(dict(result), sort_keys=True, default=str).encode() + b"\n"
-        # Immutable question object first, then the durable result row.
-        storage.put(_BUCKET, result_path, payload, content_type="application/x-ndjson")
+        resolved_storage.put(_BUCKET, result_path, payload, content_type="application/x-ndjson")
         session.add(EvaluationResult(
             evaluation_run_id=run.id, question_id=question_id, input=obj("input"),
             retrieval=obj("retrieval"), output=obj("output"), metrics=obj("metrics"),
@@ -143,20 +162,20 @@ class EvaluationRunWriter:
         ))
         session.flush()
 
-    def finish(self, run_id: str, *, metrics: Mapping[str, object],
-               metric_availability: Mapping[str, str], status: Literal["COMPLETED", "FAILED"],
-               session: Session, storage: ObjectStoragePort) -> None:
+    def finish(
+        self, run_id: str, *, metrics: Mapping[str, object],
+        metric_availability: Mapping[str, str], status: Literal["COMPLETED", "FAILED"],
+        session: Session, storage: ObjectStoragePort | None = None,
+    ) -> None:
         run = self._run(run_id, session)
         if run.status != "RUNNING":
             raise ValueError(f"evaluation run is terminal: {run_id}")
-        if storage is not self._storage_by_run.get(run_id):
-            raise ValueError("evaluation artifact storage does not match the run")
+        resolved_storage = self._storage(storage)
+        self._validate_descriptor(run, resolved_storage)
         finish_path = self._finish_path(run_id)
-        if storage.list(_BUCKET, prefix=finish_path):
+        if resolved_storage.list(_BUCKET, prefix=finish_path):
             raise ValueError(f"evaluation artifact already exists: {finish_path}")
-        # Keep the descriptor and per-question keys immutable. Final metadata
-        # gets a separate discoverable object, written before row mutation.
-        storage.put(
+        resolved_storage.put(
             _BUCKET,
             finish_path,
             json.dumps({
