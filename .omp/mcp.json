@@ -4,13 +4,16 @@
     "ast_grep": {
       "type": "stdio",
       "command": "/usr/bin/npx",
-      "args": ["-y", "@notprolands/ast-grep-mcp"],
+      "args": [
+        "-y",
+        "@notprolands/ast-grep-mcp"
+      ],
       "enabled": false
     },
     "atlassian": {
       "type": "http",
       "url": "https://mcp.atlassian.com/v1/mcp/authv2",
-      "enabled": false
+      "enabled": true
     },
     "context7": {
       "type": "http",
