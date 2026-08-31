@@ -230,3 +230,133 @@ def test_out_of_scope_plan_abstains_before_retrieval() -> None:
     state = graph.invoke({"question": "tax advice", "max_repair_attempts": 0})
     assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
     assert calls == []
+
+
+def test_retrieval_uses_expansion_variants() -> None:
+    calls = []
+    plan = SimpleNamespace(
+        normalized_query="normalized",
+        intent="CURRENT",
+        effective_date=date(2025, 1, 1),
+        missing_query_information=[],
+    )
+    complete_gate = type(
+        "CompleteGate",
+        (),
+        {
+            "evaluate": lambda self, plan, context: type(
+                "Result",
+                (),
+                {"status": EvidenceStatus.COMPLETE, "evidence_gaps": []},
+            )()
+        },
+    )()
+    graph = build_query_graph(
+        services(
+            analyzer=lambda question, **_: plan,
+            expander=lambda plan, **_: [
+                SimpleNamespace(text="original"),
+                SimpleNamespace(text="rewrite"),
+            ],
+            retriever=lambda query, **kwargs: calls.append(
+                (query, kwargs["query_date"])
+            )
+            or [query],
+            evidence_gate=complete_gate,
+        )
+    )
+    graph.invoke({"question": "question", "max_repair_attempts": 0})
+    assert calls == [("original", date(2025, 1, 1)), ("rewrite", date(2025, 1, 1))]
+
+def test_comparison_retrieval_keeps_independent_before_and_after() -> None:
+    calls = []
+    plan = SimpleNamespace(
+        normalized_query="normalized",
+        intent="COMPARISON",
+        comparison_from=date(2023, 1, 1),
+        comparison_to=date(2025, 1, 1),
+        missing_query_information=[],
+    )
+
+    def retrieve(query, **kwargs):
+        calls.append((query, kwargs["query_date"]))
+        return [f"{query}:{kwargs['query_date']}"]
+    graph = build_query_graph(
+        services(
+            analyzer=lambda question, **_: plan,
+            expander=lambda plan, **_: [SimpleNamespace(text="variant")],
+            retriever=retrieve,
+            evidence_gate=type(
+                "CompleteGate",
+                (),
+                {
+                    "evaluate": lambda self, plan, context: type(
+                        "Result",
+                        (),
+                        {"status": EvidenceStatus.COMPLETE, "evidence_gaps": []},
+                    )()
+                },
+            )(),
+        )
+    )
+    state = graph.invoke({"question": "compare", "max_repair_attempts": 0})
+    assert calls == [
+        ("variant", date(2023, 1, 1)),
+        ("variant", date(2025, 1, 1)),
+    ]
+    assert state["recall_candidates"] == {
+        "before": ["variant:2023-01-01"],
+        "after": ["variant:2025-01-01"],
+    }
+
+
+def test_context_expansion_uses_resolved_plan_date() -> None:
+    seen = []
+    plan = SimpleNamespace(
+        normalized_query="question",
+        intent="HISTORICAL",
+        effective_date=date(2022, 6, 1),
+        missing_query_information=[],
+    )
+    graph = build_query_graph(
+        services(
+            analyzer=lambda question, **_: plan,
+            context_expander=lambda candidates, **kwargs: seen.append(
+                kwargs["query_date"]
+            )
+            or [],
+            evidence_gate=type(
+                "CompleteGate",
+                (),
+                {
+                    "evaluate": lambda self, plan, context: type(
+                        "Result",
+                        (),
+                        {"status": EvidenceStatus.COMPLETE, "evidence_gaps": []},
+                    )()
+                },
+            )(),
+        )
+    )
+    graph.invoke({"question": "historical", "max_repair_attempts": 0})
+    assert seen == [date(2022, 6, 1)]
+
+
+def test_comparison_without_both_dates_abstains() -> None:
+    calls = []
+    plan = SimpleNamespace(
+        normalized_query="question",
+        intent="COMPARISON",
+        comparison_from=date(2023, 1, 1),
+        comparison_to=None,
+        missing_query_information=[],
+    )
+    graph = build_query_graph(
+        services(
+            analyzer=lambda question, **_: plan,
+            retriever=lambda query, **_: calls.append(query),
+        )
+    )
+    state = graph.invoke({"question": "ambiguous comparison", "max_repair_attempts": 0})
+    assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
+    assert calls == []

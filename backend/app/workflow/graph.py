@@ -16,6 +16,7 @@ from langgraph.graph.state import CompiledStateGraph
 
 from app.query.evidence_gate import EvidenceCompletenessGate, EvidenceStatus, targeted_query_for_gap
 from app.query.query_understanding import QueryAnalyzer
+from app.retrieval.comparison import ComparisonResult
 from app.retrieval.contracts import CandidateSet, RetrievalResult
 from app.retrieval.filters import deduplicate_results
 
@@ -58,6 +59,7 @@ class GraphServices:
     temporal: Service = None
     expander: Service = None
     retriever: Service = None
+    comparison: Service = None
     fusion: Service = None
     reranker: Service = None
     context_expander: Service = None
@@ -96,10 +98,17 @@ def _call(
 
 def _question(state: QueryState) -> str:
     return state.get("question") or state.get("input_question", "")
-
-
 def _plan_date(state: QueryState) -> date | None:
-    """Select the date resolved by temporal analysis, never an arbitrary today."""
+    """Return the plan's serving date, never an arbitrary fallback date."""
+    plan = state.get("query_understanding")
+    intent = str(getattr(plan, "intent", ""))
+    if intent == "COMPARISON":
+        return getattr(plan, "comparison_to", None)
+    effective_date = getattr(plan, "effective_date", None)
+    if intent in {"HISTORICAL", "SOURCE_SEARCH", "CURRENT"} and isinstance(
+        effective_date, date
+    ):
+        return effective_date
     temporal = state.get("temporal_context")
     if isinstance(temporal, date):
         return temporal
@@ -107,12 +116,6 @@ def _plan_date(state: QueryState) -> date | None:
         for key in ("applied_date", "query_date", "effective_date"):
             if isinstance(value := temporal.get(key), date):
                 return value
-    plan = state.get("query_understanding")
-    intent = getattr(plan, "intent", None)
-    if str(intent) in {"HISTORICAL", "SOURCE_SEARCH"}:
-        return getattr(plan, "effective_date", None)
-    if str(intent) == "COMPARISON":
-        return getattr(plan, "comparison_to", None)
     return getattr(plan, "effective_date", None) or state.get("query_date") or state.get(
         "input_date"
     )
@@ -134,9 +137,16 @@ def _safe_route(state: QueryState) -> str:
     plan = state.get("query_understanding")
     if plan is None or str(getattr(plan, "intent", "")) == "OUT_OF_SCOPE":
         return "abstain"
-    if _plan_date(state) is None:
+    missing = set(getattr(plan, "missing_query_information", []))
+    if missing.intersection({"query_date", "comparison_dates", "query_analysis"}):
         return "abstain"
-    if "query_date" in getattr(plan, "missing_query_information", []):
+    if str(getattr(plan, "intent", "")) == "COMPARISON":
+        if not (
+            isinstance(getattr(plan, "comparison_from", None), date)
+            and isinstance(getattr(plan, "comparison_to", None), date)
+        ):
+            return "abstain"
+    elif _plan_date(state) is None:
         return "abstain"
     return "expand_query"
 
@@ -176,13 +186,26 @@ def _expand_query(state: QueryState, services: GraphServices) -> QueryState:
     return {"expansion_set": value}
 
 
-def _retrieve(state: QueryState, services: GraphServices) -> QueryState:
+def _variant_text(variant: Any) -> str:
+    return getattr(variant, "text", None) or str(variant)
+
+
+def _variant_queries(state: QueryState, plan: Any) -> list[str]:
+    variants = state.get("expansion_set")
+    if variants:
+        return [_variant_text(variant) for variant in variants]
+    return [getattr(plan, "normalized_query", None) or _question(state)]
+
+
+def _retrieve_one(
+    state: QueryState,
+    services: GraphServices,
+    query: str,
+    *,
+    query_date: date,
+) -> Any:
     plan = state.get("query_understanding")
-    query = getattr(plan, "normalized_query", None) or _question(state)
-    query_date = _plan_date(state)
-    if query_date is None:
-        return {"recall_candidates": []}
-    value = _call(
+    return _call(
         services.retriever,
         query,
         service_name="retriever",
@@ -191,7 +214,57 @@ def _retrieve(state: QueryState, services: GraphServices) -> QueryState:
         vehicle_type=getattr(plan, "vehicle_type", None) or state.get("vehicle_type"),
         exact_reference=_exact_reference(plan),
     )
-    return {"recall_candidates": value}
+
+
+def _retrieve(state: QueryState, services: GraphServices) -> QueryState:
+    plan = state.get("query_understanding")
+    intent = str(getattr(plan, "intent", ""))
+    queries = _variant_queries(state, plan)
+    if intent == "COMPARISON":
+        date_from = getattr(plan, "comparison_from", None)
+        date_to = getattr(plan, "comparison_to", None)
+        if not isinstance(date_from, date) or not isinstance(date_to, date):
+            return {"recall_candidates": []}
+        before: Any = []
+        after: Any = []
+        for query in queries:
+            if services.comparison is not None:
+                comparison_plan = plan
+                if query != getattr(plan, "normalized_query", None) and hasattr(
+                    plan, "model_copy"
+                ):
+                    comparison_plan = plan.model_copy(update={"normalized_query": query})
+                result = _call(
+                    services.comparison,
+                    comparison_plan,
+                    service_name="comparison",
+                    method_names=("compare",),
+                    date_from=date_from,
+                    date_to=date_to,
+                )
+                before = _merge_results(before, result.before)
+                after = _merge_results(after, result.after)
+            else:
+                before = _merge_results(
+                    before, _retrieve_one(state, services, query, query_date=date_from)
+                )
+                after = _merge_results(
+                    after, _retrieve_one(state, services, query, query_date=date_to)
+                )
+        if isinstance(before, CandidateSet) and isinstance(after, CandidateSet):
+            comparison = ComparisonResult(before=before, after=after)
+        else:
+            comparison = {"before": before, "after": after}
+        return {"recall_candidates": comparison}
+    query_date = _plan_date(state)
+    if query_date is None:
+        return {"recall_candidates": []}
+    candidates: Any = []
+    for query in queries:
+        candidates = _merge_results(
+            candidates, _retrieve_one(state, services, query, query_date=query_date)
+        )
+    return {"recall_candidates": candidates}
 
 
 def _fuse(state: QueryState, services: GraphServices) -> QueryState:
@@ -216,12 +289,15 @@ def _rerank(state: QueryState, services: GraphServices) -> QueryState:
 
 
 def _expand_context(state: QueryState, services: GraphServices) -> QueryState:
+    query_date = _plan_date(state)
+    if query_date is None:
+        return {"expanded_context": state.get("reranked", [])}
     additions = _call(
         services.context_expander,
         state.get("reranked", []),
         service_name="context_expander",
         method_names=("expand",),
-        query_date=_today(state),
+        query_date=query_date,
     )
     expanded = _items(state.get("reranked", [])) + _items(additions)
     if expanded and all(isinstance(item, RetrievalResult) for item in expanded):
