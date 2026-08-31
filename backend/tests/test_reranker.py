@@ -80,3 +80,27 @@ def test_successful_response_is_cached() -> None:
     reranker.rerank("query", items)
     reranker.rerank("query", list(reversed(items)))
     assert client.calls == 1
+
+
+
+def test_cached_scores_follow_provision_when_candidate_order_changes() -> None:
+    class Client:
+        calls = 0
+
+        def rerank(self, **kwargs: object) -> list[object]:
+            self.calls += 1
+            return [
+                SimpleNamespace(index=0, relevance_score=0.2),
+                SimpleNamespace(index=1, relevance_score=0.9),
+            ]
+
+    client = Client()
+    reranker = Reranker(client)
+    items = [candidate("p1", 1), candidate("p2", 2)]
+
+    reranker.rerank("query", items)
+    results = reranker.rerank("query", list(reversed(items)))
+
+    assert client.calls == 1
+    assert [result.provision_id for result in results] == ["p2", "p1"]
+    assert [result.fused_score for result in results] == [0.9, 0.2]

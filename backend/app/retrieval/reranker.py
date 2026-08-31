@@ -47,7 +47,7 @@ class Reranker:
         self._model = model or settings.reranker_model
         self._final_top_k = final_top_k if final_top_k is not None else settings.final_top_k
         self._buffer = buffer if buffer is not None else settings.reranker_buffer
-        self._cache: dict[str, list[tuple[int, float]]] = {}
+        self._cache: dict[str, dict[str, float]] = {}
         self.last_failure: RerankFailure | None = None
 
     @property
@@ -73,8 +73,8 @@ class Reranker:
         )
         key = self._cache_key(query, original)
         try:
-            ranked = self._cache.get(key)
-            if ranked is None:
+            scores_by_provision = self._cache.get(key)
+            if scores_by_provision is None:
                 response = self._client.rerank(
                     model=self._model,
                     query=query,
@@ -82,17 +82,25 @@ class Reranker:
                     top_n=limit,
                 )
                 ranked = self._parse_response(response, len(original), limit)
-                self._cache[key] = ranked
-            by_index = {index: score for index, score in ranked}
+                scores_by_provision = {
+                    original[index].provision_id: score for index, score in ranked
+                }
+                self._cache[key] = scores_by_provision
             ordered = sorted(
                 enumerate(original),
-                key=lambda item: (-by_index.get(item[0], float("-inf")), item[0]),
+                key=lambda item: (
+                    -scores_by_provision.get(item[1].provision_id, float("-inf")),
+                    item[0],
+                ),
             )
             return [
                 candidate.model_copy(
-                    update={"rank": rank, "fused_score": by_index.get(index)}
+                    update={
+                        "rank": rank,
+                        "fused_score": scores_by_provision.get(candidate.provision_id),
+                    }
                 )
-                for rank, (index, candidate) in enumerate(ordered, 1)
+                for rank, (_, candidate) in enumerate(ordered, 1)
             ]
         except Exception as error:
             self.last_failure = RerankFailure(error)
