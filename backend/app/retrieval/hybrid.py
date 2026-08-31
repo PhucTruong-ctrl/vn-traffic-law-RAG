@@ -94,6 +94,29 @@ class HybridRetriever:
                 )
             )
         query_kwargs["query"] = _rrf_query(self._settings, len(prefetch))
+        channel_ids = {
+            "dense": _channel_ids(
+                self._client.query_points(
+                    collection_name=self._collection,
+                    query=dense_vector,
+                    using=DENSE_VECTOR_NAME,
+                    query_filter=query_filter,
+                    limit=self._settings.dense_prefetch,
+                    with_payload=True,
+                )
+            )
+        }
+        if sparse_weights:
+            channel_ids["sparse"] = _channel_ids(
+                self._client.query_points(
+                    collection_name=self._collection,
+                    query=models.SparseVector(**sparse_vector_dict(sparse_weights)),
+                    using=SPARSE_VECTOR_NAME,
+                    query_filter=query_filter,
+                    limit=self._settings.sparse_prefetch,
+                    with_payload=True,
+                )
+            )
         response = self._client.query_points(
             collection_name=self._collection,
             limit=self._settings.fusion_limit,
@@ -113,7 +136,9 @@ class HybridRetriever:
                 rank=rank,
                 score=getattr(point, "score", None),
                 source="hybrid",
-            ).model_copy(update={"retrieval_sources": _retrieval_sources(payload)})
+            ).model_copy(
+                update={"retrieval_sources": _retrieval_sources(payload, channel_ids)}
+            )
             for rank, point in enumerate(points, start=1)
         ]
         results = self._temporal_post_check(results, query_date)
@@ -201,14 +226,29 @@ def _payload(point: Any) -> Mapping[str, object]:
     return payload
 
 
-def _retrieval_sources(payload: Mapping[str, object]) -> list[str]:
-    sources = payload.get("retrieval_sources")
-    if isinstance(sources, list) and sources and all(
-        isinstance(source, str) and source for source in sources
-    ):
-        return sources
-    return ["hybrid"]
+def _channel_ids(response: Any) -> set[str]:
+    """Return channel membership, rejecting responses that cannot prove it."""
+    points = getattr(response, "points", response)
+    if not isinstance(points, Sequence):
+        raise RuntimeError("Qdrant response cannot provide channel membership")
+    ids: set[str] = set()
+    for point in points:
+        provision_id = _payload(point).get("provision_id")
+        if not isinstance(provision_id, str) or not provision_id:
+            raise RuntimeError("Qdrant response cannot provide channel membership")
+        ids.add(provision_id)
+    return ids
 
+
+def _retrieval_sources(
+    payload: Mapping[str, object], channel_ids: Mapping[str, Collection[str]]
+) -> list[str]:
+    provision_id = payload.get("provision_id")
+    return [
+        channel
+        for channel in ("dense", "sparse")
+        if provision_id in channel_ids.get(channel, ())
+    ]
 
 def _merge_exact(
     results: Sequence[RetrievalResult], exact: Sequence[RetrievalResult]

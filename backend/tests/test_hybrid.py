@@ -107,7 +107,7 @@ def test_retrieve_uses_prefetch_rrf_and_retains_exact() -> None:
         exact_reference={"document_number": "168/2024/NĐ-CP", "article": "7", "point": "đ"},
     )
     assert [item.provision_id for item in result.results] == ["exact", "p-1"]
-    assert result.results[1].retrieval_sources == ["hybrid"]
+    assert result.results[1].retrieval_sources == ["dense", "sparse"]
     assert client.kwargs["query"].rrf.k == 60
     assert client.kwargs["query"].rrf.weights == [1.0, 1.0]
     assert len(client.kwargs["prefetch"]) == 2
@@ -139,7 +139,7 @@ def test_retrieve_uses_valid_dense_request_when_sparse_encoding_is_empty() -> No
         "phạt", query_date=date(2025, 1, 1)
     )
 
-    assert result.results[0].retrieval_sources == ["hybrid"]
+    assert result.results[0].retrieval_sources == ["dense"]
     assert client.kwargs is not None
     assert len(client.kwargs["prefetch"]) == 1
     assert client.kwargs["prefetch"][0].using == "dense"
@@ -204,7 +204,7 @@ def test_retrieve_post_checks_qdrant_ids_against_authoritative_temporal_rows() -
     assert temporal.ids == {"p-1", "stale"}
 
 
-def test_retrieve_uses_hybrid_fallback_for_empty_payload_sources() -> None:
+def test_retrieve_uses_dense_provenance_when_payload_sources_are_empty() -> None:
     class Client:
         def query_points(self, **kwargs: object) -> object:
             return SimpleNamespace(
@@ -223,7 +223,7 @@ def test_retrieve_uses_hybrid_fallback_for_empty_payload_sources() -> None:
         "phạt", query_date=date(2025, 1, 1)
     )
 
-    assert result.results[0].retrieval_sources == ["hybrid"]
+    assert result.results[0].retrieval_sources == ["dense"]
 
 def test_merge_exact_uses_canonical_fields_and_only_merges_sources() -> None:
     derived = RetrievalResult(
@@ -274,3 +274,42 @@ def test_merge_exact_uses_canonical_fields_and_only_merges_sources() -> None:
         canonical.model_copy(update={"retrieval_sources": ["dense", "sparse", "exact"]})
     ]
 
+
+@pytest.mark.parametrize(
+    ("dense_ids", "sparse_ids", "expected"),
+    [
+        ({"p-1"}, set(), ["dense"]),
+        (set(), {"p-1"}, ["sparse"]),
+        ({"p-1"}, {"p-1"}, ["dense", "sparse"]),
+    ],
+)
+def test_retrieve_tracks_fused_channel_provenance(
+    dense_ids: set[str], sparse_ids: set[str], expected: list[str]
+) -> None:
+    dense_point = Point({**_PAYLOAD, "provision_id": "p-1"}, 0.9)
+    sparse_point = Point({**_PAYLOAD, "provision_id": "p-1"}, 0.8)
+
+    class Client:
+        def query_points(self, **kwargs: object) -> object:
+            using = kwargs.get("using")
+            if using == "dense":
+                points = [dense_point] if dense_ids else []
+            elif using == "sparse":
+                points = [sparse_point] if sparse_ids else []
+            else:
+                points = [Point(_PAYLOAD, 0.5)]
+            return SimpleNamespace(points=points)
+
+    class Embedder:
+        def embed(self, texts: list[str]) -> list[list[float]]:
+            return [[0.1, 0.2]]
+
+    class Encoder:
+        def encode(self, text: str) -> dict[int, float]:
+            return {1: 1.0}
+
+    result = HybridRetriever(Client(), Embedder(), Encoder()).retrieve(
+        "phạt", query_date=date(2025, 1, 1)
+    )
+
+    assert result.results[0].retrieval_sources == expected
