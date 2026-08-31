@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from app.evaluation.gold_set import GoldRecord, validate_record
 from app.evaluation.metrics.retrieval import evaluate_retrieval
 from app.evaluation.run import EvaluationRunManifest, EvaluationRunWriter
-from app.retrieval.qdrant_store import build_collection_config
+from app.retrieval.qdrant_store import CollectionConfig, build_collection_config
 from app.storage.object_storage import ObjectStoragePort
 
 SUITE_NAME = "suite-b"
@@ -57,7 +57,7 @@ def variant_descriptor(key: str) -> EmbeddingVariant:
         raise ValueError(f"unknown Suite B variant: {key}") from exc
 
 
-def collection_config(variant: EmbeddingVariant) -> dict[str, Any]:
+def collection_config(variant: EmbeddingVariant) -> CollectionConfig:
     """Return isolated collection settings; never changes the active alias."""
     return build_collection_config(dense_vector_size=variant.vector_size)
 
