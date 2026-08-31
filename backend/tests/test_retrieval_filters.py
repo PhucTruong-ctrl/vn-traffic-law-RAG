@@ -90,6 +90,20 @@ def test_vehicle_terms_normalize_and_unrestricted_payloads_are_kept() -> None:
     )
 
 
+def test_vehicle_filter_matches_raw_vietnamese_and_excludes_other_vehicle() -> None:
+    assert is_payload_temporally_valid(
+        _payload(vehicle_types=["xe máy"]), START, vehicle_type="MOTORCYCLE"
+    )
+    assert not is_payload_temporally_valid(
+        _payload(vehicle_types=["ô tô"]), START, vehicle_type="xe máy"
+    )
+    assert is_payload_temporally_valid(
+        _payload(vehicle_types=["ô tô"]), START, vehicle_type="CAR"
+    )
+    assert not is_payload_temporally_valid(
+        _payload(vehicle_types=["xe máy"]), START, vehicle_type="ô tô"
+    )
+
 def test_filter_preserves_valid_payloads_and_order() -> None:
     valid = _payload()
     future = _payload(effective_from="2025-01-01")
@@ -116,6 +130,12 @@ def test_qdrant_filter_requires_accepted_half_open_interval_and_vehicle() -> Non
         isinstance(condition, models.FieldCondition)
         and condition.key == "vehicle_types"
         and condition.match == models.MatchValue(value="MOTORCYCLE")
+        for condition in vehicle_filter.should
+    )
+    assert any(
+        isinstance(condition, models.FieldCondition)
+        and condition.key == "vehicle_types"
+        and condition.match == models.MatchValue(value="xe máy")
         for condition in vehicle_filter.should
     )
     assert any(

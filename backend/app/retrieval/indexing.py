@@ -302,10 +302,10 @@ def _date_iso(value: date | None) -> str | None:
 
 
 def payload_metadata_from_row(row: LegalProvision) -> dict[str, Any]:
-    """Map citation metadata from the authoritative document/version rows."""
+    """Map citation and manifest metadata from authoritative document rows."""
     version_row = getattr(row, "document_version", None)
     document = getattr(version_row, "document", None)
-    return {
+    metadata = {
         "document_id": getattr(document, "document_id", None),
         "document_number": getattr(document, "document_number", None),
         "document_type": getattr(document, "document_type", None),
@@ -313,6 +313,10 @@ def payload_metadata_from_row(row: LegalProvision) -> dict[str, Any]:
         "document_status": getattr(document, "status", None),
         "document_version": getattr(version_row, "version", None),
     }
+    manifest = getattr(version_row, "manifest_json", None)
+    if isinstance(manifest, dict) and "vehicle_types" in manifest:
+        metadata["vehicle_types"] = manifest["vehicle_types"]
+    return metadata
 
 
 def index_accepted_provisions(

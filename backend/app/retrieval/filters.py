@@ -27,6 +27,17 @@ def normalize_vehicle_type(vehicle_type: str) -> str:
     normalized = canonical_term(vehicle_type)
     return _VEHICLE_TYPE_ALIASES.get(normalized.casefold(), normalized.upper())
 
+
+def _vehicle_type_values(vehicle_type: str) -> list[str]:
+    """Return enum and raw Vietnamese forms accepted for a query vehicle."""
+    normalized = normalize_vehicle_type(vehicle_type)
+    values = [normalized]
+    values.extend(
+        alias for alias, enum in _VEHICLE_TYPE_ALIASES.items() if enum == normalized
+    )
+    return values
+
+
 def _at_midnight(value: date) -> datetime:
     return datetime.combine(value, time.min, tzinfo=UTC)
 
@@ -47,14 +58,17 @@ def build_temporal_filter(
         ),
     ]
     if vehicle_type is not None:
-        normalized_vehicle_type = normalize_vehicle_type(vehicle_type)
+        vehicle_conditions = [
+            models.FieldCondition(
+                key="vehicle_types",
+                match=models.MatchValue(value=value),
+            )
+            for value in _vehicle_type_values(vehicle_type)
+        ]
         must.append(
             models.Filter(
                 should=[
-                    models.FieldCondition(
-                        key="vehicle_types",
-                        match=models.MatchValue(value=normalized_vehicle_type),
-                    ),
+                    *vehicle_conditions,
                     # Indexing stores [] when no vehicle restriction was given.
                     models.IsEmptyCondition(
                         is_empty=models.PayloadField(key="vehicle_types")
@@ -106,8 +120,8 @@ def is_payload_temporally_valid(
     if vehicle_type is not None:
         normalized_vehicle_type = normalize_vehicle_type(vehicle_type)
         vehicle_types = payload.get("vehicle_types")
-        # [] is the explicit unrestricted value emitted by accepted indexing.
-        if vehicle_types == []:
+        # Empty or absent metadata is the explicit unrestricted value.
+        if not vehicle_types:
             return True
         if not isinstance(vehicle_types, (list, tuple, set)) or not any(
             isinstance(value, str)
@@ -131,7 +145,6 @@ def filter_payloads_temporally(
         if is_payload_temporally_valid(payload, query_date, vehicle_type=vehicle_type)
     ]
 
-
 def deduplicate_results(
     results: Sequence[RetrievalResult],
     *,
@@ -145,7 +158,6 @@ def deduplicate_results(
     metadata from duplicates is preserved.  Exact matches are promoted by
     output order only; their rank and score are not fabricated or rewritten.
     """
-
     best_by_provision: dict[str, RetrievalResult] = {}
     order: dict[str, int] = {}
     source_order: dict[str, list[str]] = {}

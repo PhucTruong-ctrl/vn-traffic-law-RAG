@@ -672,7 +672,11 @@ def test_accepted_payload_maps_authoritative_document_citation_metadata() -> Non
             "retrieval_text", "parent_context", "effective_from", "effective_to",
             "status", "page_number", "content_hash", "version", "review_status",
         )},
-        document_version=SimpleNamespace(version=3, document=document),
+        document_version=SimpleNamespace(
+            version=3,
+            manifest_json={"vehicle_types": ["xe máy"]},
+            document=document,
+        ),
     )
     client = _RecordingClient()
 
@@ -685,6 +689,7 @@ def test_accepted_payload_maps_authoritative_document_citation_metadata() -> Non
     assert payload["document_type"] == "DECREE"
     assert payload["document_title"] == "Nghị định 168"
     assert payload["document_status"] == "ACTIVE"
+    assert payload["vehicle_types"] == ["xe máy"]
     assert payload["document_version"] == 3
 
     assert result_from_payload(payload, rank=1, score=0.9, source="dense").document_number == (
