@@ -71,6 +71,7 @@ from app.retrieval.embedding import EmbeddingProvider, get_embedding_provider
 from app.retrieval.indexing import (
     ACCEPTED_REVIEW_STATUS,
     index_provision_units,
+    payload_metadata_from_row,
     point_id_for,
     provision_row_to_unit,
 )
@@ -331,6 +332,7 @@ def index_actor(job_id: str) -> None:
             units.append(unit)
             point_ids[unit.unit_id] = point_id_for(row.id)
             unit_payloads[unit.unit_id] = {
+                **payload_metadata_from_row(row),
                 "review_status": ACCEPTED_REVIEW_STATUS,
                 "effective_from": _iso(row.effective_from),
                 "effective_to": _iso(row.effective_to),

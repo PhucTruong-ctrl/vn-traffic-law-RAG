@@ -21,6 +21,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Iterator
 from datetime import date
+from types import SimpleNamespace
 
 import pytest
 from pydantic import ValidationError
@@ -31,6 +32,7 @@ from sqlalchemy.sql.elements import BinaryExpression, BindParameter, BooleanClau
 from app.config import get_qdrant_settings
 from app.ingestion.retrieval_units import RetrievalUnit
 from app.persistence.models import LegalProvision
+from app.retrieval.contracts import result_from_payload
 from app.retrieval.indexing import (
     ACCEPTED_REVIEW_STATUS,
     IndexResult,
@@ -653,6 +655,41 @@ def test_row_metadata_mapped_into_payload_and_point_id() -> None:
     assert payload["content_hash"] == "c" * 64
     assert payload["text"] == row.retrieval_text
     assert payload["source_text"] == row.source_text
+
+def test_accepted_payload_maps_authoritative_document_citation_metadata() -> None:
+    row = _row(id=uuid.uuid4())
+    document = SimpleNamespace(
+        document_id="nd-168-2024",
+        document_number="168/2024/NĐ-CP",
+        document_type="DECREE",
+        document_title="Nghị định 168",
+        status="ACTIVE",
+    )
+    row_with_document = SimpleNamespace(
+        **{name: getattr(row, name) for name in (
+            "id", "provision_id", "document_version_id", "node_kind", "chapter",
+            "section", "article", "clause", "point", "heading", "source_text",
+            "retrieval_text", "parent_context", "effective_from", "effective_to",
+            "status", "page_number", "content_hash", "version", "review_status",
+        )},
+        document_version=SimpleNamespace(version=3, document=document),
+    )
+    client = _RecordingClient()
+
+    result = index_accepted_provisions(client, session=_FakeSession([row_with_document]))
+
+    assert result.indexed == 1
+    payload = client.upserts[0][1][0].payload
+    assert payload["document_id"] == "nd-168-2024"
+    assert payload["document_number"] == "168/2024/NĐ-CP"
+    assert payload["document_type"] == "DECREE"
+    assert payload["document_title"] == "Nghị định 168"
+    assert payload["document_status"] == "ACTIVE"
+    assert payload["document_version"] == 3
+
+    assert result_from_payload(payload, rank=1, score=0.9, source="dense").document_number == (
+        "168/2024/NĐ-CP"
+    )
     assert payload["review_status"] == ACCEPTED_REVIEW_STATUS
 
 

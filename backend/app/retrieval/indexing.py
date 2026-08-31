@@ -61,6 +61,7 @@ __all__ = [
     "index_provision_units",
     "point_id_for",
     "provision_row_to_unit",
+    "payload_metadata_from_row",
 ]
 
 #: The only review status that may enter the index (doc 00 §8.6, FR-09).
@@ -300,6 +301,20 @@ def _date_iso(value: date | None) -> str | None:
     return value.isoformat() if value is not None else None
 
 
+def payload_metadata_from_row(row: LegalProvision) -> dict[str, Any]:
+    """Map citation metadata from the authoritative document/version rows."""
+    version_row = getattr(row, "document_version", None)
+    document = getattr(version_row, "document", None)
+    return {
+        "document_id": getattr(document, "document_id", None),
+        "document_number": getattr(document, "document_number", None),
+        "document_type": getattr(document, "document_type", None),
+        "document_title": getattr(document, "document_title", None),
+        "document_status": getattr(document, "status", None),
+        "document_version": getattr(version_row, "version", None),
+    }
+
+
 def index_accepted_provisions(
     client: QdrantClient,
     *,
@@ -359,6 +374,7 @@ def index_accepted_provisions(
         units.append(unit)
         point_ids[unit.unit_id] = point_id_for(row.id)
         unit_payloads[unit.unit_id] = {
+            **payload_metadata_from_row(row),
             "review_status": ACCEPTED_REVIEW_STATUS,
             "effective_from": _date_iso(row.effective_from),
             "effective_to": _date_iso(row.effective_to),
