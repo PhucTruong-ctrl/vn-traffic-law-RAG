@@ -291,7 +291,11 @@ def index_provision_units(
                 result.errors.append(f"{unit.unit_id}: {exc}")
                 continue
         if points:
-            client.upsert(collection_name=target, points=points)
+            try:
+                client.upsert(collection_name=target, points=points)
+            except Exception as exc:
+                result.errors.append(f"batch {start // batch_size}: upsert failed: {exc}")
+                continue
             result.indexed += len(points)
     return result
 

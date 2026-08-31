@@ -233,6 +233,22 @@ class _RecordingClient:
 
     def upsert(self, *, collection_name: str, points: list[models.PointStruct]) -> None:
         self.upserts.append((collection_name, points))
+ 
+ 
+class _FailingRecordingClient(_RecordingClient):
+    """Recording client that fails selected upsert calls."""
+
+    def __init__(self, *, fail_on_calls: set[int]) -> None:
+        super().__init__()
+        self.fail_on_calls = fail_on_calls
+        self.upsert_calls = 0
+
+    def upsert(self, *, collection_name: str, points: list[models.PointStruct]) -> None:
+        call_index = self.upsert_calls
+        self.upsert_calls += 1
+        if call_index in self.fail_on_calls:
+            raise RuntimeError("qdrant unavailable")
+        super().upsert(collection_name=collection_name, points=points)
 
 
 def _row_matches(row: LegalProvision, clause: object) -> bool:
@@ -506,6 +522,20 @@ def test_index_units_payload_only_points_when_no_providers() -> None:
     (_, points) = client.upserts[0]
     assert points[0].vector == {}
     assert points[0].payload["provision_id"] == unit.provision_id
+ 
+ 
+def test_index_units_upsert_failure_records_batch_and_continues() -> None:
+    units = [_unit(unit_id=f"u{index}", provision_id=f"p-{index}") for index in range(5)]
+    point_ids = {unit.unit_id: f"point-{index}" for index, unit in enumerate(units)}
+    client = _FailingRecordingClient(fail_on_calls={1})
+    result = index_provision_units(client, units, point_ids=point_ids, batch_size=2)
+
+    assert result.indexed == 3
+    assert result.errors == ["batch 1: upsert failed: qdrant unavailable"]
+    assert [[point.id for point in points] for _, points in client.upserts] == [
+        ["point-0", "point-1"],
+        ["point-4"],
+    ]
 
 
 def test_index_units_batches_embedding_by_batch_size() -> None:
