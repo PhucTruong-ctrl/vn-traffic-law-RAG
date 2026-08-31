@@ -75,7 +75,6 @@ class HybridRetriever:
             if self._settings.temporal_filter_enabled
             else None
         )
-        channel_sources = ["dense"]
         prefetch: list[models.Prefetch] = [
             models.Prefetch(
                 query=dense_vector,
@@ -86,7 +85,6 @@ class HybridRetriever:
         ]
         query_kwargs: dict[str, Any] = {"prefetch": prefetch}
         if sparse_weights:
-            channel_sources.append("sparse")
             prefetch.append(
                 models.Prefetch(
                     query=models.SparseVector(**sparse_vector_dict(sparse_weights)),
@@ -111,11 +109,11 @@ class HybridRetriever:
         }
         results = [
             result_from_payload(
-                _payload(point),
+                payload := _payload(point),
                 rank=rank,
                 score=getattr(point, "score", None),
                 source="hybrid",
-            ).model_copy(update={"retrieval_sources": channel_sources})
+            ).model_copy(update={"retrieval_sources": _retrieval_sources(payload)})
             for rank, point in enumerate(points, start=1)
         ]
         results = self._temporal_post_check(results, query_date)
@@ -201,6 +199,15 @@ def _payload(point: Any) -> Mapping[str, object]:
     if not isinstance(payload, Mapping):
         raise ValueError("hybrid retrieval point is missing a payload")
     return payload
+
+
+def _retrieval_sources(payload: Mapping[str, object]) -> list[str]:
+    sources = payload.get("retrieval_sources")
+    if isinstance(sources, list) and sources and all(
+        isinstance(source, str) and source for source in sources
+    ):
+        return sources
+    return ["hybrid"]
 
 
 def _merge_exact(

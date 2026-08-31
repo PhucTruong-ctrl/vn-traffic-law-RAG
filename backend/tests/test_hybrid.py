@@ -107,7 +107,7 @@ def test_retrieve_uses_prefetch_rrf_and_retains_exact() -> None:
         exact_reference={"document_number": "168/2024/NĐ-CP", "article": "7", "point": "đ"},
     )
     assert [item.provision_id for item in result.results] == ["exact", "p-1"]
-    assert result.results[1].retrieval_sources == ["dense", "sparse"]
+    assert result.results[1].retrieval_sources == ["hybrid"]
     assert client.kwargs["query"].rrf.k == 60
     assert client.kwargs["query"].rrf.weights == [1.0, 1.0]
     assert len(client.kwargs["prefetch"]) == 2
@@ -139,12 +139,36 @@ def test_retrieve_uses_valid_dense_request_when_sparse_encoding_is_empty() -> No
         "phạt", query_date=date(2025, 1, 1)
     )
 
-    assert result.results[0].retrieval_sources == ["dense"]
+    assert result.results[0].retrieval_sources == ["hybrid"]
     assert client.kwargs is not None
     assert len(client.kwargs["prefetch"]) == 1
     assert client.kwargs["prefetch"][0].using == "dense"
     assert client.kwargs["query"].rrf.weights == [1.0]
 
+
+
+def test_retrieve_preserves_explicit_payload_retrieval_sources() -> None:
+    class Client:
+        def query_points(self, **kwargs: object) -> object:
+            return SimpleNamespace(
+                points=[
+                    Point({**_PAYLOAD, "retrieval_sources": ["dense"]}, 0.5)
+                ]
+            )
+
+    class Embedder:
+        def embed(self, texts: list[str]) -> list[list[float]]:
+            return [[0.1, 0.2]]
+
+    class Encoder:
+        def encode(self, text: str) -> dict[int, float]:
+            return {}
+
+    result = HybridRetriever(Client(), Embedder(), Encoder()).retrieve(
+        "phạt", query_date=date(2025, 1, 1)
+    )
+
+    assert result.results[0].retrieval_sources == ["dense"]
 
 def test_retrieve_post_checks_qdrant_ids_against_authoritative_temporal_rows() -> None:
     stale_payload = {**_PAYLOAD, "provision_id": "stale"}
