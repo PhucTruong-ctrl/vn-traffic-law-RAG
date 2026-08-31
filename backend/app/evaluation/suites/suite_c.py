@@ -4,6 +4,7 @@ The validation set is a hard prerequisite: this module never pads, samples, or
 runs a partial set.  Once the set is complete, callers provide the retrieval
 callable and the existing :class:`EvaluationRunWriter` persists raw outcomes.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
@@ -31,11 +32,68 @@ VARIANTS: tuple[SuiteCVariant, ...] = (
     SuiteCVariant("R3", ("legal_chunk", "dense", "sparse_rrf", "normalization")),
     SuiteCVariant("R4", ("legal_chunk", "dense", "sparse_rrf", "normalization", "rewrite")),
     SuiteCVariant("R5", ("legal_chunk", "dense", "sparse_rrf", "normalization", "rewrite", "hyde")),
-    SuiteCVariant("R6", ("legal_chunk", "dense", "sparse_rrf", "normalization", "rewrite", "hyde", "reranker")),
-    SuiteCVariant("R7", ("legal_chunk", "dense", "sparse_rrf", "normalization", "rewrite", "hyde", "reranker", "parent_sibling")),
-    SuiteCVariant("R8", ("legal_chunk", "dense", "sparse_rrf", "normalization", "rewrite", "hyde", "reranker", "parent_sibling", "cross_reference")),
-    SuiteCVariant("R9", ("legal_chunk", "dense", "sparse_rrf", "normalization", "rewrite", "hyde", "reranker", "parent_sibling", "cross_reference", "temporal")),
-    SuiteCVariant("R10", ("legal_chunk", "dense", "sparse_rrf", "normalization", "rewrite", "hyde", "reranker", "parent_sibling", "cross_reference", "temporal", "complete_pipeline")),
+    SuiteCVariant(
+        "R6",
+        ("legal_chunk", "dense", "sparse_rrf", "normalization", "rewrite", "hyde", "reranker"),
+    ),
+    SuiteCVariant(
+        "R7",
+        (
+            "legal_chunk",
+            "dense",
+            "sparse_rrf",
+            "normalization",
+            "rewrite",
+            "hyde",
+            "reranker",
+            "parent_sibling",
+        ),
+    ),
+    SuiteCVariant(
+        "R8",
+        (
+            "legal_chunk",
+            "dense",
+            "sparse_rrf",
+            "normalization",
+            "rewrite",
+            "hyde",
+            "reranker",
+            "parent_sibling",
+            "cross_reference",
+        ),
+    ),
+    SuiteCVariant(
+        "R9",
+        (
+            "legal_chunk",
+            "dense",
+            "sparse_rrf",
+            "normalization",
+            "rewrite",
+            "hyde",
+            "reranker",
+            "parent_sibling",
+            "cross_reference",
+            "temporal",
+        ),
+    ),
+    SuiteCVariant(
+        "R10",
+        (
+            "legal_chunk",
+            "dense",
+            "sparse_rrf",
+            "normalization",
+            "rewrite",
+            "hyde",
+            "reranker",
+            "parent_sibling",
+            "cross_reference",
+            "temporal",
+            "complete_pipeline",
+        ),
+    ),
 )
 
 
@@ -44,13 +102,18 @@ class ValidationSetBlocked(RuntimeError):
 
     def __init__(self, actual: int) -> None:
         self.actual = actual
-        super().__init__(f"Suite C requires exactly {VALIDATION_SET_SIZE} validation records; found {actual}")
+        super().__init__(
+            f"Suite C requires exactly {VALIDATION_SET_SIZE} validation records; found {actual}"
+        )
+
 
 SUITE_C_VARIANTS = VARIANTS
 VARIANT_CONFIGS = {variant.name: variant for variant in VARIANTS}
 
 
-def validate_validation_set(records: Sequence[GoldRecord | Mapping[str, Any]]) -> tuple[GoldRecord | Mapping[str, Any], ...]:
+def validate_validation_set(
+    records: Sequence[GoldRecord | Mapping[str, Any]],
+) -> tuple[GoldRecord | Mapping[str, Any], ...]:
     """Return records unchanged, or block before any provider/storage work."""
 
     validated = tuple(records)
@@ -106,23 +169,42 @@ def run_suite_c(
                     run_id,
                     {
                         "question_id": _record_id(record, index),
-                        "input": {"question": record.question if isinstance(record, GoldRecord) else str(record.get("question", ""))},
-                        "retrieval": {"variant": variant.name, "config": {"features": list(variant.additions)}, "outcome": outcome},
+                        "input": {
+                            "question": record.question
+                            if isinstance(record, GoldRecord)
+                            else str(record.get("question", ""))
+                        },
+                        "retrieval": {
+                            "variant": variant.name,
+                            "config": {"features": list(variant.additions)},
+                            "outcome": outcome,
+                        },
                         "output": {},
                         "metrics": {},
                     },
                     session=session,
                 )
-                metric_records.append({
-                    "id": _record_id(record, index),
-                    "category": record.category.value if isinstance(record, GoldRecord) else str(record.get("category", "uncategorized")),
-                    "retrieved": outcome.get("retrieved", outcome.get("provision_ids", [])),
-                    "relevant": record.expected_provision_ids if isinstance(record, GoldRecord) else record.get("expected_provision_ids", []),
-                })
+                metric_records.append(
+                    {
+                        "id": _record_id(record, index),
+                        "category": record.category.value
+                        if isinstance(record, GoldRecord)
+                        else str(record.get("category", "uncategorized")),
+                        "retrieved": outcome.get("retrieved", outcome.get("provision_ids", [])),
+                        "relevant": record.expected_provision_ids
+                        if isinstance(record, GoldRecord)
+                        else record.get("expected_provision_ids", []),
+                    }
+                )
             reports = evaluate_retrieval(metric_records)
             metrics = {
-                name: {"value": report.value, "status": report.status, "na_reason": report.na_reason,
-                       "per_query": report.per_query, "by_category": report.by_category}
+                name: {
+                    "value": report.value,
+                    "status": report.status,
+                    "na_reason": report.na_reason,
+                    "per_query": report.per_query,
+                    "by_category": report.by_category,
+                }
                 for name, report in reports.items()
             }
             writer.finish(
