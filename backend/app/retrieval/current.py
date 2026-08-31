@@ -44,9 +44,7 @@ class CurrentRetriever:
         """Return candidates active at ``current_date`` (half-open interval)."""
         candidates = self._retriever.search(
             plan.normalized_query,
-            query_filter=build_temporal_filter(
-                current_date, vehicle_type=plan.vehicle_type
-            ),
+            query_filter=build_temporal_filter(current_date, vehicle_type=plan.vehicle_type),
             limit=self._top_k,
         )
         allowed_ids: set[str] | None = None
@@ -67,8 +65,7 @@ class CurrentRetriever:
         return CandidateSet(
             query=candidates.query,
             results=[
-                result.model_copy(update={"rank": rank})
-                for rank, result in enumerate(results, 1)
+                result.model_copy(update={"rank": rank}) for rank, result in enumerate(results, 1)
             ],
             applied_date=current_date,
         )

@@ -23,7 +23,6 @@ class MetricReport:
         return cls(None, status="na", na_reason=reason, per_query=per_query or {})
 
 
-
 def recall_at(retrieved: Sequence[str], relevant: Iterable[str], k: int) -> float | None:
     gold = set(relevant)
     if not gold:

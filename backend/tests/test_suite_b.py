@@ -42,7 +42,6 @@ def test_unknown_variant_is_rejected() -> None:
         variant_descriptor("E4")
 
 
-
 def test_manifest_provenance_uses_configured_prompt_versions(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -70,6 +69,7 @@ def test_manifest_provenance_uses_configured_prompt_versions(
     assert parsers == {"document_ir_schema": "document-ir-v2"}
     assert source == "CACHE"
 
+
 def test_runner_appends_failed_questions_and_aggregates_optional_metrics(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -79,9 +79,11 @@ def test_runner_appends_failed_questions_and_aggregates_optional_metrics(
 
     records = [
         SimpleNamespace(
-            id=f"q-{index}", question=f"question {index}",
+            id=f"q-{index}",
+            question=f"question {index}",
             query_date=date(2024, 1, 15) if index == 0 else None,
-            category=SimpleNamespace(value="CURRENT"), expected_provision_ids=["p-1"],
+            category=SimpleNamespace(value="CURRENT"),
+            expected_provision_ids=["p-1"],
         )
         for index in range(40)
     ]
@@ -101,9 +103,14 @@ def test_runner_appends_failed_questions_and_aggregates_optional_metrics(
         def start(self, manifest: object, *args: object, **kwargs: object) -> str:
             self.manifests.append(manifest)
             return "run-1"
+
         def append_result(
-            self, run_id: str, result: dict[str, object], *,
-            session: object, storage: Storage,
+            self,
+            run_id: str,
+            result: dict[str, object],
+            *,
+            session: object,
+            storage: Storage,
         ) -> None:
             storage.results.append(result)
             appended.append(result)
@@ -123,7 +130,8 @@ def test_runner_appends_failed_questions_and_aggregates_optional_metrics(
                 "retrieved": [],
             }
         return {
-            "retrieved": ["p-1"], "latency_ms": 10,
+            "retrieved": ["p-1"],
+            "latency_ms": 10,
             "token_usage": {"total": 2},
         }
 

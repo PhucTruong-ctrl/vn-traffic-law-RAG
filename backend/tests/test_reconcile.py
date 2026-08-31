@@ -398,6 +398,7 @@ def test_provision_to_unit_short_point_false_for_long_text() -> None:
     )
     assert unit.short_point is False
 
+
 def test_unit_payload_for_provision_carries_hash_interval_identity() -> None:
     provision = _provision()
     metadata = {provision.document_version_id: {"vehicle_types": ["Ô tô"]}}

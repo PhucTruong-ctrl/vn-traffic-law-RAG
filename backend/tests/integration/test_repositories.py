@@ -454,7 +454,6 @@ def test_temporal_document_versions_query(session: Session) -> None:
     assert [v.version for v in versions] == [2]
 
 
-
 def test_exact_lookup_filters_invalid_document_versions(session: Session) -> None:
     """Exact lookup excludes document versions outside the query date."""
     document = _seed_document(session)
@@ -496,6 +495,7 @@ def test_exact_lookup_filters_invalid_document_versions(session: Session) -> Non
     )
 
     assert [provision.provision_id for provision in results] == ["exact-current"]
+
 
 # ---------------------------------------------------------------------------
 # Relation queries (temporal + review filter)

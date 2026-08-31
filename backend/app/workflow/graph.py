@@ -44,7 +44,8 @@ def _merge_results(existing: Any, additions: Any) -> Any:
     if isinstance(additions, CandidateSet):
         return additions.model_copy(update={"results": merged})
     return merged
- 
+
+
 def _comparison_sides(value: Any) -> tuple[Any, Any] | None:
     if isinstance(value, ComparisonResult):
         return value.before, value.after
@@ -68,7 +69,6 @@ def _map_comparison(value: Any, operation: Callable[[Any], Any]) -> Any:
     return _comparison_result(operation(before), operation(after))
 
 
- 
 def _comparison_dates(state: QueryState) -> tuple[date, date] | None:
     plan = state.get("query_understanding")
     before = getattr(plan, "comparison_from", None)
@@ -76,6 +76,7 @@ def _comparison_dates(state: QueryState) -> tuple[date, date] | None:
     if isinstance(before, date) and isinstance(after, date):
         return before, after
     return None
+
 
 @dataclass(slots=True)
 class GraphServices:
@@ -110,9 +111,7 @@ def _call(
 ) -> Any:
     """Call an injected service and fail clearly on invalid wiring."""
     if service is None:
-        raise RuntimeError(
-            f"required workflow service {service_name!r} is not configured"
-        )
+        raise RuntimeError(f"required workflow service {service_name!r} is not configured")
     if callable(service):
         return service(*args, **kwargs)
     for name in method_names:
@@ -120,16 +119,13 @@ def _call(
         if callable(method):
             return method(*args, **kwargs)
     expected = ", ".join(method_names)
-    raise TypeError(
-        f"workflow service {service_name!r} must be callable or expose {expected}()"
-    )
-
-
-
+    raise TypeError(f"workflow service {service_name!r} must be callable or expose {expected}()")
 
 
 def _question(state: QueryState) -> str:
     return state.get("question") or state.get("input_question", "")
+
+
 def _plan_date(state: QueryState) -> date | None:
     """Return the plan's serving date, never an arbitrary fallback date."""
     plan = state.get("query_understanding")
@@ -137,9 +133,7 @@ def _plan_date(state: QueryState) -> date | None:
     if intent == "COMPARISON":
         return getattr(plan, "comparison_to", None)
     effective_date = getattr(plan, "effective_date", None)
-    if intent in {"HISTORICAL", "SOURCE_SEARCH", "CURRENT"} and isinstance(
-        effective_date, date
-    ):
+    if intent in {"HISTORICAL", "SOURCE_SEARCH", "CURRENT"} and isinstance(effective_date, date):
         return effective_date
     temporal = state.get("temporal_context")
     if isinstance(temporal, date):
@@ -148,8 +142,8 @@ def _plan_date(state: QueryState) -> date | None:
         for key in ("applied_date", "query_date", "effective_date"):
             if isinstance(value := temporal.get(key), date):
                 return value
-    return getattr(plan, "effective_date", None) or state.get("query_date") or state.get(
-        "input_date"
+    return (
+        getattr(plan, "effective_date", None) or state.get("query_date") or state.get("input_date")
     )
 
 
@@ -164,10 +158,10 @@ def _exact_reference(plan: Any) -> dict[str, str | None] | None:
     reference = {field: getattr(plan, field, None) for field in fields}
     return reference if any(reference.values()) else None
 
+
 def _max_repair_attempts(state: QueryState) -> int:
     """Use an explicit state bound, otherwise the configured workflow bound."""
     return state.get("max_repair_attempts", get_settings().max_repair_attempts)
-
 
 
 def _safe_route(state: QueryState) -> str:
@@ -226,12 +220,12 @@ def _expand_query(state: QueryState, services: GraphServices) -> QueryState:
 def _variant_text(variant: Any) -> str:
     return getattr(variant, "text", None) or str(variant)
 
+
 def _variant_queries(state: QueryState, plan: Any) -> list[tuple[str, str]]:
     variants = state.get("expansion_set")
     if variants:
         return [
-            (_variant_text(variant), getattr(variant, "source", "original"))
-            for variant in variants
+            (_variant_text(variant), getattr(variant, "source", "original")) for variant in variants
         ]
     return [(getattr(plan, "normalized_query", None) or _question(state), "original")]
 
@@ -281,15 +275,11 @@ def _retrieve(state: QueryState, services: GraphServices) -> QueryState:
             if source == "hyde":
                 before = _merge_results(
                     before,
-                    _retrieve_one(
-                        state, services, query, source=source, query_date=date_from
-                    ),
+                    _retrieve_one(state, services, query, source=source, query_date=date_from),
                 )
                 after = _merge_results(
                     after,
-                    _retrieve_one(
-                        state, services, query, source=source, query_date=date_to
-                    ),
+                    _retrieve_one(state, services, query, source=source, query_date=date_to),
                 )
             elif services.comparison is not None:
                 comparison_plan: Any = plan
@@ -309,15 +299,11 @@ def _retrieve(state: QueryState, services: GraphServices) -> QueryState:
             else:
                 before = _merge_results(
                     before,
-                    _retrieve_one(
-                        state, services, query, source=source, query_date=date_from
-                    ),
+                    _retrieve_one(state, services, query, source=source, query_date=date_from),
                 )
                 after = _merge_results(
                     after,
-                    _retrieve_one(
-                        state, services, query, source=source, query_date=date_to
-                    ),
+                    _retrieve_one(state, services, query, source=source, query_date=date_to),
                 )
         comparison: Any
         if isinstance(before, CandidateSet) and isinstance(after, CandidateSet):
@@ -356,16 +342,29 @@ def _rerank(state: QueryState, services: GraphServices) -> QueryState:
     sides = _comparison_sides(fused)
     if sides is None:
         value = _call(
-            services.reranker, _question(state), _items(fused),
-            service_name="reranker", method_names=("rerank",),
+            services.reranker,
+            _question(state),
+            _items(fused),
+            service_name="reranker",
+            method_names=("rerank",),
         )
     else:
         before, after = sides
         value = _comparison_result(
-            _call(services.reranker, _question(state), _items(before),
-                  service_name="reranker", method_names=("rerank",)),
-            _call(services.reranker, _question(state), _items(after),
-                  service_name="reranker", method_names=("rerank",)),
+            _call(
+                services.reranker,
+                _question(state),
+                _items(before),
+                service_name="reranker",
+                method_names=("rerank",),
+            ),
+            _call(
+                services.reranker,
+                _question(state),
+                _items(after),
+                service_name="reranker",
+                method_names=("rerank",),
+            ),
         )
     return {"reranked": value}
 
@@ -403,9 +402,9 @@ def _expand_context(state: QueryState, services: GraphServices) -> QueryState:
         )
         expanded = _items(candidates) + _items(additions)
         if isinstance(candidates, CandidateSet):
-            expanded_sides.append(candidates.model_copy(update={
-                "results": deduplicate_results(expanded)
-            }))
+            expanded_sides.append(
+                candidates.model_copy(update={"results": deduplicate_results(expanded)})
+            )
         else:
             expanded_sides.append(expanded)
     return {"expanded_context": _comparison_result(*expanded_sides)}
@@ -438,12 +437,15 @@ def _check_evidence(state: QueryState, services: GraphServices) -> QueryState:
         else EvidenceStatus.INCOMPLETE
     )
     return {"evidence_status": status, "evidence_gaps": gaps}
+
+
 def _evidence_route(state: QueryState) -> str:
     if state.get("evidence_status") == EvidenceStatus.COMPLETE:
         return "build_context"
     if state.get("repair_attempts", 0) >= _max_repair_attempts(state):
         return "abstain"
     return "targeted_retrieval"
+
 
 def _targeted(state: QueryState, services: GraphServices) -> QueryState:
     attempts = state.get("repair_attempts", 0) + 1
@@ -478,9 +480,7 @@ def _targeted(state: QueryState, services: GraphServices) -> QueryState:
             for query, source in repair_queries:
                 targeted = _merge_results(
                     targeted,
-                    _retrieve_one(
-                        state, services, query, source=source, query_date=repair_date
-                    ),
+                    _retrieve_one(state, services, query, source=source, query_date=repair_date),
                 )
             updated.append(_merge_results(existing, targeted))
         return {
@@ -516,21 +516,27 @@ def _build_context(state: QueryState, services: GraphServices) -> QueryState:
     sides = _comparison_sides(context)
     if sides is None:
         value = _call(
-            services.context_builder, context,
-            service_name="context_builder", method_names=("build",),
+            services.context_builder,
+            context,
+            service_name="context_builder",
+            method_names=("build",),
         )
     else:
         value = _comparison_result(
-            _call(services.context_builder, sides[0],
-                  service_name="context_builder", method_names=("build",)),
-            _call(services.context_builder, sides[1],
-                  service_name="context_builder", method_names=("build",)),
+            _call(
+                services.context_builder,
+                sides[0],
+                service_name="context_builder",
+                method_names=("build",),
+            ),
+            _call(
+                services.context_builder,
+                sides[1],
+                service_name="context_builder",
+                method_names=("build",),
+            ),
         )
     return {"context_package": value}
-
-
-
-
 
 
 def _generate(state: QueryState, services: GraphServices) -> QueryState:

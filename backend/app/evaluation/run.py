@@ -93,8 +93,9 @@ class EvaluationRunWriter:
             raise KeyError(f"unknown evaluation run: {run_id}")
         return run
 
-    def start(self, manifest: EvaluationRunManifest, *, session: Session,
-              storage: ObjectStoragePort) -> str:
+    def start(
+        self, manifest: EvaluationRunManifest, *, session: Session, storage: ObjectStoragePort
+    ) -> str:
         run_id = manifest.run_id or str(uuid.uuid4())
         if session.scalar(select(EvaluationRun).where(EvaluationRun.run_id == run_id)):
             raise ValueError(f"evaluation run already exists: {run_id}")
@@ -108,21 +109,32 @@ class EvaluationRunWriter:
         storage.put(
             _BUCKET,
             descriptor_path,
-            json.dumps({
-                "run_id": run_id,
-                "format": "per-question-jsonl",
-                "results_prefix": results_prefix,
-            }).encode(),
+            json.dumps(
+                {
+                    "run_id": run_id,
+                    "format": "per-question-jsonl",
+                    "results_prefix": results_prefix,
+                }
+            ).encode(),
             content_type="application/json",
         )
         row = EvaluationRun(
-            run_id=run_id, git_commit=manifest.git_commit, corpus_version=manifest.corpus_version,
-            corpus_hash=manifest.corpus_hash, gold_set_version=manifest.gold_set_version,
-            gold_set_hash=manifest.gold_set_hash, suite=manifest.suite, variant=manifest.variant,
-            run_manifest_hash=manifest.manifest_hash(), config_snapshot=manifest.config_snapshot,
-            model_ids=manifest.model_ids, prompt_versions=manifest.prompt_versions,
-            parser_versions=manifest.parser_versions, raw_results_path=descriptor_path,
-            status="RUNNING", metric_availability={},
+            run_id=run_id,
+            git_commit=manifest.git_commit,
+            corpus_version=manifest.corpus_version,
+            corpus_hash=manifest.corpus_hash,
+            gold_set_version=manifest.gold_set_version,
+            gold_set_hash=manifest.gold_set_hash,
+            suite=manifest.suite,
+            variant=manifest.variant,
+            run_manifest_hash=manifest.manifest_hash(),
+            config_snapshot=manifest.config_snapshot,
+            model_ids=manifest.model_ids,
+            prompt_versions=manifest.prompt_versions,
+            parser_versions=manifest.parser_versions,
+            raw_results_path=descriptor_path,
+            status="RUNNING",
+            metric_availability={},
         )
         try:
             session.add(row)
@@ -136,7 +148,11 @@ class EvaluationRunWriter:
         return run_id
 
     def append_result(
-        self, run_id: str, result: Mapping[str, object], *, session: Session,
+        self,
+        run_id: str,
+        result: Mapping[str, object],
+        *,
+        session: Session,
         storage: ObjectStoragePort | None = None,
     ) -> None:
         run = self._run(run_id, session)
@@ -147,10 +163,12 @@ class EvaluationRunWriter:
         question_id = result.get("question_id")
         if not isinstance(question_id, str) or not question_id:
             raise ValueError("result.question_id must be a non-empty string")
-        if session.scalar(select(EvaluationResult).where(
-            EvaluationResult.evaluation_run_id == run.id,
-            EvaluationResult.question_id == question_id,
-        )):
+        if session.scalar(
+            select(EvaluationResult).where(
+                EvaluationResult.evaluation_run_id == run.id,
+                EvaluationResult.question_id == question_id,
+            )
+        ):
             raise ValueError(f"result already appended: {question_id}")
         result_path = self._result_path(run_id, question_id)
         if result_path in resolved_storage.list(_BUCKET, prefix=result_path):
@@ -167,8 +185,12 @@ class EvaluationRunWriter:
         row: EvaluationResult | None = None
         try:
             row = EvaluationResult(
-                evaluation_run_id=run.id, question_id=question_id, input=obj("input"),
-                retrieval=obj("retrieval"), output=obj("output"), metrics=obj("metrics"),
+                evaluation_run_id=run.id,
+                question_id=question_id,
+                input=obj("input"),
+                retrieval=obj("retrieval"),
+                output=obj("output"),
+                metrics=obj("metrics"),
                 raw_results_path=result_path,
             )
             session.add(row)
@@ -182,9 +204,14 @@ class EvaluationRunWriter:
             raise
 
     def finish(
-        self, run_id: str, *, metrics: Mapping[str, object],
-        metric_availability: Mapping[str, str], status: Literal["COMPLETED", "FAILED"],
-        session: Session, storage: ObjectStoragePort | None = None,
+        self,
+        run_id: str,
+        *,
+        metrics: Mapping[str, object],
+        metric_availability: Mapping[str, str],
+        status: Literal["COMPLETED", "FAILED"],
+        session: Session,
+        storage: ObjectStoragePort | None = None,
     ) -> None:
         run = self._run(run_id, session)
         if run.status != "RUNNING":
@@ -197,12 +224,16 @@ class EvaluationRunWriter:
         resolved_storage.put(
             _BUCKET,
             finish_path,
-            json.dumps({
-                "run_id": run_id,
-                "status": status,
-                "metrics": dict(metrics),
-                "metric_availability": dict(metric_availability),
-            }, sort_keys=True, default=str).encode(),
+            json.dumps(
+                {
+                    "run_id": run_id,
+                    "status": status,
+                    "metrics": dict(metrics),
+                    "metric_availability": dict(metric_availability),
+                },
+                sort_keys=True,
+                default=str,
+            ).encode(),
             content_type="application/json",
         )
         original = (run.status, run.metrics, run.metric_availability, run.completed_at)

@@ -57,15 +57,11 @@ class ComparisonRetriever:
         """Run each side independently and verify each side's temporal context."""
         before = self._historical.retrieve(plan, query_date=date_from)
         if before.applied_date != date_from:
-            raise ValueError(
-                "historical comparison retrieval returned an unexpected applied date"
-            )
+            raise ValueError("historical comparison retrieval returned an unexpected applied date")
 
         after = self._current.retrieve(plan, current_date=date_to)
         if after.applied_date != date_to:
-            raise ValueError(
-                "current comparison retrieval returned an unexpected applied date"
-            )
+            raise ValueError("current comparison retrieval returned an unexpected applied date")
 
         return ComparisonResult(before=before, after=after)
 

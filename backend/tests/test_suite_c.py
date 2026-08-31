@@ -44,8 +44,7 @@ def test_variants_are_exact_cumulative_r1_to_r10() -> None:
     assert VARIANTS[1].additions[-1] == "sparse_rrf"
     assert VARIANTS[-1].additions[-1] == "complete_pipeline"
     assert all(
-        set(VARIANTS[index].additions) <= set(VARIANTS[index + 1].additions)
-        for index in range(9)
+        set(VARIANTS[index].additions) <= set(VARIANTS[index + 1].additions) for index in range(9)
     )
 
 
@@ -98,8 +97,12 @@ def test_runner_retains_provider_failure_in_raw_result() -> None:
             return "run-1"
 
         def append_result(
-            self, _run_id: str, result: dict[str, object], *,
-            session: object, storage: Storage,
+            self,
+            _run_id: str,
+            result: dict[str, object],
+            *,
+            session: object,
+            storage: Storage,
         ) -> None:
             storage.results.append(result)
             self.results.append(result)
@@ -147,7 +150,8 @@ def test_runner_retains_provider_failure_in_raw_result() -> None:
     [("retrieved", "not-a-ranking"), ("provision_ids", None)],
 )
 def test_runner_rejects_malformed_rankings_without_dropping_raw_result(
-    field: str, value: object,
+    field: str,
+    value: object,
 ) -> None:
     class Writer:
         def __init__(self) -> None:
@@ -158,7 +162,10 @@ def test_runner_rejects_malformed_rankings_without_dropping_raw_result(
             return "run-1"
 
         def append_result(
-            self, _run_id: str, result: dict[str, object], **_kwargs: object,
+            self,
+            _run_id: str,
+            result: dict[str, object],
+            **_kwargs: object,
         ) -> None:
             self.results.append(result)
 
@@ -188,7 +195,5 @@ def test_runner_rejects_malformed_rankings_without_dropping_raw_result(
     assert "non-string Sequence" in outcome["error"]
     assert outcome["raw"] == {"provider": "evidence"}
     assert writer.finished[0]["status"] == "FAILED"
-    assert writer.finished[0]["metric_availability"]["recall@5"] == (
-        "ABSENT_EVALUATOR_FAILURE"
-    )
+    assert writer.finished[0]["metric_availability"]["recall@5"] == ("ABSENT_EVALUATOR_FAILURE")
     assert "0" not in writer.finished[0]["metrics"]["recall@5"]["per_query"]

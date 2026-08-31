@@ -146,14 +146,11 @@ def test_retrieve_uses_valid_dense_request_when_sparse_encoding_is_empty() -> No
     assert client.kwargs["query"].rrf.weights == [1.0]
 
 
-
 def test_retrieve_preserves_explicit_payload_retrieval_sources() -> None:
     class Client:
         def query_points(self, **kwargs: object) -> object:
             return SimpleNamespace(
-                points=[
-                    Point({**_PAYLOAD, "retrieval_sources": ["dense"]}, 0.5)
-                ]
+                points=[Point({**_PAYLOAD, "retrieval_sources": ["dense"]}, 0.5)]
             )
 
     class Embedder:
@@ -170,14 +167,13 @@ def test_retrieve_preserves_explicit_payload_retrieval_sources() -> None:
 
     assert result.results[0].retrieval_sources == ["dense"]
 
+
 def test_retrieve_post_checks_qdrant_ids_against_authoritative_temporal_rows() -> None:
     stale_payload = {**_PAYLOAD, "provision_id": "stale"}
 
     class Client:
         def query_points(self, **kwargs: object) -> object:
-            return SimpleNamespace(
-                points=[Point(_PAYLOAD, 0.5), Point(stale_payload, 0.4)]
-            )
+            return SimpleNamespace(points=[Point(_PAYLOAD, 0.5), Point(stale_payload, 0.4)])
 
     class Embedder:
         def embed(self, texts: list[str]) -> list[list[float]]:
@@ -207,9 +203,7 @@ def test_retrieve_post_checks_qdrant_ids_against_authoritative_temporal_rows() -
 def test_retrieve_uses_dense_provenance_when_payload_sources_are_empty() -> None:
     class Client:
         def query_points(self, **kwargs: object) -> object:
-            return SimpleNamespace(
-                points=[Point({**_PAYLOAD, "retrieval_sources": []}, 0.5)]
-            )
+            return SimpleNamespace(points=[Point({**_PAYLOAD, "retrieval_sources": []}, 0.5)])
 
     class Embedder:
         def embed(self, texts: list[str]) -> list[list[float]]:
@@ -224,6 +218,7 @@ def test_retrieve_uses_dense_provenance_when_payload_sources_are_empty() -> None
     )
 
     assert result.results[0].retrieval_sources == ["dense"]
+
 
 def test_merge_exact_uses_canonical_fields_and_only_merges_sources() -> None:
     derived = RetrievalResult(

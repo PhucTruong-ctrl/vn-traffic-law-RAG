@@ -123,7 +123,10 @@ def validate_validation_set(
         else validate_record(dict(record))
         for record in records
     )
+
+
 Evaluator = Callable[[SuiteCVariant, GoldRecord], Mapping[str, Any]]
+
 
 def _record_id(record: GoldRecord | Mapping[str, Any], fallback: int) -> str:
     return record.id if isinstance(record, GoldRecord) else str(record.get("id", fallback))
@@ -194,23 +197,20 @@ def run_suite_c(
                     outcome = {
                         **outcome,
                         "status": "FAILED",
-                        "error": (
-                            f"{invalid_ranking} must be a non-string Sequence"
-                        ),
+                        "error": (f"{invalid_ranking} must be a non-string Sequence"),
                     }
 
                 writer.append_result(
                     run_id,
                     {
-                    "question_id": _record_id(record, index),
+                        "question_id": _record_id(record, index),
                         "input": {
                             "question": record.question
                             if isinstance(record, GoldRecord)
                             else str(record.get("question", "")),
                             "query_date": (
                                 record.query_date.isoformat()
-                                if isinstance(record, GoldRecord)
-                                and record.query_date is not None
+                                if isinstance(record, GoldRecord) and record.query_date is not None
                                 else record.get("query_date")
                                 if isinstance(record, Mapping)
                                 else None

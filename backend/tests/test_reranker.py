@@ -84,7 +84,6 @@ def test_successful_response_is_cached() -> None:
     assert client.calls == 1
 
 
-
 def test_cached_scores_follow_provision_when_candidate_order_changes() -> None:
     class Client:
         calls = 0

@@ -88,8 +88,6 @@ class DocumentRelations(Relations):
                 target_document_id="related-doc",
                 relation_type="RELATED_TO",
             ),
-
-
         ]
 
 

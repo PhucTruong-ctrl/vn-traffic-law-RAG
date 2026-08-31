@@ -4,9 +4,7 @@ from types import SimpleNamespace
 from app.retrieval.exact_lookup import ExactLookup
 
 
-def _row(
-    provision_id: str = "p-đ", *, vehicle_types: list[str] | None = None
-) -> SimpleNamespace:
+def _row(provision_id: str = "p-đ", *, vehicle_types: list[str] | None = None) -> SimpleNamespace:
     document = SimpleNamespace(
         document_id="doc-168",
         document_number="168/2024/NĐ-CP",

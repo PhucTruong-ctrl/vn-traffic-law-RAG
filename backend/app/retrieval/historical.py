@@ -13,9 +13,7 @@ from app.retrieval.filters import build_temporal_filter
 class TemporalAuthority(Protocol):
     """The PostgreSQL-backed validity query needed by serving retrieval."""
 
-    def valid_provisions(
-        self, d: date, *, provision_ids: list[str]
-    ) -> list[object]: ...
+    def valid_provisions(self, d: date, *, provision_ids: list[str]) -> list[object]: ...
 
 
 class CandidateRetriever(Protocol):

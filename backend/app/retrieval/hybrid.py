@@ -127,8 +127,7 @@ class HybridRetriever:
         derived_provision_ids = {
             provision_id
             for point in points
-            if isinstance(provision_id := _payload(point).get("provision_id"), str)
-            and provision_id
+            if isinstance(provision_id := _payload(point).get("provision_id"), str) and provision_id
         }
         results = [
             result_from_payload(
@@ -136,9 +135,7 @@ class HybridRetriever:
                 rank=rank,
                 score=getattr(point, "score", None),
                 source="hybrid",
-            ).model_copy(
-                update={"retrieval_sources": _retrieval_sources(payload, channel_ids)}
-            )
+            ).model_copy(update={"retrieval_sources": _retrieval_sources(payload, channel_ids)})
             for rank, point in enumerate(points, start=1)
         ]
         results = self._temporal_post_check(results, query_date)
@@ -156,16 +153,17 @@ class HybridRetriever:
             )
         )
         merged = [
-            result.model_copy(update={"rank": rank})
-            for rank, result in enumerate(merged, start=1)
+            result.model_copy(update={"rank": rank}) for rank, result in enumerate(merged, start=1)
         ]
         exact_results = [result for result in merged if result.provision_id in exact_ids]
-        merged = exact_results + [
-            result for result in merged if result.provision_id not in exact_ids
-        ][: self._settings.final_top_k]
+        merged = (
+            exact_results
+            + [result for result in merged if result.provision_id not in exact_ids][
+                : self._settings.final_top_k
+            ]
+        )
         merged = [
-            result.model_copy(update={"rank": rank})
-            for rank, result in enumerate(merged, start=1)
+            result.model_copy(update={"rank": rank}) for rank, result in enumerate(merged, start=1)
         ]
         return CandidateSet(query=query, results=merged, applied_date=query_date)
 
@@ -183,6 +181,7 @@ class HybridRetriever:
             )
         }
         return [result for result in results if result.provision_id in valid_ids]
+
     def _exact_candidates(
         self,
         reference: Mapping[str, str | None] | None,
@@ -245,10 +244,9 @@ def _retrieval_sources(
 ) -> list[str]:
     provision_id = payload.get("provision_id")
     return [
-        channel
-        for channel in ("dense", "sparse")
-        if provision_id in channel_ids.get(channel, ())
+        channel for channel in ("dense", "sparse") if provision_id in channel_ids.get(channel, ())
     ]
+
 
 def _merge_exact(
     results: Sequence[RetrievalResult], exact: Sequence[RetrievalResult]
@@ -262,15 +260,11 @@ def _merge_exact(
             )
         else:
             sources = list(
-                dict.fromkeys(
-                    [*current.retrieval_sources, *result.retrieval_sources, "exact"]
-                )
+                dict.fromkeys([*current.retrieval_sources, *result.retrieval_sources, "exact"])
             )
             # PostgreSQL exact rows are canonical. Keep only retrieval metadata
             # from the derived payload, never its potentially stale citation.
-            by_id[result.provision_id] = result.model_copy(
-                update={"retrieval_sources": sources}
-            )
+            by_id[result.provision_id] = result.model_copy(update={"retrieval_sources": sources})
     return list(by_id.values())
 
 

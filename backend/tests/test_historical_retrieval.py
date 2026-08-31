@@ -102,9 +102,7 @@ def test_excludes_future_provisions_using_authoritative_rows() -> None:
         ]
     )
 
-    result = HistoricalRetriever(retriever, temporal).retrieve(
-        _plan(), query_date=QUERY_DATE
-    )
+    result = HistoricalRetriever(retriever, temporal).retrieve(_plan(), query_date=QUERY_DATE)
 
     assert [item.provision_id for item in result.results] == ["valid"]
     assert result.applied_date == QUERY_DATE
@@ -117,9 +115,7 @@ def test_applied_date_and_temporal_filter_are_forwarded() -> None:
         [SimpleNamespace(provision_id="valid", review_status="ACCEPTED")]
     )
 
-    result = HistoricalRetriever(retriever, temporal).retrieve(
-        _plan(), query_date=QUERY_DATE
-    )
+    result = HistoricalRetriever(retriever, temporal).retrieve(_plan(), query_date=QUERY_DATE)
 
     assert result.applied_date == QUERY_DATE
     assert retriever.query_filter is not None

@@ -49,6 +49,7 @@ def test_current_and_historical_dates_are_deterministic() -> None:
     assert historical.intent is QueryIntent.HISTORICAL
     assert historical.effective_date == date(2024, 2, 1)
 
+
 def test_analyzer_retains_original_question_for_expansion() -> None:
     plan = QueryAnalyzer().analyze("GPLX phat tien", current_date=TODAY)
     assert plan.original_query == "GPLX phat tien"
@@ -94,6 +95,7 @@ def test_out_of_scope_has_no_evidence_plan() -> None:
     plan = QueryAnalyzer().analyze("tư vấn cá nhân về tai nạn ở Mỹ", current_date=TODAY)
     assert plan.intent is QueryIntent.OUT_OF_SCOPE
     assert plan.required_evidence == []
+
 
 def test_out_of_scope_precedes_comparison_dates() -> None:
     plan = QueryAnalyzer().analyze(
@@ -279,6 +281,7 @@ def test_analyzer_fallback_failure_is_safe_and_deterministic_first() -> None:
     assert safe.intent is QueryIntent.OUT_OF_SCOPE
     assert safe.missing_query_information == ["query_analysis"]
     assert calls == ["mức phạt"]
+
 
 def test_analyzer_invokes_object_fallback_analyze_method() -> None:
     class Fallback:

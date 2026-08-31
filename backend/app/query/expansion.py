@@ -102,14 +102,8 @@ class QueryExpander:
             for variant in existing_variants
             if variant.source == "hyde" and variant.evidence_type is not None
         }
-        existing_text = {
-            variant.text for variant in existing_variants if variant.source == "hyde"
-        }
-        if (
-            self._hyde_provider
-            and repair_attempts < self._max_repair_attempts
-            and evidence_gaps
-        ):
+        existing_text = {variant.text for variant in existing_variants if variant.source == "hyde"}
+        if self._hyde_provider and repair_attempts < self._max_repair_attempts and evidence_gaps:
             for gap in dict.fromkeys(evidence_gaps):
                 if gap in attempted:
                     continue

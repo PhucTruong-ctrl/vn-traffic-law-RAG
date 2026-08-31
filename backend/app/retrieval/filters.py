@@ -32,9 +32,7 @@ def _vehicle_type_values(vehicle_type: str) -> list[str]:
     """Return enum and raw Vietnamese forms accepted for a query vehicle."""
     normalized = normalize_vehicle_type(vehicle_type)
     values = [normalized]
-    values.extend(
-        alias for alias, enum in _VEHICLE_TYPE_ALIASES.items() if enum == normalized
-    )
+    values.extend(alias for alias, enum in _VEHICLE_TYPE_ALIASES.items() if enum == normalized)
     return values
 
 
@@ -42,9 +40,7 @@ def _at_midnight(value: date) -> datetime:
     return datetime.combine(value, time.min, tzinfo=UTC)
 
 
-def build_temporal_filter(
-    query_date: date, *, vehicle_type: str | None = None
-) -> models.Filter:
+def build_temporal_filter(query_date: date, *, vehicle_type: str | None = None) -> models.Filter:
     """Build Qdrant's accepted, half-open validity filter for ``query_date``.
 
     Date payloads are indexed as Qdrant datetimes.  ``effective_to`` is kept
@@ -70,9 +66,7 @@ def build_temporal_filter(
                 should=[
                     *vehicle_conditions,
                     # Indexing stores [] when no vehicle restriction was given.
-                    models.IsEmptyCondition(
-                        is_empty=models.PayloadField(key="vehicle_types")
-                    ),
+                    models.IsEmptyCondition(is_empty=models.PayloadField(key="vehicle_types")),
                 ]
             )
         )
@@ -124,8 +118,7 @@ def is_payload_temporally_valid(
         if not vehicle_types:
             return True
         if not isinstance(vehicle_types, (list, tuple, set)) or not any(
-            isinstance(value, str)
-            and normalize_vehicle_type(value) == normalized_vehicle_type
+            isinstance(value, str) and normalize_vehicle_type(value) == normalized_vehicle_type
             for value in vehicle_types
         ):
             return False
@@ -144,6 +137,7 @@ def filter_payloads_temporally(
         for payload in payloads
         if is_payload_temporally_valid(payload, query_date, vehicle_type=vehicle_type)
     ]
+
 
 def deduplicate_results(
     results: Sequence[RetrievalResult],

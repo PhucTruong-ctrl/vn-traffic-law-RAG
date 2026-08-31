@@ -26,9 +26,7 @@ def _plan() -> QueryPlan:
     )
 
 
-def _result(
-    provision_id: str, effective_from: date, effective_to: date | None
-) -> RetrievalResult:
+def _result(provision_id: str, effective_from: date, effective_to: date | None) -> RetrievalResult:
     return RetrievalResult(
         rank=1,
         provision_id=provision_id,
@@ -75,8 +73,7 @@ class _TemporalRepository:
     def valid_provisions(self, query_date: date, *, provision_ids=None):
         self.date = query_date
         return [
-            SimpleNamespace(provision_id=value)
-            for value in (provision_ids or self.provision_ids)
+            SimpleNamespace(provision_id=value) for value in (provision_ids or self.provision_ids)
         ]
 
 

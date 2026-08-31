@@ -129,5 +129,3 @@ def test_invalid_top_k_and_limit_are_rejected() -> None:
         SparseRetriever(_Client([]), _Encoder(), top_k=0)
     with pytest.raises(ValueError, match="limit"):
         SparseRetriever(_Client([]), _Encoder()).search("phạt", limit=0)
-
-

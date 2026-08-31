@@ -27,17 +27,13 @@ class EvidenceGateResult:
     covered_provisions: list[str]
 
 
-_AMOUNT = re.compile(
-    r"\b\d[\d.,\s]*(?:đồng|triệu\s*đồng|nghìn\s*đồng)\b", re.IGNORECASE
-)
+_AMOUNT = re.compile(r"\b\d[\d.,\s]*(?:đồng|triệu\s*đồng|nghìn\s*đồng)\b", re.IGNORECASE)
 _POINTS = re.compile(r"trừ\s+(?:[\wđ]+\s+)?\d+\s*điểm|\d+\s*điểm\s+(?:giấy phép|gplx)")
 
 
 def _covered_types(candidate: RetrievalResult) -> set[EvidenceType]:
     text = " ".join(
-        part
-        for part in (candidate.text, candidate.source_text, candidate.parent_context)
-        if part
+        part for part in (candidate.text, candidate.source_text, candidate.parent_context) if part
     ).casefold()
     covered: set[EvidenceType] = set()
 
@@ -74,9 +70,7 @@ def _covered_types(candidate: RetrievalResult) -> set[EvidenceType]:
 class EvidenceCompletenessGate:
     """Determine whether retrieved provisions cover every required evidence type."""
 
-    def evaluate(
-        self, plan: QueryPlan, context: Sequence[RetrievalResult]
-    ) -> EvidenceGateResult:
+    def evaluate(self, plan: QueryPlan, context: Sequence[RetrievalResult]) -> EvidenceGateResult:
         covered_provisions: list[str] = []
         covered_types: set[EvidenceType] = set()
         for candidate in context:

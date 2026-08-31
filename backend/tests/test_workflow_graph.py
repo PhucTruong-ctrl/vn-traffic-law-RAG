@@ -49,11 +49,10 @@ def test_incomplete_evidence_increments_counter_then_abstains() -> None:
             return type("Gate", (), {"status": EvidenceStatus.INCOMPLETE, "evidence_gaps": []})()
 
     graph = build_query_graph(services(evidence_gate=IncompleteGate()))
-    state = graph.invoke(
-        {"question": "mức phạt", "max_repair_attempts": 1, "repair_attempts": 0}
-    )
+    state = graph.invoke({"question": "mức phạt", "max_repair_attempts": 1, "repair_attempts": 0})
     assert state["repair_attempts"] == 1
     assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
+
 
 def test_incomplete_evidence_uses_configured_default_repair_bound() -> None:
     class IncompleteGate:
@@ -167,9 +166,11 @@ def test_retrieve_passes_query_plan_exact_reference() -> None:
             evidence_gate=type(
                 "CompleteGate",
                 (),
-                {"evaluate": lambda self, plan, context: type(
-                    "Gate", (), {"status": EvidenceStatus.COMPLETE, "evidence_gaps": []}
-                )()},
+                {
+                    "evaluate": lambda self, plan, context: type(
+                        "Gate", (), {"status": EvidenceStatus.COMPLETE, "evidence_gaps": []}
+                    )()
+                },
             )(),
         )
     )
@@ -203,9 +204,7 @@ def test_targeted_repair_retrieves_and_merges_every_gap() -> None:
                     },
                 )()
             assert context == ["initial", "penalty", "points"]
-            return type(
-                "Result", (), {"status": EvidenceStatus.COMPLETE, "evidence_gaps": []}
-            )()
+            return type("Result", (), {"status": EvidenceStatus.COMPLETE, "evidence_gaps": []})()
 
     responses = iter((["initial"], ["penalty"], ["points"]))
 
@@ -229,6 +228,8 @@ def test_targeted_repair_retrieves_and_merges_every_gap() -> None:
     state = graph.invoke({"question": "initial", "max_repair_attempts": 1})
     assert state["repair_attempts"] == 1
     assert len(calls) == 3
+
+
 def test_targeted_repair_includes_configured_hyde_variant() -> None:
     calls = []
     expansion_calls = []
@@ -248,9 +249,7 @@ def test_targeted_repair_includes_configured_hyde_variant() -> None:
                     },
                 )()
             assert context == ["initial", "hyde answer", "points", "hyde answer"]
-            return type(
-                "Result", (), {"status": EvidenceStatus.COMPLETE, "evidence_gaps": []}
-            )()
+            return type("Result", (), {"status": EvidenceStatus.COMPLETE, "evidence_gaps": []})()
 
     def retrieve(query, **kwargs):
         calls.append(("sparse", query, kwargs))
@@ -299,7 +298,6 @@ def test_targeted_repair_includes_configured_hyde_variant() -> None:
     assert expansion_calls[-1][1]["existing_variants"]
 
 
-
 def test_out_of_scope_plan_abstains_before_retrieval() -> None:
     calls = []
     graph = build_query_graph(
@@ -341,15 +339,15 @@ def test_retrieval_uses_expansion_variants() -> None:
                 SimpleNamespace(text="original"),
                 SimpleNamespace(text="rewrite"),
             ],
-            retriever=lambda query, **kwargs: calls.append(
-                (query, kwargs["query_date"])
-            )
-            or [query],
+            retriever=lambda query, **kwargs: (
+                calls.append((query, kwargs["query_date"])) or [query]
+            ),
             evidence_gate=complete_gate,
         )
     )
     graph.invoke({"question": "question", "max_repair_attempts": 0})
     assert calls == [("original", date(2025, 1, 1)), ("rewrite", date(2025, 1, 1))]
+
 
 def test_hyde_variant_uses_dense_path_without_exact_or_sparse_retrieval() -> None:
     calls = []
@@ -398,6 +396,7 @@ def test_hyde_variant_uses_dense_path_without_exact_or_sparse_retrieval() -> Non
     assert set(calls[1][2]) == {"query_filter", "limit"}
     assert calls[1][2]["limit"] > 0
 
+
 def test_comparison_retrieval_keeps_independent_before_and_after() -> None:
     calls = []
     plan = SimpleNamespace(
@@ -411,6 +410,7 @@ def test_comparison_retrieval_keeps_independent_before_and_after() -> None:
     def retrieve(query, **kwargs):
         calls.append((query, kwargs["query_date"]))
         return [f"{query}:{kwargs['query_date']}"]
+
     graph = build_query_graph(
         services(
             analyzer=lambda question, **_: plan,
@@ -517,9 +517,7 @@ def test_comparison_sides_stay_separate_through_downstream_nodes() -> None:
         return []
 
     class CompleteGate:
-        def evaluate(
-            self, plan, context: Sequence[RetrievalResult]
-        ) -> EvidenceGateResult:
+        def evaluate(self, plan, context: Sequence[RetrievalResult]) -> EvidenceGateResult:
             assert isinstance(context, list)
             seen["gate"].append("before" if len(seen["gate"]) == 0 else "after")
             return EvidenceGateResult(
@@ -564,10 +562,7 @@ def test_context_expansion_uses_resolved_plan_date() -> None:
     graph = build_query_graph(
         services(
             analyzer=lambda question, **_: plan,
-            context_expander=lambda candidates, **kwargs: seen.append(
-                kwargs["query_date"]
-            )
-            or [],
+            context_expander=lambda candidates, **kwargs: seen.append(kwargs["query_date"]) or [],
             evidence_gate=type(
                 "CompleteGate",
                 (),

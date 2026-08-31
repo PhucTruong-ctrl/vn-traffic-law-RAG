@@ -17,8 +17,7 @@ from .query_understanding_types import EvidenceType, QueryIntent
 
 
 class _GenaiModels(Protocol):
-    def generate_content(self, **kwargs: Any) -> Any:
-        ...
+    def generate_content(self, **kwargs: Any) -> Any: ...
 
 
 class _GenaiClient(Protocol):
@@ -26,8 +25,7 @@ class _GenaiClient(Protocol):
 
 
 class _FallbackObject(Protocol):
-    def analyze(self, question: str, *, current_date: date) -> QueryPlan:
-        ...
+    def analyze(self, question: str, *, current_date: date) -> QueryPlan: ...
 
 
 FallbackAnalyzer: TypeAlias = Callable[..., "QueryPlan"] | _FallbackObject
@@ -70,9 +68,12 @@ class QueryPlan(BaseModel):
 
     @property
     def original_query(self) -> str | None:
-        return self._original_query or self.__dict__.get("original_query") or (
-            self.model_extra or {}
-        ).get("original_query")
+        return (
+            self._original_query
+            or self.__dict__.get("original_query")
+            or (self.model_extra or {}).get("original_query")
+        )
+
     missing_query_information: list[str]
 
 
@@ -100,9 +101,7 @@ class QueryPlanFallback:
                 if client is None:
                     from google import genai
 
-                    client = cast(
-                        _GenaiClient, genai.Client(api_key=settings.gemini_api_key)
-                    )
+                    client = cast(_GenaiClient, genai.Client(api_key=settings.gemini_api_key))
             from google.genai import types
 
             assert client is not None
@@ -226,8 +225,7 @@ class QueryAnalyzer:
             canonical
             for canonical, variants in TERMINOLOGY.items()
             if any(
-                re.search(rf"(?<!\w){re.escape(variant)}(?!\w)", text, re.I)
-                for variant in variants
+                re.search(rf"(?<!\w){re.escape(variant)}(?!\w)", text, re.I) for variant in variants
             )
         ]
         if vehicle:
@@ -349,6 +347,8 @@ class QueryAnalyzer:
         ):
             plan.missing_query_information.append("query_date")
         return plan
+
+
 __all__ = [
     "EvidenceType",
     "QueryIntent",

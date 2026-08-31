@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     # Ingestion
     max_ingestion_workers: int = 1
 
+
 class GenerationSettings(BaseSettings):
     """Structured Gemini generation settings used by query fallback."""
 
@@ -81,7 +82,6 @@ class GenerationSettings(BaseSettings):
         default="",
         validation_alias=AliasChoices("GEMINI_API_KEY", "GENERATION_GEMINI_API_KEY"),
     )
-
 
 
 class QdrantSettings(BaseSettings):
@@ -186,44 +186,33 @@ class RetrievalSettings(BaseSettings):
 
     exact_lookup_enabled: bool = Field(
         default=True,
-        validation_alias=AliasChoices(
-            "EXACT_LOOKUP_ENABLED", "RETRIEVAL_EXACT_LOOKUP_ENABLED"
-        )
+        validation_alias=AliasChoices("EXACT_LOOKUP_ENABLED", "RETRIEVAL_EXACT_LOOKUP_ENABLED"),
     )
     dense_prefetch: int = Field(
-        default=30,
-        validation_alias=AliasChoices("DENSE_PREFETCH", "RETRIEVAL_DENSE_PREFETCH")
+        default=30, validation_alias=AliasChoices("DENSE_PREFETCH", "RETRIEVAL_DENSE_PREFETCH")
     )
     sparse_prefetch: int = Field(
-        default=30,
-        validation_alias=AliasChoices("SPARSE_PREFETCH", "RETRIEVAL_SPARSE_PREFETCH")
+        default=30, validation_alias=AliasChoices("SPARSE_PREFETCH", "RETRIEVAL_SPARSE_PREFETCH")
     )
-    rrf_k: int = Field(
-        default=60, validation_alias=AliasChoices("RRF_K", "RETRIEVAL_RRF_K")
-    )
+    rrf_k: int = Field(default=60, validation_alias=AliasChoices("RRF_K", "RETRIEVAL_RRF_K"))
     dense_weight: float = Field(
-        default=1.0,
-        validation_alias=AliasChoices("DENSE_WEIGHT", "RETRIEVAL_DENSE_WEIGHT")
+        default=1.0, validation_alias=AliasChoices("DENSE_WEIGHT", "RETRIEVAL_DENSE_WEIGHT")
     )
     sparse_weight: float = Field(
-        default=1.0,
-        validation_alias=AliasChoices("SPARSE_WEIGHT", "RETRIEVAL_SPARSE_WEIGHT")
+        default=1.0, validation_alias=AliasChoices("SPARSE_WEIGHT", "RETRIEVAL_SPARSE_WEIGHT")
     )
     fusion_limit: int = Field(
-        default=20,
-        validation_alias=AliasChoices("FUSION_LIMIT", "RETRIEVAL_FUSION_LIMIT")
+        default=20, validation_alias=AliasChoices("FUSION_LIMIT", "RETRIEVAL_FUSION_LIMIT")
     )
     final_top_k: int = Field(
         default=8,
-        validation_alias=AliasChoices(
-            "RETRIEVAL_TOP_K", "FINAL_TOP_K", "RETRIEVAL_FINAL_TOP_K"
-        )
+        validation_alias=AliasChoices("RETRIEVAL_TOP_K", "FINAL_TOP_K", "RETRIEVAL_FINAL_TOP_K"),
     )
     temporal_filter_enabled: bool = Field(
         default=True,
         validation_alias=AliasChoices(
             "TEMPORAL_FILTER", "TEMPORAL_FILTER_ENABLED", "RETRIEVAL_TEMPORAL_FILTER"
-        )
+        ),
     )
     reranker_model: str = Field(
         default="jina-reranker-v3",
@@ -424,12 +413,12 @@ def get_queue_settings() -> QueueSettings:
 def get_settings() -> Settings:
     """Return the process-wide settings singleton (cached until cleared)."""
     return Settings()
+
+
 @lru_cache(maxsize=1)
 def get_generation_settings() -> GenerationSettings:
     """Return the process-wide generation settings singleton."""
     return GenerationSettings()
-
-
 
 
 @lru_cache(maxsize=1)

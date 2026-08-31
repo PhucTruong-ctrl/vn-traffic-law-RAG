@@ -74,12 +74,8 @@ class _Current:
 
 
 def test_same_date_keeps_two_independent_documents_and_side_dates() -> None:
-    before = CandidateSet(
-        query="before", results=[_result("old", "NĐ-1")], applied_date=BEFORE
-    )
-    after = CandidateSet(
-        query="after", results=[_result("new", "NĐ-2")], applied_date=BEFORE
-    )
+    before = CandidateSet(query="before", results=[_result("old", "NĐ-1")], applied_date=BEFORE)
+    after = CandidateSet(query="after", results=[_result("new", "NĐ-2")], applied_date=BEFORE)
     historical = _Historical(before)
     current = _Current(after)
 
@@ -99,9 +95,7 @@ def test_amendment_keeps_before_and_after_citation_lists_separate() -> None:
     before = CandidateSet(
         query="quy định", results=[_result("original", "NĐ-1")], applied_date=BEFORE
     )
-    after = CandidateSet(
-        query="quy định", results=[_result("amended", "NĐ-2")], applied_date=AFTER
-    )
+    after = CandidateSet(query="quy định", results=[_result("amended", "NĐ-2")], applied_date=AFTER)
     result = ComparisonRetriever(_Historical(before), _Current(after)).compare(
         _plan(), date_from=BEFORE, date_to=AFTER
     )
@@ -114,29 +108,19 @@ def test_amendment_keeps_before_and_after_citation_lists_separate() -> None:
 
 
 def test_rejects_historical_result_with_wrong_applied_date() -> None:
-    candidates = CandidateSet(
-        query="before", results=[_result("old", "NĐ-1")], applied_date=AFTER
-    )
+    candidates = CandidateSet(query="before", results=[_result("old", "NĐ-1")], applied_date=AFTER)
 
-    with pytest.raises(
-        ValueError, match="historical comparison retrieval returned an unexpected"
-    ):
+    with pytest.raises(ValueError, match="historical comparison retrieval returned an unexpected"):
         ComparisonRetriever(_Historical(candidates), _Current(candidates)).compare(
             _plan(), date_from=BEFORE, date_to=AFTER
         )
 
 
 def test_rejects_current_result_with_wrong_applied_date() -> None:
-    before = CandidateSet(
-        query="before", results=[_result("old", "NĐ-1")], applied_date=BEFORE
-    )
-    after = CandidateSet(
-        query="after", results=[_result("new", "NĐ-2")], applied_date=BEFORE
-    )
+    before = CandidateSet(query="before", results=[_result("old", "NĐ-1")], applied_date=BEFORE)
+    after = CandidateSet(query="after", results=[_result("new", "NĐ-2")], applied_date=BEFORE)
 
-    with pytest.raises(
-        ValueError, match="current comparison retrieval returned an unexpected"
-    ):
+    with pytest.raises(ValueError, match="current comparison retrieval returned an unexpected"):
         ComparisonRetriever(_Historical(before), _Current(after)).compare(
             _plan(), date_from=BEFORE, date_to=AFTER
         )

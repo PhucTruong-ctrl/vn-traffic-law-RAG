@@ -86,6 +86,7 @@ def _records(records: Sequence[GoldRecord | Mapping[str, Any]]) -> list[GoldReco
         )
     return parsed
 
+
 def _manifest_provenance() -> tuple[dict[str, str], dict[str, str], str]:
     settings = get_settings()
     prompt_versions = {
@@ -97,7 +98,6 @@ def _manifest_provenance() -> tuple[dict[str, str], dict[str, str], str]:
         {"document_ir_schema": DOCUMENT_IR_SCHEMA_VERSION},
         settings.prompt_source,
     )
-
 
 
 def _metric_availability(reports: Mapping[str, Any]) -> dict[str, str]:
@@ -183,6 +183,8 @@ def _aggregate_tokens(outcomes: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     if not totals:
         return {"value": None, "count": 0, "reason": "no eligible values"}
     return {"value": totals, "count": count}
+
+
 def run_suite_b(
     records: Sequence[GoldRecord | Mapping[str, Any]],
     retrieve: Callable[[GoldRecord, EmbeddingVariant], Mapping[str, Any]],
@@ -249,7 +251,8 @@ def run_suite_b(
                         "retrieved": [],
                     }
                 if outcome.get("error") or str(outcome.get("status", "")).upper() in {
-                    "FAILED", "ERROR",
+                    "FAILED",
+                    "ERROR",
                 }:
                     provider_failed = True
                 retrieved = outcome.get("retrieved", outcome.get("results", []))
@@ -274,12 +277,14 @@ def run_suite_b(
                     retrieved = []
                     provider_failed = True
                 outcomes.append(outcome)
-                metric_records.append({
-                    "id": record.id,
-                    "category": record.category.value,
-                    "retrieved": list(retrieved),
-                    "relevant": record.expected_provision_ids,
-                })
+                metric_records.append(
+                    {
+                        "id": record.id,
+                        "category": record.category.value,
+                        "retrieved": list(retrieved),
+                        "relevant": record.expected_provision_ids,
+                    }
+                )
                 raw_input = {"question": record.question}
                 if record.query_date is not None:
                     raw_input["query_date"] = record.query_date.isoformat()
@@ -297,11 +302,13 @@ def run_suite_b(
                 )
             reports = evaluate_retrieval(metric_records)
             metrics = {name: report.__dict__ for name, report in reports.items()}
-            metrics.update({
-                "latency_ms": _aggregate_optional(outcomes, "latency_ms"),
-                "estimated_cost": _aggregate_optional(outcomes, "estimated_cost"),
-                "token_usage": _aggregate_tokens(outcomes),
-            })
+            metrics.update(
+                {
+                    "latency_ms": _aggregate_optional(outcomes, "latency_ms"),
+                    "estimated_cost": _aggregate_optional(outcomes, "estimated_cost"),
+                    "token_usage": _aggregate_tokens(outcomes),
+                }
+            )
             availability = _metric_availability(reports)
             for field in ("latency_ms", "estimated_cost", "token_usage"):
                 if metrics[field]["value"] is not None:
@@ -313,23 +320,28 @@ def run_suite_b(
                         if outcome.get("cost_unavailable_reason")
                     }
                     reason = next(iter(sorted(reasons)), "no eligible values")
-                    availability[field] = (
-                        f"ABSENT_{reason.upper().replace(' ', '_')}"
-                    )
+                    availability[field] = f"ABSENT_{reason.upper().replace(' ', '_')}"
                 else:
                     availability[field] = "ABSENT_NO_ELIGIBLE_VALUES"
             if provider_failed:
                 for name in reports:
                     availability[name] = "ABSENT_PROVIDER_FAILURE"
             run_writer.finish(
-                run_id, status="FAILED" if provider_failed else "COMPLETED", metrics=metrics,
-                metric_availability=availability, session=session, storage=storage,
+                run_id,
+                status="FAILED" if provider_failed else "COMPLETED",
+                metrics=metrics,
+                metric_availability=availability,
+                session=session,
+                storage=storage,
             )
         except Exception as exc:
             run_writer.finish(
-                run_id, status="FAILED", metrics={},
+                run_id,
+                status="FAILED",
+                metrics={},
                 metric_availability={"retrieval": f"ABSENT_PROVIDER_FAILURE: {exc}"},
-                session=session, storage=storage,
+                session=session,
+                storage=storage,
             )
             raise
     return run_ids

@@ -45,6 +45,7 @@ def _result(
         depth=0,
     )
 
+
 START = date(2024, 1, 10)
 END = date(2024, 2, 10)
 
@@ -97,12 +98,11 @@ def test_vehicle_filter_matches_raw_vietnamese_and_excludes_other_vehicle() -> N
     assert not is_payload_temporally_valid(
         _payload(vehicle_types=["ô tô"]), START, vehicle_type="xe máy"
     )
-    assert is_payload_temporally_valid(
-        _payload(vehicle_types=["ô tô"]), START, vehicle_type="CAR"
-    )
+    assert is_payload_temporally_valid(_payload(vehicle_types=["ô tô"]), START, vehicle_type="CAR")
     assert not is_payload_temporally_valid(
         _payload(vehicle_types=["xe máy"]), START, vehicle_type="ô tô"
     )
+
 
 def test_filter_preserves_valid_payloads_and_order() -> None:
     valid = _payload()
@@ -121,9 +121,7 @@ def test_qdrant_filter_requires_accepted_half_open_interval_and_vehicle() -> Non
         for condition in temporal_filter.must
     )
     vehicle_filter = next(
-        condition
-        for condition in temporal_filter.must
-        if isinstance(condition, models.Filter)
+        condition for condition in temporal_filter.must if isinstance(condition, models.Filter)
     )
     assert vehicle_filter.should is not None
     assert any(
@@ -144,8 +142,7 @@ def test_qdrant_filter_requires_accepted_half_open_interval_and_vehicle() -> Non
         for condition in vehicle_filter.should
     )
     assert any(
-        isinstance(condition, models.IsNullCondition)
-        for condition in temporal_filter.should
+        isinstance(condition, models.IsNullCondition) for condition in temporal_filter.should
     )
     assert any(
         isinstance(condition, models.FieldCondition)

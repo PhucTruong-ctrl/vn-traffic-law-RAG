@@ -46,6 +46,7 @@ class ProvisionRepository:
             LegalProvision.version == version,
         )
         return self._session.scalar(stmt)
+
     def lookup_exact(
         self,
         *,
@@ -61,9 +62,7 @@ class ProvisionRepository:
             .join(LegalProvision.document_version)
             .join(DocumentVersion.document)
             .options(
-                joinedload(LegalProvision.document_version).joinedload(
-                    DocumentVersion.document
-                )
+                joinedload(LegalProvision.document_version).joinedload(DocumentVersion.document)
             )
             .where(
                 LegalDocument.document_number == document_number,

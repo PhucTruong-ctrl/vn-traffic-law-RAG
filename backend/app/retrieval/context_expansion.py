@@ -11,9 +11,7 @@ from app.persistence.models import LegalProvision
 from app.retrieval.contracts import RetrievalResult
 
 _RELATION_TYPES = frozenset({"PARENT_OF", "SIBLING_OF", "REFERS_TO", "PENALTY_COMPANION"})
-_DOCUMENT_AMENDMENT_RELATION_TYPES = frozenset(
-    {"AMENDS", "REPEALS", "SUPERSEDES", "CORRECTS"}
-)
+_DOCUMENT_AMENDMENT_RELATION_TYPES = frozenset({"AMENDS", "REPEALS", "SUPERSEDES", "CORRECTS"})
 _ADDED_BY = {
     "PARENT_OF": "PARENT_CONTEXT",
     "REFERS_TO": "CROSS_REFERENCE",
@@ -52,9 +50,7 @@ class LegalContextExpander:
         seed_rows = self._valid_rows(query_date, [seed.provision_id for seed in frontier])
         rows_by_id = {row.provision_id: row for row in seed_rows}
         current = [
-            rows_by_id[seed.provision_id]
-            for seed in frontier
-            if seed.provision_id in rows_by_id
+            rows_by_id[seed.provision_id] for seed in frontier if seed.provision_id in rows_by_id
         ]
         seen = {seed.provision_id for seed in seeds}
         added: list[RetrievalResult] = []
@@ -94,9 +90,7 @@ class LegalContextExpander:
             return []
         method = getattr(self._temporal, "valid_provisions", None)
         if not callable(method):
-            raise RuntimeError(
-                "context expansion requires temporal_repository.valid_provisions()"
-            )
+            raise RuntimeError("context expansion requires temporal_repository.valid_provisions()")
         return list(
             method(
                 query_date,
@@ -111,9 +105,7 @@ class LegalContextExpander:
             raise RuntimeError(
                 "context expansion requires relation_repository.related_provisions()"
             )
-        related: list[Any] = list(
-            method(query_date, seeds, relation_types=_RELATION_TYPES)
-        )
+        related: list[Any] = list(method(query_date, seeds, relation_types=_RELATION_TYPES))
 
         # Document relations are an optional repository capability.  An
         # available method must still fail loudly rather than being swallowed.

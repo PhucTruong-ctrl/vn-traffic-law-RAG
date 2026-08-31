@@ -11,8 +11,7 @@ from .query_understanding_types import EvidenceType
 class HyDEProvider(Protocol):
     """Provider that returns hypothetical legal text for dense embedding."""
 
-    def generate(self, query: str, evidence_type: EvidenceType) -> str | None:
-        ...
+    def generate(self, query: str, evidence_type: EvidenceType) -> str | None: ...
 
 
 class HyDEGenerator:

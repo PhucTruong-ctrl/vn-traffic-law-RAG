@@ -44,9 +44,7 @@ def test_search_embeds_query_and_maps_hits(payload: dict[str, object]) -> None:
 
         def query_points(self, **kwargs: object) -> object:
             self.kwargs = kwargs
-            return SimpleNamespace(
-                points=[SimpleNamespace(payload=payload, score=0.9)]
-            )
+            return SimpleNamespace(points=[SimpleNamespace(payload=payload, score=0.9)])
 
     embedder = Embedder()
     client = Client()
@@ -82,9 +80,9 @@ def test_search_honors_custom_collection_and_limit(payload: dict[str, object]) -
             assert kwargs["query_filter"] is None
             return SimpleNamespace(points=[])
 
-    candidates = DenseRetriever(
-        Client(), Embedder(), collection="provision_test", top_k=30
-    ).search("query", limit=2)
+    candidates = DenseRetriever(Client(), Embedder(), collection="provision_test", top_k=30).search(
+        "query", limit=2
+    )
     assert candidates.results == []
 
 

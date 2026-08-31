@@ -113,9 +113,7 @@ class Reranker:
         return hashlib.sha256(material.encode("utf-8")).hexdigest()
 
     @staticmethod
-    def _parse_response(
-        response: Any, candidate_count: int, limit: int
-    ) -> list[tuple[int, float]]:
+    def _parse_response(response: Any, candidate_count: int, limit: int) -> list[tuple[int, float]]:
         items = response.get("data", response) if isinstance(response, Mapping) else response
         if not isinstance(items, (list, tuple)) and hasattr(items, "results"):
             items = items.results

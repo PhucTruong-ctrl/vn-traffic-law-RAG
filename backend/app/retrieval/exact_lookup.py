@@ -54,7 +54,6 @@ class ExactLookup:
         return CandidateSet(query=query, results=results, applied_date=query_date)
 
 
-
 def _supports_vehicle(row: LegalProvision, vehicle_type: str) -> bool:
     """Apply optional vehicle metadata without making it part of the schema."""
     metadata: Any = row.document_version.manifest_json
@@ -67,6 +66,7 @@ def _supports_vehicle(row: LegalProvision, vehicle_type: str) -> bool:
             for value in vehicle_types
         )
     )
+
 
 def _result(row: LegalProvision, rank: int) -> RetrievalResult:
     document = row.document_version.document

@@ -233,8 +233,8 @@ class _RecordingClient:
 
     def upsert(self, *, collection_name: str, points: list[models.PointStruct]) -> None:
         self.upserts.append((collection_name, points))
- 
- 
+
+
 class _FailingRecordingClient(_RecordingClient):
     """Recording client that fails selected upsert calls."""
 
@@ -522,8 +522,8 @@ def test_index_units_payload_only_points_when_no_providers() -> None:
     (_, points) = client.upserts[0]
     assert points[0].vector == {}
     assert points[0].payload["provision_id"] == unit.provision_id
- 
- 
+
+
 def test_index_units_upsert_failure_records_batch_and_continues() -> None:
     units = [_unit(unit_id=f"u{index}", provision_id=f"p-{index}") for index in range(5)]
     point_ids = {unit.unit_id: f"point-{index}" for index, unit in enumerate(units)}
@@ -686,6 +686,7 @@ def test_row_metadata_mapped_into_payload_and_point_id() -> None:
     assert payload["text"] == row.retrieval_text
     assert payload["source_text"] == row.source_text
 
+
 def test_accepted_payload_maps_authoritative_document_citation_metadata() -> None:
     row = _row(id=uuid.uuid4())
     document = SimpleNamespace(
@@ -696,12 +697,31 @@ def test_accepted_payload_maps_authoritative_document_citation_metadata() -> Non
         status="ACTIVE",
     )
     row_with_document = SimpleNamespace(
-        **{name: getattr(row, name) for name in (
-            "id", "provision_id", "document_version_id", "node_kind", "chapter",
-            "section", "article", "clause", "point", "heading", "source_text",
-            "retrieval_text", "parent_context", "effective_from", "effective_to",
-            "status", "page_number", "content_hash", "version", "review_status",
-        )},
+        **{
+            name: getattr(row, name)
+            for name in (
+                "id",
+                "provision_id",
+                "document_version_id",
+                "node_kind",
+                "chapter",
+                "section",
+                "article",
+                "clause",
+                "point",
+                "heading",
+                "source_text",
+                "retrieval_text",
+                "parent_context",
+                "effective_from",
+                "effective_to",
+                "status",
+                "page_number",
+                "content_hash",
+                "version",
+                "review_status",
+            )
+        },
         document_version=SimpleNamespace(
             version=3,
             manifest_json={"vehicle_types": ["xe máy"]},
