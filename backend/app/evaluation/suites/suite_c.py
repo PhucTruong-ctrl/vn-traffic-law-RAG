@@ -202,11 +202,18 @@ def run_suite_c(
                 writer.append_result(
                     run_id,
                     {
-                        "question_id": _record_id(record, index),
                         "input": {
                             "question": record.question
                             if isinstance(record, GoldRecord)
-                            else str(record.get("question", ""))
+                            else str(record.get("question", "")),
+                            "query_date": (
+                                record.query_date.isoformat()
+                                if isinstance(record, GoldRecord)
+                                and record.query_date is not None
+                                else record.get("query_date")
+                                if isinstance(record, Mapping)
+                                else None
+                            ),
                         },
                         "retrieval": {
                             "variant": variant.name,
