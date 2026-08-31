@@ -135,7 +135,7 @@ def test_retrieve_uses_valid_dense_request_when_sparse_encoding_is_empty() -> No
 
     assert result.results[0].retrieval_sources == ["dense"]
     assert client.kwargs is not None
-    assert "prefetch" not in client.kwargs
-    assert client.kwargs["query"] == [0.1, 0.2]
-    assert client.kwargs["using"] == "dense"
+    assert len(client.kwargs["prefetch"]) == 1
+    assert client.kwargs["prefetch"][0].using == "dense"
+    assert client.kwargs["query"].rrf.weights == [1.0]
 

@@ -73,36 +73,26 @@ class HybridRetriever:
             else None
         )
         channel_sources = ["dense"]
-        query_kwargs: dict[str, Any] = {}
+        prefetch: list[models.Prefetch] = [
+            models.Prefetch(
+                query=dense_vector,
+                using=DENSE_VECTOR_NAME,
+                limit=self._settings.dense_prefetch,
+                filter=query_filter,
+            )
+        ]
+        query_kwargs: dict[str, Any] = {"prefetch": prefetch}
         if sparse_weights:
             channel_sources.append("sparse")
-            prefetch: list[models.Prefetch] = [
-                models.Prefetch(
-                    query=dense_vector,
-                    using=DENSE_VECTOR_NAME,
-                    limit=self._settings.dense_prefetch,
-                    filter=query_filter,
-                ),
+            prefetch.append(
                 models.Prefetch(
                     query=models.SparseVector(**sparse_vector_dict(sparse_weights)),
                     using=SPARSE_VECTOR_NAME,
                     limit=self._settings.sparse_prefetch,
                     filter=query_filter,
-                ),
-            ]
-            query_kwargs.update(
-                prefetch=prefetch,
-                query=_rrf_query(self._settings),
+                )
             )
-        else:
-            # RRF requires one fusion input per configured channel.  An empty
-            # sparse encoding is a valid dense-only request, not an invalid
-            # one-channel weighted fusion query.
-            query_kwargs.update(
-                query=dense_vector,
-                using=DENSE_VECTOR_NAME,
-                query_filter=query_filter,
-            )
+        query_kwargs["query"] = _rrf_query(self._settings, len(prefetch))
         response = self._client.query_points(
             collection_name=self._collection,
             limit=self._settings.fusion_limit,
@@ -175,14 +165,15 @@ class HybridRetriever:
         return candidates.results
 
 
-def _rrf_query(settings: RetrievalSettings) -> Any:
-    """Use weighted RRF when the installed Qdrant client exposes it."""
+def _rrf_query(settings: RetrievalSettings, channel_count: int) -> Any:
+    """Use weighted RRF for exactly the channels sent to Qdrant."""
     rrf_query = getattr(models, "RrfQuery", None)
     rrf = getattr(models, "Rrf", None)
     if rrf_query is not None and rrf is not None:
-        return rrf_query(
-            rrf=rrf(k=settings.rrf_k, weights=[settings.dense_weight, settings.sparse_weight])
-        )
+        weights = [settings.dense_weight]
+        if channel_count > 1:
+            weights.append(settings.sparse_weight)
+        return rrf_query(rrf=rrf(k=settings.rrf_k, weights=weights))
     return models.FusionQuery(fusion=models.Fusion.RRF)
 
 
