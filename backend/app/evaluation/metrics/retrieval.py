@@ -23,9 +23,6 @@ class MetricReport:
         return cls(None, status="na", na_reason=reason, per_query=per_query or {})
 
 
-def _unique(values: Iterable[str]) -> list[str]:
-    return list(dict.fromkeys(values))
-
 
 def recall_at(retrieved: Sequence[str], relevant: Iterable[str], k: int) -> float | None:
     gold = set(relevant)
@@ -48,9 +45,14 @@ def ndcg_at(retrieved: Sequence[str], relevant: Iterable[str], k: int = 10) -> f
     gold = set(relevant)
     if not gold:
         return None
-    actual = sum(
-        1 / log2(rank + 1) for rank, value in enumerate(_unique(retrieved)[:k], 1) if value in gold
-    )
+    seen: set[str] = set()
+    actual = 0.0
+    for rank, value in enumerate(retrieved[:k], 1):
+        if value in seen:
+            continue
+        seen.add(value)
+        if value in gold:
+            actual += 1 / log2(rank + 1)
     ideal = sum(1 / log2(rank + 1) for rank in range(1, min(k, len(gold)) + 1))
     return actual / ideal if ideal else None
 

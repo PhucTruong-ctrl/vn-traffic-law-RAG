@@ -40,6 +40,34 @@ def test_unknown_variant_is_rejected() -> None:
         variant_descriptor("E4")
 
 
+
+def test_manifest_provenance_uses_configured_prompt_versions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import app.evaluation.suites.suite_b as suite_b
+
+    monkeypatch.setattr(
+        suite_b,
+        "get_settings",
+        lambda: type(
+            "Settings",
+            (),
+            {
+                "prompt_source": "CACHE",
+                "fallback_prompt_version_query_analyzer": "analyzer-7",
+                "fallback_prompt_version_query_rewriter": "rewriter-8",
+                "fallback_prompt_version_hyde": "hyde-9",
+                "fallback_prompt_version_generator": "generator-10",
+                "fallback_prompt_version_claim_verifier": "verifier-11",
+            },
+        )(),
+    )
+    prompts, parsers, source = suite_b._manifest_provenance()
+    assert prompts["query_analyzer"] == "analyzer-7"
+    assert prompts["hyde"] == "hyde-9"
+    assert parsers == {"document_ir_schema": "document-ir-v2"}
+    assert source == "CACHE"
+
 def test_runner_appends_failed_questions_and_aggregates_optional_metrics(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -64,9 +92,12 @@ def test_runner_appends_failed_questions_and_aggregates_optional_metrics(
     finished: list[dict[str, object]] = []
 
     class Writer:
-        def start(self, *args: object, **kwargs: object) -> str:
-            return "run-1"
+        def __init__(self) -> None:
+            self.manifests: list[object] = []
 
+        def start(self, manifest: object, *args: object, **kwargs: object) -> str:
+            self.manifests.append(manifest)
+            return "run-1"
         def append_result(
             self, run_id: str, result: dict[str, object], *,
             session: object, storage: Storage,
@@ -93,15 +124,25 @@ def test_runner_appends_failed_questions_and_aggregates_optional_metrics(
             "token_usage": {"total": 2},
         }
 
+    writer = Writer()
     assert run_suite_b(
         records,
         retrieve,
         session=None,
         storage=storage,
-        writer=Writer(),
+        writer=writer,
         pricing={"gemini-embedding-2": {"total_per_million": 100.0}},
         variants=("E1",),
     ) == ["run-1"]
+    manifest = writer.manifests[0]
+    assert manifest.prompt_versions == {
+        "query_analyzer": "1",
+        "query_rewriter": "1",
+        "hyde": "1",
+        "generator": "1",
+        "claim_verifier": "1",
+    }
+    assert manifest.parser_versions == {"document_ir_schema": "document-ir-v2"}
     assert len(appended) == len(storage.results) == 40
     failed = next(result for result in appended if result["question_id"] == "q-1")
     assert failed["retrieval"]["status"] == "FAILED"

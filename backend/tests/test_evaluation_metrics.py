@@ -21,6 +21,13 @@ def test_hand_computed_ranking_metrics_and_duplicate_ids():
     )
 
 
+def test_ndcg_preserves_original_rank_positions_when_duplicates_repeat() -> None:
+    retrieved = ["noise", "noise", "p1", "p2"]
+    ideal = 1 + 1 / log2(3)
+    expected = (1 / log2(4) + 1 / log2(5)) / ideal
+    assert ndcg_at(retrieved, ["p1", "p2"], 10) == expected
+
+
 def test_retrieval_reports_na_for_empty_gold_and_category_breakdown():
     report = evaluate_retrieval(
         [

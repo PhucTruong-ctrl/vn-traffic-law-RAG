@@ -13,11 +13,21 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.evaluation.gold_set import GoldRecord, validate_record
 from app.evaluation.metrics.retrieval import evaluate_retrieval
 from app.evaluation.run import EvaluationRunManifest, EvaluationRunWriter
 from app.retrieval.qdrant_store import CollectionConfig, build_collection_config
 from app.storage.object_storage import ObjectStoragePort
+
+DOCUMENT_IR_SCHEMA_VERSION = "document-ir-v2"
+FALLBACK_PROMPT_VERSIONS = {
+    "query_analyzer": "1",
+    "query_rewriter": "1",
+    "hyde": "1",
+    "generator": "1",
+    "claim_verifier": "1",
+}
 
 SUITE_NAME = "suite-b"
 DEVELOPMENT_SET_SIZE = 40
@@ -75,6 +85,19 @@ def _records(records: Sequence[GoldRecord | Mapping[str, Any]]) -> list[GoldReco
             f"development records, got {len(parsed)}"
         )
     return parsed
+
+def _manifest_provenance() -> tuple[dict[str, str], dict[str, str], str]:
+    settings = get_settings()
+    prompt_versions = {
+        name: getattr(settings, f"fallback_prompt_version_{name}", "") or version
+        for name, version in FALLBACK_PROMPT_VERSIONS.items()
+    }
+    return (
+        prompt_versions,
+        {"document_ir_schema": DOCUMENT_IR_SCHEMA_VERSION},
+        settings.prompt_source,
+    )
+
 
 
 def _metric_availability(reports: Mapping[str, Any]) -> dict[str, str]:
@@ -187,6 +210,7 @@ def run_suite_b(
     selected = [variant_descriptor(key) for key in variants]
     run_writer = writer or EvaluationRunWriter()
     run_ids: list[str] = []
+    prompt_versions, parser_versions, prompt_source = _manifest_provenance()
     for variant in selected:
         if prepare_collection is not None:
             prepare_collection(variant, collection_config(variant), session)
@@ -202,8 +226,11 @@ def run_suite_b(
                 "collection": variant.collection,
                 "dense_vector_size": variant.vector_size,
                 "pricing": dict(pricing.get(variant.model_id, {})) if pricing else None,
+                "prompt_source": prompt_source,
             },
             model_ids={"embedding": variant.model_id},
+            prompt_versions=prompt_versions,
+            parser_versions=parser_versions,
         )
         run_id = run_writer.start(manifest, session=session, storage=storage)
         run_ids.append(run_id)
