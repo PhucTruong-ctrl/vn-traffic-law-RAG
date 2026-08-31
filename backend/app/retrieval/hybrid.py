@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from datetime import date
 from typing import Any
 
@@ -92,11 +92,17 @@ class HybridRetriever:
         response = self._client.query_points(
             collection_name=self._collection,
             prefetch=prefetch,
-            query=models.FusionQuery(fusion=models.Fusion.RRF),
+            query=_rrf_query(self._settings),
             limit=self._settings.fusion_limit,
             with_payload=True,
         )
         points = getattr(response, "points", response)
+        derived_provision_ids = {
+            provision_id
+            for point in points
+            if isinstance(provision_id := _payload(point).get("provision_id"), str)
+            and provision_id
+        }
         results = [
             result_from_payload(
                 _payload(point),
@@ -106,7 +112,9 @@ class HybridRetriever:
             ).model_copy(update={"retrieval_sources": ["dense", "sparse"]})
             for rank, point in enumerate(points, start=1)
         ]
-        exact = self._exact_candidates(exact_reference, query_date, vehicle_type)
+        exact = self._exact_candidates(
+            exact_reference, query_date, vehicle_type, derived_provision_ids
+        )
         exact_ids = {result.provision_id for result in exact}
         merged = _merge_exact(results, exact)
         # Exact candidates are intentionally promoted after fusion, never dropped.
@@ -130,12 +138,12 @@ class HybridRetriever:
             for rank, result in enumerate(merged, start=1)
         ]
         return CandidateSet(query=query, results=merged, applied_date=query_date)
-
     def _exact_candidates(
         self,
         reference: Mapping[str, str | None] | None,
         query_date: date,
         vehicle_type: str | None,
+        derived_provision_ids: Collection[str] = (),
     ) -> list[RetrievalResult]:
         if not reference or self._exact_lookup is None or not self._settings.exact_lookup_enabled:
             return []
@@ -149,8 +157,20 @@ class HybridRetriever:
             point=reference.get("point"),
             query_date=query_date,
             vehicle_type=vehicle_type,
+            derived_provision_ids=derived_provision_ids,
         )
         return candidates.results
+
+
+def _rrf_query(settings: RetrievalSettings) -> Any:
+    """Use weighted RRF when the installed Qdrant client exposes it."""
+    rrf_query = getattr(models, "RrfQuery", None)
+    rrf = getattr(models, "Rrf", None)
+    if rrf_query is not None and rrf is not None:
+        return rrf_query(
+            rrf=rrf(k=settings.rrf_k, weights=[settings.dense_weight, settings.sparse_weight])
+        )
+    return models.FusionQuery(fusion=models.Fusion.RRF)
 
 
 def _payload(point: Any) -> Mapping[str, object]:

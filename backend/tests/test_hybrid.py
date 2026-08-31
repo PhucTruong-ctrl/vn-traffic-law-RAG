@@ -81,15 +81,19 @@ def test_retrieve_uses_prefetch_rrf_and_retains_exact() -> None:
     )
 
     class Exact:
-        def lookup(self, **kwargs: object) -> CandidateSet:
-            return CandidateSet(query="ref", results=[exact_result], applied_date=date(2025, 1, 1))
+        def __init__(self) -> None:
+            self.kwargs: dict[str, object] | None = None
 
+        def lookup(self, **kwargs: object) -> CandidateSet:
+            self.kwargs = kwargs
+            return CandidateSet(query="ref", results=[exact_result], applied_date=date(2025, 1, 1))
     client = Client()
+    exact = Exact()
     result = HybridRetriever(
         client,
         Embedder(),
         Encoder(),
-        Exact(),
+        exact,
         settings=RetrievalSettings(final_top_k=1),
     ).retrieve(
         "phạt",
@@ -98,7 +102,11 @@ def test_retrieve_uses_prefetch_rrf_and_retains_exact() -> None:
     )
     assert [item.provision_id for item in result.results] == ["exact", "p-1"]
     assert result.results[1].retrieval_sources == ["dense", "sparse"]
-    assert client.kwargs["query"].fusion.value == "rrf"
+    assert client.kwargs["query"].rrf.k == 60
+    assert client.kwargs["query"].rrf.weights == [1.0, 1.0]
     assert len(client.kwargs["prefetch"]) == 2
     assert client.kwargs["prefetch"][0].limit == 30
     assert client.kwargs["limit"] == 20
+    assert exact.kwargs is not None
+    assert exact.kwargs["derived_provision_ids"] == {"p-1"}
+

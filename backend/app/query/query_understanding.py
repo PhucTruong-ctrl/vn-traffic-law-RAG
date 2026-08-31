@@ -25,7 +25,12 @@ class _GenaiClient(Protocol):
     models: _GenaiModels
 
 
-FallbackAnalyzer: TypeAlias = Callable[..., "QueryPlan"]
+class _FallbackObject(Protocol):
+    def analyze(self, question: str, *, current_date: date) -> QueryPlan:
+        ...
+
+
+FallbackAnalyzer: TypeAlias = Callable[..., "QueryPlan"] | _FallbackObject
 
 
 def _safe_fallback_plan(question: str) -> QueryPlan:
@@ -47,7 +52,7 @@ def _safe_fallback_plan(question: str) -> QueryPlan:
 
 
 class QueryPlan(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", strict=True)
 
     intent: QueryIntent
     effective_date: date | None
@@ -260,8 +265,11 @@ class QueryAnalyzer:
             document or hierarchy or clause or point or vehicle or dates or out_of_scope
         ):
             try:
+                fallback = getattr(self.fallback_analyzer, "analyze", self.fallback_analyzer)
+                if not callable(fallback):
+                    raise TypeError("fallback analyzer must be callable or expose analyze")
                 return QueryPlan.model_validate(
-                    self.fallback_analyzer(text, current_date=current_date)
+                    fallback(text, current_date=current_date)
                 )
             except Exception:
                 return _safe_fallback_plan(text)

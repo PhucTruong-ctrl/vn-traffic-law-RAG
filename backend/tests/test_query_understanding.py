@@ -122,8 +122,8 @@ def test_evidence_mapping_for_multi_requirement_questions() -> None:
 
 def _fallback_payload() -> dict[str, object]:
     return {
-        "intent": "CURRENT",
-        "effective_date": "2026-08-31",
+        "intent": QueryIntent.CURRENT,
+        "effective_date": TODAY,
         "comparison_from": None,
         "comparison_to": None,
         "vehicle_type": None,
@@ -134,7 +134,10 @@ def _fallback_payload() -> dict[str, object]:
         "legal_entities": [],
         "normalized_query": "mức phạt",
         "missing_query_information": [],
-        "required_evidence": ["violation_definition", "monetary_penalty"],
+        "required_evidence": [
+            EvidenceType.VIOLATION_DEFINITION,
+            EvidenceType.MONETARY_PENALTY,
+        ],
     }
 
 
@@ -188,3 +191,32 @@ def test_analyzer_fallback_failure_is_safe_and_deterministic_first() -> None:
     assert safe.intent is QueryIntent.OUT_OF_SCOPE
     assert safe.missing_query_information == ["query_analysis"]
     assert calls == ["mức phạt"]
+
+def test_analyzer_invokes_object_fallback_analyze_method() -> None:
+    class Fallback:
+        def analyze(self, question: str, *, current_date: date) -> QueryPlan:
+            return QueryPlan(
+                intent=QueryIntent.CURRENT,
+                effective_date=current_date,
+                comparison_from=None,
+                comparison_to=None,
+                vehicle_type=None,
+                document_number=None,
+                article=None,
+                clause=None,
+                point=None,
+                legal_entities=[],
+                normalized_query=question,
+                required_evidence=[],
+                missing_query_information=[],
+            )
+
+    plan = QueryAnalyzer(Fallback()).analyze("mức phạt", current_date=TODAY)
+    assert plan.intent is QueryIntent.CURRENT
+
+
+def test_query_plan_rejects_coercive_structured_values() -> None:
+    payload = _fallback_payload()
+    payload["effective_date"] = TODAY.isoformat()
+    with pytest.raises(ValidationError):
+        QueryPlan.model_validate(payload)
