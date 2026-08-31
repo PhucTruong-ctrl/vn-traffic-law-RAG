@@ -21,6 +21,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Iterator
 from datetime import date
+from types import SimpleNamespace
 
 import pytest
 from pydantic import ValidationError
@@ -31,6 +32,7 @@ from sqlalchemy.sql.elements import BinaryExpression, BindParameter, BooleanClau
 from app.config import get_qdrant_settings
 from app.ingestion.retrieval_units import RetrievalUnit
 from app.persistence.models import LegalProvision
+from app.retrieval.contracts import result_from_payload
 from app.retrieval.indexing import (
     ACCEPTED_REVIEW_STATUS,
     IndexResult,
@@ -231,6 +233,22 @@ class _RecordingClient:
 
     def upsert(self, *, collection_name: str, points: list[models.PointStruct]) -> None:
         self.upserts.append((collection_name, points))
+
+
+class _FailingRecordingClient(_RecordingClient):
+    """Recording client that fails selected upsert calls."""
+
+    def __init__(self, *, fail_on_calls: set[int]) -> None:
+        super().__init__()
+        self.fail_on_calls = fail_on_calls
+        self.upsert_calls = 0
+
+    def upsert(self, *, collection_name: str, points: list[models.PointStruct]) -> None:
+        call_index = self.upsert_calls
+        self.upsert_calls += 1
+        if call_index in self.fail_on_calls:
+            raise RuntimeError("qdrant unavailable")
+        super().upsert(collection_name=collection_name, points=points)
 
 
 def _row_matches(row: LegalProvision, clause: object) -> bool:
@@ -506,6 +524,20 @@ def test_index_units_payload_only_points_when_no_providers() -> None:
     assert points[0].payload["provision_id"] == unit.provision_id
 
 
+def test_index_units_upsert_failure_records_batch_and_continues() -> None:
+    units = [_unit(unit_id=f"u{index}", provision_id=f"p-{index}") for index in range(5)]
+    point_ids = {unit.unit_id: f"point-{index}" for index, unit in enumerate(units)}
+    client = _FailingRecordingClient(fail_on_calls={1})
+    result = index_provision_units(client, units, point_ids=point_ids, batch_size=2)
+
+    assert result.indexed == 3
+    assert result.errors == ["batch 1: upsert failed: qdrant unavailable"]
+    assert [[point.id for point in points] for _, points in client.upserts] == [
+        ["point-0", "point-1"],
+        ["point-4"],
+    ]
+
+
 def test_index_units_batches_embedding_by_batch_size() -> None:
     units = [_unit(unit_id=f"u{index}", provision_id=f"p-{index}") for index in range(5)]
     point_ids = {unit.unit_id: f"point-{index}" for index, unit in enumerate(units)}
@@ -653,6 +685,66 @@ def test_row_metadata_mapped_into_payload_and_point_id() -> None:
     assert payload["content_hash"] == "c" * 64
     assert payload["text"] == row.retrieval_text
     assert payload["source_text"] == row.source_text
+
+
+def test_accepted_payload_maps_authoritative_document_citation_metadata() -> None:
+    row = _row(id=uuid.uuid4())
+    document = SimpleNamespace(
+        document_id="nd-168-2024",
+        document_number="168/2024/NĐ-CP",
+        document_type="DECREE",
+        document_title="Nghị định 168",
+        status="ACTIVE",
+    )
+    row_with_document = SimpleNamespace(
+        **{
+            name: getattr(row, name)
+            for name in (
+                "id",
+                "provision_id",
+                "document_version_id",
+                "node_kind",
+                "chapter",
+                "section",
+                "article",
+                "clause",
+                "point",
+                "heading",
+                "source_text",
+                "retrieval_text",
+                "parent_context",
+                "effective_from",
+                "effective_to",
+                "status",
+                "page_number",
+                "content_hash",
+                "version",
+                "review_status",
+            )
+        },
+        document_version=SimpleNamespace(
+            version=3,
+            manifest_json={"vehicle_types": ["xe máy"]},
+            document=document,
+        ),
+    )
+    client = _RecordingClient()
+
+    result = index_accepted_provisions(client, session=_FakeSession([row_with_document]))
+
+    assert result.indexed == 1
+    payload = client.upserts[0][1][0].payload
+    assert payload["document_id"] == "nd-168-2024"
+    assert payload["document_number"] == "168/2024/NĐ-CP"
+    assert payload["document_type"] == "DECREE"
+    assert payload["document_title"] == "Nghị định 168"
+    assert payload["document_status"] == "ACTIVE"
+    assert payload["vehicle_types"] == ["xe máy"]
+    assert payload["document_version"] == 3
+
+    assert result_from_payload(payload, rank=1, score=0.9, source="dense").document_number == (
+        "168/2024/NĐ-CP"
+    )
     assert payload["review_status"] == ACCEPTED_REVIEW_STATUS
 
 

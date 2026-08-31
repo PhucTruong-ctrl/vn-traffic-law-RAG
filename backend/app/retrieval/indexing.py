@@ -61,6 +61,7 @@ __all__ = [
     "index_provision_units",
     "point_id_for",
     "provision_row_to_unit",
+    "payload_metadata_from_row",
 ]
 
 #: The only review status that may enter the index (doc 00 §8.6, FR-09).
@@ -290,7 +291,11 @@ def index_provision_units(
                 result.errors.append(f"{unit.unit_id}: {exc}")
                 continue
         if points:
-            client.upsert(collection_name=target, points=points)
+            try:
+                client.upsert(collection_name=target, points=points)
+            except Exception as exc:
+                result.errors.append(f"batch {start // batch_size}: upsert failed: {exc}")
+                continue
             result.indexed += len(points)
     return result
 
@@ -298,6 +303,24 @@ def index_provision_units(
 def _date_iso(value: date | None) -> str | None:
     """ISO-format a date column value for the payload (doc 03 §3.11.3/§3.11.5)."""
     return value.isoformat() if value is not None else None
+
+
+def payload_metadata_from_row(row: LegalProvision) -> dict[str, Any]:
+    """Map citation and manifest metadata from authoritative document rows."""
+    version_row = getattr(row, "document_version", None)
+    document = getattr(version_row, "document", None)
+    metadata = {
+        "document_id": getattr(document, "document_id", None),
+        "document_number": getattr(document, "document_number", None),
+        "document_type": getattr(document, "document_type", None),
+        "document_title": getattr(document, "document_title", None),
+        "document_status": getattr(document, "status", None),
+        "document_version": getattr(version_row, "version", None),
+    }
+    manifest = getattr(version_row, "manifest_json", None)
+    if isinstance(manifest, dict) and "vehicle_types" in manifest:
+        metadata["vehicle_types"] = manifest["vehicle_types"]
+    return metadata
 
 
 def index_accepted_provisions(
@@ -359,6 +382,7 @@ def index_accepted_provisions(
         units.append(unit)
         point_ids[unit.unit_id] = point_id_for(row.id)
         unit_payloads[unit.unit_id] = {
+            **payload_metadata_from_row(row),
             "review_status": ACCEPTED_REVIEW_STATUS,
             "effective_from": _date_iso(row.effective_from),
             "effective_to": _date_iso(row.effective_to),

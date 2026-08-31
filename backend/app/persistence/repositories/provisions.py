@@ -11,12 +11,18 @@ transaction.
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, func, or_, select
+from sqlalchemy.orm import Session, joinedload
 
-from app.persistence.models import LegalProvision, ProvisionVersion
+from app.persistence.models import (
+    DocumentVersion,
+    LegalDocument,
+    LegalProvision,
+    ProvisionVersion,
+)
 
 
 class ProvisionRepository:
@@ -40,6 +46,52 @@ class ProvisionRepository:
             LegalProvision.version == version,
         )
         return self._session.scalar(stmt)
+
+    def lookup_exact(
+        self,
+        *,
+        document_number: str,
+        article: str | None = None,
+        clause: str | None = None,
+        point: str | None = None,
+        query_date: date,
+    ) -> list[LegalProvision]:
+        """Return accepted provisions matching an exact legal hierarchy."""
+        stmt = (
+            select(LegalProvision)
+            .join(LegalProvision.document_version)
+            .join(DocumentVersion.document)
+            .options(
+                joinedload(LegalProvision.document_version).joinedload(DocumentVersion.document)
+            )
+            .where(
+                LegalDocument.document_number == document_number,
+                LegalProvision.review_status == "ACCEPTED",
+                DocumentVersion.review_status == "ACCEPTED",
+                and_(
+                    LegalProvision.effective_from <= query_date,
+                    or_(
+                        LegalProvision.effective_to.is_(None),
+                        query_date < LegalProvision.effective_to,
+                    ),
+                ),
+                and_(
+                    DocumentVersion.effective_from <= query_date,
+                    or_(
+                        DocumentVersion.effective_to.is_(None),
+                        query_date < DocumentVersion.effective_to,
+                    ),
+                ),
+            )
+            .order_by(LegalProvision.clause, LegalProvision.point, LegalProvision.version)
+        )
+        if article is not None:
+            stmt = stmt.where(LegalProvision.article == article)
+        if clause is not None:
+            stmt = stmt.where(LegalProvision.clause == clause)
+        if point is not None:
+            stmt = stmt.where(LegalProvision.point == point)
+        return list(self._session.scalars(stmt).unique())
 
     def list_provision_versions(self, provision_id: str) -> list[LegalProvision]:
         """All versions of a provision, ascending by version number."""

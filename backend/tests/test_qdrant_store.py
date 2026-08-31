@@ -9,6 +9,8 @@ Covers the doc 03 §3.11 contract implemented in ``app.retrieval.qdrant_store``:
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 from qdrant_client import models
 
@@ -354,3 +356,29 @@ def test_module_exports() -> None:
         "get_collection_info",
     ):
         assert hasattr(qdrant_store, name), name
+
+
+def test_payload_indexes_use_datetime_schema_for_temporal_fields() -> None:
+    created: list[dict[str, object]] = []
+
+    class Client:
+        def get_collection(self, collection_name: str) -> SimpleNamespace:
+            return SimpleNamespace(payload_schema={})
+
+        def create_payload_index(self, **kwargs: object) -> None:
+            created.append(kwargs)
+
+    qdrant_store._ensure_payload_indexes(Client(), "legal_provisions_v1")
+
+    schemas = {entry["field_name"]: entry["field_schema"] for entry in created}
+    assert schemas["effective_from"] == models.PayloadSchemaType.DATETIME
+    assert schemas["effective_to"] == models.PayloadSchemaType.DATETIME
+    assert {
+        field: schema
+        for field, schema in schemas.items()
+        if field not in {"effective_from", "effective_to"}
+    } == {
+        field: models.PayloadSchemaType.KEYWORD
+        for field in PAYLOAD_INDEX_FIELDS
+        if field not in {"effective_from", "effective_to"}
+    }

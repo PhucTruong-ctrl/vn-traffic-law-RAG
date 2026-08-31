@@ -52,8 +52,36 @@ class Settings(BaseSettings):
     fallback_prompt_version_generator: str = ""
     fallback_prompt_version_claim_verifier: str = ""
 
+    # Workflow repair bound (doc 03 §3.5.2, FR-24).
+    max_repair_attempts: int = Field(
+        default=3,
+        ge=0,
+        validation_alias=AliasChoices("MAX_REPAIR_ATTEMPTS"),
+    )
+
     # Ingestion
     max_ingestion_workers: int = 1
+
+
+class GenerationSettings(BaseSettings):
+    """Structured Gemini generation settings used by query fallback."""
+
+    model_config = SettingsConfigDict(
+        env_file=str(_ENV_FILE),
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False,
+        populate_by_name=True,
+    )
+
+    model: str = Field(
+        default="gemini-3.5-flash",
+        validation_alias=AliasChoices("GENERATION_MODEL", "LLM_MODEL"),
+    )
+    gemini_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("GEMINI_API_KEY", "GENERATION_GEMINI_API_KEY"),
+    )
 
 
 class QdrantSettings(BaseSettings):
@@ -145,6 +173,58 @@ class SparseSettings(BaseSettings):
     tokenizer: str = "unicode-word"
 
 
+class RetrievalSettings(BaseSettings):
+    """Configuration for the multi-channel retrieval pipeline."""
+
+    model_config = SettingsConfigDict(
+        env_file=str(_ENV_FILE),
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False,
+        populate_by_name=True,
+    )
+
+    exact_lookup_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("EXACT_LOOKUP_ENABLED", "RETRIEVAL_EXACT_LOOKUP_ENABLED"),
+    )
+    dense_prefetch: int = Field(
+        default=30, validation_alias=AliasChoices("DENSE_PREFETCH", "RETRIEVAL_DENSE_PREFETCH")
+    )
+    sparse_prefetch: int = Field(
+        default=30, validation_alias=AliasChoices("SPARSE_PREFETCH", "RETRIEVAL_SPARSE_PREFETCH")
+    )
+    rrf_k: int = Field(default=60, validation_alias=AliasChoices("RRF_K", "RETRIEVAL_RRF_K"))
+    dense_weight: float = Field(
+        default=1.0, validation_alias=AliasChoices("DENSE_WEIGHT", "RETRIEVAL_DENSE_WEIGHT")
+    )
+    sparse_weight: float = Field(
+        default=1.0, validation_alias=AliasChoices("SPARSE_WEIGHT", "RETRIEVAL_SPARSE_WEIGHT")
+    )
+    fusion_limit: int = Field(
+        default=20, validation_alias=AliasChoices("FUSION_LIMIT", "RETRIEVAL_FUSION_LIMIT")
+    )
+    final_top_k: int = Field(
+        default=8,
+        validation_alias=AliasChoices("RETRIEVAL_TOP_K", "FINAL_TOP_K", "RETRIEVAL_FINAL_TOP_K"),
+    )
+    temporal_filter_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "TEMPORAL_FILTER", "TEMPORAL_FILTER_ENABLED", "RETRIEVAL_TEMPORAL_FILTER"
+        ),
+    )
+    reranker_model: str = Field(
+        default="jina-reranker-v3",
+        validation_alias=AliasChoices("RERANKER_MODEL", "RETRIEVAL_RERANKER_MODEL"),
+    )
+    reranker_buffer: int = Field(
+        default=4,
+        ge=0,
+        validation_alias=AliasChoices("RERANKER_BUFFER", "RETRIEVAL_RERANKER_BUFFER"),
+    )
+
+
 #: Canonical object-storage buckets (doc 03 §3.12.1, FR-08). Kept in sync with
 #: ``app.storage.BUCKETS`` (pinned by tests/test_object_storage.py) and the
 #: docker-compose ``MINIO_BUCKETS`` bootstrap list.
@@ -227,6 +307,12 @@ class UploadSettings(BaseSettings):
 def get_upload_settings() -> UploadSettings:
     """Return the process-wide upload settings singleton (cached until cleared)."""
     return UploadSettings()
+
+
+@lru_cache(maxsize=1)
+def get_retrieval_settings() -> RetrievalSettings:
+    """Return the process-wide retrieval settings singleton."""
+    return RetrievalSettings()
 
 
 @lru_cache(maxsize=1)
@@ -327,6 +413,12 @@ def get_queue_settings() -> QueueSettings:
 def get_settings() -> Settings:
     """Return the process-wide settings singleton (cached until cleared)."""
     return Settings()
+
+
+@lru_cache(maxsize=1)
+def get_generation_settings() -> GenerationSettings:
+    """Return the process-wide generation settings singleton."""
+    return GenerationSettings()
 
 
 @lru_cache(maxsize=1)

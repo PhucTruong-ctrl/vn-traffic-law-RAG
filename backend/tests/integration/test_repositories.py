@@ -454,6 +454,49 @@ def test_temporal_document_versions_query(session: Session) -> None:
     assert [v.version for v in versions] == [2]
 
 
+def test_exact_lookup_filters_invalid_document_versions(session: Session) -> None:
+    """Exact lookup excludes document versions outside the query date."""
+    document = _seed_document(session)
+    expired = _seed_version(
+        session,
+        document.document_id,
+        version=1,
+        effective_from=date(2024, 1, 1),
+        effective_to=D,
+    )
+    future = _seed_version(
+        session,
+        document.document_id,
+        version=2,
+        effective_from=date(2025, 6, 2),
+    )
+    current = _seed_version(
+        session,
+        document.document_id,
+        version=3,
+        effective_from=date(2024, 1, 1),
+    )
+    for version, provision_id in (
+        (expired, "exact-expired"),
+        (future, "exact-future"),
+        (current, "exact-current"),
+    ):
+        _seed_provision(
+            session,
+            version.id,
+            provision_id=provision_id,
+            effective_from=date(2024, 1, 1),
+        )
+
+    results = ProvisionRepository(session).lookup_exact(
+        document_number=document.document_number,
+        article="7",
+        query_date=D,
+    )
+
+    assert [provision.provision_id for provision in results] == ["exact-current"]
+
+
 # ---------------------------------------------------------------------------
 # Relation queries (temporal + review filter)
 # ---------------------------------------------------------------------------

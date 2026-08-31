@@ -68,9 +68,12 @@ DENSE_VECTOR_DISTANCE = models.Distance.COSINE
 #: Named sparse vector (Qdrant BM25 tokenizer, IDF modifier).
 SPARSE_VECTOR_NAME = "sparse"
 
-#: Payload fields indexed as Qdrant keywords (doc 03 §3.11.4). Temporal
-#: range semantics on ``effective_from``/``effective_to`` follow doc 03
-#: §3.11.5: keyword match or backend post-filtering — values are ISO dates.
+#: Payload fields indexed in Qdrant. Temporal fields use the DATETIME schema
+#: because serving filters use ``models.DatetimeRange``.
+#
+#: Values remain ISO dates in the payload; Qdrant's datetime index parses them
+#: for range filtering.
+
 PAYLOAD_INDEX_FIELDS: tuple[str, ...] = (
     "provision_id",
     "document_id",
@@ -94,11 +97,15 @@ _RELATION_KEYS = ("relation_type", "target_provision_id")
 # --- Collection config builders (unit-testable without a live Qdrant) --------
 
 
-def build_vectors_config() -> dict[str, models.VectorParams]:
-    """Return the named dense ``vectors_config`` mapping (doc 03 §3.11.1/2)."""
+def build_vectors_config(
+    dense_vector_size: int = DENSE_VECTOR_SIZE,
+) -> dict[str, models.VectorParams]:
+    """Return the named dense vector config for a versioned collection."""
+    if dense_vector_size < 1:
+        raise ValueError("dense_vector_size must be positive")
     return {
         DENSE_VECTOR_NAME: models.VectorParams(
-            size=DENSE_VECTOR_SIZE, distance=DENSE_VECTOR_DISTANCE
+            size=dense_vector_size, distance=DENSE_VECTOR_DISTANCE
         )
     }
 
@@ -124,15 +131,16 @@ class CollectionConfig(TypedDict):
     sparse_vectors_config: dict[str, models.SparseVectorParams]
 
 
-def build_collection_config() -> CollectionConfig:
-    """Return ``client.create_collection`` kwargs for a provision collection.
+def build_collection_config(
+    dense_vector_size: int = DENSE_VECTOR_SIZE,
+) -> CollectionConfig:
+    """Return config for an isolated versioned collection.
 
-    Combined named dense + sparse vector config; versioned collections are
-    created with this exact config so vectors are never mixed across
-    embedding/sparse spaces (doc 03 §3.11.7).
+    ``PROVISION_ALIAS`` remains the production 768-dimensional collection; a
+    non-default size is intended for benchmark collections only.
     """
     return {
-        "vectors_config": build_vectors_config(),
+        "vectors_config": build_vectors_config(dense_vector_size),
         "sparse_vectors_config": build_sparse_vectors_config(),
     }
 
@@ -281,14 +289,19 @@ def _create_collection_if_missing(client: QdrantClient, collection_name: str) ->
 
 
 def _ensure_payload_indexes(client: QdrantClient, collection_name: str) -> None:
-    """Idempotently create the keyword payload indexes missing on the collection."""
+    """Idempotently create missing keyword and datetime payload indexes."""
     existing = set(client.get_collection(collection_name).payload_schema or {})
     for field in PAYLOAD_INDEX_FIELDS:
         if field not in existing:
+            schema = (
+                models.PayloadSchemaType.DATETIME
+                if field in {"effective_from", "effective_to"}
+                else models.PayloadSchemaType.KEYWORD
+            )
             client.create_payload_index(
                 collection_name=collection_name,
                 field_name=field,
-                field_schema=models.PayloadSchemaType.KEYWORD,
+                field_schema=schema,
             )
 
 

@@ -99,6 +99,7 @@ class FakeQdrant:
         self.collections = list(collections or [])
         self.deleted: list[list[str]] = []
         self.created: list[str] = []
+        self.payload_indexes: list[dict[str, object]] = []
         self.deleted_collections: list[str] = []
 
     def get_aliases(self):
@@ -143,7 +144,7 @@ class FakeQdrant:
         return SimpleNamespace(payload_schema={})
 
     def create_payload_index(self, **kwargs: object) -> None:
-        pass
+        self.payload_indexes.append(kwargs)
 
     def delete_collection(self, collection_name: str) -> None:
         self.deleted_collections.append(collection_name)
@@ -264,7 +265,7 @@ def _doc_metadata_rows(
         id=document_version_id,
         document_id="nd-168-2024",
         version=1,
-        manifest_json={"manifest": "x"},
+        manifest_json={"manifest": "x", "vehicle_types": ["Ô tô", "Xe máy"]},
         content_hash="sha256:docver",
         review_status="ACCEPTED",
     )
@@ -400,13 +401,15 @@ def test_provision_to_unit_short_point_false_for_long_text() -> None:
 
 def test_unit_payload_for_provision_carries_hash_interval_identity() -> None:
     provision = _provision()
-    payload = reconcile.unit_payload_for_provision(provision)
+    metadata = {provision.document_version_id: {"vehicle_types": ["Ô tô"]}}
+    payload = reconcile.unit_payload_for_provision(provision, metadata)
     assert payload["content_hash"] == provision.content_hash
     assert payload["review_status"] == "ACCEPTED"
     assert payload["effective_from"] == "2025-01-01"
     assert payload["effective_to"] is None
     assert payload["article"] == "7"
     assert payload["document_version_id"] == str(provision.document_version_id)
+    assert payload["vehicle_types"] == ["Ô tô"]
 
 
 def test_point_id_for_is_deterministic_row_uuid() -> None:
@@ -661,6 +664,14 @@ def test_rebuild_index_creates_next_collection_indexes_switches_retains_old(
 
     assert old == "legal_provisions_v1"  # previous target, RETAINED
     assert switched == ["legal_provisions_v2"]  # next versioned name
+    schemas = {entry["field_name"]: entry["field_schema"] for entry in client.payload_indexes}
+    assert schemas["effective_from"] == models.PayloadSchemaType.DATETIME
+    assert schemas["effective_to"] == models.PayloadSchemaType.DATETIME
+    assert all(
+        schema == models.PayloadSchemaType.KEYWORD
+        for field, schema in schemas.items()
+        if field not in {"effective_from", "effective_to"}
+    )
     assert "legal_provisions_v2" in client.created
     assert len(indexer.calls) == 1
     assert indexer.calls[0]["collection"] == "legal_provisions_v2"
@@ -669,6 +680,11 @@ def test_rebuild_index_creates_next_collection_indexes_switches_retains_old(
         p2.provision_id,
     }
     assert client.deleted_collections == []  # old collection never deleted here
+    unit_payloads = indexer.calls[0]["unit_payloads"]
+    assert unit_payloads[f"{p1.provision_id}__v{p1.version}"]["vehicle_types"] == [
+        "Ô tô",
+        "Xe máy",
+    ]
 
 
 def test_rebuild_index_respects_collection_override(monkeypatch: pytest.MonkeyPatch) -> None:
