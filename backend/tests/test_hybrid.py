@@ -203,6 +203,28 @@ def test_retrieve_post_checks_qdrant_ids_against_authoritative_temporal_rows() -
     assert [item.provision_id for item in result.results] == ["p-1"]
     assert temporal.ids == {"p-1", "stale"}
 
+
+def test_retrieve_uses_hybrid_fallback_for_empty_payload_sources() -> None:
+    class Client:
+        def query_points(self, **kwargs: object) -> object:
+            return SimpleNamespace(
+                points=[Point({**_PAYLOAD, "retrieval_sources": []}, 0.5)]
+            )
+
+    class Embedder:
+        def embed(self, texts: list[str]) -> list[list[float]]:
+            return [[0.1, 0.2]]
+
+    class Encoder:
+        def encode(self, text: str) -> dict[int, float]:
+            return {}
+
+    result = HybridRetriever(Client(), Embedder(), Encoder()).retrieve(
+        "phạt", query_date=date(2025, 1, 1)
+    )
+
+    assert result.results[0].retrieval_sources == ["hybrid"]
+
 def test_merge_exact_uses_canonical_fields_and_only_merges_sources() -> None:
     derived = RetrievalResult(
         rank=1,
