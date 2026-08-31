@@ -86,6 +86,40 @@ def _metric_availability(reports: Mapping[str, Any]) -> dict[str, str]:
     }
 
 
+def _number(value: object) -> float | None:
+    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+
+
+def _aggregate_optional(outcomes: Sequence[Mapping[str, Any]], field: str) -> dict[str, Any]:
+    values = [_number(outcome.get(field)) for outcome in outcomes]
+    usable = [value for value in values if value is not None]
+    if not usable:
+        return {"value": None, "count": 0, "reason": "no eligible values"}
+    return {"value": sum(usable) / len(usable), "count": len(usable)}
+
+def _aggregate_tokens(outcomes: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    totals: dict[str, float] = {}
+    count = 0
+    for outcome in outcomes:
+        usage = outcome.get("token_usage")
+        if isinstance(usage, Mapping):
+            numeric = {
+                str(key): float(value)
+                for key, value in usage.items()
+                if isinstance(value, (int, float)) and not isinstance(value, bool)
+            }
+        else:
+            total = _number(usage)
+            numeric = {"total_tokens": total} if total is not None else {}
+        if numeric:
+            count += 1
+            for key, value in numeric.items():
+                totals[key] = totals.get(key, 0.0) + value
+    if not totals:
+        return {"value": None, "count": 0, "reason": "no eligible values"}
+    return {"value": totals, "count": count}
+
+
 def run_suite_b(
     records: Sequence[GoldRecord | Mapping[str, Any]],
     retrieve: Callable[[GoldRecord, EmbeddingVariant], Mapping[str, Any]],
@@ -133,25 +167,40 @@ def run_suite_b(
         run_ids.append(run_id)
         try:
             metric_records: list[dict[str, Any]] = []
+            outcomes: list[Mapping[str, Any]] = []
             provider_failed = False
             for record in gold:
-                outcome = dict(retrieve(record, variant))
+                try:
+                    outcome = dict(retrieve(record, variant))
+                except Exception as exc:
+                    outcome = {
+                        "status": "FAILED",
+                        "provider": "retrieval",
+                        "error": f"{type(exc).__name__}: {exc}",
+                        "retrieved": [],
+                    }
                 if outcome.get("error") or str(outcome.get("status", "")).upper() in {
-                    "FAILED",
-                    "ERROR",
+                    "FAILED", "ERROR",
                 }:
                     provider_failed = True
                 retrieved = outcome.get("retrieved", outcome.get("results", []))
                 if not isinstance(retrieved, Sequence) or isinstance(retrieved, (str, bytes)):
-                    raise ValueError("fixture outcome retrieved must be a sequence")
-                metric_records.append(
-                    {
-                        "id": record.id,
-                        "category": record.category.value,
-                        "retrieved": list(retrieved),
-                        "relevant": record.expected_provision_ids,
+                    outcome = {
+                        **outcome,
+                        "status": "FAILED",
+                        "provider": outcome.get("provider", "retrieval"),
+                        "error": "fixture outcome retrieved must be a sequence",
+                        "retrieved": [],
                     }
-                )
+                    retrieved = []
+                    provider_failed = True
+                outcomes.append(outcome)
+                metric_records.append({
+                    "id": record.id,
+                    "category": record.category.value,
+                    "retrieved": list(retrieved),
+                    "relevant": record.expected_provision_ids,
+                })
                 run_writer.append_result(
                     run_id,
                     {
@@ -165,26 +214,29 @@ def run_suite_b(
                 )
             reports = evaluate_retrieval(metric_records)
             metrics = {name: report.__dict__ for name, report in reports.items()}
+            metrics.update({
+                "latency_ms": _aggregate_optional(outcomes, "latency_ms"),
+                "estimated_cost": _aggregate_optional(outcomes, "estimated_cost"),
+                "token_usage": _aggregate_tokens(outcomes),
+            })
+            availability = _metric_availability(reports)
+            for field in ("latency_ms", "estimated_cost", "token_usage"):
+                availability[field] = (
+                    "AVAILABLE" if metrics[field]["value"] is not None
+                    else "ABSENT_NO_ELIGIBLE_VALUES"
+                )
+            if provider_failed:
+                for name in reports:
+                    availability[name] = "ABSENT_PROVIDER_FAILURE"
             run_writer.finish(
-                run_id,
-                status="COMPLETED",
-                metrics=metrics,
-                metric_availability=(
-                    {name: "ABSENT_PROVIDER_FAILURE" for name in reports}
-                    if provider_failed
-                    else _metric_availability(reports)
-                ),
-                session=session,
-                storage=storage,
+                run_id, status="COMPLETED", metrics=metrics,
+                metric_availability=availability, session=session, storage=storage,
             )
         except Exception as exc:
             run_writer.finish(
-                run_id,
-                status="FAILED",
-                metrics={},
+                run_id, status="FAILED", metrics={},
                 metric_availability={"retrieval": f"ABSENT_PROVIDER_FAILURE: {exc}"},
-                session=session,
-                storage=storage,
+                session=session, storage=storage,
             )
             raise
     return run_ids

@@ -93,8 +93,19 @@ class EvaluationRunWriter:
             metric_availability={},
         ))
         session.flush()
-        # This immutable marker reserves the run prefix; query results use unique keys.
-        storage.put(_BUCKET, path, b"", content_type="application/x-ndjson")
+        # This immutable descriptor reserves the run and points at append-only
+        # per-question objects.  It must be non-empty: an empty marker is not
+        # a discoverable raw-results artifact.
+        storage.put(
+            _BUCKET,
+            path,
+            json.dumps({
+                "run_id": run_id,
+                "format": "per-question-jsonl",
+                "results_prefix": f"{run_id}/results/",
+            }).encode(),
+            content_type="application/json",
+        )
         self._storage_by_run[run_id] = storage
         return run_id
 
@@ -117,15 +128,16 @@ class EvaluationRunWriter:
                 raise ValueError(f"result.{name} must be an object")
             return dict(value)
 
+        result_path = self._result_path(run_id, question_id)
         session.add(EvaluationResult(
             evaluation_run_id=run.id, question_id=question_id, input=obj("input"),
             retrieval=obj("retrieval"), output=obj("output"), metrics=obj("metrics"),
+            raw_results_path=result_path,
         ))
         session.flush()
         payload = json.dumps(dict(result), sort_keys=True, default=str).encode() + b"\n"
         self._storage_by_run[run_id].put(
-            _BUCKET, self._result_path(run_id, question_id), payload,
-            content_type="application/x-ndjson",
+            _BUCKET, result_path, payload, content_type="application/x-ndjson",
         )
 
     def finish(self, run_id: str, *, metrics: Mapping[str, object],
