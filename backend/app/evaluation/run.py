@@ -65,18 +65,18 @@ class EvaluationRunWriter:
         return f"{run_id}/results.jsonl"
 
     @staticmethod
+    def _finish_path(run_id: str) -> str:
+        return f"{run_id}/finished.json"
+
+    @staticmethod
     def _run(run_id: str, session: Session) -> EvaluationRun:
         run = session.scalar(select(EvaluationRun).where(EvaluationRun.run_id == run_id))
         if run is None:
             raise KeyError(f"unknown evaluation run: {run_id}")
         return run
-    def start(
-        self,
-        manifest: EvaluationRunManifest,
-        *,
-        session: Session,
-        storage: ObjectStoragePort,
-    ) -> str:
+
+    def start(self, manifest: EvaluationRunManifest, *, session: Session,
+              storage: ObjectStoragePort) -> str:
         run_id = manifest.run_id or str(uuid.uuid4())
         if session.scalar(select(EvaluationRun).where(EvaluationRun.run_id == run_id)):
             raise ValueError(f"evaluation run already exists: {run_id}")
@@ -86,30 +86,27 @@ class EvaluationRunWriter:
             raise ValueError(f"evaluation artifact already exists: {descriptor_path}")
         if storage.list(_BUCKET, prefix=results_prefix):
             raise ValueError(f"evaluation artifacts already exist: {results_prefix}")
-        path = descriptor_path
+        # Storage first: failures cannot leave a DB row for a missing artifact.
+        storage.put(
+            _BUCKET,
+            descriptor_path,
+            json.dumps({
+                "run_id": run_id,
+                "format": "per-question-jsonl",
+                "results_prefix": results_prefix,
+            }).encode(),
+            content_type="application/json",
+        )
         session.add(EvaluationRun(
             run_id=run_id, git_commit=manifest.git_commit, corpus_version=manifest.corpus_version,
             corpus_hash=manifest.corpus_hash, gold_set_version=manifest.gold_set_version,
             gold_set_hash=manifest.gold_set_hash, suite=manifest.suite, variant=manifest.variant,
             run_manifest_hash=manifest.manifest_hash(), config_snapshot=manifest.config_snapshot,
             model_ids=manifest.model_ids, prompt_versions=manifest.prompt_versions,
-            parser_versions=manifest.parser_versions, raw_results_path=path, status="RUNNING",
-            metric_availability={},
+            parser_versions=manifest.parser_versions, raw_results_path=descriptor_path,
+            status="RUNNING", metric_availability={},
         ))
         session.flush()
-        # This immutable descriptor reserves the run and points at append-only
-        # per-question objects.  It must be non-empty: an empty marker is not
-        # a discoverable raw-results artifact.
-        storage.put(
-            _BUCKET,
-            path,
-            json.dumps({
-                "run_id": run_id,
-                "format": "per-question-jsonl",
-                "results_prefix": f"{run_id}/results/",
-            }).encode(),
-            content_type="application/json",
-        )
         self._storage_by_run[run_id] = storage
         return run_id
 
@@ -136,16 +133,15 @@ class EvaluationRunWriter:
                 raise ValueError(f"result.{name} must be an object")
             return dict(value)
 
+        payload = json.dumps(dict(result), sort_keys=True, default=str).encode() + b"\n"
+        # Immutable question object first, then the durable result row.
+        storage.put(_BUCKET, result_path, payload, content_type="application/x-ndjson")
         session.add(EvaluationResult(
             evaluation_run_id=run.id, question_id=question_id, input=obj("input"),
             retrieval=obj("retrieval"), output=obj("output"), metrics=obj("metrics"),
             raw_results_path=result_path,
         ))
         session.flush()
-        payload = json.dumps(dict(result), sort_keys=True, default=str).encode() + b"\n"
-        self._storage_by_run[run_id].put(
-            _BUCKET, result_path, payload, content_type="application/x-ndjson",
-        )
 
     def finish(self, run_id: str, *, metrics: Mapping[str, object],
                metric_availability: Mapping[str, str], status: Literal["COMPLETED", "FAILED"],
@@ -155,6 +151,22 @@ class EvaluationRunWriter:
             raise ValueError(f"evaluation run is terminal: {run_id}")
         if storage is not self._storage_by_run.get(run_id):
             raise ValueError("evaluation artifact storage does not match the run")
+        finish_path = self._finish_path(run_id)
+        if storage.list(_BUCKET, prefix=finish_path):
+            raise ValueError(f"evaluation artifact already exists: {finish_path}")
+        # Keep the descriptor and per-question keys immutable. Final metadata
+        # gets a separate discoverable object, written before row mutation.
+        storage.put(
+            _BUCKET,
+            finish_path,
+            json.dumps({
+                "run_id": run_id,
+                "status": status,
+                "metrics": dict(metrics),
+                "metric_availability": dict(metric_availability),
+            }, sort_keys=True, default=str).encode(),
+            content_type="application/json",
+        )
         run.status = status
         run.metrics = dict(metrics)
         run.metric_availability = dict(metric_availability)
