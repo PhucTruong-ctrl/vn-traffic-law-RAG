@@ -4,11 +4,45 @@ from datetime import date
 
 from qdrant_client import models
 
+from app.retrieval.contracts import RetrievalResult
 from app.retrieval.filters import (
     build_temporal_filter,
+    deduplicate_results,
     filter_payloads_temporally,
     is_payload_temporally_valid,
 )
+
+
+def _result(
+    provision_id: str,
+    *,
+    rank: int,
+    sources: list[str],
+    parent_context: str | None = None,
+    fused_score: float | None = 0.5,
+) -> RetrievalResult:
+    return RetrievalResult(
+        rank=rank,
+        provision_id=provision_id,
+        provision_version=1,
+        document_id="doc-1",
+        document_version_id="doc-version-1",
+        text="Nội dung",
+        source_text="Nguồn",
+        parent_context=parent_context,
+        document_number="168/2024/NĐ-CP",
+        article="7",
+        clause=None,
+        point=None,
+        effective_from=START,
+        effective_to=None,
+        page_number=1,
+        retrieval_sources=sources,
+        fused_score=fused_score,
+        added_by=None,
+        source_id=None,
+        depth=0,
+    )
 
 START = date(2024, 1, 10)
 END = date(2024, 2, 10)
@@ -76,3 +110,52 @@ def test_qdrant_filter_requires_accepted_half_open_interval_and_vehicle() -> Non
         and condition.range.gt is not None
         for condition in temporal_filter.should
     )
+
+
+def test_deduplicate_keeps_lowest_rank_and_merges_sources_and_parent() -> None:
+    duplicate_late = _result("p1", rank=4, sources=["dense"])
+    duplicate_best = _result("p1", rank=2, sources=["sparse", "dense"], parent_context="Điều 7")
+
+    [result] = deduplicate_results([duplicate_late, duplicate_best])
+
+    assert result.rank == 2
+    assert result.retrieval_sources == ["dense", "sparse"]
+    assert result.parent_context == "Điều 7"
+
+
+def test_deduplicate_preserves_stable_order_for_equal_ranks() -> None:
+    results = [
+        _result("first", rank=1, sources=["dense"]),
+        _result("second", rank=1, sources=["sparse"]),
+        _result("first", rank=1, sources=["exact"]),
+    ]
+
+    deduplicated = deduplicate_results(results)
+
+    assert [result.provision_id for result in deduplicated] == ["first", "second"]
+    assert deduplicated[0].retrieval_sources == ["dense", "exact"]
+
+
+def test_deduplicate_promotes_exact_ids_without_rewriting_rank_or_score() -> None:
+    results = [
+        _result("semantic", rank=1, sources=["dense"], fused_score=0.9),
+        _result("exact", rank=5, sources=["exact"], fused_score=None),
+    ]
+
+    deduplicated = deduplicate_results(results, exact_provision_ids={"exact"})
+
+    assert [result.provision_id for result in deduplicated] == ["exact", "semantic"]
+    assert deduplicated[0].rank == 5
+    assert deduplicated[0].fused_score is None
+
+
+def test_deduplicate_uses_parent_metadata_from_any_duplicate() -> None:
+    results = [
+        _result("p1", rank=1, sources=["dense"], parent_context=None),
+        _result("p1", rank=3, sources=["parent"], parent_context="Khoản 2"),
+    ]
+
+    [result] = deduplicate_results(results)
+
+    assert result.rank == 1
+    assert result.parent_context == "Khoản 2"
