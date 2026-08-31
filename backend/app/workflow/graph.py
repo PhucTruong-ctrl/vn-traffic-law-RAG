@@ -14,6 +14,7 @@ from typing import Any
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
+from app.config import get_settings
 from app.query.evidence_gate import EvidenceCompletenessGate, EvidenceStatus, targeted_query_for_gap
 from app.query.query_understanding import QueryAnalyzer
 from app.retrieval.comparison import ComparisonResult
@@ -162,6 +163,11 @@ def _exact_reference(plan: Any) -> dict[str, str | None] | None:
     fields = ("document_number", "article", "clause", "point")
     reference = {field: getattr(plan, field, None) for field in fields}
     return reference if any(reference.values()) else None
+
+def _max_repair_attempts(state: QueryState) -> int:
+    """Use an explicit state bound, otherwise the configured workflow bound."""
+    return state.get("max_repair_attempts", get_settings().max_repair_attempts)
+
 
 
 def _safe_route(state: QueryState) -> str:
@@ -425,12 +431,10 @@ def _check_evidence(state: QueryState, services: GraphServices) -> QueryState:
         else EvidenceStatus.INCOMPLETE
     )
     return {"evidence_status": status, "evidence_gaps": gaps}
-
-
 def _evidence_route(state: QueryState) -> str:
     if state.get("evidence_status") == EvidenceStatus.COMPLETE:
         return "build_context"
-    if state.get("repair_attempts", 0) >= state.get("max_repair_attempts", 1):
+    if state.get("repair_attempts", 0) >= _max_repair_attempts(state):
         return "abstain"
     return "targeted_retrieval"
 

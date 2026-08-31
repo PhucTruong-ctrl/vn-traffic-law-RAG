@@ -54,6 +54,17 @@ def test_incomplete_evidence_increments_counter_then_abstains() -> None:
     assert state["repair_attempts"] == 1
     assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
 
+def test_incomplete_evidence_uses_configured_default_repair_bound() -> None:
+    class IncompleteGate:
+        def evaluate(self, plan, context):
+            return type("Gate", (), {"status": EvidenceStatus.INCOMPLETE, "evidence_gaps": []})()
+
+    graph = build_query_graph(services(evidence_gate=IncompleteGate()))
+    state = graph.invoke({"question": "mức phạt"})
+
+    assert state["repair_attempts"] == 3
+    assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
+
 
 def test_generate_and_verify_are_non_answering_skeletons() -> None:
     class CompleteGate:

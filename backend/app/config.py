@@ -52,6 +52,13 @@ class Settings(BaseSettings):
     fallback_prompt_version_generator: str = ""
     fallback_prompt_version_claim_verifier: str = ""
 
+    # Workflow repair bound (doc 03 §3.5.2, FR-24).
+    max_repair_attempts: int = Field(
+        default=3,
+        ge=0,
+        validation_alias=AliasChoices("MAX_REPAIR_ATTEMPTS"),
+    )
+
     # Ingestion
     max_ingestion_workers: int = 1
 
