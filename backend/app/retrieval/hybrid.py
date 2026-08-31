@@ -1,6 +1,7 @@
 """Hybrid dense+sparse retrieval with exact-reference promotion."""
 
 from __future__ import annotations
+
 from collections.abc import Mapping, Sequence
 from datetime import date
 from typing import Any
@@ -9,10 +10,10 @@ from qdrant_client import QdrantClient, models
 
 from app.config import RetrievalSettings, get_retrieval_settings
 from app.retrieval.contracts import CandidateSet, RetrievalResult, result_from_payload
+from app.retrieval.embedding import EmbeddingProvider
 from app.retrieval.exact_lookup import ExactLookup
 from app.retrieval.filters import build_temporal_filter
 from app.retrieval.qdrant_store import DENSE_VECTOR_NAME, PROVISION_ALIAS, SPARSE_VECTOR_NAME
-from app.retrieval.embedding import EmbeddingProvider
 from app.retrieval.sparse import SparseEncoder, sparse_vector_dict
 
 
@@ -109,13 +110,25 @@ class HybridRetriever:
         exact_ids = {result.provision_id for result in exact}
         merged = _merge_exact(results, exact)
         # Exact candidates are intentionally promoted after fusion, never dropped.
-        merged.sort(key=lambda result: (result.provision_id not in exact_ids, result.rank, result.provision_id))
-        merged = [result.model_copy(update={"rank": rank}) for rank, result in enumerate(merged, start=1)]
+        merged.sort(
+            key=lambda result: (
+                result.provision_id not in exact_ids,
+                result.rank,
+                result.provision_id,
+            )
+        )
+        merged = [
+            result.model_copy(update={"rank": rank})
+            for rank, result in enumerate(merged, start=1)
+        ]
         exact_results = [result for result in merged if result.provision_id in exact_ids]
         merged = exact_results + [
             result for result in merged if result.provision_id not in exact_ids
         ][: self._settings.final_top_k]
-        merged = [result.model_copy(update={"rank": rank}) for rank, result in enumerate(merged, start=1)]
+        merged = [
+            result.model_copy(update={"rank": rank})
+            for rank, result in enumerate(merged, start=1)
+        ]
         return CandidateSet(query=query, results=merged, applied_date=query_date)
 
     def _exact_candidates(
@@ -147,15 +160,25 @@ def _payload(point: Any) -> Mapping[str, object]:
     return payload
 
 
-def _merge_exact(results: Sequence[RetrievalResult], exact: Sequence[RetrievalResult]) -> list[RetrievalResult]:
+def _merge_exact(
+    results: Sequence[RetrievalResult], exact: Sequence[RetrievalResult]
+) -> list[RetrievalResult]:
     by_id = {result.provision_id: result for result in results}
     for result in exact:
         current = by_id.get(result.provision_id)
         if current is None:
-            by_id[result.provision_id] = result.model_copy(update={"retrieval_sources": [*result.retrieval_sources, "exact"]})
+            by_id[result.provision_id] = result.model_copy(
+                update={"retrieval_sources": [*result.retrieval_sources, "exact"]}
+            )
         else:
-            sources = list(dict.fromkeys([*current.retrieval_sources, *result.retrieval_sources, "exact"]))
-            by_id[result.provision_id] = current.model_copy(update={"retrieval_sources": sources})
+            sources = list(
+                dict.fromkeys(
+                    [*current.retrieval_sources, *result.retrieval_sources, "exact"]
+                )
+            )
+            by_id[result.provision_id] = current.model_copy(
+                update={"retrieval_sources": sources}
+            )
     return list(by_id.values())
 
 

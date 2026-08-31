@@ -1,12 +1,12 @@
-import pytest
 from dataclasses import dataclass
 from datetime import date
 from types import SimpleNamespace
 
+import pytest
+
 from app.config import RetrievalSettings
 from app.retrieval.contracts import CandidateSet, RetrievalResult
 from app.retrieval.hybrid import HybridRetriever, reciprocal_rank_fusion
-
 
 _PAYLOAD = {
     "provision_id": "p-1",

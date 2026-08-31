@@ -8,7 +8,6 @@ from app.query.query_understanding_types import EvidenceType, QueryIntent
 from app.retrieval.contracts import CandidateSet, RetrievalResult
 from app.retrieval.historical import HistoricalRetriever
 
-
 QUERY_DATE = date(2024, 6, 1)
 
 
