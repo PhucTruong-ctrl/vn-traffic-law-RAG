@@ -72,6 +72,27 @@ class Relations:
         return [self.edges[seed.provision_id] for seed in seeds if seed.provision_id in self.edges]
 
 
+class DocumentRelations(Relations):
+    def related_documents(self, _date, _document_id, *, relation_types=None):
+        self.document_relation_types = relation_types
+        return [
+            SimpleNamespace(
+                target_document_id="amended-doc",
+                relation_type="AMENDS",
+            ),
+            SimpleNamespace(
+                target_document_id="guided-doc",
+                relation_type="GUIDES",
+            ),
+            SimpleNamespace(
+                target_document_id="related-doc",
+                relation_type="RELATED_TO",
+            ),
+
+
+        ]
+
+
 def relation(target, source="seed", relation_type="REFERS_TO"):
     return SimpleNamespace(
         provision=target,
@@ -106,6 +127,24 @@ def test_excludes_duplicate_unresolved_and_limits_breadth():
 
     assert expander.expand([result("seed", 1)], query_date=D) == []
     assert relations.calls == [["seed"]]
+
+
+def test_document_expansion_requests_only_amendments() -> None:
+    seed = row("seed")
+    amended = row("amended")
+    relations = DocumentRelations({})
+    expander = LegalContextExpander(relations, Temporal([seed, amended]))
+
+    expanded = expander.expand([result("seed", 1)], query_date=D)
+
+    assert [item.provision_id for item in expanded] == ["amended"]
+    assert relations.document_relation_types == {
+        "AMENDS",
+        "REPEALS",
+        "SUPERSEDES",
+        "CORRECTS",
+    }
+    assert expanded[0].added_by == "AMENDMENT"
 
 
 def test_missing_relation_dependency_fails_explicitly() -> None:

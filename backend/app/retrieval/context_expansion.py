@@ -11,6 +11,9 @@ from app.persistence.models import LegalProvision
 from app.retrieval.contracts import RetrievalResult
 
 _RELATION_TYPES = frozenset({"PARENT_OF", "SIBLING_OF", "REFERS_TO", "PENALTY_COMPANION"})
+_DOCUMENT_AMENDMENT_RELATION_TYPES = frozenset(
+    {"AMENDS", "REPEALS", "SUPERSEDES", "CORRECTS"}
+)
 _ADDED_BY = {
     "PARENT_OF": "PARENT_CONTEXT",
     "REFERS_TO": "CROSS_REFERENCE",
@@ -130,7 +133,14 @@ class LegalContextExpander:
                     str(document_id), str(getattr(seed, "provision_id", document_id))
                 )
         for document_id, source_id in documents.items():
-            for document_relation in document_method(query_date, document_id):
+            for document_relation in document_method(
+                query_date,
+                document_id,
+                relation_types=_DOCUMENT_AMENDMENT_RELATION_TYPES,
+            ):
+                relation_type = getattr(document_relation, "relation_type", None)
+                if relation_type not in _DOCUMENT_AMENDMENT_RELATION_TYPES:
+                    continue
                 target_id = getattr(document_relation, "target_document_id", None)
                 if not target_id:
                     continue
@@ -139,9 +149,7 @@ class LegalContextExpander:
                     related.append(
                         SimpleNamespace(
                             provision=target,
-                            relation_type=getattr(
-                                document_relation, "relation_type", "DOCUMENT_RELATION"
-                            ),
+                            relation_type=relation_type,
                             source_id=source_id,
                             added_by="AMENDMENT",
                         )
