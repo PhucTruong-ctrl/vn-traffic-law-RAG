@@ -101,11 +101,12 @@ class QueryExpander:
         ):
             for gap in dict.fromkeys(evidence_gaps):
                 provider = self._hyde_provider
+                hyde_text: str | None
                 if not callable(provider):
-                    text = provider.generate(normalized, gap)
+                    hyde_text = provider.generate(normalized, gap)
                 else:
-                    text = provider(normalized, gap)
-                candidate = " ".join(str(text or "").split())
+                    hyde_text = provider(normalized, gap)
+                candidate = " ".join(str(hyde_text or "").split())
                 if candidate and candidate not in attempted:
                     variants.append(QueryVariant(text=candidate, source="hyde"))
                     attempted.add(candidate)
