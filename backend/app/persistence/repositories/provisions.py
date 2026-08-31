@@ -14,7 +14,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.persistence.models import (
@@ -69,9 +69,20 @@ class ProvisionRepository:
                 LegalDocument.document_number == document_number,
                 LegalProvision.review_status == "ACCEPTED",
                 DocumentVersion.review_status == "ACCEPTED",
-                LegalProvision.effective_from <= query_date,
-                (LegalProvision.effective_to.is_(None))
-                | (query_date < LegalProvision.effective_to),
+                and_(
+                    LegalProvision.effective_from <= query_date,
+                    or_(
+                        LegalProvision.effective_to.is_(None),
+                        query_date < LegalProvision.effective_to,
+                    ),
+                ),
+                and_(
+                    DocumentVersion.effective_from <= query_date,
+                    or_(
+                        DocumentVersion.effective_to.is_(None),
+                        query_date < DocumentVersion.effective_to,
+                    ),
+                ),
             )
             .order_by(LegalProvision.clause, LegalProvision.point, LegalProvision.version)
         )
