@@ -111,9 +111,13 @@ class LegalContextExpander:
         for seed in seeds:
             document_version = getattr(seed, "document_version", None)
             document = getattr(document_version, "document", None)
-            document_id = getattr(document, "document_id", None) or getattr(seed, "document_id", None)
+            document_id = getattr(document, "document_id", None) or getattr(
+                seed, "document_id", None
+            )
             if document_id:
-                documents.setdefault(str(document_id), str(getattr(seed, "provision_id", document_id)))
+                documents.setdefault(
+                    str(document_id), str(getattr(seed, "provision_id", document_id))
+                )
         for document_id, source_id in documents.items():
             try:
                 document_relations = self._relations.related_documents(query_date, document_id)

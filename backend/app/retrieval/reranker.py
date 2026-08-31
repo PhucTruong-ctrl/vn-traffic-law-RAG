@@ -108,6 +108,8 @@ class Reranker:
         response: Any, candidate_count: int, limit: int
     ) -> list[tuple[int, float]]:
         items = response.get("data", response) if isinstance(response, Mapping) else response
+        if not isinstance(items, (list, tuple)) and hasattr(items, "results"):
+            items = items.results
         parsed: list[tuple[int, float]] = []
         for item in items:
             index = item.get("index") if isinstance(item, Mapping) else item.index
