@@ -32,6 +32,8 @@ class MemoryStorage:
         self.data[key] = data
         self.puts.append(key)
 
+    def delete(self, bucket: str, key: str) -> None:
+        self.data.pop(key, None)
 
 class FailingStorage(MemoryStorage):
     def put(self, bucket: str, key: str, data: bytes, *, content_type: str | None = None) -> None:
@@ -121,6 +123,42 @@ def test_append_storage_failure_does_not_add_dangling_result_row() -> None:
     session.add.assert_not_called()
     session.flush.assert_not_called()
 
+
+def test_append_flush_failure_cleans_object_for_retry() -> None:
+    run_id = "retryable-append"
+    storage = MemoryStorage({EvaluationRunWriter._run_path(run_id)})
+    session = Mock()
+    session.scalar.side_effect = [running(run_id), None, running(run_id), None]
+    session.flush.side_effect = [RuntimeError("flush failed"), None]
+    writer = EvaluationRunWriter()
+    result = {"question_id": "q1"}
+
+    with pytest.raises(RuntimeError, match="flush failed"):
+        writer.append_result(run_id, result, session=session, storage=storage)
+    assert EvaluationRunWriter._result_path(run_id, "q1") not in storage.data
+
+    writer.append_result(run_id, result, session=session, storage=storage)
+    assert EvaluationRunWriter._result_path(run_id, "q1") in storage.data
+
+
+def test_finish_flush_failure_cleans_object_for_retry() -> None:
+    run_id = "retryable-finish"
+    storage = MemoryStorage({EvaluationRunWriter._run_path(run_id)})
+    session = Mock()
+    run = running(run_id)
+    session.scalar.side_effect = [run, run]
+    session.flush.side_effect = [RuntimeError("flush failed"), None]
+    writer = EvaluationRunWriter()
+
+    with pytest.raises(RuntimeError, match="flush failed"):
+        writer.finish(run_id, metrics={"recall": 1}, metric_availability={},
+                      status="COMPLETED", session=session, storage=storage)
+    assert EvaluationRunWriter._finish_path(run_id) not in storage.data
+    assert run.status == "RUNNING"
+
+    writer.finish(run_id, metrics={"recall": 1}, metric_availability={},
+                  status="COMPLETED", session=session, storage=storage)
+    assert EvaluationRunWriter._finish_path(run_id) in storage.data
 
 def test_finish_storage_failure_does_not_mutate_run_row() -> None:
     run_id = "running-run"

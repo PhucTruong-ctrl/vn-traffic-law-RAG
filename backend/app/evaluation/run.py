@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import uuid
@@ -155,12 +156,22 @@ class EvaluationRunWriter:
 
         payload = json.dumps(dict(result), sort_keys=True, default=str).encode() + b"\n"
         resolved_storage.put(_BUCKET, result_path, payload, content_type="application/x-ndjson")
-        session.add(EvaluationResult(
-            evaluation_run_id=run.id, question_id=question_id, input=obj("input"),
-            retrieval=obj("retrieval"), output=obj("output"), metrics=obj("metrics"),
-            raw_results_path=result_path,
-        ))
-        session.flush()
+        row: EvaluationResult | None = None
+        try:
+            row = EvaluationResult(
+                evaluation_run_id=run.id, question_id=question_id, input=obj("input"),
+                retrieval=obj("retrieval"), output=obj("output"), metrics=obj("metrics"),
+                raw_results_path=result_path,
+            )
+            session.add(row)
+            session.flush()
+        except Exception:
+            if row is not None:
+                with contextlib.suppress(Exception):
+                    session.expunge(row)
+            with contextlib.suppress(Exception):
+                resolved_storage.delete(_BUCKET, result_path)
+            raise
 
     def finish(
         self, run_id: str, *, metrics: Mapping[str, object],
@@ -186,8 +197,15 @@ class EvaluationRunWriter:
             }, sort_keys=True, default=str).encode(),
             content_type="application/json",
         )
-        run.status = status
-        run.metrics = dict(metrics)
-        run.metric_availability = dict(metric_availability)
-        run.completed_at = datetime.now(UTC)
-        session.flush()
+        original = (run.status, run.metrics, run.metric_availability, run.completed_at)
+        try:
+            run.status = status
+            run.metrics = dict(metrics)
+            run.metric_availability = dict(metric_availability)
+            run.completed_at = datetime.now(UTC)
+            session.flush()
+        except Exception:
+            run.status, run.metrics, run.metric_availability, run.completed_at = original
+            with contextlib.suppress(Exception):
+                resolved_storage.delete(_BUCKET, finish_path)
+            raise
