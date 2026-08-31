@@ -1,10 +1,11 @@
+from collections.abc import Sequence
 from datetime import date
 from types import SimpleNamespace
 
-from app.query.evidence_gate import EvidenceStatus
+from app.query.evidence_gate import EvidenceGateResult, EvidenceStatus
 from app.query.query_understanding_types import EvidenceType
 from app.retrieval.comparison import ComparisonResult
-from app.retrieval.contracts import CandidateSet
+from app.retrieval.contracts import CandidateSet, RetrievalResult
 from app.workflow.graph import GraphServices, build_query_graph
 
 
@@ -403,10 +404,16 @@ def test_comparison_sides_stay_separate_through_downstream_nodes() -> None:
         return []
 
     class CompleteGate:
-        def evaluate(self, plan, context):
-            assert isinstance(context, CandidateSet)
-            seen["gate"].append(context.query)
-            return SimpleNamespace(status=EvidenceStatus.COMPLETE, evidence_gaps=[])
+        def evaluate(
+            self, plan, context: Sequence[RetrievalResult]
+        ) -> EvidenceGateResult:
+            assert isinstance(context, list)
+            seen["gate"].append("before" if len(seen["gate"]) == 0 else "after")
+            return EvidenceGateResult(
+                status=EvidenceStatus.COMPLETE,
+                evidence_gaps=[],
+                covered_provisions=[],
+            )
 
     graph = build_query_graph(
         services(

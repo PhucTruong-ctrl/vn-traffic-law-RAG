@@ -421,7 +421,13 @@ def _check_evidence(state: QueryState, services: GraphServices) -> QueryState:
         )
         return {"evidence_status": result.status, "evidence_gaps": list(result.evidence_gaps)}
     results = [
-        _call(gate, plan, side, service_name="evidence_gate", method_names=("evaluate",))
+        _call(
+            gate,
+            plan,
+            side.results if isinstance(side, CandidateSet) else side,
+            service_name="evidence_gate",
+            method_names=("evaluate",),
+        )
         for side in sides
     ]
     gaps = list(dict.fromkeys(gap for result in results for gap in result.evidence_gaps))
