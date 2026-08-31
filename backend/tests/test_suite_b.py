@@ -74,11 +74,17 @@ def test_runner_appends_failed_questions_and_aggregates_optional_metrics(
             raise RuntimeError("provider unavailable")
         return {
             "retrieved": ["p-1"], "latency_ms": 10,
-            "token_usage": {"total": 2}, "estimated_cost": 0.5,
+            "token_usage": {"total": 2},
         }
 
     assert run_suite_b(
-        records, retrieve, session=None, storage=None, writer=Writer(), variants=("E1",)
+        records,
+        retrieve,
+        session=None,
+        storage=None,
+        writer=Writer(),
+        pricing={"gemini-embedding-2": {"total_per_million": 100.0}},
+        variants=("E1",),
     ) == ["run-1"]
     assert len(appended) == 40
     failed = next(result for result in appended if result["question_id"] == "q-1")
@@ -86,4 +92,6 @@ def test_runner_appends_failed_questions_and_aggregates_optional_metrics(
     metrics = finished[0]["metrics"]
     assert metrics["latency_ms"]["value"] == 10
     assert metrics["token_usage"]["value"] == {"total": 78.0}
+    assert metrics["estimated_cost"]["value"] == pytest.approx(0.0002)
+    assert finished[0]["metric_availability"]["estimated_cost"] == "AVAILABLE"
     assert finished[0]["metric_availability"]["recall@5"] == "ABSENT_PROVIDER_FAILURE"

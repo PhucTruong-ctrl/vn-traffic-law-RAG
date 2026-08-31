@@ -90,12 +90,54 @@ def _number(value: object) -> float | None:
     return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
 
 
+def _estimate_cost(
+    outcome: Mapping[str, Any],
+    variant: EmbeddingVariant,
+    pricing: Mapping[str, Mapping[str, float]] | None,
+) -> tuple[float | None, str | None]:
+    """Price provider token usage using rates configured by model ID.
+
+    Rates are USD per million tokens. ``total_tokens`` may use
+    ``total_per_million``; otherwise input/output usage is priced separately.
+    """
+    if outcome.get("estimated_cost") is not None:
+        return _number(outcome["estimated_cost"]), None
+    if pricing is None:
+        return None, "pricing unavailable"
+    rates = pricing.get(variant.model_id)
+    if not isinstance(rates, Mapping):
+        return None, "pricing unavailable"
+    usage = outcome.get("token_usage")
+    if isinstance(usage, Mapping):
+        total = _number(usage.get("total_tokens", usage.get("total")))
+        input_tokens = _number(usage.get("input_tokens", usage.get("prompt_tokens")))
+        output_tokens = _number(usage.get("output_tokens", usage.get("completion_tokens")))
+    else:
+        total = _number(usage)
+        input_tokens = output_tokens = None
+    if total is not None and _number(rates.get("total_per_million")) is not None:
+        return total * float(rates["total_per_million"]) / 1_000_000, None
+    input_rate = _number(rates.get("input_per_million"))
+    output_rate = _number(rates.get("output_per_million"))
+    if input_tokens is None and output_tokens is None and total is not None:
+        input_tokens = total
+    if input_tokens is None or input_rate is None:
+        return None, "token usage unavailable"
+    cost = input_tokens * input_rate
+    if output_tokens is not None:
+        if output_rate is None:
+            return None, "pricing unavailable"
+        cost += output_tokens * output_rate
+    return cost / 1_000_000, None
+
+
 def _aggregate_optional(outcomes: Sequence[Mapping[str, Any]], field: str) -> dict[str, Any]:
     values = [_number(outcome.get(field)) for outcome in outcomes]
     usable = [value for value in values if value is not None]
     if not usable:
         return {"value": None, "count": 0, "reason": "no eligible values"}
     return {"value": sum(usable) / len(usable), "count": len(usable)}
+
 
 def _aggregate_tokens(outcomes: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     totals: dict[str, float] = {}
@@ -118,8 +160,6 @@ def _aggregate_tokens(outcomes: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     if not totals:
         return {"value": None, "count": 0, "reason": "no eligible values"}
     return {"value": totals, "count": count}
-
-
 def run_suite_b(
     records: Sequence[GoldRecord | Mapping[str, Any]],
     retrieve: Callable[[GoldRecord, EmbeddingVariant], Mapping[str, Any]],
@@ -128,6 +168,7 @@ def run_suite_b(
     storage: ObjectStoragePort,
     writer: EvaluationRunWriter | None = None,
     prepare_collection: Callable[[EmbeddingVariant, CollectionConfig, Session], None] | None = None,
+    pricing: Mapping[str, Mapping[str, float]] | None = None,
     variants: Sequence[str] = ("E1", "E2", "E3"),
     git_commit: str = "unknown",
     corpus_version: str = "unknown",
@@ -160,6 +201,7 @@ def run_suite_b(
             config_snapshot={
                 "collection": variant.collection,
                 "dense_vector_size": variant.vector_size,
+                "pricing": dict(pricing.get(variant.model_id, {})) if pricing else None,
             },
             model_ids={"embedding": variant.model_id},
         )
@@ -184,6 +226,16 @@ def run_suite_b(
                 }:
                     provider_failed = True
                 retrieved = outcome.get("retrieved", outcome.get("results", []))
+                if outcome.get("estimated_cost") is None:
+                    estimated_cost, cost_reason = _estimate_cost(outcome, variant, pricing)
+                    if estimated_cost is not None:
+                        outcome["estimated_cost"] = estimated_cost
+                    elif cost_reason is not None:
+                        outcome["cost_unavailable_reason"] = cost_reason
+                else:
+                    estimated_cost = _number(outcome["estimated_cost"])
+                    if estimated_cost is None:
+                        outcome["cost_unavailable_reason"] = "invalid estimated cost"
                 if not isinstance(retrieved, Sequence) or isinstance(retrieved, (str, bytes)):
                     outcome = {
                         **outcome,
@@ -221,10 +273,20 @@ def run_suite_b(
             })
             availability = _metric_availability(reports)
             for field in ("latency_ms", "estimated_cost", "token_usage"):
-                availability[field] = (
-                    "AVAILABLE" if metrics[field]["value"] is not None
-                    else "ABSENT_NO_ELIGIBLE_VALUES"
-                )
+                if metrics[field]["value"] is not None:
+                    availability[field] = "AVAILABLE"
+                elif field == "estimated_cost":
+                    reasons = {
+                        str(outcome["cost_unavailable_reason"])
+                        for outcome in outcomes
+                        if outcome.get("cost_unavailable_reason")
+                    }
+                    reason = next(iter(sorted(reasons)), "no eligible values")
+                    availability[field] = (
+                        f"ABSENT_{reason.upper().replace(' ', '_')}"
+                    )
+                else:
+                    availability[field] = "ABSENT_NO_ELIGIBLE_VALUES"
             if provider_failed:
                 for name in reports:
                     availability[name] = "ABSENT_PROVIDER_FAILURE"
