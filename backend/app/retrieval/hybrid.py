@@ -9,6 +9,7 @@ from typing import Any
 from qdrant_client import QdrantClient, models
 
 from app.config import RetrievalSettings, get_retrieval_settings
+from app.persistence.repositories.temporal import TemporalRepository
 from app.retrieval.contracts import CandidateSet, RetrievalResult, result_from_payload
 from app.retrieval.embedding import EmbeddingProvider
 from app.retrieval.exact_lookup import ExactLookup
@@ -46,6 +47,7 @@ class HybridRetriever:
         encoder: SparseEncoder,
         exact_lookup: ExactLookup | None = None,
         *,
+        temporal_repository: TemporalRepository | None = None,
         collection: str = PROVISION_ALIAS,
         settings: RetrievalSettings | None = None,
     ) -> None:
@@ -53,6 +55,7 @@ class HybridRetriever:
         self._embedder = embedder
         self._encoder = encoder
         self._exact_lookup = exact_lookup
+        self._temporal_repository = temporal_repository
         self._collection = collection
         self._settings = settings or get_retrieval_settings()
 
@@ -115,6 +118,7 @@ class HybridRetriever:
             ).model_copy(update={"retrieval_sources": channel_sources})
             for rank, point in enumerate(points, start=1)
         ]
+        results = self._temporal_post_check(results, query_date)
         exact = self._exact_candidates(
             exact_reference, query_date, vehicle_type, derived_provision_ids
         )
@@ -141,6 +145,21 @@ class HybridRetriever:
             for rank, result in enumerate(merged, start=1)
         ]
         return CandidateSet(query=query, results=merged, applied_date=query_date)
+
+    def _temporal_post_check(
+        self, results: Sequence[RetrievalResult], query_date: date
+    ) -> list[RetrievalResult]:
+        """Drop vector results not confirmed by authoritative PostgreSQL."""
+        if self._temporal_repository is None or not results:
+            return list(results)
+        provision_ids = {result.provision_id for result in results}
+        valid_ids = {
+            row.provision_id
+            for row in self._temporal_repository.valid_provisions(
+                query_date, provision_ids=provision_ids
+            )
+        }
+        return [result for result in results if result.provision_id in valid_ids]
     def _exact_candidates(
         self,
         reference: Mapping[str, str | None] | None,

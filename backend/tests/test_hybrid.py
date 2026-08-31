@@ -87,6 +87,11 @@ def test_retrieve_uses_prefetch_rrf_and_retains_exact() -> None:
         def lookup(self, **kwargs: object) -> CandidateSet:
             self.kwargs = kwargs
             return CandidateSet(query="ref", results=[exact_result], applied_date=date(2025, 1, 1))
+
+    class Temporal:
+        def valid_provisions(self, query_date: date, *, provision_ids: set[str]):
+            return [SimpleNamespace(provision_id="p-1")]
+
     client = Client()
     exact = Exact()
     result = HybridRetriever(
@@ -94,6 +99,7 @@ def test_retrieve_uses_prefetch_rrf_and_retains_exact() -> None:
         Embedder(),
         Encoder(),
         exact,
+        temporal_repository=Temporal(),
         settings=RetrievalSettings(final_top_k=1),
     ).retrieve(
         "phạt",
@@ -139,6 +145,39 @@ def test_retrieve_uses_valid_dense_request_when_sparse_encoding_is_empty() -> No
     assert client.kwargs["prefetch"][0].using == "dense"
     assert client.kwargs["query"].rrf.weights == [1.0]
 
+
+def test_retrieve_post_checks_qdrant_ids_against_authoritative_temporal_rows() -> None:
+    stale_payload = {**_PAYLOAD, "provision_id": "stale"}
+
+    class Client:
+        def query_points(self, **kwargs: object) -> object:
+            return SimpleNamespace(
+                points=[Point(_PAYLOAD, 0.5), Point(stale_payload, 0.4)]
+            )
+
+    class Embedder:
+        def embed(self, texts: list[str]) -> list[list[float]]:
+            return [[0.1, 0.2]]
+
+    class Encoder:
+        def encode(self, text: str) -> dict[int, float]:
+            return {}
+
+    class Temporal:
+        def __init__(self) -> None:
+            self.ids = None
+
+        def valid_provisions(self, query_date: date, *, provision_ids: set[str]):
+            self.ids = provision_ids
+            return [SimpleNamespace(provision_id="p-1")]
+
+    temporal = Temporal()
+    result = HybridRetriever(
+        Client(), Embedder(), Encoder(), temporal_repository=temporal
+    ).retrieve("phạt", query_date=date(2025, 1, 1))
+
+    assert [item.provision_id for item in result.results] == ["p-1"]
+    assert temporal.ids == {"p-1", "stale"}
 
 def test_merge_exact_uses_canonical_fields_and_only_merges_sources() -> None:
     derived = RetrievalResult(
