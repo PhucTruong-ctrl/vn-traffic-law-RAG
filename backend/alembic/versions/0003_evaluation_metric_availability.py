@@ -2,9 +2,10 @@
 
 from collections.abc import Sequence
 
-from alembic import op
 from sqlalchemy import Column
 from sqlalchemy.dialects.postgresql import JSONB
+
+from alembic import op
 
 revision: str = "0003"
 down_revision: str | None = "0002"
