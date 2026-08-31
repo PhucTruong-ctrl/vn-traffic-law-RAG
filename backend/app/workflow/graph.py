@@ -452,9 +452,20 @@ def _targeted(state: QueryState, services: GraphServices) -> QueryState:
     queries = [targeted_query_for_gap(gap, plan) for gap in gaps if plan is not None]
     if not queries:
         queries = [_question(state)]
+    expansion_set = state.get("expansion_set") or []
+    if services.expander is not None and plan is not None:
+        expansion_set = _call(
+            services.expander,
+            plan,
+            service_name="expander",
+            method_names=("expand",),
+            repair_attempts=state.get("repair_attempts", 0),
+            evidence_gaps=gaps,
+            existing_variants=expansion_set,
+        )
     hyde_queries = [
         (_variant_text(variant), "hyde")
-        for variant in (state.get("expansion_set") or [])
+        for variant in expansion_set
         if getattr(variant, "source", None) == "hyde"
     ]
     repair_queries = [(query, "original") for query in queries] + hyde_queries
@@ -472,12 +483,17 @@ def _targeted(state: QueryState, services: GraphServices) -> QueryState:
                     ),
                 )
             updated.append(_merge_results(existing, targeted))
-        return {"repair_attempts": attempts, "recall_candidates": _comparison_result(*updated)}
+        return {
+            "repair_attempts": attempts,
+            "expansion_set": expansion_set,
+            "recall_candidates": _comparison_result(*updated),
+        }
 
     serving_date = _plan_date(state)
     if serving_date is None or str(getattr(plan, "intent", "")) == "OUT_OF_SCOPE":
         return {
             "repair_attempts": attempts,
+            "expansion_set": expansion_set,
             "recall_candidates": state.get("recall_candidates", []),
         }
     targeted_candidates: Any = []
@@ -488,6 +504,7 @@ def _targeted(state: QueryState, services: GraphServices) -> QueryState:
         )
     return {
         "repair_attempts": attempts,
+        "expansion_set": expansion_set,
         "recall_candidates": _merge_results(
             state.get("recall_candidates", []), targeted_candidates
         ),

@@ -231,6 +231,7 @@ def test_targeted_repair_retrieves_and_merges_every_gap() -> None:
     assert len(calls) == 3
 def test_targeted_repair_includes_configured_hyde_variant() -> None:
     calls = []
+    expansion_calls = []
 
     class Gate:
         count = 0
@@ -259,6 +260,13 @@ def test_targeted_repair_includes_configured_hyde_variant() -> None:
         calls.append(("dense", query, kwargs))
         return ["hyde answer"]
 
+    def expand(plan, **kwargs):
+        expansion_calls.append((plan, kwargs))
+        return [
+            SimpleNamespace(text="initial", source="original"),
+            SimpleNamespace(text="hyde answer", source="hyde"),
+        ]
+
     graph = build_query_graph(
         services(
             analyzer=lambda question, **_: SimpleNamespace(
@@ -267,10 +275,7 @@ def test_targeted_repair_includes_configured_hyde_variant() -> None:
                 effective_date=date(2026, 1, 1),
                 missing_query_information=[],
             ),
-            expander=lambda plan, **_: [
-                SimpleNamespace(text="initial", source="original"),
-                SimpleNamespace(text="hyde answer", source="hyde"),
-            ],
+            expander=expand,
             retriever=retrieve,
             dense_retriever=dense,
             context_expander=lambda candidates, **_: [],
@@ -289,6 +294,9 @@ def test_targeted_repair_includes_configured_hyde_variant() -> None:
     assert "điểm" in calls[2][1]
     assert calls[3][:2] == ("dense", "hyde answer")
     assert set(calls[-1][2]) == {"query_filter", "limit"}
+    assert expansion_calls[-1][1]["repair_attempts"] == 0
+    assert expansion_calls[-1][1]["evidence_gaps"] == [EvidenceType.LICENSE_POINTS]
+    assert expansion_calls[-1][1]["existing_variants"]
 
 
 

@@ -22,6 +22,7 @@ class QueryVariant(BaseModel):
 
     text: str = Field(min_length=1)
     source: Literal["original", "normalized", "rewrite", "hyde"]
+    evidence_type: EvidenceType | None = None
 
     @property
     def dense_only(self) -> bool:
@@ -96,13 +97,22 @@ class QueryExpander:
                 if sum(variant.source == "rewrite" for variant in variants) >= self._max_rewrites:
                     break
 
-        attempted = {variant.text for variant in existing_variants if variant.source == "hyde"}
+        attempted = {
+            variant.evidence_type
+            for variant in existing_variants
+            if variant.source == "hyde" and variant.evidence_type is not None
+        }
+        existing_text = {
+            variant.text for variant in existing_variants if variant.source == "hyde"
+        }
         if (
             self._hyde_provider
             and repair_attempts < self._max_repair_attempts
             and evidence_gaps
         ):
             for gap in dict.fromkeys(evidence_gaps):
+                if gap in attempted:
+                    continue
                 provider = self._hyde_provider
                 hyde_text: str | None
                 if not callable(provider):
@@ -115,9 +125,16 @@ class QueryExpander:
                     QueryVariant.model_validate({"text": hyde_text, "source": "hyde"})
                     continue
                 candidate = " ".join(hyde_text.split())
-                if candidate and candidate not in attempted:
-                    variants.append(QueryVariant(text=candidate, source="hyde"))
-                    attempted.add(candidate)
+                if candidate and candidate not in existing_text:
+                    variants.append(
+                        QueryVariant(
+                            text=candidate,
+                            source="hyde",
+                            evidence_type=gap,
+                        )
+                    )
+                    existing_text.add(candidate)
+                attempted.add(gap)
         return variants
 
 

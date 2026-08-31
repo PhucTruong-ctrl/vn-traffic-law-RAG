@@ -78,10 +78,35 @@ def test_hyde_requires_repair_budget_and_is_dense_only() -> None:
     assert len([v for v in variants if v.source == "hyde"]) == 1
     assert variants[-1].dense_only
     assert calls == [EvidenceType.MONETARY_PENALTY]
+
     bounded = expander.expand(
         plan("mức phạt"), repair_attempts=3, evidence_gaps=[EvidenceType.MONETARY_PENALTY]
     )
     assert bounded[-1].source != "hyde"
+
+
+def test_hyde_is_bounded_once_per_evidence_type_across_attempts() -> None:
+    calls: list[EvidenceType] = []
+
+    def provider(query: str, gap: EvidenceType) -> str:
+        calls.append(gap)
+        return f"hypothetical {gap.value}"
+
+    expander = QueryExpander(hyde_provider=provider)
+    first = expander.expand(
+        plan("mức phạt"),
+        repair_attempts=0,
+        evidence_gaps=[EvidenceType.MONETARY_PENALTY],
+    )
+    second = expander.expand(
+        plan("mức phạt"),
+        repair_attempts=1,
+        evidence_gaps=[EvidenceType.MONETARY_PENALTY],
+        existing_variants=first,
+    )
+
+    assert calls == [EvidenceType.MONETARY_PENALTY]
+    assert [variant for variant in second if variant.source == "hyde"] == []
 
 
 def test_hyde_does_not_repeat_existing_variant() -> None:
