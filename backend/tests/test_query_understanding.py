@@ -19,7 +19,10 @@ def test_exact_reference_and_vietnamese_point_are_parsed() -> None:
     assert plan.article == "7"
     assert plan.point == "đ"
     assert plan.vehicle_type == "xe máy"
-    assert plan.required_evidence == [EvidenceType.VIOLATION_DEFINITION, EvidenceType.MONETARY_PENALTY]
+    assert plan.required_evidence == [
+        EvidenceType.VIOLATION_DEFINITION,
+        EvidenceType.MONETARY_PENALTY,
+    ]
 
 
 def test_current_and_historical_dates_are_deterministic() -> None:
@@ -99,9 +102,13 @@ def test_query_plan_forbids_unknown_fields() -> None:
 
 
 def test_evidence_mapping_for_multi_requirement_questions() -> None:
-    assert required_evidence_for(QueryIntent.CURRENT, "phạt bao nhiêu và bị trừ bao nhiêu điểm?") == [
+    assert required_evidence_for(
+        QueryIntent.CURRENT, "phạt bao nhiêu và bị trừ bao nhiêu điểm?"
+    ) == [
         EvidenceType.VIOLATION_DEFINITION,
         EvidenceType.MONETARY_PENALTY,
         EvidenceType.LICENSE_POINTS,
     ]
-    assert required_evidence_for(QueryIntent.CURRENT, "thủ tục nộp phạt") == [EvidenceType.PROCEDURE]
+    assert required_evidence_for(QueryIntent.CURRENT, "thủ tục nộp phạt") == [
+        EvidenceType.PROCEDURE
+    ]
