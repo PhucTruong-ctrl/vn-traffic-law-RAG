@@ -15,7 +15,10 @@ def test_variants_are_exact_cumulative_r1_to_r10() -> None:
     assert VARIANTS[0].additions == ("legal_chunk", "dense")
     assert VARIANTS[1].additions[-1] == "sparse_rrf"
     assert VARIANTS[-1].additions[-1] == "complete_pipeline"
-    assert all(set(VARIANTS[index].additions) <= set(VARIANTS[index + 1].additions) for index in range(9))
+    assert all(
+        set(VARIANTS[index].additions) <= set(VARIANTS[index + 1].additions)
+        for index in range(9)
+    )
 
 
 def test_incomplete_validation_set_blocks_without_running() -> None:
@@ -38,7 +41,12 @@ def test_runner_never_invokes_evaluator_when_validation_set_is_incomplete() -> N
 
     with pytest.raises(ValidationSetBlocked):
         run_suite_c(
-            [], evaluator=evaluator, writer=Writer(), manifest_for=lambda _: None, session=None, storage=None
+            [],
+            evaluator=evaluator,
+            writer=Writer(),
+            manifest_for=lambda _: None,
+            session=None,
+            storage=None,
         )
     assert not called
 
