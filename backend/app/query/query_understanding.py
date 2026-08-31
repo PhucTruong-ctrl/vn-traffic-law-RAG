@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable, Iterable
 from datetime import date
-from typing import TypeAlias
+from typing import Any, Protocol, TypeAlias, cast
 
 from pydantic import BaseModel, ConfigDict
 
@@ -15,7 +15,17 @@ from .date_policy import MISSING_QUERY_DATE, resolve_query_date
 from .evidence_plan import required_evidence_for
 from .query_understanding_types import EvidenceType, QueryIntent
 
-FallbackAnalyzer: TypeAlias = Callable[[str, date], "QueryPlan"]
+
+class _GenaiModels(Protocol):
+    def generate_content(self, **kwargs: Any) -> Any:
+        ...
+
+
+class _GenaiClient(Protocol):
+    models: _GenaiModels
+
+
+FallbackAnalyzer: TypeAlias = Callable[..., "QueryPlan"]
 
 
 def _safe_fallback_plan(question: str) -> QueryPlan:
@@ -59,7 +69,7 @@ class QueryPlanFallback:
 
     def __init__(
         self,
-        client: object | None = None,
+        client: _GenaiClient | None = None,
         *,
         model: str | None = None,
     ) -> None:
@@ -78,8 +88,12 @@ class QueryPlanFallback:
                 if client is None:
                     from google import genai
 
-                    client = genai.Client(api_key=settings.gemini_api_key)
+                    client = cast(
+                        _GenaiClient, genai.Client(api_key=settings.gemini_api_key)
+                    )
             from google.genai import types
+
+            assert client is not None
 
             response = client.models.generate_content(
                 model=model,
