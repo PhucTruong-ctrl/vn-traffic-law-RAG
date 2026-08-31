@@ -18,7 +18,8 @@ def required_evidence_for(
     ):
         return []
     text = question.casefold()
-    entities = {entity.casefold() for entity in legal_entities}
+    # Keep the optional entity input for API compatibility; evidence types are
+    # driven by explicit question wording, not inferred legal entities.
     required: list[EvidenceType] = []
     asks_exception = bool(
         re.search(r"ngoại lệ|không bị phạt|trường hợp miễn|miễn phạt|ngoài trường hợp", text)
@@ -26,9 +27,7 @@ def required_evidence_for(
     asks_procedure = bool(re.search(r"thủ tục|quy trình|cách xử lý|hồ sơ|nộp phạt", text))
     asks_condition = bool(re.search(r"điều kiện|khi nào được|áp dụng khi|trong trường hợp", text))
     asks_penalty = bool(re.search(r"mức phạt|phạt bao nhiêu|tiền phạt|xử phạt|phạt tiền", text))
-    asks_points = bool(
-        re.search(r"trừ điểm|bao nhiêu điểm|điểm giấy phép", text)
-    ) or "giấy phép lái xe" in entities
+    asks_points = bool(re.search(r"trừ điểm|bao nhiêu điểm|điểm giấy phép", text))
     asks_suspension = bool(re.search(r"tước|thu hồi|đình chỉ|suspend|suspension", text))
 
     if asks_procedure:
@@ -37,7 +36,7 @@ def required_evidence_for(
         required.extend((EvidenceType.VIOLATION_DEFINITION, EvidenceType.EXCEPTION))
     elif asks_condition:
         required.extend((EvidenceType.VIOLATION_DEFINITION, EvidenceType.LEGAL_CONDITION))
-    elif asks_penalty:
+    elif asks_penalty or asks_suspension:
         required.extend((EvidenceType.VIOLATION_DEFINITION, EvidenceType.MONETARY_PENALTY))
         if asks_points:
             required.append(EvidenceType.LICENSE_POINTS)
@@ -45,8 +44,6 @@ def required_evidence_for(
             required.append(EvidenceType.LICENSE_SUSPENSION)
     elif asks_points:
         required.append(EvidenceType.LICENSE_POINTS)
-    elif asks_suspension:
-        required.extend((EvidenceType.VIOLATION_DEFINITION, EvidenceType.LICENSE_SUSPENSION))
     elif intent is not None:
         required.append(EvidenceType.VIOLATION_DEFINITION)
     return required

@@ -120,6 +120,32 @@ def test_evidence_mapping_for_multi_requirement_questions() -> None:
     ]
 
 
+def test_suspension_does_not_imply_license_points() -> None:
+    evidence = required_evidence_for(
+        QueryIntent.CURRENT,
+        "Hành vi này có bị tước giấy phép lái xe không?",
+        ["giấy phép lái xe"],
+    )
+    assert evidence == [
+        EvidenceType.VIOLATION_DEFINITION,
+        EvidenceType.MONETARY_PENALTY,
+        EvidenceType.LICENSE_SUSPENSION,
+    ]
+    assert EvidenceType.LICENSE_POINTS not in evidence
+
+
+def test_penalty_with_points_and_suspension_requires_all_evidence() -> None:
+    assert required_evidence_for(
+        QueryIntent.CURRENT,
+        "Phạt bao nhiêu, bị trừ bao nhiêu điểm và có bị tước giấy phép không?",
+    ) == [
+        EvidenceType.VIOLATION_DEFINITION,
+        EvidenceType.MONETARY_PENALTY,
+        EvidenceType.LICENSE_POINTS,
+        EvidenceType.LICENSE_SUSPENSION,
+    ]
+
+
 def _fallback_payload() -> dict[str, object]:
     return {
         "intent": QueryIntent.CURRENT,
