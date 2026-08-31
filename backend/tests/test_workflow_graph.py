@@ -371,6 +371,50 @@ def test_comparison_retrieval_keeps_independent_before_and_after() -> None:
     }
 
 
+def test_normalizes_candidate_set_before_rerank_and_context_expansion() -> None:
+    plan = SimpleNamespace(
+        normalized_query="question",
+        intent="CURRENT",
+        effective_date=date(2025, 1, 1),
+        missing_query_information=[],
+    )
+    candidate_set = CandidateSet(query="question", results=[], applied_date=plan.effective_date)
+    seen: dict[str, object] = {}
+
+    class CompleteGate:
+        def evaluate(self, plan, context: Sequence[RetrievalResult]) -> EvidenceGateResult:
+            assert isinstance(context, list)
+            return EvidenceGateResult(
+                status=EvidenceStatus.COMPLETE,
+                evidence_gaps=[],
+                covered_provisions=[],
+            )
+
+    def rerank(question, candidates):
+        seen["rerank"] = candidates
+        return candidates
+
+    def expand(candidates, **_):
+        seen["expand"] = candidates
+        return []
+
+    graph = build_query_graph(
+        services(
+            analyzer=lambda question, **_: plan,
+            retriever=lambda query, **_: candidate_set,
+            fusion=lambda candidates: candidates,
+            reranker=rerank,
+            context_expander=expand,
+            evidence_gate=CompleteGate(),
+        )
+    )
+    state = graph.invoke({"question": "question", "max_repair_attempts": 0})
+
+    assert seen == {"rerank": [], "expand": []}
+    assert state["reranked"] == []
+    assert state["expanded_context"] == []
+
+
 def test_comparison_sides_stay_separate_through_downstream_nodes() -> None:
     before_date, after_date = date(2023, 1, 1), date(2025, 1, 1)
     plan = SimpleNamespace(
@@ -394,13 +438,13 @@ def test_comparison_sides_stay_separate_through_downstream_nodes() -> None:
         return candidates
 
     def rerank(question, candidates):
-        assert isinstance(candidates, CandidateSet)
-        seen["rerank"].append(candidates.query)
+        assert isinstance(candidates, list)
+        seen["rerank"].append(candidates)
         return candidates
 
     def expand(candidates, *, query_date):
-        assert isinstance(candidates, CandidateSet)
-        seen["expand"].append(f"{candidates.query}:{query_date}")
+        assert isinstance(candidates, list)
+        seen["expand"].append(f"{query_date}")
         return []
 
     class CompleteGate:
@@ -430,18 +474,14 @@ def test_comparison_sides_stay_separate_through_downstream_nodes() -> None:
     state = graph.invoke({"question": "compare", "max_repair_attempts": 0})
 
     assert seen["fusion"] == ["before", "after"]
-    assert seen["rerank"] == ["before", "after"]
+    assert seen["rerank"] == [[], []]
     assert seen["expand"] == [
-        f"before:{before_date}",
-        f"after:{after_date}",
+        f"{before_date}",
+        f"{after_date}",
     ]
     assert seen["gate"] == ["before", "after"]
-    assert isinstance(state["expanded_context"], ComparisonResult)
-    assert state["expanded_context"].before.applied_date == before_date
-    assert state["expanded_context"].after.applied_date == after_date
-    assert isinstance(state["context_package"], ComparisonResult)
-    assert state["context_package"].before.query == "before"
-    assert state["context_package"].after.query == "after"
+    assert state["expanded_context"] == {"before": [], "after": []}
+    assert state["context_package"] == {"before": [], "after": []}
 
 
 def test_context_expansion_uses_resolved_plan_date() -> None:

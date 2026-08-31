@@ -355,15 +355,15 @@ def _rerank(state: QueryState, services: GraphServices) -> QueryState:
     sides = _comparison_sides(fused)
     if sides is None:
         value = _call(
-            services.reranker, _question(state), fused,
+            services.reranker, _question(state), _items(fused),
             service_name="reranker", method_names=("rerank",),
         )
     else:
         before, after = sides
         value = _comparison_result(
-            _call(services.reranker, _question(state), before,
+            _call(services.reranker, _question(state), _items(before),
                   service_name="reranker", method_names=("rerank",)),
-            _call(services.reranker, _question(state), after,
+            _call(services.reranker, _question(state), _items(after),
                   service_name="reranker", method_names=("rerank",)),
         )
     return {"reranked": value}
@@ -378,7 +378,7 @@ def _expand_context(state: QueryState, services: GraphServices) -> QueryState:
             return {"expanded_context": reranked}
         additions = _call(
             services.context_expander,
-            reranked,
+            _items(reranked),
             service_name="context_expander",
             method_names=("expand",),
             query_date=query_date,
@@ -395,7 +395,7 @@ def _expand_context(state: QueryState, services: GraphServices) -> QueryState:
     for candidates, query_date in zip(sides, dates, strict=True):
         additions = _call(
             services.context_expander,
-            candidates,
+            _items(candidates),
             service_name="context_expander",
             method_names=("expand",),
             query_date=query_date,
