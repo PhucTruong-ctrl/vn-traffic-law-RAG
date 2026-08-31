@@ -94,11 +94,15 @@ _RELATION_KEYS = ("relation_type", "target_provision_id")
 # --- Collection config builders (unit-testable without a live Qdrant) --------
 
 
-def build_vectors_config() -> dict[str, models.VectorParams]:
-    """Return the named dense ``vectors_config`` mapping (doc 03 §3.11.1/2)."""
+def build_vectors_config(
+    dense_vector_size: int = DENSE_VECTOR_SIZE,
+) -> dict[str, models.VectorParams]:
+    """Return the named dense vector config for a versioned collection."""
+    if dense_vector_size < 1:
+        raise ValueError("dense_vector_size must be positive")
     return {
         DENSE_VECTOR_NAME: models.VectorParams(
-            size=DENSE_VECTOR_SIZE, distance=DENSE_VECTOR_DISTANCE
+            size=dense_vector_size, distance=DENSE_VECTOR_DISTANCE
         )
     }
 
@@ -124,15 +128,16 @@ class CollectionConfig(TypedDict):
     sparse_vectors_config: dict[str, models.SparseVectorParams]
 
 
-def build_collection_config() -> CollectionConfig:
-    """Return ``client.create_collection`` kwargs for a provision collection.
+def build_collection_config(
+    dense_vector_size: int = DENSE_VECTOR_SIZE,
+) -> CollectionConfig:
+    """Return config for an isolated versioned collection.
 
-    Combined named dense + sparse vector config; versioned collections are
-    created with this exact config so vectors are never mixed across
-    embedding/sparse spaces (doc 03 §3.11.7).
+    ``PROVISION_ALIAS`` remains the production 768-dimensional collection; a
+    non-default size is intended for benchmark collections only.
     """
     return {
-        "vectors_config": build_vectors_config(),
+        "vectors_config": build_vectors_config(dense_vector_size),
         "sparse_vectors_config": build_sparse_vectors_config(),
     }
 
