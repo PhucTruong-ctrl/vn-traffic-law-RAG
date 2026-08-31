@@ -54,9 +54,19 @@ class ComparisonRetriever:
         date_from: date,
         date_to: date,
     ) -> ComparisonResult:
-        """Run each side independently, including when both dates are equal."""
+        """Run each side independently and verify each side's temporal context."""
         before = self._historical.retrieve(plan, query_date=date_from)
+        if before.applied_date != date_from:
+            raise ValueError(
+                "historical comparison retrieval returned an unexpected applied date"
+            )
+
         after = self._current.retrieve(plan, current_date=date_to)
+        if after.applied_date != date_to:
+            raise ValueError(
+                "current comparison retrieval returned an unexpected applied date"
+            )
+
         return ComparisonResult(before=before, after=after)
 
 

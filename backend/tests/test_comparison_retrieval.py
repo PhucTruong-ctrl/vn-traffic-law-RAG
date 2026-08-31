@@ -1,5 +1,7 @@
 from datetime import date
 
+import pytest
+
 from app.query.query_understanding import QueryIntent, QueryPlan
 from app.retrieval.comparison import ComparisonRetriever
 from app.retrieval.contracts import CandidateSet, RetrievalResult
@@ -109,3 +111,32 @@ def test_amendment_keeps_before_and_after_citation_lists_separate() -> None:
     assert [item.provision_id for item in result.before.results] == ["original"]
     assert [item.provision_id for item in result.after.results] == ["amended"]
     assert result.before.results is not result.after.results
+
+
+def test_rejects_historical_result_with_wrong_applied_date() -> None:
+    candidates = CandidateSet(
+        query="before", results=[_result("old", "NĐ-1")], applied_date=AFTER
+    )
+
+    with pytest.raises(
+        ValueError, match="historical comparison retrieval returned an unexpected"
+    ):
+        ComparisonRetriever(_Historical(candidates), _Current(candidates)).compare(
+            _plan(), date_from=BEFORE, date_to=AFTER
+        )
+
+
+def test_rejects_current_result_with_wrong_applied_date() -> None:
+    before = CandidateSet(
+        query="before", results=[_result("old", "NĐ-1")], applied_date=BEFORE
+    )
+    after = CandidateSet(
+        query="after", results=[_result("new", "NĐ-2")], applied_date=BEFORE
+    )
+
+    with pytest.raises(
+        ValueError, match="current comparison retrieval returned an unexpected"
+    ):
+        ComparisonRetriever(_Historical(before), _Current(after)).compare(
+            _plan(), date_from=BEFORE, date_to=AFTER
+        )
