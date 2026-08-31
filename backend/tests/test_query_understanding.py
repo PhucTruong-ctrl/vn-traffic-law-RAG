@@ -4,7 +4,13 @@ import pytest
 from pydantic import ValidationError
 
 from app.query.evidence_plan import required_evidence_for
-from app.query.query_understanding import EvidenceType, QueryAnalyzer, QueryIntent, QueryPlan
+from app.query.query_understanding import (
+    EvidenceType,
+    QueryAnalyzer,
+    QueryIntent,
+    QueryPlan,
+    QueryPlanFallback,
+)
 
 TODAY = date(2026, 8, 31)
 
@@ -112,3 +118,73 @@ def test_evidence_mapping_for_multi_requirement_questions() -> None:
     assert required_evidence_for(QueryIntent.CURRENT, "thủ tục nộp phạt") == [
         EvidenceType.PROCEDURE
     ]
+
+
+def _fallback_payload() -> dict[str, object]:
+    return {
+        "intent": "CURRENT",
+        "effective_date": "2026-08-31",
+        "comparison_from": None,
+        "comparison_to": None,
+        "vehicle_type": None,
+        "document_number": None,
+        "article": None,
+        "clause": None,
+        "point": None,
+        "legal_entities": [],
+        "normalized_query": "mức phạt",
+        "missing_query_information": [],
+        "required_evidence": ["violation_definition", "monetary_penalty"],
+    }
+
+
+class _FakeModels:
+    def __init__(self, response: object) -> None:
+        self.response = response
+        self.calls = 0
+
+    def generate_content(self, **_: object) -> object:
+        self.calls += 1
+        return self.response
+
+
+class _FakeClient:
+    def __init__(self, response: object) -> None:
+        self.models = _FakeModels(response)
+
+
+def test_structured_fallback_returns_valid_plan() -> None:
+    client = _FakeClient(type("Response", (), {"parsed": _fallback_payload()})())
+    plan = QueryPlanFallback(client).analyze("mức phạt", current_date=TODAY)
+    assert plan.intent is QueryIntent.CURRENT
+    assert plan.required_evidence == [
+        EvidenceType.VIOLATION_DEFINITION,
+        EvidenceType.MONETARY_PENALTY,
+    ]
+    assert client.models.calls == 1
+
+
+def test_structured_fallback_invalid_output_abstains() -> None:
+    invalid = {"intent": "CURRENT", "unexpected": "reject"}
+    client = _FakeClient(type("Response", (), {"parsed": invalid})())
+    plan = QueryPlanFallback(client).analyze("mức phạt", current_date=TODAY)
+    assert plan.intent is QueryIntent.OUT_OF_SCOPE
+    assert plan.missing_query_information == ["query_analysis"]
+
+
+def test_analyzer_fallback_failure_is_safe_and_deterministic_first() -> None:
+    calls: list[str] = []
+
+    def fallback(question: str, current_date: date) -> QueryPlan:
+        calls.append(question)
+        raise RuntimeError("provider unavailable")
+
+    deterministic = QueryAnalyzer(fallback).analyze(
+        "Điều 7 Nghị định 168/2024/NĐ-CP", current_date=TODAY
+    )
+    assert deterministic.intent is QueryIntent.SOURCE_SEARCH
+    assert calls == []
+    safe = QueryAnalyzer(fallback).analyze("mức phạt", current_date=TODAY)
+    assert safe.intent is QueryIntent.OUT_OF_SCOPE
+    assert safe.missing_query_information == ["query_analysis"]
+    assert calls == ["mức phạt"]

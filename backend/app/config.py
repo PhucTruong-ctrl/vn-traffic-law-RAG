@@ -55,6 +55,27 @@ class Settings(BaseSettings):
     # Ingestion
     max_ingestion_workers: int = 1
 
+class GenerationSettings(BaseSettings):
+    """Structured Gemini generation settings used by query fallback."""
+
+    model_config = SettingsConfigDict(
+        env_file=str(_ENV_FILE),
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False,
+        populate_by_name=True,
+    )
+
+    model: str = Field(
+        default="gemini-3.5-flash",
+        validation_alias=AliasChoices("GENERATION_MODEL", "LLM_MODEL"),
+    )
+    gemini_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("GEMINI_API_KEY", "GENERATION_GEMINI_API_KEY"),
+    )
+
+
 
 class QdrantSettings(BaseSettings):
     """Qdrant retrieval-index connection and collection naming (doc 03 §3.11).
@@ -387,6 +408,12 @@ def get_queue_settings() -> QueueSettings:
 def get_settings() -> Settings:
     """Return the process-wide settings singleton (cached until cleared)."""
     return Settings()
+@lru_cache(maxsize=1)
+def get_generation_settings() -> GenerationSettings:
+    """Return the process-wide generation settings singleton."""
+    return GenerationSettings()
+
+
 
 
 @lru_cache(maxsize=1)
