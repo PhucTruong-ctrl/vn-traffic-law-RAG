@@ -44,11 +44,9 @@ class ExactLookup:
         if vehicle_type is not None:
             rows = [row for row in rows if _supports_vehicle(row, vehicle_type)]
 
-        derived = set(derived_provision_ids)
-        if derived:
-            matched = [row for row in rows if row.provision_id in derived or str(row.id) in derived]
-            if matched:
-                rows = matched
+        # Derived vector IDs are hints only; PostgreSQL remains authoritative
+        # and may return multiple canonical rows for one hierarchy reference.
+        del derived_provision_ids
 
         results = [_result(row, rank) for rank, row in enumerate(rows, 1)]
         query = _reference_query(document_number, article, clause, point)

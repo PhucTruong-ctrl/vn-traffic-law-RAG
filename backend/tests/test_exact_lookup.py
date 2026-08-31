@@ -70,3 +70,20 @@ def test_exact_lookup_does_not_broaden_when_no_canonical_match():
 
     assert result.results == []
     assert result.query.endswith("Điểm d")
+
+
+def test_exact_lookup_returns_all_canonical_rows_even_when_hint_matches_one():
+    rows = [_row("canonical-a"), _row("canonical-b")]
+    result = ExactLookup(FakeRepository(rows)).lookup(
+        document_number="168/2024/NĐ-CP",
+        article="7",
+        clause="4",
+        point="đ",
+        query_date=date(2025, 1, 1),
+        derived_provision_ids=("canonical-a",),
+    )
+
+    assert [item.provision_id for item in result.results] == [
+        "canonical-a",
+        "canonical-b",
+    ]

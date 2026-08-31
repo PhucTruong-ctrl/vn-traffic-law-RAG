@@ -200,7 +200,9 @@ def _merge_exact(
                     [*current.retrieval_sources, *result.retrieval_sources, "exact"]
                 )
             )
-            by_id[result.provision_id] = current.model_copy(
+            # PostgreSQL exact rows are canonical. Keep only retrieval metadata
+            # from the derived payload, never its potentially stale citation.
+            by_id[result.provision_id] = result.model_copy(
                 update={"retrieval_sources": sources}
             )
     return list(by_id.values())

@@ -6,7 +6,7 @@ import pytest
 
 from app.config import RetrievalSettings
 from app.retrieval.contracts import CandidateSet, RetrievalResult
-from app.retrieval.hybrid import HybridRetriever, reciprocal_rank_fusion
+from app.retrieval.hybrid import HybridRetriever, _merge_exact, reciprocal_rank_fusion
 
 _PAYLOAD = {
     "provision_id": "p-1",
@@ -138,4 +138,54 @@ def test_retrieve_uses_valid_dense_request_when_sparse_encoding_is_empty() -> No
     assert len(client.kwargs["prefetch"]) == 1
     assert client.kwargs["prefetch"][0].using == "dense"
     assert client.kwargs["query"].rrf.weights == [1.0]
+
+
+def test_merge_exact_uses_canonical_fields_and_only_merges_sources() -> None:
+    derived = RetrievalResult(
+        rank=1,
+        provision_id="p-1",
+        provision_version=1,
+        document_id="stale-doc",
+        document_version_id="stale-version",
+        text="stale text",
+        source_text="stale source",
+        parent_context="stale parent",
+        document_number="stale-document",
+        article="stale article",
+        clause="stale clause",
+        point="d",
+        effective_from=date(2020, 1, 1),
+        effective_to=date(2021, 1, 1),
+        page_number=99,
+        retrieval_sources=["dense", "sparse"],
+        fused_score=0.8,
+        added_by=None,
+        source_id="stale-source",
+        depth=0,
+    )
+    canonical = derived.model_copy(
+        update={
+            "document_id": "canonical-doc",
+            "document_version_id": "canonical-version",
+            "text": "canonical text",
+            "source_text": "canonical source",
+            "parent_context": None,
+            "document_number": "168/2024/NĐ-CP",
+            "article": "7",
+            "clause": None,
+            "point": "đ",
+            "effective_from": date(2025, 1, 1),
+            "effective_to": None,
+            "page_number": 3,
+            "retrieval_sources": ["exact"],
+            "fused_score": None,
+            "source_id": "canonical-source",
+        }
+    )
+
+    merged = _merge_exact([derived], [canonical])
+
+    assert merged == [
+        canonical.model_copy(update={"retrieval_sources": ["dense", "sparse", "exact"]})
+    ]
 
