@@ -1,4 +1,7 @@
+from types import SimpleNamespace
+
 from app.query.evidence_gate import EvidenceStatus
+from app.query.query_understanding_types import EvidenceType
 from app.workflow.graph import GraphServices, build_query_graph
 
 
@@ -68,3 +71,56 @@ def test_graph_rejects_missing_required_service() -> None:
         assert "retriever" in str(error)
     else:
         raise AssertionError("missing retriever must fail explicitly")
+
+
+def test_complete_evidence_keeps_reranked_seeds_with_expanded_additions() -> None:
+    class CompleteGate:
+        def evaluate(self, plan, context):
+            assert context == ["seed", "addition"]
+            return type("Gate", (), {"status": EvidenceStatus.COMPLETE, "evidence_gaps": []})()
+
+    graph = build_query_graph(
+        services(
+            analyzer=lambda question, **_: SimpleNamespace(normalized_query=question),
+            retriever=lambda query, **_: ["seed"],
+            context_expander=lambda candidates, **_: ["addition"],
+            evidence_gate=CompleteGate(),
+        )
+    )
+    state = graph.invoke({"question": "question", "max_repair_attempts": 0})
+
+    assert state["context_package"] == ["seed", "addition"]
+
+
+def test_targeted_repair_merges_initial_and_missing_points_provisions() -> None:
+    class RepairGate:
+        calls = 0
+
+        def evaluate(self, plan, context):
+            self.calls += 1
+            if self.calls == 1:
+                assert context == ["fine"]
+                return type(
+                    "Gate",
+                    (),
+                    {
+                        "status": EvidenceStatus.INCOMPLETE,
+                        "evidence_gaps": [EvidenceType.LICENSE_POINTS],
+                    },
+                )()
+            assert context == ["fine", "points"]
+            return type("Gate", (), {"status": EvidenceStatus.COMPLETE, "evidence_gaps": []})()
+
+    responses = iter((["fine"], ["points"]))
+    graph = build_query_graph(
+        services(
+            analyzer=lambda question, **_: SimpleNamespace(normalized_query=question),
+            retriever=lambda query, **_: next(responses),
+            context_expander=lambda candidates, **_: [],
+            evidence_gate=RepairGate(),
+        )
+    )
+    state = graph.invoke({"question": "fine and points", "max_repair_attempts": 1})
+
+    assert state["repair_attempts"] == 1
+    assert state["context_package"] == ["fine", "points"]

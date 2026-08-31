@@ -16,10 +16,33 @@ from langgraph.graph.state import CompiledStateGraph
 
 from app.query.evidence_gate import EvidenceCompletenessGate, EvidenceStatus, targeted_query_for_gap
 from app.query.query_understanding import QueryAnalyzer
+from app.retrieval.contracts import CandidateSet, RetrievalResult
+from app.retrieval.filters import deduplicate_results
 
 from .state import QueryState
 
 Service = Any
+
+
+def _items(value: Any) -> list[Any]:
+    if isinstance(value, CandidateSet):
+        return list(value.results)
+    if value is None:
+        return []
+    return list(value)
+
+
+def _merge_results(existing: Any, additions: Any) -> Any:
+    """Merge retrieval values while retaining the original CandidateSet shape."""
+    merged = _items(existing) + _items(additions)
+    if merged and all(isinstance(item, RetrievalResult) for item in merged):
+        merged = deduplicate_results(merged)
+    if isinstance(existing, CandidateSet):
+        return existing.model_copy(update={"results": merged})
+    if isinstance(additions, CandidateSet):
+        return additions.model_copy(update={"results": merged})
+    return merged
+
 
 
 @dataclass(slots=True)
@@ -150,14 +173,17 @@ def _rerank(state: QueryState, services: GraphServices) -> QueryState:
 
 
 def _expand_context(state: QueryState, services: GraphServices) -> QueryState:
-    value = _call(
+    additions = _call(
         services.context_expander,
         state.get("reranked", []),
         service_name="context_expander",
         method_names=("expand",),
         query_date=_today(state),
     )
-    return {"expanded_context": value}
+    expanded = _items(state.get("reranked", [])) + _items(additions)
+    if expanded and all(isinstance(item, RetrievalResult) for item in expanded):
+        expanded = deduplicate_results(expanded)
+    return {"expanded_context": expanded}
 
 
 def _check_evidence(state: QueryState, services: GraphServices) -> QueryState:
@@ -187,7 +213,7 @@ def _targeted(state: QueryState, services: GraphServices) -> QueryState:
     plan = state.get("query_understanding")
     gaps = state.get("evidence_gaps", [])
     queries = [targeted_query_for_gap(gap, plan) for gap in gaps if plan is not None]
-    value = _call(
+    targeted_candidates = _call(
         services.retriever,
         queries[0] if queries else _question(state),
         service_name="retriever",
@@ -195,7 +221,14 @@ def _targeted(state: QueryState, services: GraphServices) -> QueryState:
         query_date=_today(state),
         vehicle_type=state.get("vehicle_type"),
     )
-    return {"repair_attempts": attempts, "recall_candidates": value}
+    return {
+        "repair_attempts": attempts,
+        "recall_candidates": _merge_results(
+            state.get("recall_candidates", []), targeted_candidates
+        ),
+    }
+
+
 
 
 def _build_context(state: QueryState, services: GraphServices) -> QueryState:
