@@ -106,3 +106,29 @@ def test_excludes_duplicate_unresolved_and_limits_breadth():
 
     assert expander.expand([result("seed", 1)], query_date=D) == []
     assert relations.calls == [["seed"]]
+
+
+def test_missing_relation_dependency_fails_explicitly() -> None:
+    class MissingRelations:
+        pass
+
+    expander = LegalContextExpander(MissingRelations(), Temporal([row("seed")]))
+    try:
+        expander.expand([result("seed", 1)], query_date=D)
+    except RuntimeError as error:
+        assert "related_provisions" in str(error)
+    else:
+        raise AssertionError("missing relation method must fail explicitly")
+
+
+def test_missing_temporal_dependency_fails_explicitly() -> None:
+    class MissingTemporal:
+        pass
+
+    expander = LegalContextExpander(Relations({}), MissingTemporal())
+    try:
+        expander.expand([result("seed", 1)], query_date=D)
+    except RuntimeError as error:
+        assert "valid_provisions" in str(error)
+    else:
+        raise AssertionError("missing temporal method must fail explicitly")

@@ -85,27 +85,34 @@ class LegalContextExpander:
         ids = list(provision_ids)
         if not ids and document_id is None:
             return []
-        try:
-            return list(
-                self._temporal.valid_provisions(
-                    query_date,
-                    provision_ids=ids or None,
-                    document_id=document_id,
-                )
+        method = getattr(self._temporal, "valid_provisions", None)
+        if not callable(method):
+            raise RuntimeError(
+                "context expansion requires temporal_repository.valid_provisions()"
             )
-        except (AttributeError, TypeError):
-            return []
+        return list(
+            method(
+                query_date,
+                provision_ids=ids or None,
+                document_id=document_id,
+            )
+        )
 
     def _related(self, query_date: date, seeds: Sequence[Any]) -> list[Any]:
-        related: list[Any] = []
-        try:
-            related.extend(
-                self._relations.related_provisions(
-                    query_date, seeds, relation_types=_RELATION_TYPES
-                )
+        method = getattr(self._relations, "related_provisions", None)
+        if not callable(method):
+            raise RuntimeError(
+                "context expansion requires relation_repository.related_provisions()"
             )
-        except TypeError:
-            related.extend(self._relations.related_provisions(query_date, seeds))
+        related: list[Any] = list(
+            method(query_date, seeds, relation_types=_RELATION_TYPES)
+        )
+
+        # Document relations are an optional repository capability.  An
+        # available method must still fail loudly rather than being swallowed.
+        document_method = getattr(self._relations, "related_documents", None)
+        if not callable(document_method):
+            return related[: self._max_breadth]
 
         documents: dict[str, str] = {}
         for seed in seeds:
@@ -119,11 +126,7 @@ class LegalContextExpander:
                     str(document_id), str(getattr(seed, "provision_id", document_id))
                 )
         for document_id, source_id in documents.items():
-            try:
-                document_relations = self._relations.related_documents(query_date, document_id)
-            except (AttributeError, TypeError):
-                continue
-            for document_relation in document_relations:
+            for document_relation in document_method(query_date, document_id):
                 target_id = getattr(document_relation, "target_document_id", None)
                 if not target_id:
                     continue

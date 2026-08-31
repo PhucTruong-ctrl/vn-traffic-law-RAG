@@ -24,7 +24,12 @@ Service = Any
 
 @dataclass(slots=True)
 class GraphServices:
-    """Injected collaborators for graph nodes; absent services use safe no-ops."""
+    """Injected collaborators for graph nodes.
+
+    ``analyzer`` and ``evidence_gate`` have deterministic defaults.  Retrieval
+    collaborators are required once their node executes; a missing one is a
+    configuration error, not an empty retrieval result.
+    """
 
     analyzer: Service = None
     temporal: Service = None
@@ -39,16 +44,30 @@ class GraphServices:
     verifier: Service = None
 
 
-def _call(service: Service, *args: Any, **kwargs: Any) -> Any:
+def _call(
+    service: Service,
+    *args: Any,
+    service_name: str,
+    method_names: tuple[str, ...],
+    **kwargs: Any,
+) -> Any:
+    """Call an injected service and fail clearly on invalid wiring."""
     if service is None:
-        return None
+        raise RuntimeError(
+            f"required workflow service {service_name!r} is not configured"
+        )
     if callable(service):
         return service(*args, **kwargs)
-    for name in ("analyze", "resolve", "expand", "retrieve", "rerank", "evaluate", "build"):
+    for name in method_names:
         method = getattr(service, name, None)
         if callable(method):
             return method(*args, **kwargs)
-    return None
+    expected = ", ".join(method_names)
+    raise TypeError(
+        f"workflow service {service_name!r} must be callable or expose {expected}()"
+    )
+
+
 
 
 
@@ -61,13 +80,25 @@ def _today(state: QueryState) -> date:
 
 
 def _analyze(state: QueryState, services: GraphServices) -> QueryState:
-    plan = _call(services.analyzer or QueryAnalyzer(), _question(state), current_date=_today(state))
+    plan = _call(
+        services.analyzer or QueryAnalyzer(),
+        _question(state),
+        service_name="analyzer",
+        method_names=("analyze",),
+        current_date=_today(state),
+    )
     return {"query_understanding": plan} if plan is not None else {}
 
 
 def _resolve_temporal(state: QueryState, services: GraphServices) -> QueryState:
-    value = _call(services.temporal, state.get("query_understanding"), query_date=_today(state))
-    return {"temporal_context": value} if value is not None else {"temporal_context": _today(state)}
+    value = _call(
+        services.temporal,
+        state.get("query_understanding"),
+        service_name="temporal",
+        method_names=("resolve",),
+        query_date=_today(state),
+    )
+    return {"temporal_context": value}
 
 
 def _expand_query(state: QueryState, services: GraphServices) -> QueryState:
@@ -75,14 +106,12 @@ def _expand_query(state: QueryState, services: GraphServices) -> QueryState:
     value = _call(
         services.expander,
         plan,
+        service_name="expander",
+        method_names=("expand",),
         repair_attempts=state.get("repair_attempts", 0),
         evidence_gaps=state.get("evidence_gaps", []),
     )
-    return (
-        {"expansion_set": value}
-        if value is not None
-        else {"expansion_set": [plan] if plan is not None else []}
-    )
+    return {"expansion_set": value}
 
 
 def _retrieve(state: QueryState, services: GraphServices) -> QueryState:
@@ -91,34 +120,57 @@ def _retrieve(state: QueryState, services: GraphServices) -> QueryState:
     value = _call(
         services.retriever,
         query,
+        service_name="retriever",
+        method_names=("retrieve",),
         query_date=_today(state),
         vehicle_type=state.get("vehicle_type"),
     )
-    return {"recall_candidates": value} if value is not None else {"recall_candidates": []}
+    return {"recall_candidates": value}
 
 
 def _fuse(state: QueryState, services: GraphServices) -> QueryState:
-    value = _call(services.fusion, state.get("recall_candidates"))
-    return {"fused": value if value is not None else state.get("recall_candidates", [])}
+    value = _call(
+        services.fusion,
+        state.get("recall_candidates"),
+        service_name="fusion",
+        method_names=("fuse",),
+    )
+    return {"fused": value}
 
 
 def _rerank(state: QueryState, services: GraphServices) -> QueryState:
-    value = _call(services.reranker, _question(state), state.get("fused", []))
-    return {"reranked": value if value is not None else state.get("fused", [])}
+    value = _call(
+        services.reranker,
+        _question(state),
+        state.get("fused", []),
+        service_name="reranker",
+        method_names=("rerank",),
+    )
+    return {"reranked": value}
 
 
 def _expand_context(state: QueryState, services: GraphServices) -> QueryState:
-    value = _call(services.context_expander, state.get("reranked", []), query_date=_today(state))
-    return {"expanded_context": value if value is not None else state.get("reranked", [])}
+    value = _call(
+        services.context_expander,
+        state.get("reranked", []),
+        service_name="context_expander",
+        method_names=("expand",),
+        query_date=_today(state),
+    )
+    return {"expanded_context": value}
 
 
 def _check_evidence(state: QueryState, services: GraphServices) -> QueryState:
     gate = services.evidence_gate or EvidenceCompletenessGate()
     plan = state.get("query_understanding")
     context: list[Any] = state.get("expanded_context", [])
-    result = _call(gate, plan, context) if plan is not None else None
-    if result is None:
-        return {"evidence_status": EvidenceStatus.COMPLETE, "evidence_gaps": []}
+    result = _call(
+        gate,
+        plan,
+        context,
+        service_name="evidence_gate",
+        method_names=("evaluate",),
+    )
     return {"evidence_status": result.status, "evidence_gaps": list(result.evidence_gaps)}
 
 
@@ -138,23 +190,22 @@ def _targeted(state: QueryState, services: GraphServices) -> QueryState:
     value = _call(
         services.retriever,
         queries[0] if queries else _question(state),
+        service_name="retriever",
+        method_names=("retrieve",),
         query_date=_today(state),
         vehicle_type=state.get("vehicle_type"),
     )
-    return {
-        "repair_attempts": attempts,
-        "recall_candidates": value if value is not None else [],
-    }
+    return {"repair_attempts": attempts, "recall_candidates": value}
+
+
 def _build_context(state: QueryState, services: GraphServices) -> QueryState:
     value = _call(
         services.context_builder,
         state.get("expanded_context", state.get("reranked", [])),
+        service_name="context_builder",
+        method_names=("build",),
     )
-    return {
-        "context_package": value
-        if value is not None
-        else state.get("expanded_context", [])
-    }
+    return {"context_package": value}
 
 
 def _generate(state: QueryState, services: GraphServices) -> QueryState:

@@ -2,6 +2,20 @@ from app.query.evidence_gate import EvidenceStatus
 from app.workflow.graph import GraphServices, build_query_graph
 
 
+def services(**overrides):
+    defaults = dict(
+        temporal=lambda plan, *, query_date: query_date,
+        expander=lambda plan, **_: [plan] if plan is not None else [],
+        retriever=lambda query, **_: [],
+        fusion=lambda candidates: candidates,
+        reranker=lambda question, candidates: candidates,
+        context_expander=lambda candidates, **_: candidates,
+        context_builder=lambda candidates: candidates,
+    )
+    defaults.update(overrides)
+    return GraphServices(**defaults)
+
+
 def test_graph_registers_only_documented_application_nodes() -> None:
     graph = build_query_graph()
     assert set(graph.nodes) - {"__start__"} == {
@@ -27,7 +41,7 @@ def test_incomplete_evidence_increments_counter_then_abstains() -> None:
         def evaluate(self, plan, context):
             return type("Gate", (), {"status": EvidenceStatus.INCOMPLETE, "evidence_gaps": []})()
 
-    graph = build_query_graph(GraphServices(evidence_gate=IncompleteGate()))
+    graph = build_query_graph(services(evidence_gate=IncompleteGate()))
     state = graph.invoke(
         {"question": "mức phạt", "max_repair_attempts": 1, "repair_attempts": 0}
     )
@@ -40,7 +54,17 @@ def test_generate_and_verify_are_non_answering_skeletons() -> None:
         def evaluate(self, plan, context):
             return type("Gate", (), {"status": EvidenceStatus.COMPLETE, "evidence_gaps": []})()
 
-    graph = build_query_graph(GraphServices(evidence_gate=CompleteGate()))
+    graph = build_query_graph(services(evidence_gate=CompleteGate()))
     state = graph.invoke({"question": "mức phạt", "max_repair_attempts": 0})
     assert state["final_response"]["status"] == "SKELETON"
     assert state["verification_result"]["verified"] is False
+
+
+def test_graph_rejects_missing_required_service() -> None:
+    graph = build_query_graph(services(retriever=None))
+    try:
+        graph.invoke({"question": "mức phạt", "max_repair_attempts": 0})
+    except RuntimeError as error:
+        assert "retriever" in str(error)
+    else:
+        raise AssertionError("missing retriever must fail explicitly")
