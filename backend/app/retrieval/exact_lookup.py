@@ -9,6 +9,7 @@ from typing import Any
 from app.persistence.models import LegalProvision
 from app.persistence.repositories.provisions import ProvisionRepository
 from app.retrieval.contracts import CandidateSet, RetrievalResult
+from app.retrieval.filters import normalize_vehicle_type
 
 
 class ExactLookup:
@@ -58,7 +59,14 @@ def _supports_vehicle(row: LegalProvision, vehicle_type: str) -> bool:
     """Apply optional vehicle metadata without making it part of the schema."""
     metadata: Any = row.document_version.manifest_json
     vehicle_types = metadata.get("vehicle_types") if isinstance(metadata, dict) else None
-    return not vehicle_types or vehicle_type in vehicle_types
+    normalized_vehicle_type = normalize_vehicle_type(vehicle_type)
+    return not vehicle_types or (
+        isinstance(vehicle_types, (list, tuple, set))
+        and any(
+            isinstance(value, str) and normalize_vehicle_type(value) == normalized_vehicle_type
+            for value in vehicle_types
+        )
+    )
 
 def _result(row: LegalProvision, rank: int) -> RetrievalResult:
     document = row.document_version.document
