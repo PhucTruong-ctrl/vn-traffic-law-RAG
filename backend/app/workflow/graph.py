@@ -459,7 +459,7 @@ def _targeted(state: QueryState, services: GraphServices) -> QueryState:
             plan,
             service_name="expander",
             method_names=("expand",),
-            repair_attempts=state.get("repair_attempts", 0),
+            repair_attempts=attempts,
             evidence_gaps=gaps,
             existing_variants=expansion_set,
         )

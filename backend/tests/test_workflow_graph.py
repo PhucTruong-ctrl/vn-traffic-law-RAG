@@ -294,7 +294,7 @@ def test_targeted_repair_includes_configured_hyde_variant() -> None:
     assert "điểm" in calls[2][1]
     assert calls[3][:2] == ("dense", "hyde answer")
     assert set(calls[-1][2]) == {"query_filter", "limit"}
-    assert expansion_calls[-1][1]["repair_attempts"] == 0
+    assert expansion_calls[-1][1]["repair_attempts"] == 1
     assert expansion_calls[-1][1]["evidence_gaps"] == [EvidenceType.LICENSE_POINTS]
     assert expansion_calls[-1][1]["existing_variants"]
 
