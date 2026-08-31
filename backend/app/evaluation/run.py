@@ -5,8 +5,8 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from datetime import UTC, datetime
 from collections.abc import Mapping
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -60,7 +60,13 @@ class EvaluationRunWriter:
     def _run_path(run_id: str) -> str:
         return f"{run_id}/results.jsonl"
 
-    def start(self, manifest: EvaluationRunManifest, *, session: Session, storage: ObjectStoragePort) -> str:
+    def start(
+        self,
+        manifest: EvaluationRunManifest,
+        *,
+        session: Session,
+        storage: ObjectStoragePort,
+    ) -> str:
         run_id = manifest.run_id or str(uuid.uuid4())
         if session.scalar(select(EvaluationRun).where(EvaluationRun.run_id == run_id)):
             raise ValueError(f"evaluation run already exists: {run_id}")
