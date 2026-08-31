@@ -72,9 +72,12 @@ class _TemporalRepository:
         self.provision_ids = provision_ids
         self.date = None
 
-    def valid_provisions(self, query_date: date):
+    def valid_provisions(self, query_date: date, *, provision_ids=None):
         self.date = query_date
-        return [SimpleNamespace(provision_id=value) for value in self.provision_ids]
+        return [
+            SimpleNamespace(provision_id=value)
+            for value in (provision_ids or self.provision_ids)
+        ]
 
 
 def test_retrieve_uses_supplied_date_and_keeps_open_interval() -> None:

@@ -52,7 +52,10 @@ class CurrentRetriever:
         )
         allowed_ids: set[str] | None = None
         if self._temporal_repository is not None:
-            rows = self._temporal_repository.valid_provisions(current_date)
+            rows = self._temporal_repository.valid_provisions(
+                current_date,
+                provision_ids={result.provision_id for result in candidates.results},
+            )
             allowed_ids = {row.provision_id for row in rows}
 
         results = [
@@ -64,7 +67,10 @@ class CurrentRetriever:
         ]
         return CandidateSet(
             query=candidates.query,
-            results=[result.model_copy(update={"rank": rank}) for rank, result in enumerate(results, 1)],
+            results=[
+                result.model_copy(update={"rank": rank})
+                for rank, result in enumerate(results, 1)
+            ],
             applied_date=current_date,
         )
 

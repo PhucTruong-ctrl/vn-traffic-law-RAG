@@ -246,7 +246,9 @@ class QueryAnalyzer:
             document or hierarchy or clause or point or vehicle or dates or out_of_scope
         ):
             try:
-                return QueryPlan.model_validate(self.fallback_analyzer(text, current_date))
+                return QueryPlan.model_validate(
+                    self.fallback_analyzer(text, current_date=current_date)
+                )
             except Exception:
                 return _safe_fallback_plan(text)
         plan = QueryPlan(
