@@ -67,6 +67,10 @@ from app.retrieval.sparse import SparseEncoder
 
 logger = logging.getLogger(__name__)
 
+# Keep this mapping aligned with qdrant_store: serving temporal filters use
+# models.DatetimeRange, while every other indexed payload field is categorical.
+_DATETIME_PAYLOAD_FIELDS = frozenset({"effective_from", "effective_to"})
+
 __all__ = [
     "ACCEPTED_REVIEW_STATUS",
     "CONTENT_HASH_PAYLOAD_KEY",
@@ -301,7 +305,7 @@ def _document_metadata(
     )
     out: dict[uuid.UUID, dict[str, Any]] = {}
     for version, document in session.execute(stmt):
-        out[version.id] = {
+        metadata: dict[str, Any] = {
             "document_id": document.document_id,
             "document_number": document.document_number,
             "document_type": document.document_type,
@@ -309,6 +313,10 @@ def _document_metadata(
             "document_status": document.status,
             "document_version": version.version,
         }
+        manifest = version.manifest_json
+        if isinstance(manifest, dict) and "vehicle_types" in manifest:
+            metadata["vehicle_types"] = manifest["vehicle_types"]
+        out[version.id] = metadata
     return out
 
 
@@ -685,10 +693,15 @@ def _ensure_named_collection(client: QdrantClient, collection_name: str) -> None
     existing = set(client.get_collection(collection_name).payload_schema or {})
     for field in PAYLOAD_INDEX_FIELDS:
         if field not in existing:
+            schema = (
+                models.PayloadSchemaType.DATETIME
+                if field in _DATETIME_PAYLOAD_FIELDS
+                else models.PayloadSchemaType.KEYWORD
+            )
             client.create_payload_index(
                 collection_name=collection_name,
                 field_name=field,
-                field_schema=models.PayloadSchemaType.KEYWORD,
+                field_schema=schema,
             )
 
 
