@@ -68,9 +68,12 @@ DENSE_VECTOR_DISTANCE = models.Distance.COSINE
 #: Named sparse vector (Qdrant BM25 tokenizer, IDF modifier).
 SPARSE_VECTOR_NAME = "sparse"
 
-#: Payload fields indexed as Qdrant keywords (doc 03 §3.11.4). Temporal
-#: range semantics on ``effective_from``/``effective_to`` follow doc 03
-#: §3.11.5: keyword match or backend post-filtering — values are ISO dates.
+#: Payload fields indexed in Qdrant. Temporal fields use the DATETIME schema
+#: because serving filters use ``models.DatetimeRange``.
+#
+#: Values remain ISO dates in the payload; Qdrant's datetime index parses them
+#: for range filtering.
+
 PAYLOAD_INDEX_FIELDS: tuple[str, ...] = (
     "provision_id",
     "document_id",
@@ -286,14 +289,19 @@ def _create_collection_if_missing(client: QdrantClient, collection_name: str) ->
 
 
 def _ensure_payload_indexes(client: QdrantClient, collection_name: str) -> None:
-    """Idempotently create the keyword payload indexes missing on the collection."""
+    """Idempotently create missing keyword and datetime payload indexes."""
     existing = set(client.get_collection(collection_name).payload_schema or {})
     for field in PAYLOAD_INDEX_FIELDS:
         if field not in existing:
+            schema = (
+                models.PayloadSchemaType.DATETIME
+                if field in {"effective_from", "effective_to"}
+                else models.PayloadSchemaType.KEYWORD
+            )
             client.create_payload_index(
                 collection_name=collection_name,
                 field_name=field,
-                field_schema=models.PayloadSchemaType.KEYWORD,
+                field_schema=schema,
             )
 
 
