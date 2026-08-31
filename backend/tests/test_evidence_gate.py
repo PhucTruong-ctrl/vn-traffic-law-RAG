@@ -74,6 +74,20 @@ def test_each_evidence_type_is_detected(evidence: EvidenceType, text: str) -> No
     assert result.covered_provisions == ["p1"]
 
 
+def test_condition_query_detects_duoc_phep_wording() -> None:
+    result = EvidenceCompletenessGate().evaluate(
+        _plan(EvidenceType.LEGAL_CONDITION),
+        [
+            _result(
+                "p1",
+                "Người được phép lưu thông trên đường bộ phải có giấy phép hợp lệ.",
+            )
+        ],
+    )
+    assert result.status is EvidenceStatus.COMPLETE
+    assert result.evidence_gaps == []
+
+
 def test_fine_and_points_stays_incomplete_when_points_are_missing() -> None:
     plan = _plan(
         EvidenceType.VIOLATION_DEFINITION,

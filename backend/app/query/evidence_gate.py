@@ -63,7 +63,10 @@ def _covered_types(candidate: RetrievalResult) -> set[EvidenceType]:
         covered.add(EvidenceType.EXCEPTION)
     if re.search(r"nộp phạt|trình tự|thủ tục|hồ sơ|cách xử lý", text):
         covered.add(EvidenceType.PROCEDURE)
-    if re.search(r"điều kiện|áp dụng khi|trong trường hợp|khi đáp ứng", text):
+    if re.search(
+        r"điều kiện|áp dụng khi|trong trường hợp|khi đáp ứng|được phép",
+        text,
+    ):
         covered.add(EvidenceType.LEGAL_CONDITION)
     return covered
 
