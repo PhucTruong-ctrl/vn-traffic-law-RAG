@@ -218,6 +218,15 @@ class RetrievalSettings(BaseSettings):
             "TEMPORAL_FILTER", "TEMPORAL_FILTER_ENABLED", "RETRIEVAL_TEMPORAL_FILTER"
         )
     )
+    reranker_model: str = Field(
+        default="jina-reranker-v3",
+        validation_alias=AliasChoices("RERANKER_MODEL", "RETRIEVAL_RERANKER_MODEL"),
+    )
+    reranker_buffer: int = Field(
+        default=4,
+        ge=0,
+        validation_alias=AliasChoices("RERANKER_BUFFER", "RETRIEVAL_RERANKER_BUFFER"),
+    )
 
 
 #: Canonical object-storage buckets (doc 03 §3.12.1, FR-08). Kept in sync with
