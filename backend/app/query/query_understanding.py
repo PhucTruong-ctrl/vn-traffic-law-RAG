@@ -7,7 +7,7 @@ from collections.abc import Callable, Iterable
 from datetime import date
 from typing import Any, Protocol, TypeAlias, cast
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, PrivateAttr
 
 from app.ingestion.terminology import TERMINOLOGY, TERMINOLOGY_VERSION, canonical_term
 
@@ -65,9 +65,14 @@ class QueryPlan(BaseModel):
     point: str | None
     legal_entities: list[str]
     normalized_query: str
-    # Kept separately so retrieval expansion never loses the user's wording.
-    original_query: str | None = None
     required_evidence: list[EvidenceType]
+    _original_query: str | None = PrivateAttr(default=None)
+
+    @property
+    def original_query(self) -> str | None:
+        return self._original_query or self.__dict__.get("original_query") or (
+            self.model_extra or {}
+        ).get("original_query")
     missing_query_information: list[str]
 
 
@@ -317,9 +322,9 @@ class QueryAnalyzer:
                 fallback = getattr(self.fallback_analyzer, "analyze", self.fallback_analyzer)
                 if not callable(fallback):
                     raise TypeError("fallback analyzer must be callable or expose analyze")
-                return QueryPlan.model_validate(
-                    fallback(text, current_date=current_date)
-                )
+                plan = QueryPlan.model_validate(fallback(text, current_date=current_date))
+                plan._original_query = text
+                return plan
             except Exception:
                 return _safe_fallback_plan(text)
         plan = QueryPlan(
@@ -334,10 +339,10 @@ class QueryAnalyzer:
             point=point.group(1) if point else None,
             legal_entities=entities,
             normalized_query=_normalize(text),
-            original_query=text,
             required_evidence=required_evidence_for(intent, text, entities),
             missing_query_information=missing,
         )
+        plan._original_query = text
         if (
             date_result.reason_code == MISSING_QUERY_DATE
             and "query_date" not in plan.missing_query_information
