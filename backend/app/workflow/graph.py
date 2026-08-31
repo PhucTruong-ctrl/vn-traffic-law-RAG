@@ -98,8 +98,47 @@ def _question(state: QueryState) -> str:
     return state.get("question") or state.get("input_question", "")
 
 
+def _plan_date(state: QueryState) -> date | None:
+    """Select the date resolved by temporal analysis, never an arbitrary today."""
+    temporal = state.get("temporal_context")
+    if isinstance(temporal, date):
+        return temporal
+    if isinstance(temporal, dict):
+        for key in ("applied_date", "query_date", "effective_date"):
+            if isinstance(value := temporal.get(key), date):
+                return value
+    plan = state.get("query_understanding")
+    intent = getattr(plan, "intent", None)
+    if str(intent) in {"HISTORICAL", "SOURCE_SEARCH"}:
+        return getattr(plan, "effective_date", None)
+    if str(intent) == "COMPARISON":
+        return getattr(plan, "comparison_to", None)
+    return getattr(plan, "effective_date", None) or state.get("query_date") or state.get(
+        "input_date"
+    )
+
+
 def _today(state: QueryState) -> date:
     return state.get("query_date") or state.get("input_date") or date.today()
+
+
+def _exact_reference(plan: Any) -> dict[str, str | None] | None:
+    if plan is None:
+        return None
+    fields = ("document_number", "article", "clause", "point")
+    reference = {field: getattr(plan, field, None) for field in fields}
+    return reference if any(reference.values()) else None
+
+
+def _safe_route(state: QueryState) -> str:
+    plan = state.get("query_understanding")
+    if plan is None or str(getattr(plan, "intent", "")) == "OUT_OF_SCOPE":
+        return "abstain"
+    if _plan_date(state) is None:
+        return "abstain"
+    if "query_date" in getattr(plan, "missing_query_information", []):
+        return "abstain"
+    return "expand_query"
 
 
 def _analyze(state: QueryState, services: GraphServices) -> QueryState:
@@ -140,13 +179,17 @@ def _expand_query(state: QueryState, services: GraphServices) -> QueryState:
 def _retrieve(state: QueryState, services: GraphServices) -> QueryState:
     plan = state.get("query_understanding")
     query = getattr(plan, "normalized_query", None) or _question(state)
+    query_date = _plan_date(state)
+    if query_date is None:
+        return {"recall_candidates": []}
     value = _call(
         services.retriever,
         query,
         service_name="retriever",
         method_names=("retrieve",),
-        query_date=_today(state),
-        vehicle_type=state.get("vehicle_type"),
+        query_date=query_date,
+        vehicle_type=getattr(plan, "vehicle_type", None) or state.get("vehicle_type"),
+        exact_reference=_exact_reference(plan),
     )
     return {"recall_candidates": value}
 
@@ -206,21 +249,31 @@ def _evidence_route(state: QueryState) -> str:
     if state.get("repair_attempts", 0) >= state.get("max_repair_attempts", 1):
         return "abstain"
     return "targeted_retrieval"
-
-
 def _targeted(state: QueryState, services: GraphServices) -> QueryState:
     attempts = state.get("repair_attempts", 0) + 1
     plan = state.get("query_understanding")
     gaps = state.get("evidence_gaps", [])
     queries = [targeted_query_for_gap(gap, plan) for gap in gaps if plan is not None]
-    targeted_candidates = _call(
-        services.retriever,
-        queries[0] if queries else _question(state),
-        service_name="retriever",
-        method_names=("retrieve",),
-        query_date=_today(state),
-        vehicle_type=state.get("vehicle_type"),
-    )
+    if not queries:
+        queries = [_question(state)]
+    query_date = _plan_date(state)
+    if query_date is None or str(getattr(plan, "intent", "")) == "OUT_OF_SCOPE":
+        return {
+            "repair_attempts": attempts,
+            "recall_candidates": state.get("recall_candidates", []),
+        }
+    targeted_candidates: Any = []
+    for query in queries:
+        result = _call(
+            services.retriever,
+            query,
+            service_name="retriever",
+            method_names=("retrieve",),
+            query_date=query_date,
+            vehicle_type=getattr(plan, "vehicle_type", None) or state.get("vehicle_type"),
+            exact_reference=_exact_reference(plan),
+        )
+        targeted_candidates = _merge_results(targeted_candidates, result)
     return {
         "repair_attempts": attempts,
         "recall_candidates": _merge_results(
@@ -290,7 +343,9 @@ def build_query_graph(services: GraphServices | None = None) -> CompiledStateGra
         "check_evidence",
     ]
     graph.add_edge(START, order[0])
-    for index in range(len(order) - 1):
+    graph.add_edge(order[0], order[1])
+    graph.add_conditional_edges("resolve_temporal", _safe_route)
+    for index in range(2, len(order) - 1):
         graph.add_edge(order[index], order[index + 1])
     graph.add_conditional_edges("check_evidence", _evidence_route)
     graph.add_edge("targeted_retrieval", "fuse")

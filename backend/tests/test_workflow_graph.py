@@ -1,3 +1,4 @@
+from datetime import date
 from types import SimpleNamespace
 
 from app.query.evidence_gate import EvidenceStatus
@@ -124,3 +125,108 @@ def test_targeted_repair_merges_initial_and_missing_points_provisions() -> None:
 
     assert state["repair_attempts"] == 1
     assert state["context_package"] == ["fine", "points"]
+
+
+def test_retrieve_passes_query_plan_exact_reference() -> None:
+    calls = []
+    plan = SimpleNamespace(
+        normalized_query="Điều 7",
+        document_number="168/2024/NĐ-CP",
+        article="7",
+        clause="1",
+        point="đ",
+        vehicle_type="xe máy",
+        intent="SOURCE_SEARCH",
+        effective_date=date(2024, 1, 1),
+        missing_query_information=[],
+    )
+
+    def retrieve(query, **kwargs):
+        calls.append((query, kwargs))
+        return []
+
+    graph = build_query_graph(
+        services(
+            analyzer=lambda question, **_: plan,
+            temporal=lambda plan, **_: date(2024, 1, 1),
+            retriever=retrieve,
+            evidence_gate=type(
+                "CompleteGate",
+                (),
+                {"evaluate": lambda self, plan, context: type(
+                    "Gate", (), {"status": EvidenceStatus.COMPLETE, "evidence_gaps": []}
+                )()},
+            )(),
+        )
+    )
+    graph.invoke({"question": "Điều 7", "max_repair_attempts": 0})
+    assert calls[0][1]["exact_reference"] == {
+        "document_number": "168/2024/NĐ-CP",
+        "article": "7",
+        "clause": "1",
+        "point": "đ",
+    }
+
+
+def test_targeted_repair_retrieves_and_merges_every_gap() -> None:
+    calls = []
+
+    class Gate:
+        count = 0
+
+        def evaluate(self, plan, context):
+            self.count += 1
+            if self.count == 1:
+                return type(
+                    "Result",
+                    (),
+                    {
+                        "status": EvidenceStatus.INCOMPLETE,
+                        "evidence_gaps": [
+                            EvidenceType.MONETARY_PENALTY,
+                            EvidenceType.LICENSE_POINTS,
+                        ],
+                    },
+                )()
+            assert context == ["initial", "penalty", "points"]
+            return type(
+                "Result", (), {"status": EvidenceStatus.COMPLETE, "evidence_gaps": []}
+            )()
+
+    responses = iter((["initial"], ["penalty"], ["points"]))
+
+    def retrieve(query, **kwargs):
+        calls.append(query)
+        return next(responses)
+
+    graph = build_query_graph(
+        services(
+            analyzer=lambda question, **_: SimpleNamespace(
+                normalized_query=question,
+                intent="CURRENT",
+                effective_date=date(2026, 1, 1),
+                missing_query_information=[],
+            ),
+            retriever=retrieve,
+            context_expander=lambda candidates, **_: [],
+            evidence_gate=Gate(),
+        )
+    )
+    state = graph.invoke({"question": "initial", "max_repair_attempts": 1})
+    assert state["repair_attempts"] == 1
+    assert len(calls) == 3
+
+
+def test_out_of_scope_plan_abstains_before_retrieval() -> None:
+    calls = []
+    graph = build_query_graph(
+        services(
+            analyzer=lambda question, **_: SimpleNamespace(
+                intent="OUT_OF_SCOPE", missing_query_information=[]
+            ),
+            retriever=lambda query, **_: calls.append(query),
+        )
+    )
+    state = graph.invoke({"question": "tax advice", "max_repair_attempts": 0})
+    assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
+    assert calls == []
