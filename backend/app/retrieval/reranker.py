@@ -58,6 +58,7 @@ class Reranker:
         self,
         query: str,
         candidates: Sequence[RetrievalResult],
+        *,
         top_n: int | None = None,
     ) -> list[RetrievalResult]:
         """Return provider-ranked candidates, or the original order on failure."""

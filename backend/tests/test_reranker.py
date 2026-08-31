@@ -1,6 +1,8 @@
 from datetime import date
 from types import SimpleNamespace
 
+import pytest
+
 from app.retrieval.contracts import RetrievalResult
 from app.retrieval.reranker import Reranker
 
@@ -104,3 +106,10 @@ def test_cached_scores_follow_provision_when_candidate_order_changes() -> None:
     assert client.calls == 1
     assert [result.provision_id for result in results] == ["p2", "p1"]
     assert [result.fused_score for result in results] == [0.9, 0.2]
+
+
+def test_top_n_must_be_keyword_only() -> None:
+    reranker = Reranker(object())
+
+    with pytest.raises(TypeError):
+        reranker.rerank("query", [candidate("p1", 1)], 1)
