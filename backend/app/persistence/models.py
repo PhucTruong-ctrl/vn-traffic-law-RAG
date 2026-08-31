@@ -757,7 +757,13 @@ class EvaluationRun(Base):
     """Một lần chạy evaluation (doc 03 §3.9.13)."""
 
     __tablename__ = "evaluation_runs"
-    __table_args__ = (UniqueConstraint("run_id", name="evaluation_runs_run_id_key"),)
+    __table_args__ = (
+        UniqueConstraint("run_id", name="evaluation_runs_run_id_key"),
+        CheckConstraint(
+            "status IN ('RUNNING', 'COMPLETED', 'FAILED')",
+            name="evaluation_runs_status_check",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     run_id: Mapped[str] = mapped_column(String, nullable=False)
@@ -775,6 +781,9 @@ class EvaluationRun(Base):
     parser_versions: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     status: Mapped[str] = mapped_column(
         String, nullable=False, default="RUNNING", server_default=text("'RUNNING'")
+    )
+    metric_availability: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
     )
     metrics: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     raw_results_path: Mapped[str] = mapped_column(Text, nullable=False)
