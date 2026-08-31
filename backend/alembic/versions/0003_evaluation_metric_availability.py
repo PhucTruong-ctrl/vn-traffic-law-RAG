@@ -2,9 +2,9 @@
 
 from collections.abc import Sequence
 
-from sqlalchemy.dialects.postgresql import JSONB
-
 from alembic import op
+from sqlalchemy import Column
+from sqlalchemy.dialects.postgresql import JSONB
 
 revision: str = "0003"
 down_revision: str | None = "0002"
@@ -13,7 +13,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column("evaluation_runs", op.Column("metric_availability", JSONB, nullable=True))
+    op.add_column("evaluation_runs", Column("metric_availability", JSONB, nullable=True))
     op.execute("UPDATE evaluation_runs SET metric_availability = '{}'::jsonb")
     op.alter_column("evaluation_runs", "metric_availability", nullable=False)
     op.create_check_constraint(
