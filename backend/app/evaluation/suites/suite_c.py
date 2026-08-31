@@ -202,6 +202,7 @@ def run_suite_c(
                 writer.append_result(
                     run_id,
                     {
+                    "question_id": _record_id(record, index),
                         "input": {
                             "question": record.question
                             if isinstance(record, GoldRecord)
