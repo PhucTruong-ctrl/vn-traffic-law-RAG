@@ -72,29 +72,42 @@ class HybridRetriever:
             if self._settings.temporal_filter_enabled
             else None
         )
-        prefetch: list[models.Prefetch] = [
-            models.Prefetch(
-                query=dense_vector,
-                using=DENSE_VECTOR_NAME,
-                limit=self._settings.dense_prefetch,
-                filter=query_filter,
-            )
-        ]
+        channel_sources = ["dense"]
+        query_kwargs: dict[str, Any] = {}
         if sparse_weights:
-            prefetch.append(
+            channel_sources.append("sparse")
+            prefetch: list[models.Prefetch] = [
+                models.Prefetch(
+                    query=dense_vector,
+                    using=DENSE_VECTOR_NAME,
+                    limit=self._settings.dense_prefetch,
+                    filter=query_filter,
+                ),
                 models.Prefetch(
                     query=models.SparseVector(**sparse_vector_dict(sparse_weights)),
                     using=SPARSE_VECTOR_NAME,
                     limit=self._settings.sparse_prefetch,
                     filter=query_filter,
-                )
+                ),
+            ]
+            query_kwargs.update(
+                prefetch=prefetch,
+                query=_rrf_query(self._settings),
+            )
+        else:
+            # RRF requires one fusion input per configured channel.  An empty
+            # sparse encoding is a valid dense-only request, not an invalid
+            # one-channel weighted fusion query.
+            query_kwargs.update(
+                query=dense_vector,
+                using=DENSE_VECTOR_NAME,
+                query_filter=query_filter,
             )
         response = self._client.query_points(
             collection_name=self._collection,
-            prefetch=prefetch,
-            query=_rrf_query(self._settings),
             limit=self._settings.fusion_limit,
             with_payload=True,
+            **query_kwargs,
         )
         points = getattr(response, "points", response)
         derived_provision_ids = {
@@ -109,7 +122,7 @@ class HybridRetriever:
                 rank=rank,
                 score=getattr(point, "score", None),
                 source="hybrid",
-            ).model_copy(update={"retrieval_sources": ["dense", "sparse"]})
+            ).model_copy(update={"retrieval_sources": channel_sources})
             for rank, point in enumerate(points, start=1)
         ]
         exact = self._exact_candidates(

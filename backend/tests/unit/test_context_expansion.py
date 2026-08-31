@@ -132,3 +132,14 @@ def test_missing_temporal_dependency_fails_explicitly() -> None:
         assert "valid_provisions" in str(error)
     else:
         raise AssertionError("missing temporal method must fail explicitly")
+
+
+def test_stale_seed_is_excluded_before_relation_lookup() -> None:
+    class StrictRelations:
+        def related_provisions(self, _date, seeds, *, relation_types=None):
+            assert all(hasattr(seed, "document_version") for seed in seeds)
+            return []
+
+    expander = LegalContextExpander(StrictRelations(), Temporal([row("live")]))
+
+    assert expander.expand([result("stale-index-id", 1)], query_date=D) == []

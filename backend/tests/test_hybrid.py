@@ -110,3 +110,32 @@ def test_retrieve_uses_prefetch_rrf_and_retains_exact() -> None:
     assert exact.kwargs is not None
     assert exact.kwargs["derived_provision_ids"] == {"p-1"}
 
+
+def test_retrieve_uses_valid_dense_request_when_sparse_encoding_is_empty() -> None:
+    class Client:
+        def __init__(self) -> None:
+            self.kwargs = None
+
+        def query_points(self, **kwargs: object) -> object:
+            self.kwargs = kwargs
+            return SimpleNamespace(points=[Point(_PAYLOAD, 0.5)])
+
+    class Embedder:
+        def embed(self, texts: list[str]) -> list[list[float]]:
+            return [[0.1, 0.2]]
+
+    class EmptyEncoder:
+        def encode(self, text: str) -> dict[int, float]:
+            return {}
+
+    client = Client()
+    result = HybridRetriever(client, Embedder(), EmptyEncoder()).retrieve(
+        "phạt", query_date=date(2025, 1, 1)
+    )
+
+    assert result.results[0].retrieval_sources == ["dense"]
+    assert client.kwargs is not None
+    assert "prefetch" not in client.kwargs
+    assert client.kwargs["query"] == [0.1, 0.2]
+    assert client.kwargs["using"] == "dense"
+

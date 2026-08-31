@@ -48,7 +48,11 @@ class LegalContextExpander:
         # RelationRepository requires LegalProvision rows pinned to exact versions.
         seed_rows = self._valid_rows(query_date, [seed.provision_id for seed in frontier])
         rows_by_id = {row.provision_id: row for row in seed_rows}
-        current: list[Any] = [rows_by_id.get(seed.provision_id, seed) for seed in frontier]
+        current = [
+            rows_by_id[seed.provision_id]
+            for seed in frontier
+            if seed.provision_id in rows_by_id
+        ]
         seen = {seed.provision_id for seed in seeds}
         added: list[RetrievalResult] = []
 
