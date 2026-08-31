@@ -229,6 +229,67 @@ def test_targeted_repair_retrieves_and_merges_every_gap() -> None:
     state = graph.invoke({"question": "initial", "max_repair_attempts": 1})
     assert state["repair_attempts"] == 1
     assert len(calls) == 3
+def test_targeted_repair_includes_configured_hyde_variant() -> None:
+    calls = []
+
+    class Gate:
+        count = 0
+
+        def evaluate(self, plan, context):
+            self.count += 1
+            if self.count == 1:
+                return type(
+                    "Result",
+                    (),
+                    {
+                        "status": EvidenceStatus.INCOMPLETE,
+                        "evidence_gaps": [EvidenceType.LICENSE_POINTS],
+                    },
+                )()
+            assert context == ["initial", "hyde answer", "points", "hyde answer"]
+            return type(
+                "Result", (), {"status": EvidenceStatus.COMPLETE, "evidence_gaps": []}
+            )()
+
+    def retrieve(query, **kwargs):
+        calls.append(("sparse", query, kwargs))
+        return ["initial"] if query == "initial" else ["points"]
+
+    def dense(query, **kwargs):
+        calls.append(("dense", query, kwargs))
+        return ["hyde answer"]
+
+    graph = build_query_graph(
+        services(
+            analyzer=lambda question, **_: SimpleNamespace(
+                normalized_query=question,
+                intent="CURRENT",
+                effective_date=date(2026, 1, 1),
+                missing_query_information=[],
+            ),
+            expander=lambda plan, **_: [
+                SimpleNamespace(text="initial", source="original"),
+                SimpleNamespace(text="hyde answer", source="hyde"),
+            ],
+            retriever=retrieve,
+            dense_retriever=dense,
+            context_expander=lambda candidates, **_: [],
+            evidence_gate=Gate(),
+        )
+    )
+
+    state = graph.invoke({"question": "initial", "max_repair_attempts": 1})
+
+    assert state["repair_attempts"] == 1
+    assert [call[:2] for call in calls[:2]] == [
+        ("sparse", "initial"),
+        ("dense", "hyde answer"),
+    ]
+    assert calls[2][0] == "sparse"
+    assert "điểm" in calls[2][1]
+    assert calls[3][:2] == ("dense", "hyde answer")
+    assert set(calls[-1][2]) == {"query_filter", "limit"}
+
 
 
 def test_out_of_scope_plan_abstains_before_retrieval() -> None:
@@ -307,7 +368,7 @@ def test_hyde_variant_uses_dense_path_without_exact_or_sparse_retrieval() -> Non
         return [query]
 
     def dense_retrieval(query, **kwargs):
-        calls.append(("dense", query, kwargs["query_date"]))
+        calls.append(("dense", query, kwargs))
         return [query]
 
     graph = build_query_graph(
@@ -324,10 +385,10 @@ def test_hyde_variant_uses_dense_path_without_exact_or_sparse_retrieval() -> Non
     )
 
     graph.invoke({"question": "question", "max_repair_attempts": 0})
-    assert calls == [
-        ("general", "original"),
-        ("dense", "synthetic answer", date(2025, 1, 1)),
-    ]
+    assert calls[0] == ("general", "original")
+    assert calls[1][0:2] == ("dense", "synthetic answer")
+    assert set(calls[1][2]) == {"query_filter", "limit"}
+    assert calls[1][2]["limit"] > 0
 
 def test_comparison_retrieval_keeps_independent_before_and_after() -> None:
     calls = []

@@ -14,12 +14,12 @@ from typing import Any
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
-from app.config import get_settings
+from app.config import get_retrieval_settings, get_settings
 from app.query.evidence_gate import EvidenceCompletenessGate, EvidenceStatus, targeted_query_for_gap
 from app.query.query_understanding import QueryAnalyzer
 from app.retrieval.comparison import ComparisonResult
 from app.retrieval.contracts import CandidateSet, RetrievalResult
-from app.retrieval.filters import deduplicate_results
+from app.retrieval.filters import build_temporal_filter, deduplicate_results
 
 from .state import QueryState
 
@@ -245,14 +245,15 @@ def _retrieve_one(
     query_date: date,
 ) -> Any:
     plan = state.get("query_understanding")
+    vehicle_type = getattr(plan, "vehicle_type", None) or state.get("vehicle_type")
     if source == "hyde":
         return _call(
             services.dense_retriever,
             query,
             service_name="dense_retriever",
             method_names=("retrieve", "search"),
-            query_date=query_date,
-            vehicle_type=getattr(plan, "vehicle_type", None) or state.get("vehicle_type"),
+            query_filter=build_temporal_filter(query_date, vehicle_type=vehicle_type),
+            limit=get_retrieval_settings().dense_prefetch,
         )
     return _call(
         services.retriever,
@@ -260,7 +261,7 @@ def _retrieve_one(
         service_name="retriever",
         method_names=("retrieve",),
         query_date=query_date,
-        vehicle_type=getattr(plan, "vehicle_type", None) or state.get("vehicle_type"),
+        vehicle_type=vehicle_type,
         exact_reference=_exact_reference(plan),
     )
 
@@ -451,24 +452,23 @@ def _targeted(state: QueryState, services: GraphServices) -> QueryState:
     queries = [targeted_query_for_gap(gap, plan) for gap in gaps if plan is not None]
     if not queries:
         queries = [_question(state)]
+    hyde_queries = [
+        (_variant_text(variant), "hyde")
+        for variant in (state.get("expansion_set") or [])
+        if getattr(variant, "source", None) == "hyde"
+    ]
+    repair_queries = [(query, "original") for query in queries] + hyde_queries
     comparison = _comparison_sides(state.get("recall_candidates"))
     dates = _comparison_dates(state)
     if comparison is not None and dates is not None:
         updated = []
         for existing, repair_date in zip(comparison, dates, strict=True):
             targeted: Any = []
-            for query in queries:
+            for query, source in repair_queries:
                 targeted = _merge_results(
                     targeted,
-                    _call(
-                        services.retriever,
-                        query,
-                        service_name="retriever",
-                        method_names=("retrieve",),
-                        query_date=repair_date,
-                        vehicle_type=getattr(plan, "vehicle_type", None)
-                        or state.get("vehicle_type"),
-                        exact_reference=_exact_reference(plan),
+                    _retrieve_one(
+                        state, services, query, source=source, query_date=repair_date
                     ),
                 )
             updated.append(_merge_results(existing, targeted))
@@ -481,19 +481,10 @@ def _targeted(state: QueryState, services: GraphServices) -> QueryState:
             "recall_candidates": state.get("recall_candidates", []),
         }
     targeted_candidates: Any = []
-    for query in queries:
+    for query, source in repair_queries:
         targeted_candidates = _merge_results(
             targeted_candidates,
-            _call(
-                services.retriever,
-                query,
-                service_name="retriever",
-                method_names=("retrieve",),
-                query_date=serving_date,
-                vehicle_type=getattr(plan, "vehicle_type", None)
-                or state.get("vehicle_type"),
-                exact_reference=_exact_reference(plan),
-            ),
+            _retrieve_one(state, services, query, source=source, query_date=serving_date),
         )
     return {
         "repair_attempts": attempts,
