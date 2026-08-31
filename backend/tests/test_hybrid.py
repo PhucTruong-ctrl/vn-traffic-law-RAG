@@ -1,0 +1,104 @@
+import pytest
+from dataclasses import dataclass
+from datetime import date
+from types import SimpleNamespace
+
+from app.config import RetrievalSettings
+from app.retrieval.contracts import CandidateSet, RetrievalResult
+from app.retrieval.hybrid import HybridRetriever, reciprocal_rank_fusion
+
+
+_PAYLOAD = {
+    "provision_id": "p-1",
+    "provision_version": 1,
+    "document_id": "doc-1",
+    "document_version_id": "version-1",
+    "document_number": "168/2024/NĐ-CP",
+    "article": "7",
+    "clause": None,
+    "point": "đ",
+    "text": "Nội dung",
+    "source_text": "Gốc",
+    "parent_context": None,
+    "effective_from": "2025-01-01",
+    "effective_to": None,
+    "page_number": 1,
+    "review_status": "ACCEPTED",
+}
+
+
+@dataclass
+class Point:
+    payload: dict[str, object]
+    score: float
+
+
+def test_rrf_is_weighted_and_deterministic() -> None:
+    fused = reciprocal_rank_fusion([["a", "b"], ["b", "c"]], k=1, weights=[2.0, 1.0])
+    assert fused[0][0] == "b"
+    assert fused[0][1] == pytest.approx(7 / 6)
+    assert fused[1:] == [("a", 1.0), ("c", 1 / 3)]
+
+
+def test_retrieve_uses_prefetch_rrf_and_retains_exact() -> None:
+    class Client:
+        def __init__(self) -> None:
+            self.kwargs = None
+
+        def query_points(self, **kwargs: object) -> object:
+            self.kwargs = kwargs
+            return SimpleNamespace(points=[Point(_PAYLOAD, 0.5)])
+
+    class Embedder:
+        def embed(self, texts: list[str]) -> list[list[float]]:
+            return [[0.1, 0.2]]
+
+    class Encoder:
+        def encode(self, text: str) -> dict[int, float]:
+            return {1: 1.0}
+
+    exact_result = RetrievalResult(
+        rank=1,
+        provision_id="exact",
+        provision_version=1,
+        document_id="doc-1",
+        document_version_id="version-1",
+        text="exact",
+        source_text="exact",
+        parent_context=None,
+        document_number="168/2024/NĐ-CP",
+        article="7",
+        clause=None,
+        point="đ",
+        effective_from=date(2025, 1, 1),
+        effective_to=None,
+        page_number=1,
+        retrieval_sources=["exact"],
+        fused_score=None,
+        added_by=None,
+        source_id=None,
+        depth=0,
+    )
+
+    class Exact:
+        def lookup(self, **kwargs: object) -> CandidateSet:
+            return CandidateSet(query="ref", results=[exact_result], applied_date=date(2025, 1, 1))
+
+    client = Client()
+    result = HybridRetriever(
+        client,
+        Embedder(),
+        Encoder(),
+        Exact(),
+        settings=RetrievalSettings(final_top_k=1),
+    ).retrieve(
+        "phạt",
+        query_date=date(2025, 1, 1),
+        exact_reference={"document_number": "168/2024/NĐ-CP", "article": "7", "point": "đ"},
+    )
+    assert [item.provision_id for item in result.results] == ["exact", "p-1"]
+    assert result.results[1].retrieval_sources == ["dense", "sparse"]
+    assert client.kwargs["query"].fusion.value == "rrf"
+    assert len(client.kwargs["prefetch"]) == 2
+    assert client.kwargs["prefetch"][0].limit == 30
+    assert client.kwargs["limit"] == 20
