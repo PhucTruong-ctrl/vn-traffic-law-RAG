@@ -59,9 +59,7 @@ def normalize_actor(job_id: str) -> None:
                 f"no parsed document persisted for run {job_id!r}; parse must run first"
             )
         ir = rebuild_ir(parsed_row, elements)
-        result = normalize_metadata(
-            extract_document_metadata(ir), dict(run.manifest_json or {})
-        )
+        result = normalize_metadata(extract_document_metadata(ir), dict(run.manifest_json or {}))
         normalized = result.metadata
 
         document = DocumentRepository(session).get_document(run.document_id)

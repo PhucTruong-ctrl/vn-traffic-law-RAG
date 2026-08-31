@@ -16,6 +16,7 @@ export default {
       issuePrefixes: ["#"],
     },
   },
+  ignores: [(message) => message.startsWith("merge:")],
   rules: {
     "body-leading-blank": [1, "always"],
     "body-max-line-length": [2, "always", 100],

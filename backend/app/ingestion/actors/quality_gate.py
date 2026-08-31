@@ -84,9 +84,7 @@ def quality_gate_actor(job_id: str) -> None:
 
         version = latest_document_version(session, run.document_id)
         if version is None:
-            raise JobStateError(
-                f"no document version for run {job_id!r}; extract must run first"
-            )
+            raise JobStateError(f"no document version for run {job_id!r}; extract must run first")
         rows = list_provisions(session, version.id)
         if not rows:
             raise JobStateError(f"no provisions extracted for run {job_id!r}")

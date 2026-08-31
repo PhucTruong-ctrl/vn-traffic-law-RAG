@@ -506,7 +506,7 @@ class LegalEffectEvent(Base):
     id: Mapped[uuid.UUID] = _uuid_pk()
     document_id: Mapped[str] = mapped_column(String, nullable=False)
     event_type: Mapped[str] = mapped_column(String, nullable=False)
-    event_date: Mapped[date] = mapped_column(Date, nullable=False)
+    event_date: Mapped[date | None] = mapped_column(Date)
     source_document_id: Mapped[str | None] = mapped_column(String)
     description: Mapped[str | None] = mapped_column(Text)
     source_reference: Mapped[str | None] = mapped_column(Text)

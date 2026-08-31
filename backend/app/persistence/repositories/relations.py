@@ -241,5 +241,65 @@ class RelationRepository:
         )
         if relation_types is not None:
             stmt = stmt.where(DocumentRelation.relation_type.in_(list(relation_types)))
-        stmt = stmt.order_by(DocumentRelation.relation_type, DocumentRelation.target_document_id)
+        stmt = stmt.order_by(
+            DocumentRelation.relation_type,
+            DocumentRelation.target_document_id,
+        )
         return list(self._session.scalars(stmt))
+
+    def upsert_provision_reference(
+        self,
+        reference: ProvisionReference,
+    ) -> ProvisionReference:
+        existing = self._session.scalar(
+            select(ProvisionReference).where(
+                ProvisionReference.source_legal_provision_id == reference.source_legal_provision_id,
+                ProvisionReference.target_legal_provision_id == reference.target_legal_provision_id,
+                ProvisionReference.relation_type == reference.relation_type,
+            )
+        )
+        if existing is None:
+            self._session.add(reference)
+            self._session.flush()
+            return reference
+        for field in (
+            "source_provision_id",
+            "source_provision_version_id",
+            "target_provision_id",
+            "target_provision_version_id",
+            "confidence",
+            "extraction_method",
+            "source_text",
+            "resolution_status",
+            "review_status",
+        ):
+            setattr(existing, field, getattr(reference, field))
+        self._session.flush()
+        return existing
+
+    def upsert_document_relation(
+        self,
+        relation: DocumentRelation,
+    ) -> DocumentRelation:
+        existing = self._session.scalar(
+            select(DocumentRelation).where(
+                DocumentRelation.source_document_id == relation.source_document_id,
+                DocumentRelation.target_document_id == relation.target_document_id,
+                DocumentRelation.relation_type == relation.relation_type,
+            )
+        )
+        if existing is None:
+            self._session.add(relation)
+            self._session.flush()
+            return relation
+        for field in (
+            "source_note",
+            "confidence",
+            "source",
+            "resolution_status",
+            "review_status",
+            "effective_from",
+        ):
+            setattr(existing, field, getattr(relation, field))
+        self._session.flush()
+        return existing

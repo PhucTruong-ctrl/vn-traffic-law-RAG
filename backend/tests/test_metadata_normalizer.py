@@ -179,11 +179,7 @@ def test_issuer_canonicalized_via_keyword_map(raw: str, expected: str) -> None:
 def test_issuer_noise_stripped() -> None:
     result = normalize_metadata(
         _metadata(
-            issuer=(
-                "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\n"
-                "Độc lập - Tự do - Hạnh phúc\n"
-                "BỘ CÔNG AN"
-            )
+            issuer=("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\nĐộc lập - Tự do - Hạnh phúc\nBỘ CÔNG AN")
         ),
         {},
     )
@@ -569,9 +565,7 @@ def test_leakage_provision_never_persisted_as_accepted() -> None:
 def test_leakage_marker_countable_by_qa() -> None:
     """Corpus QA can count leakage from the caller's extracted list."""
     header = "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\nĐộc lập - Tự do - Hạnh phúc"
-    extracted = [
-        _extracted_provision(provision_id=f"nd-168-2024__dieu-{n}") for n in range(1, 4)
-    ]
+    extracted = [_extracted_provision(provision_id=f"nd-168-2024__dieu-{n}") for n in range(1, 4)]
     extracted[1] = extracted[1].model_copy(
         update={
             "source_text": header,

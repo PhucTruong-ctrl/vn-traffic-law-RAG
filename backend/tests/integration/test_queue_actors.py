@@ -2,8 +2,9 @@
 
 Drives the REAL Redis broker and REAL PostgreSQL through the actor state
 machine (doc 03 §3.13): parse -> normalize -> extract -> resolve_refs
-(STAGED halt), plus the quality_gate -> embed -> index tail with an idempotent
-index re-run, and the dead-letter queue.
+-> resolve_temporal, plus the quality_gate -> embed -> index tail with an
+idempotent index re-run, missing-successor review handoff, and the dead-letter
+queue.
 
 Guards (module-scoped fixture, following the ``tests/integration/conftest.py``
 reachability pattern): the whole module is SKIPPED when PostgreSQL
@@ -21,6 +22,7 @@ import os
 import uuid
 from datetime import UTC, date, datetime
 from typing import Any
+from unittest.mock import Mock
 
 import dramatiq
 import pytest
@@ -34,8 +36,10 @@ from app.ingestion.actors import embed as embed_module
 from app.ingestion.actors import enqueue_parse
 from app.ingestion.actors import index as index_module
 from app.ingestion.actors import parse as parse_module
+from app.ingestion.actors import quality_gate as quality_gate_module
 from app.ingestion.actors.index import index_actor
 from app.ingestion.actors.quality_gate import quality_gate_actor
+from app.ingestion.actors.resolve_temporal import resolve_temporal_actor
 from app.ingestion.document_ir import BoundingBox, DocumentElement, ParsedDocument, ParsedPage
 from app.ingestion.queue import get_broker
 from app.persistence.models import (
@@ -53,7 +57,16 @@ from app.persistence.models import (
     ParsedDocument as ParsedDocumentRow,
 )
 
-_QUEUES = ("parse", "normalize", "extract", "resolve_refs", "quality_gate", "embed", "index")
+_QUEUES = (
+    "parse",
+    "normalize",
+    "extract",
+    "resolve_refs",
+    "resolve_temporal",
+    "quality_gate",
+    "embed",
+    "index",
+)
 
 
 # --- module-scoped environment: PG scratch DB + Redis reachability ------------
@@ -209,15 +222,13 @@ class _RecordingClient:
 # --- end-to-end chain test ------------------------------------------------------
 
 
-def test_parse_chain_end_to_end_halts_at_staged_resolvers(
+def test_parse_chain_end_to_end_reaches_activated_resolvers(
     queue_env: Any, clean_queues: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """parse -> normalize -> extract -> resolve_refs, then STAGED halt.
+    """parse -> normalize -> extract -> activated reference resolver handoff.
 
-    Runs against live Redis (in-process worker) + the migrated scratch PG;
-    the parser/storage are doubled.  Verifies the IngestionRun state
-    transitions, parsed-document + provision persistence, and that a re-sent
-    parse message duplicates nothing.
+    The resolver marks the run ``RESOLVING_REFS`` while temporal resolution
+    continues downstream; parser/storage are doubled.
     """
     engine = queue_env
     document_id = _document_id()
@@ -260,10 +271,9 @@ def test_parse_chain_end_to_end_halts_at_staged_resolvers(
 
         with Session(engine) as session:
             run = session.scalar(select(IngestionRun).where(IngestionRun.job_id == job_id))
-            assert run is not None
-            assert run.status == "STAGED"
+            assert run.status == "RESOLVING_REFS"
             assert run.current_stage == "RESOLVING_REFS"
-            assert run.error is not None and run.error["code"] == "STAGED_ACTOR"
+            assert run.error is None
             expected_hash = hashlib.sha256(b"%PDF-1.4 vnlaw integration fixture").hexdigest()
             assert run.file_hash == expected_hash
             assert run.parser_routing["terminal_outcome"] == "accepted"
@@ -289,9 +299,7 @@ def test_parse_chain_end_to_end_halts_at_staged_resolvers(
             assert version is not None
             provisions = list(
                 session.scalars(
-                    select(LegalProvision).where(
-                        LegalProvision.document_version_id == version.id
-                    )
+                    select(LegalProvision).where(LegalProvision.document_version_id == version.id)
                 )
             )
             assert len(provisions) >= 3
@@ -320,9 +328,69 @@ def test_parse_chain_end_to_end_halts_at_staged_resolvers(
             )
             assert len(parsed_rows) == 1  # still one, not two
             run = session.scalar(select(IngestionRun).where(IngestionRun.job_id == job_id))
-            assert run.status == "STAGED"  # untouched
+            assert run.status == "RESOLVING_REFS"  # idempotent handoff
     finally:
         worker.stop()
+
+
+def test_temporal_missing_successor_hands_off_to_review(
+    queue_env: Any, clean_queues: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Missing amendment successor content halts before the quality gate."""
+    engine = queue_env
+    document_id = _document_id()
+    job_id = _unique("job")
+    run_id, provision_ids = _seed_gate_pipeline(engine, document_id, job_id)
+
+    with Session(engine) as session:
+        run = session.get(IngestionRun, run_id)
+        assert run is not None
+        run.manifest_json = {
+            "effective_from": "2025-01-01",
+            "review_status": "ACCEPTED",
+            "effect_events": [
+                {
+                    "event_type": "AMENDED",
+                    "event_date": "2025-02-01",
+                    "review_status": "ACCEPTED",
+                    "affected_provision_versions": [{"provision_id": provision_ids[0]}],
+                }
+            ],
+        }
+        session.commit()
+
+    quality_gate_send = Mock()
+    monkeypatch.setattr(quality_gate_module.quality_gate_actor, "send", quality_gate_send)
+    broker = get_broker()
+    worker = Worker(
+        broker,
+        queues={"resolve_temporal", "quality_gate"},
+        worker_timeout=30_000,
+    )
+    worker.start()
+    try:
+        resolve_temporal_actor.send(job_id)
+        broker.join("resolve_temporal", timeout=60_000)
+        broker.join("quality_gate", timeout=60_000)
+        worker.join()
+    finally:
+        worker.stop()
+
+    with Session(engine) as session:
+        run = session.get(IngestionRun, run_id)
+        assert run is not None
+        assert run.status == "PENDING_REVIEW"
+        assert run.current_stage == "RESOLVING_TEMPORAL"
+        assert run.error is not None
+        assert run.error["code"] == "TEMPORAL_REVIEW"
+        items = list(
+            session.scalars(select(ReviewItem).where(ReviewItem.ingestion_run_id == run_id))
+        )
+        assert len(items) == 1
+        assert items[0].reason_code == "MISSING_SUCCESSOR_CONTENT"
+        assert items[0].status == "PENDING"
+
+    assert quality_gate_send.call_count == 0
 
 
 # --- quality_gate -> embed -> index tail ----------------------------------------
@@ -403,9 +471,27 @@ def _seed_gate_pipeline(engine: Any, document_id: str, job_id: str) -> tuple[uui
                 )
             )
         sources = {
-            provision_ids[0]: ("Điều 7. Xử phạt người điều khiển xe mô tô", "ARTICLE", "7", None, None),  # noqa: E501
-            provision_ids[1]: ("1. Phạt tiền từ 400.000 đồng đến 600.000 đồng", "CLAUSE", "7", "1", None),  # noqa: E501
-            provision_ids[2]: ("a) Không chấp hành hiệu lệnh của đèn tín hiệu", "POINT", "7", "1", "a)"),  # noqa: E501
+            provision_ids[0]: (
+                "Điều 7. Xử phạt người điều khiển xe mô tô",
+                "ARTICLE",
+                "7",
+                None,
+                None,
+            ),  # noqa: E501
+            provision_ids[1]: (
+                "1. Phạt tiền từ 400.000 đồng đến 600.000 đồng",
+                "CLAUSE",
+                "7",
+                "1",
+                None,
+            ),  # noqa: E501
+            provision_ids[2]: (
+                "a) Không chấp hành hiệu lệnh của đèn tín hiệu",
+                "POINT",
+                "7",
+                "1",
+                "a)",
+            ),  # noqa: E501
         }
         session.flush()
         for pid, (text, kind, article, clause, point) in sources.items():
@@ -479,18 +565,14 @@ def test_quality_gate_embed_index_completes_without_duplicates(
 
             rows = list(
                 session.scalars(
-                    select(LegalProvision).where(
-                        LegalProvision.provision_id.in_(provision_ids)
-                    )
+                    select(LegalProvision).where(LegalProvision.provision_id.in_(provision_ids))
                 )
             )
             assert len(rows) == 3
             assert all(row.review_status == "ACCEPTED" for row in rows)
 
             review_items = list(
-                session.scalars(
-                    select(ReviewItem).where(ReviewItem.ingestion_run_id == run_id)
-                )
+                session.scalars(select(ReviewItem).where(ReviewItem.ingestion_run_id == run_id))
             )
             assert review_items == []  # all ACCEPTED: no review items created
 
@@ -503,9 +585,7 @@ def test_quality_gate_embed_index_completes_without_duplicates(
             row_ids = {
                 str(row.id)
                 for row in session.scalars(
-                    select(LegalProvision).where(
-                        LegalProvision.provision_id.in_(provision_ids)
-                    )
+                    select(LegalProvision).where(LegalProvision.provision_id.in_(provision_ids))
                 )
             }
         assert {point.id for point in points} == row_ids
@@ -593,9 +673,7 @@ def test_needs_review_creates_review_items_and_halts(
     # (policy row 6: uncertain effective date is never auto-accepted).
     with Session(engine) as session:
         point = session.scalar(
-            select(LegalProvision).where(
-                LegalProvision.provision_id == provision_ids[2]
-            )
+            select(LegalProvision).where(LegalProvision.provision_id == provision_ids[2])
         )
         point.effective_from = None
         session.commit()
@@ -614,9 +692,7 @@ def test_needs_review_creates_review_items_and_halts(
             assert run.status == "PENDING_REVIEW"
             assert run.current_stage == "QUALITY_CHECK"
             items = list(
-                session.scalars(
-                    select(ReviewItem).where(ReviewItem.ingestion_run_id == run_id)
-                )
+                session.scalars(select(ReviewItem).where(ReviewItem.ingestion_run_id == run_id))
             )
             assert len(items) == 1
             assert items[0].target_id == provision_ids[2]
@@ -629,9 +705,7 @@ def test_needs_review_creates_review_items_and_halts(
         worker.join()
         with Session(engine) as session:
             items = list(
-                session.scalars(
-                    select(ReviewItem).where(ReviewItem.ingestion_run_id == run_id)
-                )
+                session.scalars(select(ReviewItem).where(ReviewItem.ingestion_run_id == run_id))
             )
             assert len(items) == 1
     finally:

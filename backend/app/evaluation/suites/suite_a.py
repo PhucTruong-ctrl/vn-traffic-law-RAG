@@ -130,9 +130,7 @@ _FRACTION_METRICS = frozenset(
 #: Vietnamese point-label alphabet (a..y incl. đ) used to detect point labels
 #: in OCR text — đ is kept distinct from d (docs/03 §3.8.5; point_label_d_dd.json).
 _POINT_LABEL_ALPHABET = "aăâbcdđeêghiklmnoôơpqrstuưvxy"
-_POINT_LABEL_RE = re.compile(
-    rf"(?<![A-Za-zÀ-ỹ])([{_POINT_LABEL_ALPHABET}])\s*\)", re.IGNORECASE
-)
+_POINT_LABEL_RE = re.compile(rf"(?<![A-Za-zÀ-ỹ])([{_POINT_LABEL_ALPHABET}])\s*\)", re.IGNORECASE)
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -909,8 +907,7 @@ def parent_context_completeness_metric(
         "eligible_provisions": len(eligible),
         "with_parent_context": len(with_context),
         "node_kind_counts": {
-            kind: sum(1 for p in eligible if p.node_kind == kind)
-            for kind in ("POINT", "CLAUSE")
+            kind: sum(1 for p in eligible if p.node_kind == kind) for kind in ("POINT", "CLAUSE")
         },
         "rule": "enriched retrieval_text inherits non-empty resolved parent context",
     }
@@ -951,9 +948,7 @@ def parent_context_completeness_metric(
 def _structure_na_bundle(gold_path: str | None) -> dict[str, MetricResult]:
     """N/A bundle for the six structure metrics when gold is unavailable."""
     reason = (
-        "gold fixtures contain no provisions"
-        if gold_path
-        else "no gold fixture for this document"
+        "gold fixtures contain no provisions" if gold_path else "no gold fixture for this document"
     )
     return {
         name: MetricResult(name=name, status="na", na_reason=reason)
@@ -1385,9 +1380,7 @@ def _aggregate_metrics(per_doc: dict[str, dict[str, MetricResult]]) -> dict[str,
             # precision/recall/F1 are recomputed on the pooled counts.
             matched = sum(result.detail.get("matched", 0) for result in computed)
             gold_count = sum(result.detail.get("gold_count", 0) for result in computed)
-            extracted_count = sum(
-                result.detail.get("extracted_count", 0) for result in computed
-            )
+            extracted_count = sum(result.detail.get("extracted_count", 0) for result in computed)
             precision = matched / extracted_count if extracted_count else None
             recall = matched / gold_count if gold_count else None
             f1 = 2 * precision * recall / (precision + recall) if precision else 0.0
@@ -2697,9 +2690,7 @@ def _final_aggregate_comparison(runs: dict[str, Path]) -> list[str]:
     return lines
 
 
-def _ocr_regression_section(
-    bench_run: Path | None, sample: Path | None
-) -> list[str]:
+def _ocr_regression_section(bench_run: Path | None, sample: Path | None) -> list[str]:
     """NĐ 168 OCR regression section: 300 vs 600 DPI on the 6-page sample."""
     lines = [
         "## NĐ 168 OCR regression (300 vs 600 DPI)",
@@ -2788,9 +2779,7 @@ def _ocr_regression_section(
     return lines
 
 
-def _final_hash_table(
-    runs: dict[str, Path], bench_run: Path | None, git_commit: str
-) -> list[str]:
+def _final_hash_table(runs: dict[str, Path], bench_run: Path | None, git_commit: str) -> list[str]:
     """Immutable artifact sha256 table for the final trio + OCR regression run."""
     lines = [
         "## Immutable artifacts (sha256)",
@@ -2825,8 +2814,7 @@ def _final_hash_table(
             path = bench_run / artifact
             if path.is_file():
                 lines.append(
-                    f"| ocr-dpi-benchmark/{bench_run.name}/{artifact} | "
-                    f"`{_sha256(path)}` |"
+                    f"| ocr-dpi-benchmark/{bench_run.name}/{artifact} | `{_sha256(path)}` |"
                 )
     lines.append("")
     return lines
@@ -2898,8 +2886,7 @@ def generate_final_report(
         "- Table Preservation / Table Detection: the v1 fixtures carry no table "
         "annotations (`gold fixtures contain no table annotations`) -> N/A "
         "(never a fabricated percentage).",
-        "- Header/Footer Leakage: the v1 fixtures carry no header/footer "
-        "annotations -> N/A.",
+        "- Header/Footer Leakage: the v1 fixtures carry no header/footer annotations -> N/A.",
         "- Parent Context Completeness on nd-168: the accepted parser output "
         "extracts no POINT/CLAUSE provisions -> N/A for that document (measured "
         "on luat/tt; see §1–§3).",
@@ -2907,11 +2894,10 @@ def generate_final_report(
         "",
         "## Reproducibility",
         "",
-        "Exact commands (run in the worktree root, branch "
-        "`feat/VNLRAG-97-suite-a-final`):",
+        "Exact commands (run in the worktree root, branch `feat/VNLRAG-97-suite-a-final`):",
         "",
         "```bash",
-        "CUDA_VISIBLE_DEVICES=\"\" python -m app.evaluation.suites.suite_a run \\",
+        'CUDA_VISIBLE_DEVICES="" python -m app.evaluation.suites.suite_a run \\',
         "    --fixtures-dir backend/tests/fixtures/parser_benchmark/documents \\",
         "    --run-dir data/evaluation/suite-a-final --variants p1 p2 p3",
         "",

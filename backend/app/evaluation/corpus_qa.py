@@ -62,6 +62,7 @@ CORPUS_QA_VERSION = "corpus-qa-v1"
 #: ``corpus_qa_reports.metrics`` is JSONB; pydantic serializes exactly these
 #: 16 keys via ``model_dump()``.
 
+
 # ────────────────────────────────────────────────────────────────────────────
 # Cross-module contracts (VNLRAG-29 provenance, VNLRAG-30 hierarchy
 # validation).  Developed in parallel worktrees: the modules may be absent,
@@ -200,8 +201,7 @@ _REFERS_TO_PATTERNS: tuple[re.Pattern[str], ...] = (
         r"theo\s+quy\s+định\s+tại\s+"
         r"(?:Điểm\s*[a-zđ](?=\s|\))\s+)?"
         r"(?:Khoản\s*\d+\s+)?"
-        r"(?:Điều\s*\d+|Khoản\s*\d+|Điểm\s*[a-zđ](?=\s|\)))"
-        + _DOC_MENTION,
+        r"(?:Điều\s*\d+|Khoản\s*\d+|Điểm\s*[a-zđ](?=\s|\)))" + _DOC_MENTION,
         re.IGNORECASE,
     ),
     # "quy định tại (Điều|Khoản|Điểm) X" with chained forms.
@@ -209,8 +209,7 @@ _REFERS_TO_PATTERNS: tuple[re.Pattern[str], ...] = (
         r"quy\s+định\s+tại\s+"
         r"(?:Điểm\s*[a-zđ](?=\s|\))\s+)?"
         r"(?:Khoản\s*\d+\s+)?"
-        r"(?:Điều\s*\d+|Khoản\s*\d+|Điểm\s*[a-zđ](?=\s|\)))"
-        + _DOC_MENTION,
+        r"(?:Điều\s*\d+|Khoản\s*\d+|Điểm\s*[a-zđ](?=\s|\)))" + _DOC_MENTION,
         re.IGNORECASE,
     ),
     # doc 03 §3.14.1 light form: "theo Khoản Y" / "theo Điều Z".
@@ -218,15 +217,13 @@ _REFERS_TO_PATTERNS: tuple[re.Pattern[str], ...] = (
         r"theo\s+"
         r"(?:Điểm\s*[a-zđ](?=\s|\))\s+)?"
         r"(?:Khoản\s*\d+\s+)?"
-        r"(?:Điều\s*\d+|Khoản\s*\d+|Điểm\s*[a-zđ](?=\s|\)))"
-        + _DOC_MENTION,
+        r"(?:Điều\s*\d+|Khoản\s*\d+|Điểm\s*[a-zđ](?=\s|\)))" + _DOC_MENTION,
         re.IGNORECASE,
     ),
     # rulespec §7 chained form: "Khoản 4 Điều 6", "Điểm a Khoản 4 Điều 7".
     re.compile(
         r"(?:Điểm\s*[a-zđ](?=\s|\))\s+)?"
-        r"Khoản\s*\d+\s+Điều\s*\d+"
-        + _DOC_MENTION,
+        r"Khoản\s*\d+\s+Điều\s*\d+" + _DOC_MENTION,
         re.IGNORECASE,
     ),
 )
@@ -345,8 +342,7 @@ def resolve_cross_reference(
                 candidate += f"__diem-{point}"
     elif point is not None and citing_ctx.get("article") and citing_ctx.get("clause"):
         candidate = (
-            f"{doc_slug}__dieu-{citing_ctx['article']}"
-            f"__khoan-{citing_ctx['clause']}__diem-{point}"
+            f"{doc_slug}__dieu-{citing_ctx['article']}__khoan-{citing_ctx['clause']}__diem-{point}"
         )
     elif clause is not None and citing_ctx.get("article"):
         candidate = f"{doc_slug}__dieu-{citing_ctx['article']}__khoan-{clause}"
@@ -503,8 +499,7 @@ def _expected_tables(manifests: dict[str, dict] | None) -> tuple[int, str | None
     note = None
     if total == 0:
         note = (
-            "no expected_tables declared in manifests; "
-            "table coverage computed against 0 baseline"
+            "no expected_tables declared in manifests; table coverage computed against 0 baseline"
         )
     return total, note
 
@@ -624,9 +619,7 @@ def run_corpus_qa(
     d_point_detection_rate = vietnamese_d_detection_rate(provisions)
 
     parent_context_count = sum(
-        1
-        for p in provisions
-        if p.parent_context is not None and p.parent_context.strip() != ""
+        1 for p in provisions if p.parent_context is not None and p.parent_context.strip() != ""
     )
     parent_context_coverage = parent_context_count / total if total else 0.0
 

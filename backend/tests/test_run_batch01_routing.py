@@ -108,9 +108,7 @@ _MANIFEST_EXPIRED = {
 
 
 def test_build_ir_from_lines_creates_valid_document() -> None:
-    document = build_ir_from_lines(
-        ["Điều 5. Tiêu đề", "1. Khoản", "a) Điểm"], "nd-168-2024"
-    )
+    document = build_ir_from_lines(["Điều 5. Tiêu đề", "1. Khoản", "a) Điểm"], "nd-168-2024")
     assert isinstance(document, ParsedDocument)
     assert document.document_id == "nd-168-2024"
     assert document.ir_schema_version == "document-ir-v2"
