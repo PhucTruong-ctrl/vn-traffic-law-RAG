@@ -477,7 +477,7 @@ def test_documented_column_count_is_stable() -> None:
         "query_traces": 18,
         "query_feedback": 6,
         "evaluation_datasets": 8,
-        "evaluation_runs": 19,
+        "evaluation_runs": 20,
         "evaluation_results": 8,
         "corpus_qa_reports": 8,
     }
