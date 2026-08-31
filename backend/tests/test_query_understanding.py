@@ -164,6 +164,24 @@ def test_evidence_mapping_for_multi_requirement_questions() -> None:
     ]
 
 
+@pytest.mark.parametrize(
+    ("question", "extra"),
+    [
+        ("phạt bao nhiêu và thủ tục nộp phạt", EvidenceType.PROCEDURE),
+        ("phạt bao nhiêu và điều kiện áp dụng", EvidenceType.LEGAL_CONDITION),
+        ("phạt bao nhiêu và có ngoại lệ nào", EvidenceType.EXCEPTION),
+    ],
+)
+def test_penalty_accumulates_procedure_condition_and_exception(
+    question: str, extra: EvidenceType
+) -> None:
+    assert required_evidence_for(QueryIntent.CURRENT, question) == [
+        EvidenceType.VIOLATION_DEFINITION,
+        EvidenceType.MONETARY_PENALTY,
+        extra,
+    ]
+
+
 def test_suspension_does_not_imply_license_points() -> None:
     evidence = required_evidence_for(
         QueryIntent.CURRENT,

@@ -30,21 +30,25 @@ def required_evidence_for(
     asks_points = bool(re.search(r"trừ điểm|bao nhiêu điểm|điểm giấy phép", text))
     asks_suspension = bool(re.search(r"tước|thu hồi|đình chỉ|suspend|suspension", text))
 
+    requires_penalty = asks_penalty or asks_suspension
+    asks_definition = asks_exception or asks_condition
+    if requires_penalty:
+        required.extend((EvidenceType.VIOLATION_DEFINITION, EvidenceType.MONETARY_PENALTY))
+    elif asks_definition:
+        required.append(EvidenceType.VIOLATION_DEFINITION)
+    if asks_points:
+        required.append(EvidenceType.LICENSE_POINTS)
+    if asks_suspension:
+        required.append(EvidenceType.LICENSE_SUSPENSION)
+    if asks_exception:
+        required.append(EvidenceType.EXCEPTION)
     if asks_procedure:
         required.append(EvidenceType.PROCEDURE)
-    elif asks_exception:
-        required.extend((EvidenceType.VIOLATION_DEFINITION, EvidenceType.EXCEPTION))
-    elif asks_condition:
-        required.extend((EvidenceType.VIOLATION_DEFINITION, EvidenceType.LEGAL_CONDITION))
-    elif asks_penalty or asks_suspension:
-        required.extend((EvidenceType.VIOLATION_DEFINITION, EvidenceType.MONETARY_PENALTY))
-        if asks_points:
-            required.append(EvidenceType.LICENSE_POINTS)
-        if asks_suspension:
-            required.append(EvidenceType.LICENSE_SUSPENSION)
-    elif asks_points:
+    if asks_condition:
+        required.append(EvidenceType.LEGAL_CONDITION)
+    if not required and asks_points:
         required.append(EvidenceType.LICENSE_POINTS)
-    elif intent is not None:
+    elif not required and intent is not None:
         required.append(EvidenceType.VIOLATION_DEFINITION)
     return required
 
