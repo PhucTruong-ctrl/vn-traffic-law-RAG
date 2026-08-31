@@ -38,6 +38,18 @@ def test_current_and_historical_dates_are_deterministic() -> None:
     assert historical.intent is QueryIntent.HISTORICAL
     assert historical.effective_date == date(2024, 2, 1)
 
+def test_analyzer_retains_original_question_for_expansion() -> None:
+    plan = QueryAnalyzer().analyze("GPLX phat tien", current_date=TODAY)
+    assert plan.original_query == "GPLX phat tien"
+    assert plan.normalized_query != plan.original_query
+
+
+def test_invalid_explicit_date_abstains_instead_of_current() -> None:
+    plan = QueryAnalyzer().analyze("mức phạt ngày 31/02/2024", current_date=TODAY)
+    assert plan.intent is not QueryIntent.CURRENT
+    assert plan.effective_date is None
+    assert plan.missing_query_information == ["query_date"]
+
 
 def test_ambiguous_effect_year_requires_query_date() -> None:
     plan = QueryAnalyzer().analyze(

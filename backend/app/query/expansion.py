@@ -79,9 +79,9 @@ class QueryExpander:
         Providers only receive the original/normalized query.  Rewrite output is
         never fed back into the provider, preventing recursive expansion.
         """
-        original = plan.normalized_query.strip() or "query"
+        original = (plan.original_query or plan.normalized_query).strip() or "query"
         variants = [QueryVariant(text=original, source="original")]
-        normalized = normalize_query(original)
+        normalized = normalize_query(plan.normalized_query)
         if normalized != original:
             variants.append(QueryVariant(text=normalized, source="normalized"))
 

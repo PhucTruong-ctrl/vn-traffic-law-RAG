@@ -65,6 +65,8 @@ class QueryPlan(BaseModel):
     point: str | None
     legal_entities: list[str]
     normalized_query: str
+    # Kept separately so retrieval expansion never loses the user's wording.
+    original_query: str | None = None
     required_evidence: list[EvidenceType]
     missing_query_information: list[str]
 
@@ -147,6 +149,26 @@ def _date_signals(text: str, current_date: date) -> list[date]:
         if parsed.parsed_date is not None and not parsed.should_abstain:
             values.append(parsed.parsed_date)
     return list(dict.fromkeys(values))
+def _date_signal_texts(text: str) -> list[str]:
+    """Return explicit date tokens, including malformed tokens."""
+    patterns = (
+        r"\bngày\s+\d{1,2}\s+tháng\s+\d{1,2}\s+năm\s+\d{4}\b",
+        r"(?<!\d)\d{1,2}/\d{1,2}/\d{4}(?!\d)",
+        r"(?<!\d)\d{4}-\d{2}-\d{2}(?!\d)",
+    )
+    matches = [match.group() for pattern in patterns for match in re.finditer(pattern, text, re.I)]
+    matches.extend(
+        match.group()
+        for match in re.finditer(r"(?<!\d)(\d{4})(?!\d)", text)
+        if not _is_document_year(text, match)
+    )
+    return list(dict.fromkeys(matches))
+
+
+def _is_document_year(text: str, match: re.Match[str]) -> bool:
+    start = match.start()
+    window = text[max(0, start - 5) : start + 9]
+    return bool(re.search(r"\d{1,4}/" + match.group() + r"/", window, re.I))
 
 
 def _normalize(text: str) -> str:
@@ -206,6 +228,7 @@ class QueryAnalyzer:
             if canonical_vehicle not in entities:
                 entities.insert(0, canonical_vehicle)
         dates = _date_signals(text, current_date)
+        date_tokens = _date_signal_texts(text)
         comparison = (
             bool(re.search(r"trước\s*(?:và|,)?\s*sau|so sánh|khác nhau|đối chiếu", lowered))
             or len(dates) >= 2
@@ -221,7 +244,17 @@ class QueryAnalyzer:
             text, current_date=current_date, effect_change_dates=effect_change_dates
         )
         missing: list[str] = []
-        if date_result.should_abstain:
+        if date_result.should_abstain or any(
+            (
+                parsed := resolve_query_date(
+                    token,
+                    current_date=current_date,
+                    effect_change_dates=effect_change_dates,
+                )
+            ).should_abstain
+            or parsed.parsed_date is None
+            for token in date_tokens
+        ):
             missing.append("query_date")
         if comparison:
             intent = QueryIntent.COMPARISON
@@ -259,10 +292,24 @@ class QueryAnalyzer:
                 None,
                 None,
             )
+        if "query_date" in missing and not comparison and not out_of_scope:
+            intent, effective, comparison_from, comparison_to = (
+                QueryIntent.OUT_OF_SCOPE,
+                None,
+                None,
+                None,
+            )
         if missing and intent is not QueryIntent.OUT_OF_SCOPE:
             effective = None
         if self.fallback_analyzer and not (
-            document or hierarchy or clause or point or vehicle or dates or out_of_scope
+            document
+            or hierarchy
+            or clause
+            or point
+            or vehicle
+            or dates
+            or date_tokens
+            or out_of_scope
         ):
             try:
                 fallback = getattr(self.fallback_analyzer, "analyze", self.fallback_analyzer)
@@ -285,6 +332,7 @@ class QueryAnalyzer:
             point=point.group(1) if point else None,
             legal_entities=entities,
             normalized_query=_normalize(text),
+            original_query=text,
             required_evidence=required_evidence_for(intent, text, entities),
             missing_query_information=missing,
         )
@@ -294,8 +342,6 @@ class QueryAnalyzer:
         ):
             plan.missing_query_information.append("query_date")
         return plan
-
-
 __all__ = [
     "EvidenceType",
     "QueryIntent",

@@ -33,6 +33,15 @@ def test_original_is_first_and_normalization_keeps_diacritics() -> None:
     assert variants[1].text == "giấy phép lái xe phạt tiền"
     assert variants[1].source == "normalized"
 
+def test_original_preserves_raw_question_when_plan_is_normalized() -> None:
+    variants = QueryExpander().expand(
+        plan("giấy phép lái xe phạt tiền").model_copy(
+            update={"original_query": "GPLX phat tien"}
+        )
+    )
+    assert variants[0] == QueryVariant(text="GPLX phat tien", source="original")
+    assert variants[1] == QueryVariant(text="giấy phép lái xe phạt tiền", source="normalized")
+
 
 def test_rewrites_are_bounded_and_not_recursive() -> None:
     seen: list[str] = []
