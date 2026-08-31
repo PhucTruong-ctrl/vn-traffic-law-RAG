@@ -13,7 +13,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.retrieval.qdrant_store import build_collection_config
+from app.evaluation.gold_set import GoldRecord, validate_record
 from app.evaluation.metrics.retrieval import evaluate_retrieval
 from app.evaluation.run import EvaluationRunManifest, EvaluationRunWriter
 from app.retrieval.qdrant_store import build_collection_config
@@ -63,7 +63,10 @@ def collection_config(variant: EmbeddingVariant) -> dict[str, Any]:
 
 
 def _records(records: Sequence[GoldRecord | Mapping[str, Any]]) -> list[GoldRecord]:
-    parsed = [record if isinstance(record, GoldRecord) else validate_record(dict(record)) for record in records]
+    parsed = [
+        record if isinstance(record, GoldRecord) else validate_record(dict(record))
+        for record in records
+    ]
     if len(parsed) != DEVELOPMENT_SET_SIZE:
         raise SuiteBPrerequisiteError(
             f"{PREREQUISITE} incomplete: Suite B requires exactly {DEVELOPMENT_SET_SIZE} "
@@ -106,7 +109,10 @@ def run_suite_b(
             gold_set_hash=gold_set_hash,
             suite=SUITE_NAME,
             variant=variant.key,
-            config_snapshot={"collection": variant.collection, "dense_vector_size": variant.vector_size},
+            config_snapshot={
+                "collection": variant.collection,
+                "dense_vector_size": variant.vector_size,
+            },
             model_ids={"embedding": variant.model_id},
         )
         run_id = run_writer.start(manifest, session=session, storage=storage)
@@ -119,14 +125,28 @@ def run_suite_b(
                 if not isinstance(retrieved, Sequence) or isinstance(retrieved, (str, bytes)):
                     raise ValueError("fixture outcome retrieved must be a sequence")
                 metric_records.append(
-                    {"id": record.id, "category": record.category.value, "retrieved": list(retrieved), "relevant": record.expected_provision_ids}
+                    {
+                        "id": record.id,
+                        "category": record.category.value,
+                        "retrieved": list(retrieved),
+                        "relevant": record.expected_provision_ids,
+                    }
                 )
                 run_writer.append_result(
                     run_id,
-                    {"question_id": record.id, "input": {"question": record.question}, "retrieval": outcome, "output": {}, "metrics": {}},
+                    {
+                        "question_id": record.id,
+                        "input": {"question": record.question},
+                        "retrieval": outcome,
+                        "output": {},
+                        "metrics": {},
+                    },
                     session=session,
                 )
-            metrics = {name: report.__dict__ for name, report in evaluate_retrieval(metric_records).items()}
+            metrics = {
+                name: report.__dict__
+                for name, report in evaluate_retrieval(metric_records).items()
+            }
             run_writer.finish(
                 run_id,
                 status="COMPLETED",
