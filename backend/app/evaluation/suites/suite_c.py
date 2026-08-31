@@ -221,7 +221,7 @@ def run_suite_c(
             }
             writer.finish(
                 run_id,
-                status="COMPLETED",
+                status="FAILED" if evaluator_failed else "COMPLETED",
                 metrics=metrics,
                 metric_availability={
                     name: (

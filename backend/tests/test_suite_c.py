@@ -92,6 +92,7 @@ def test_runner_retains_provider_failure_in_raw_result() -> None:
     class Writer:
         def __init__(self) -> None:
             self.results: list[dict[str, object]] = []
+            self.finished: list[dict[str, object]] = []
 
         def start(self, *_args: object, **_kwargs: object) -> str:
             return "run-1"
@@ -103,8 +104,8 @@ def test_runner_retains_provider_failure_in_raw_result() -> None:
             storage.results.append(result)
             self.results.append(result)
 
-        def finish(self, *_args: object, **_kwargs: object) -> None:
-            return None
+        def finish(self, _run_id: str, **kwargs: object) -> None:
+            self.finished.append(kwargs)
 
     writer = Writer()
 
@@ -112,6 +113,12 @@ def test_runner_retains_provider_failure_in_raw_result() -> None:
         calls.append(str(record))
         if len(calls) == 1:
             raise RuntimeError("provider unavailable")
+        if len(calls) == 2:
+            return {
+                "status": "FAILED",
+                "error": "provider returned failure",
+                "provision_ids": [],
+            }
         return {"status": "OK", "provision_ids": []}
 
     run_ids = run_suite_c(
@@ -129,3 +136,7 @@ def test_runner_retains_provider_failure_in_raw_result() -> None:
         "status": "FAILED",
         "error": "RuntimeError: provider unavailable",
     }
+    assert writer.results[1]["retrieval"]["outcome"]["status"] == "FAILED"
+    assert writer.finished[0]["status"] == "FAILED"
+    availability = writer.finished[0]["metric_availability"]
+    assert availability["recall@5"] == "ABSENT_EVALUATOR_FAILURE"

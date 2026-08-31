@@ -292,7 +292,7 @@ def run_suite_b(
                 for name in reports:
                     availability[name] = "ABSENT_PROVIDER_FAILURE"
             run_writer.finish(
-                run_id, status="COMPLETED", metrics=metrics,
+                run_id, status="FAILED" if provider_failed else "COMPLETED", metrics=metrics,
                 metric_availability=availability, session=session, storage=storage,
             )
         except Exception as exc:

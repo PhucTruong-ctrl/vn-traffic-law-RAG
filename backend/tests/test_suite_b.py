@@ -82,6 +82,12 @@ def test_runner_appends_failed_questions_and_aggregates_optional_metrics(
     def retrieve(record: object, variant: object) -> dict[str, object]:
         if record.id == "q-1":
             raise RuntimeError("provider unavailable")
+        if record.id == "q-2":
+            return {
+                "status": "FAILED",
+                "error": "provider returned failure",
+                "retrieved": [],
+            }
         return {
             "retrieved": ["p-1"], "latency_ms": 10,
             "token_usage": {"total": 2},
@@ -99,9 +105,12 @@ def test_runner_appends_failed_questions_and_aggregates_optional_metrics(
     assert len(appended) == len(storage.results) == 40
     failed = next(result for result in appended if result["question_id"] == "q-1")
     assert failed["retrieval"]["status"] == "FAILED"
+    returned_failure = next(result for result in appended if result["question_id"] == "q-2")
+    assert returned_failure["retrieval"]["status"] == "FAILED"
     metrics = finished[0]["metrics"]
     assert metrics["latency_ms"]["value"] == 10
-    assert metrics["token_usage"]["value"] == {"total": 78.0}
+    assert metrics["token_usage"]["value"] == {"total": 76.0}
     assert metrics["estimated_cost"]["value"] == pytest.approx(0.0002)
     assert finished[0]["metric_availability"]["estimated_cost"] == "AVAILABLE"
+    assert finished[0]["status"] == "FAILED"
     assert finished[0]["metric_availability"]["recall@5"] == "ABSENT_PROVIDER_FAILURE"
