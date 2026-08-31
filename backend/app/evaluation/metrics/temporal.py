@@ -18,7 +18,7 @@ def _date(value: object) -> date | None:
 
 def is_temporally_valid(provision: Mapping[str, object], query_date: date) -> bool:
     """Return whether an accepted provision applies at the supplied date."""
-    if str(provision.get("review_status", "ACCEPTED")) != "ACCEPTED":
+    if provision.get("review_status") != "ACCEPTED":
         return False
     start, end = _date(provision.get("effective_from")), _date(provision.get("effective_to"))
     return start is not None and start <= query_date and (end is None or query_date < end)

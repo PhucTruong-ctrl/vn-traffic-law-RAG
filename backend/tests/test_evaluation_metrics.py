@@ -48,3 +48,9 @@ def test_temporal_half_open_interval_and_leakage():
     assert temporal_validity_accuracy(citations, date(2025, 1, 1)) == 0.5
     assert temporal_leakage_rate(citations, date(2025, 1, 1)) == 0.5
     assert temporal_validity_accuracy([], date.today()) is None
+
+
+def test_temporal_metadata_without_review_status_is_invalid():
+    citations = [{"effective_from": "2024-01-01", "effective_to": None}]
+
+    assert temporal_validity_accuracy(citations, date(2025, 1, 1)) == 0
