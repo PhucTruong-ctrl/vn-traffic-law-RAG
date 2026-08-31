@@ -54,6 +54,12 @@ def test_runner_appends_failed_questions_and_aggregates_optional_metrics(
         )
         for index in range(40)
     ]
+
+    class Storage:
+        def __init__(self) -> None:
+            self.results: list[dict[str, object]] = []
+
+    storage = Storage()
     appended: list[dict[str, object]] = []
     finished: list[dict[str, object]] = []
 
@@ -61,7 +67,11 @@ def test_runner_appends_failed_questions_and_aggregates_optional_metrics(
         def start(self, *args: object, **kwargs: object) -> str:
             return "run-1"
 
-        def append_result(self, run_id: str, result: dict[str, object], **kwargs: object) -> None:
+        def append_result(
+            self, run_id: str, result: dict[str, object], *,
+            session: object, storage: Storage,
+        ) -> None:
+            storage.results.append(result)
             appended.append(result)
 
         def finish(self, run_id: str, **kwargs: object) -> None:
@@ -81,12 +91,12 @@ def test_runner_appends_failed_questions_and_aggregates_optional_metrics(
         records,
         retrieve,
         session=None,
-        storage=None,
+        storage=storage,
         writer=Writer(),
         pricing={"gemini-embedding-2": {"total_per_million": 100.0}},
         variants=("E1",),
     ) == ["run-1"]
-    assert len(appended) == 40
+    assert len(appended) == len(storage.results) == 40
     failed = next(result for result in appended if result["question_id"] == "q-1")
     assert failed["retrieval"]["status"] == "FAILED"
     metrics = finished[0]["metrics"]

@@ -194,6 +194,7 @@ def run_suite_c(
                         "metrics": {},
                     },
                     session=session,
+                    storage=storage,
                 )
                 metric_records.append(
                     {

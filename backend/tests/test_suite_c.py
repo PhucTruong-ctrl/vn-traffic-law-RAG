@@ -83,6 +83,12 @@ def test_runner_retains_provider_failure_in_raw_result() -> None:
     records = valid_records()
     calls: list[str] = []
 
+    class Storage:
+        def __init__(self) -> None:
+            self.results: list[dict[str, object]] = []
+
+    storage = Storage()
+
     class Writer:
         def __init__(self) -> None:
             self.results: list[dict[str, object]] = []
@@ -90,7 +96,11 @@ def test_runner_retains_provider_failure_in_raw_result() -> None:
         def start(self, *_args: object, **_kwargs: object) -> str:
             return "run-1"
 
-        def append_result(self, _run_id: str, result: dict[str, object], **_kwargs: object) -> None:
+        def append_result(
+            self, _run_id: str, result: dict[str, object], *,
+            session: object, storage: Storage,
+        ) -> None:
+            storage.results.append(result)
             self.results.append(result)
 
         def finish(self, *_args: object, **_kwargs: object) -> None:
@@ -110,11 +120,11 @@ def test_runner_retains_provider_failure_in_raw_result() -> None:
         writer=writer,
         manifest_for=lambda variant: None,
         session=None,
-        storage=None,
+        storage=storage,
         variants=VARIANTS[:1],
     )
     assert run_ids == ["run-1"]
-    assert len(writer.results) == 40
+    assert len(writer.results) == len(storage.results) == 40
     assert writer.results[0]["retrieval"]["outcome"] == {
         "status": "FAILED",
         "error": "RuntimeError: provider unavailable",

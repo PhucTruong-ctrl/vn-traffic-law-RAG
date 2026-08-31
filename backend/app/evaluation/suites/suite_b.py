@@ -263,6 +263,7 @@ def run_suite_b(
                         "metrics": {},
                     },
                     session=session,
+                    storage=storage,
                 )
             reports = evaluate_retrieval(metric_records)
             metrics = {name: report.__dict__ for name, report in reports.items()}
