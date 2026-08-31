@@ -31,6 +31,17 @@ def test_exact_reference_and_vietnamese_point_are_parsed() -> None:
     ]
 
 
+def test_document_number_year_does_not_create_reversed_comparison() -> None:
+    plan = QueryAnalyzer().analyze(
+        "Nghị định 168/2024/NĐ-CP áp dụng ngày 01/02/2023",
+        current_date=TODAY,
+    )
+    assert plan.intent is QueryIntent.SOURCE_SEARCH
+    assert plan.effective_date == date(2023, 2, 1)
+    assert plan.comparison_from is None
+    assert plan.comparison_to is None
+
+
 def test_current_and_historical_dates_are_deterministic() -> None:
     current = QueryAnalyzer().analyze("mức phạt hiện nay", current_date=TODAY)
     historical = QueryAnalyzer().analyze("mức phạt ngày 01/02/2024", current_date=TODAY)

@@ -141,6 +141,7 @@ def _date_signals(text: str, current_date: date) -> list[date]:
         (match.start(), match.end(), match.group())
         for match in re.finditer(r"(?<!\d)(\d{4})(?!\d)", text)
         if not any(start <= match.start() < end for start, end, _ in matches)
+        and not _is_document_year(text, match)
     ]
     matches.extend(years)
     values: list[date] = []
