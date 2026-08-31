@@ -72,6 +72,17 @@ def test_ambiguous_effect_year_requires_query_date() -> None:
     assert plan.effective_date is None
 
 
+def test_explicit_date_year_is_not_rechecked_as_ambiguous_effect_year() -> None:
+    plan = QueryAnalyzer().analyze(
+        "mức phạt ngày 01/02/2024",
+        current_date=TODAY,
+        effect_change_dates=[date(2024, 7, 1)],
+    )
+    assert plan.intent is QueryIntent.HISTORICAL
+    assert plan.effective_date == date(2024, 2, 1)
+    assert plan.missing_query_information == []
+
+
 def test_comparison_requires_two_dates() -> None:
     plan = QueryAnalyzer().analyze("so sánh năm 2023 và năm 2025", current_date=TODAY)
     assert plan.intent is QueryIntent.COMPARISON

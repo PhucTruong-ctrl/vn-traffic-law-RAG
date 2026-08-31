@@ -125,18 +125,21 @@ class QueryPlanFallback:
             return _safe_fallback_plan(question)
 
 
-def _date_signals(text: str, current_date: date) -> list[date]:
+def _explicit_date_matches(text: str) -> list[tuple[int, int, str]]:
     patterns = (
         r"\bngày\s+\d{1,2}\s+tháng\s+\d{1,2}\s+năm\s+\d{4}\b",
         r"(?<!\d)\d{1,2}/\d{1,2}/\d{4}(?!\d)",
         r"(?<!\d)\d{4}-\d{2}-\d{2}(?!\d)",
     )
-    matches: list[tuple[int, int, str]] = []
-    for pattern in patterns:
-        matches.extend(
-            (match.start(), match.end(), match.group())
-            for match in re.finditer(pattern, text, re.I)
-        )
+    return [
+        (match.start(), match.end(), match.group())
+        for pattern in patterns
+        for match in re.finditer(pattern, text, re.I)
+    ]
+
+
+def _date_signals(text: str, current_date: date) -> list[date]:
+    matches = _explicit_date_matches(text)
     years = [
         (match.start(), match.end(), match.group())
         for match in re.finditer(r"(?<!\d)(\d{4})(?!\d)", text)
@@ -150,20 +153,18 @@ def _date_signals(text: str, current_date: date) -> list[date]:
         if parsed.parsed_date is not None and not parsed.should_abstain:
             values.append(parsed.parsed_date)
     return list(dict.fromkeys(values))
+
+
 def _date_signal_texts(text: str) -> list[str]:
     """Return explicit date tokens, including malformed tokens."""
-    patterns = (
-        r"\bngày\s+\d{1,2}\s+tháng\s+\d{1,2}\s+năm\s+\d{4}\b",
-        r"(?<!\d)\d{1,2}/\d{1,2}/\d{4}(?!\d)",
-        r"(?<!\d)\d{4}-\d{2}-\d{2}(?!\d)",
-    )
-    matches = [match.group() for pattern in patterns for match in re.finditer(pattern, text, re.I)]
+    matches = _explicit_date_matches(text)
     matches.extend(
-        match.group()
+        (match.start(), match.end(), match.group())
         for match in re.finditer(r"(?<!\d)(\d{4})(?!\d)", text)
-        if not _is_document_year(text, match)
+        if not any(start <= match.start() < end for start, end, _ in matches)
+        and not _is_document_year(text, match)
     )
-    return list(dict.fromkeys(matches))
+    return list(dict.fromkeys(signal for _, _, signal in matches))
 
 
 def _is_document_year(text: str, match: re.Match[str]) -> bool:
