@@ -64,7 +64,9 @@ def collection_config(variant: EmbeddingVariant) -> CollectionConfig:
 
 def _records(records: Sequence[GoldRecord | Mapping[str, Any]]) -> list[GoldRecord]:
     parsed = [
-        record if isinstance(record, GoldRecord) else validate_record(dict(record))
+        validate_record(record.model_dump(mode="python"))
+        if isinstance(record, GoldRecord)
+        else validate_record(dict(record))
         for record in records
     ]
     if len(parsed) != DEVELOPMENT_SET_SIZE:
@@ -75,6 +77,15 @@ def _records(records: Sequence[GoldRecord | Mapping[str, Any]]) -> list[GoldReco
     return parsed
 
 
+def _metric_availability(reports: Mapping[str, Any]) -> dict[str, str]:
+    return {
+        name: "AVAILABLE"
+        if report.value is not None
+        else f"ABSENT_{(report.na_reason or 'UNAVAILABLE').upper().replace(' ', '_')}"
+        for name, report in reports.items()
+    }
+
+
 def run_suite_b(
     records: Sequence[GoldRecord | Mapping[str, Any]],
     retrieve: Callable[[GoldRecord, EmbeddingVariant], Mapping[str, Any]],
@@ -82,6 +93,7 @@ def run_suite_b(
     session: Session,
     storage: ObjectStoragePort,
     writer: EvaluationRunWriter | None = None,
+    prepare_collection: Callable[[EmbeddingVariant, CollectionConfig, Session], None] | None = None,
     variants: Sequence[str] = ("E1", "E2", "E3"),
     git_commit: str = "unknown",
     corpus_version: str = "unknown",
@@ -101,6 +113,8 @@ def run_suite_b(
     run_writer = writer or EvaluationRunWriter()
     run_ids: list[str] = []
     for variant in selected:
+        if prepare_collection is not None:
+            prepare_collection(variant, collection_config(variant), session)
         manifest = EvaluationRunManifest(
             git_commit=git_commit,
             corpus_version=corpus_version,
@@ -117,10 +131,16 @@ def run_suite_b(
         )
         run_id = run_writer.start(manifest, session=session, storage=storage)
         run_ids.append(run_id)
-        metric_records: list[dict[str, Any]] = []
         try:
+            metric_records: list[dict[str, Any]] = []
+            provider_failed = False
             for record in gold:
                 outcome = dict(retrieve(record, variant))
+                if outcome.get("error") or str(outcome.get("status", "")).upper() in {
+                    "FAILED",
+                    "ERROR",
+                }:
+                    provider_failed = True
                 retrieved = outcome.get("retrieved", outcome.get("results", []))
                 if not isinstance(retrieved, Sequence) or isinstance(retrieved, (str, bytes)):
                     raise ValueError("fixture outcome retrieved must be a sequence")
@@ -143,15 +163,17 @@ def run_suite_b(
                     },
                     session=session,
                 )
-            metrics = {
-                name: report.__dict__
-                for name, report in evaluate_retrieval(metric_records).items()
-            }
+            reports = evaluate_retrieval(metric_records)
+            metrics = {name: report.__dict__ for name, report in reports.items()}
             run_writer.finish(
                 run_id,
                 status="COMPLETED",
                 metrics=metrics,
-                metric_availability={name: "AVAILABLE" for name in metrics},
+                metric_availability=(
+                    {name: "ABSENT_PROVIDER_FAILURE" for name in reports}
+                    if provider_failed
+                    else _metric_availability(reports)
+                ),
                 session=session,
                 storage=storage,
             )

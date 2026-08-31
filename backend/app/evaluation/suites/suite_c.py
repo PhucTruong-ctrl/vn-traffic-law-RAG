@@ -11,7 +11,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from app.evaluation.gold_set import GoldRecord
+from app.evaluation.gold_set import GoldRecord, validate_record
 from app.evaluation.metrics.retrieval import evaluate_retrieval
 from app.evaluation.run import EvaluationRunManifest, EvaluationRunWriter
 
@@ -113,17 +113,17 @@ VARIANT_CONFIGS = {variant.name: variant for variant in VARIANTS}
 
 def validate_validation_set(
     records: Sequence[GoldRecord | Mapping[str, Any]],
-) -> tuple[GoldRecord | Mapping[str, Any], ...]:
-    """Return records unchanged, or block before any provider/storage work."""
-
-    validated = tuple(records)
-    if len(validated) != VALIDATION_SET_SIZE:
-        raise ValidationSetBlocked(len(validated))
-    return validated
-
-
-Evaluator = Callable[[SuiteCVariant, GoldRecord | Mapping[str, Any]], Mapping[str, Any]]
-
+) -> tuple[GoldRecord, ...]:
+    """Validate the complete set before any provider or storage side effects."""
+    if len(records) != VALIDATION_SET_SIZE:
+        raise ValidationSetBlocked(len(records))
+    return tuple(
+        validate_record(record.model_dump(mode="python"))
+        if isinstance(record, GoldRecord)
+        else validate_record(dict(record))
+        for record in records
+    )
+Evaluator = Callable[[SuiteCVariant, GoldRecord], Mapping[str, Any]]
 
 def _record_id(record: GoldRecord | Mapping[str, Any], fallback: int) -> str:
     return record.id if isinstance(record, GoldRecord) else str(record.get("id", fallback))
@@ -147,12 +147,16 @@ def run_suite_c(
     """
 
     validation_records = validate_validation_set(records)
-    selected = tuple(
-        VARIANT_CONFIGS[variant] if isinstance(variant, str) else variant for variant in variants
-    )
-    unknown = [variant.name for variant in selected if variant.name not in VARIANT_CONFIGS]
-    if unknown:
-        raise ValueError(f"unknown Suite C variants: {unknown}")
+    selected_variants: list[SuiteCVariant] = []
+    for variant in variants:
+        if isinstance(variant, str):
+            try:
+                selected_variants.append(VARIANT_CONFIGS[variant])
+            except KeyError as exc:
+                raise ValueError(f"unknown Suite C variant: {variant}") from exc
+        else:
+            selected_variants.append(variant)
+    selected = tuple(selected_variants)
 
     run_ids: list[str] = []
     for variant in selected:
@@ -160,11 +164,18 @@ def run_suite_c(
         run_ids.append(run_id)
         try:
             metric_records: list[dict[str, object]] = []
+            evaluator_failed = False
             for index, record in enumerate(validation_records):
                 try:
                     outcome = dict(evaluator(variant, record))
                 except Exception as exc:
+                    evaluator_failed = True
                     outcome = {"status": "FAILED", "error": f"{type(exc).__name__}: {exc}"}
+                if outcome.get("error") or str(outcome.get("status", "")).upper() in {
+                    "FAILED",
+                    "ERROR",
+                }:
+                    evaluator_failed = True
                 writer.append_result(
                     run_id,
                     {
@@ -212,7 +223,18 @@ def run_suite_c(
                 status="COMPLETED",
                 metrics=metrics,
                 metric_availability={
-                    name: "computed" if report.value is not None else f"ABSENT_{report.na_reason}"
+                    name: (
+                        "ABSENT_EVALUATOR_FAILURE"
+                        if evaluator_failed
+                        else (
+                            "AVAILABLE"
+                            if report.value is not None
+                            else (
+                                "ABSENT_"
+                                + (report.na_reason or "UNAVAILABLE").upper().replace(" ", "_")
+                            )
+                        )
+                    )
                     for name, report in reports.items()
                 },
                 session=session,

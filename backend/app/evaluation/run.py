@@ -54,12 +54,22 @@ class EvaluationRunWriter:
 
     def __init__(self) -> None:
         self._storage_by_run: dict[str, ObjectStoragePort] = {}
-        self._raw_by_run: dict[str, bytearray] = {}
+
+    @staticmethod
+    def _result_path(run_id: str, question_id: str) -> str:
+        digest = hashlib.sha256(question_id.encode("utf-8")).hexdigest()
+        return f"{run_id}/results/{digest}.json"
 
     @staticmethod
     def _run_path(run_id: str) -> str:
         return f"{run_id}/results.jsonl"
 
+    @staticmethod
+    def _run(run_id: str, session: Session) -> EvaluationRun:
+        run = session.scalar(select(EvaluationRun).where(EvaluationRun.run_id == run_id))
+        if run is None:
+            raise KeyError(f"unknown evaluation run: {run_id}")
+        return run
     def start(
         self,
         manifest: EvaluationRunManifest,
@@ -83,9 +93,9 @@ class EvaluationRunWriter:
             metric_availability={},
         ))
         session.flush()
+        # This immutable marker reserves the run prefix; query results use unique keys.
         storage.put(_BUCKET, path, b"", content_type="application/x-ndjson")
         self._storage_by_run[run_id] = storage
-        self._raw_by_run[run_id] = bytearray()
         return run_id
 
     def append_result(self, run_id: str, result: Mapping[str, object], *, session: Session) -> None:
@@ -112,10 +122,10 @@ class EvaluationRunWriter:
             retrieval=obj("retrieval"), output=obj("output"), metrics=obj("metrics"),
         ))
         session.flush()
-        raw = self._raw_by_run.setdefault(run_id, bytearray())
-        raw.extend(json.dumps(dict(result), sort_keys=True, default=str).encode() + b"\n")
+        payload = json.dumps(dict(result), sort_keys=True, default=str).encode() + b"\n"
         self._storage_by_run[run_id].put(
-            _BUCKET, self._run_path(run_id), bytes(raw), content_type="application/x-ndjson"
+            _BUCKET, self._result_path(run_id, question_id), payload,
+            content_type="application/x-ndjson",
         )
 
     def finish(self, run_id: str, *, metrics: Mapping[str, object],
@@ -131,10 +141,3 @@ class EvaluationRunWriter:
         run.metric_availability = dict(metric_availability)
         run.completed_at = datetime.now(UTC)
         session.flush()
-
-    @staticmethod
-    def _run(run_id: str, session: Session) -> EvaluationRun:
-        run = session.scalar(select(EvaluationRun).where(EvaluationRun.run_id == run_id))
-        if run is None:
-            raise KeyError(f"unknown evaluation run: {run_id}")
-        return run

@@ -1,13 +1,41 @@
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 
+from app.evaluation.gold_set import GoldCategory, GoldRecord, ReviewStatus
 from app.evaluation.suites.suite_c import (
     VARIANTS,
     ValidationSetBlocked,
     run_suite_c,
     validate_validation_set,
 )
+
+
+def valid_records(count: int = 40) -> list[GoldRecord]:
+    records: list[GoldRecord] = []
+    for index in range(count):
+        payload = {
+            "id": str(index),
+            "question": f"question {index}",
+            "category": GoldCategory.OUT_OF_SCOPE,
+            "query_date": date(2025, 1, 1),
+            "expected_provision_ids": [],
+            "acceptable_provision_ids": [],
+            "required_evidence": [],
+            "must_include_facts": [],
+            "must_not_include_facts": [],
+            "temporal_metadata": {"basis": "query_date"},
+            "review_status": ReviewStatus.APPROVED,
+            "reviewed_by": "test",
+            "gold_version": "v1",
+            "hash": "0" * 64,
+        }
+        record = GoldRecord.model_validate(payload)
+        payload["hash"] = record.computed_hash()
+        records.append(GoldRecord.model_validate(payload))
+    return records
 
 
 def test_variants_are_exact_cumulative_r1_to_r10() -> None:
@@ -52,7 +80,7 @@ def test_runner_never_invokes_evaluator_when_validation_set_is_incomplete() -> N
 
 
 def test_runner_retains_provider_failure_in_raw_result() -> None:
-    records = [{"id": str(index), "question": f"question {index}"} for index in range(40)]
+    records = valid_records()
     calls: list[str] = []
 
     class Writer:
