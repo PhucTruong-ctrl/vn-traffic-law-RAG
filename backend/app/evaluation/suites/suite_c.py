@@ -176,6 +176,29 @@ def run_suite_c(
                     "ERROR",
                 }:
                     evaluator_failed = True
+
+                invalid_ranking = next(
+                    (
+                        name
+                        for name in ("retrieved", "provision_ids")
+                        if name in outcome
+                        and (
+                            not isinstance(outcome[name], Sequence)
+                            or isinstance(outcome[name], (str, bytes, bytearray))
+                        )
+                    ),
+                    None,
+                )
+                if invalid_ranking is not None:
+                    evaluator_failed = True
+                    outcome = {
+                        **outcome,
+                        "status": "FAILED",
+                        "error": (
+                            f"{invalid_ranking} must be a non-string Sequence"
+                        ),
+                    }
+
                 writer.append_result(
                     run_id,
                     {
@@ -196,6 +219,8 @@ def run_suite_c(
                     session=session,
                     storage=storage,
                 )
+                if invalid_ranking is not None:
+                    continue
                 metric_records.append(
                     {
                         "id": _record_id(record, index),

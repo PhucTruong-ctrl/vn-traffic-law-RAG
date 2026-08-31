@@ -140,3 +140,55 @@ def test_runner_retains_provider_failure_in_raw_result() -> None:
     assert writer.finished[0]["status"] == "FAILED"
     availability = writer.finished[0]["metric_availability"]
     assert availability["recall@5"] == "ABSENT_EVALUATOR_FAILURE"
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("retrieved", "not-a-ranking"), ("provision_ids", None)],
+)
+def test_runner_rejects_malformed_rankings_without_dropping_raw_result(
+    field: str, value: object,
+) -> None:
+    class Writer:
+        def __init__(self) -> None:
+            self.results: list[dict[str, object]] = []
+            self.finished: list[dict[str, object]] = []
+
+        def start(self, *_args: object, **_kwargs: object) -> str:
+            return "run-1"
+
+        def append_result(
+            self, _run_id: str, result: dict[str, object], **_kwargs: object,
+        ) -> None:
+            self.results.append(result)
+
+        def finish(self, _run_id: str, **kwargs: object) -> None:
+            self.finished.append(kwargs)
+
+    writer = Writer()
+
+    def evaluator(_variant: object, record: GoldRecord) -> dict[str, object]:
+        if record.id == "0":
+            return {field: value, "status": "OK", "raw": {"provider": "evidence"}}
+        return {"provision_ids": ["p-1"], "status": "OK"}
+
+    run_suite_c(
+        valid_records(),
+        evaluator=evaluator,
+        writer=writer,
+        manifest_for=lambda _variant: None,
+        session=None,
+        storage=None,
+        variants=VARIANTS[:1],
+    )
+
+    outcome = writer.results[0]["retrieval"]["outcome"]
+    assert outcome[field] == value
+    assert outcome["status"] == "FAILED"
+    assert "non-string Sequence" in outcome["error"]
+    assert outcome["raw"] == {"provider": "evidence"}
+    assert writer.finished[0]["status"] == "FAILED"
+    assert writer.finished[0]["metric_availability"]["recall@5"] == (
+        "ABSENT_EVALUATOR_FAILURE"
+    )
+    assert "0" not in writer.finished[0]["metrics"]["recall@5"]["per_query"]
