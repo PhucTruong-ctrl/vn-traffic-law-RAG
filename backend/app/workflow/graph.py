@@ -255,11 +255,10 @@ def _retrieve(state: QueryState, services: GraphServices) -> QueryState:
                     ),
                 )
             elif services.comparison is not None:
-                comparison_plan = plan
-                if query != getattr(plan, "normalized_query", None) and hasattr(
-                    plan, "model_copy"
-                ):
-                    comparison_plan = plan.model_copy(update={"normalized_query": query})
+                comparison_plan: Any = plan
+                copier = getattr(plan, "model_copy", None)
+                if query != getattr(plan, "normalized_query", None) and callable(copier):
+                    comparison_plan = copier(update={"normalized_query": query})
                 result = _call(
                     services.comparison,
                     comparison_plan,
@@ -283,6 +282,7 @@ def _retrieve(state: QueryState, services: GraphServices) -> QueryState:
                         state, services, query, source=source, query_date=date_to
                     ),
                 )
+        comparison: Any
         if isinstance(before, CandidateSet) and isinstance(after, CandidateSet):
             comparison = ComparisonResult(before=before, after=after)
         else:
