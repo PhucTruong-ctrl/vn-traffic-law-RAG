@@ -10,7 +10,6 @@ from app.retrieval.filters import (
     is_payload_temporally_valid,
 )
 
-
 START = date(2024, 1, 10)
 END = date(2024, 2, 10)
 
@@ -66,8 +65,10 @@ def test_qdrant_filter_requires_accepted_half_open_interval_and_vehicle() -> Non
         and condition.match == models.MatchValue(value="CAR")
         for condition in temporal_filter.must
     )
-    assert temporal_filter.should is not None
-    assert any(isinstance(condition, models.IsNullCondition) for condition in temporal_filter.should)
+    assert any(
+        isinstance(condition, models.IsNullCondition)
+        for condition in temporal_filter.should
+    )
     assert any(
         isinstance(condition, models.FieldCondition)
         and condition.key == "effective_to"

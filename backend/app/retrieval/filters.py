@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 
 from qdrant_client import models
 
@@ -11,7 +11,7 @@ _ACCEPTED = "ACCEPTED"
 
 
 def _at_midnight(value: date) -> datetime:
-    return datetime.combine(value, time.min, tzinfo=timezone.utc)
+    return datetime.combine(value, time.min, tzinfo=UTC)
 
 
 def build_temporal_filter(

@@ -8,9 +8,8 @@ from typing import Any
 import pytest
 from qdrant_client import models
 
-from app.retrieval.sparse import SparseEncoder, tokenize_vietnamese
+from app.retrieval.sparse import tokenize_vietnamese
 from app.retrieval.sparse_retriever import SparseRetriever
-
 
 _PAYLOAD = {
     "review_status": "ACCEPTED",
