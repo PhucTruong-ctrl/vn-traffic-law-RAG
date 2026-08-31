@@ -1,7 +1,7 @@
 from datetime import date
 
-from pydantic import ValidationError
 import pytest
+from pydantic import ValidationError
 
 from app.query.expansion import QueryExpander, QueryVariant
 from app.query.hyde import HyDEGenerator
@@ -42,7 +42,12 @@ def test_rewrites_are_bounded_and_not_recursive() -> None:
         return ["r1", "r2", "r3", "r4"]
 
     variants = QueryExpander(rewrite_provider=rewrite).expand(plan("mức phạt"))
-    assert [variant.source for variant in variants] == ["original", "rewrite", "rewrite", "rewrite"]
+    assert [variant.source for variant in variants] == [
+        "original",
+        "rewrite",
+        "rewrite",
+        "rewrite",
+    ]
     assert [variant.text for variant in variants] == ["mức phạt", "r1", "r2", "r3"]
     assert seen == ["mức phạt"]
 
@@ -64,13 +69,16 @@ def test_hyde_requires_repair_budget_and_is_dense_only() -> None:
     assert len([v for v in variants if v.source == "hyde"]) == 1
     assert variants[-1].dense_only
     assert calls == [EvidenceType.MONETARY_PENALTY]
-    assert not expander.expand(
+    bounded = expander.expand(
         plan("mức phạt"), repair_attempts=3, evidence_gaps=[EvidenceType.MONETARY_PENALTY]
-    )[-1].source == "hyde"
+    )
+    assert bounded[-1].source != "hyde"
 
 
 def test_hyde_does_not_repeat_existing_variant() -> None:
-    provider = lambda query, gap: "already generated"
+    def provider(query: str, gap: EvidenceType) -> str:
+        return "already generated"
+
     expander = QueryExpander(hyde_provider=provider)
     variants = expander.expand(
         plan("q"),
