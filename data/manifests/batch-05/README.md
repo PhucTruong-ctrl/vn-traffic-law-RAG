@@ -1,6 +1,6 @@
 # Corpus Batch 05 — VNLRAG-125
 
-Năm văn bản giao thông chính thức, có provenance và SHA-256 đo từ PDF tại `datafiles.chinhphu.vn` ngày 31/08/2026. Cùng 18 văn bản của batch-01..04, corpus có **23 documents** (nằm trong mục tiêu W5 17–25).
+Năm văn bản giao thông chính thức được ghi nhận bằng provenance metadata (URL nguồn, thời điểm tải và SHA-256 được cung cấp trong từng manifest). Cùng 18 văn bản của batch-01..04, corpus có **23 documents** (nằm trong mục tiêu W5 17–25). PDF không commit theo chính sách repository, nên các digest không thể được kiểm chứng độc lập từ checkout này.
 
 ## Danh sách
 
@@ -22,9 +22,11 @@ Năm văn bản giao thông chính thức, có provenance và SHA-256 đo từ P
 
 Các quan hệ trên là candidate relation từ trích yếu/nội dung sửa đổi hoặc thay thế; cần provision-level resolver xác nhận trước khi đưa vào serving graph. Không tự gắn `ACCEPTED` hoặc khẳng định quan hệ chưa được review.
 
-## Review và provenance
+## Review, provenance và evaluation readiness
 
 - Tất cả manifest giữ `review_status: PENDING`; chưa có reviewer identity/decision nên chưa đủ điều kiện đánh dấu `ACCEPTED`.
-- `file_hash` là SHA-256 của đúng PDF tại `source_url`; PDF không commit theo chính sách repository.
-- Nguồn phát hành chính thức: Cổng Thông tin điện tử Chính phủ (`vanban.chinhphu.vn`) và kho tệp `datafiles.chinhphu.vn`.
-- Cumulative count đã tính cả batch-01..04: 18 + 5 = 23. Gold-referenced documents và relation candidates vẫn cần corpus review records xác nhận trước evaluation-ready gate.
+- `file_hash` được ghi là SHA-256 của PDF tại `source_url`; PDF không commit theo chính sách repository. Việc xác nhận digest và nội dung phải thực hiện từ bản tải chính thức tương ứng.
+- Nguồn phát hành được ghi nhận là Cổng Thông tin điện tử Chính phủ (`vanban.chinhphu.vn`) và kho tệp `datafiles.chinhphu.vn`.
+- Gold set hiện có trong repository (`data/gold-sets/development/`) chỉ tham chiếu `tt-24-2024-tt-bgtvt`, `nd-100-2019`, `tt-24-2023` và `tt-79-2024`; không có tài liệu batch-05 nào được gold-reference. Validation set 40 câu và corpus review records cho batch-05 chưa có trong checkout này.
+- Vì chưa có corpus review records và gold-reference coverage, batch-05 **chưa evaluation-ready**. Không được dùng trạng thái `PENDING` để phục vụ, và không được tuyên bố đã hoàn tất gate đánh giá.
+- Cumulative count đã tính cả batch-01..04: 18 + 5 = 23. Các gold-referenced documents và relation candidates vẫn cần corpus review records xác nhận trước evaluation-ready gate.
