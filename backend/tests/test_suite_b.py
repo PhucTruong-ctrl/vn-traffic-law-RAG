@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 
 from app.evaluation.suites.suite_b import (
@@ -78,6 +80,7 @@ def test_runner_appends_failed_questions_and_aggregates_optional_metrics(
     records = [
         SimpleNamespace(
             id=f"q-{index}", question=f"question {index}",
+            query_date=date(2024, 1, 15) if index == 0 else None,
             category=SimpleNamespace(value="CURRENT"), expected_provision_ids=["p-1"],
         )
         for index in range(40)
@@ -144,6 +147,10 @@ def test_runner_appends_failed_questions_and_aggregates_optional_metrics(
     }
     assert manifest.parser_versions == {"document_ir_schema": "document-ir-v2"}
     assert len(appended) == len(storage.results) == 40
+    dated = next(result for result in appended if result["question_id"] == "q-0")
+    assert dated["input"] == {"question": "question 0", "query_date": "2024-01-15"}
+    undated = next(result for result in appended if result["question_id"] == "q-1")
+    assert undated["input"] == {"question": "question 1"}
     failed = next(result for result in appended if result["question_id"] == "q-1")
     assert failed["retrieval"]["status"] == "FAILED"
     returned_failure = next(result for result in appended if result["question_id"] == "q-2")

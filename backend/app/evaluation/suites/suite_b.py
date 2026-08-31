@@ -280,11 +280,14 @@ def run_suite_b(
                     "retrieved": list(retrieved),
                     "relevant": record.expected_provision_ids,
                 })
+                raw_input = {"question": record.question}
+                if record.query_date is not None:
+                    raw_input["query_date"] = record.query_date.isoformat()
                 run_writer.append_result(
                     run_id,
                     {
                         "question_id": record.id,
-                        "input": {"question": record.question},
+                        "input": raw_input,
                         "retrieval": outcome,
                         "output": {},
                         "metrics": {},
