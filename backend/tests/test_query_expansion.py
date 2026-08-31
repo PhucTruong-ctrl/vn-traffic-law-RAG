@@ -100,3 +100,13 @@ def test_hyde_does_not_repeat_existing_variant() -> None:
 def test_query_variant_is_strict() -> None:
     with pytest.raises(ValidationError):
         QueryVariant(text="q", source="original", extra="nope")
+    with pytest.raises(ValidationError):
+        QueryVariant(text=1, source="original")  # type: ignore[arg-type]
+
+
+def test_query_expander_rejects_malformed_rewrite_output() -> None:
+    def rewrite(_query: str) -> list[object]:
+        return [123]
+
+    with pytest.raises(ValidationError):
+        QueryExpander(rewrite_provider=rewrite).expand(plan("q"))  # type: ignore[arg-type]

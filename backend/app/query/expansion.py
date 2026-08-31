@@ -18,7 +18,7 @@ from .query_understanding_types import EvidenceType
 class QueryVariant(BaseModel):
     """One retrieval query; HyDE variants are dense-channel-only."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", strict=True)
 
     text: str = Field(min_length=1)
     source: Literal["original", "normalized", "rewrite", "hyde"]
@@ -87,7 +87,10 @@ class QueryExpander:
 
         if self._rewrite_provider and self._max_rewrites:
             for text in self._rewrite_provider(normalized):
-                candidate = " ".join(str(text).split())
+                if not isinstance(text, str):
+                    QueryVariant.model_validate({"text": text, "source": "rewrite"})
+                    continue
+                candidate = " ".join(text.split())
                 if candidate and candidate not in {variant.text for variant in variants}:
                     variants.append(QueryVariant(text=candidate, source="rewrite"))
                 if sum(variant.source == "rewrite" for variant in variants) >= self._max_rewrites:
@@ -106,7 +109,12 @@ class QueryExpander:
                     hyde_text = provider.generate(normalized, gap)
                 else:
                     hyde_text = provider(normalized, gap)
-                candidate = " ".join(str(hyde_text or "").split())
+                if hyde_text is None:
+                    continue
+                if not isinstance(hyde_text, str):
+                    QueryVariant.model_validate({"text": hyde_text, "source": "hyde"})
+                    continue
+                candidate = " ".join(hyde_text.split())
                 if candidate and candidate not in attempted:
                     variants.append(QueryVariant(text=candidate, source="hyde"))
                     attempted.add(candidate)
