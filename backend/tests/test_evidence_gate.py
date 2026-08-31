@@ -75,7 +75,11 @@ def test_each_evidence_type_is_detected(evidence: EvidenceType, text: str) -> No
 
 
 def test_fine_and_points_stays_incomplete_when_points_are_missing() -> None:
-    plan = _plan(EvidenceType.VIOLATION_DEFINITION, EvidenceType.MONETARY_PENALTY, EvidenceType.LICENSE_POINTS)
+    plan = _plan(
+        EvidenceType.VIOLATION_DEFINITION,
+        EvidenceType.MONETARY_PENALTY,
+        EvidenceType.LICENSE_POINTS,
+    )
     context = [_result("fine", "Hành vi vượt đèn đỏ bị phạt tiền 500.000 đồng.")]
     result = EvidenceCompletenessGate().evaluate(plan, context)
     assert result.status is EvidenceStatus.INCOMPLETE

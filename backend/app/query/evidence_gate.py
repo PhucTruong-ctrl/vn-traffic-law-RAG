@@ -56,7 +56,10 @@ def _covered_types(candidate: RetrievalResult) -> set[EvidenceType]:
         text,
     ):
         covered.add(EvidenceType.LICENSE_SUSPENSION)
-    if re.search(r"không\s+(?:bị\s+)?phạt|trường hợp\s+(?:được\s+)?miễn|ngoại lệ|không áp dụng", text):
+    if re.search(
+        r"không\s+(?:bị\s+)?phạt|trường hợp\s+(?:được\s+)?miễn|ngoại lệ|không áp dụng",
+        text,
+    ):
         covered.add(EvidenceType.EXCEPTION)
     if re.search(r"nộp phạt|trình tự|thủ tục|hồ sơ|cách xử lý", text):
         covered.add(EvidenceType.PROCEDURE)
