@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from datetime import UTC, date, datetime, time
 
 from qdrant_client import models
+
+from .contracts import RetrievalResult
 
 _ACCEPTED = "ACCEPTED"
 
@@ -97,12 +99,70 @@ def filter_payloads_temporally(
     ]
 
 
+def deduplicate_results(
+    results: Sequence[RetrievalResult],
+    *,
+    exact_provision_ids: Collection[str] = (),
+) -> list[RetrievalResult]:
+    """Deduplicate already-temporally-filtered results by provision ID.
+
+    Temporal filtering belongs to the caller: this operation deliberately has
+    no date argument and never changes the validity of a candidate.  The
+    lowest rank is retained for each provision, while source and parent
+    metadata from duplicates is preserved.  Exact matches are promoted by
+    output order only; their rank and score are not fabricated or rewritten.
+    """
+
+    best_by_provision: dict[str, RetrievalResult] = {}
+    order: dict[str, int] = {}
+    source_order: dict[str, list[str]] = {}
+
+    for position, result in enumerate(results):
+        provision_id = result.provision_id
+        previous = best_by_provision.get(provision_id)
+        if previous is None:
+            best_by_provision[provision_id] = result
+            order[provision_id] = position
+            source_order[provision_id] = list(dict.fromkeys(result.retrieval_sources))
+            continue
+
+        merged_sources = source_order[provision_id]
+        for source in result.retrieval_sources:
+            if source not in merged_sources:
+                merged_sources.append(source)
+
+        if result.rank < previous.rank:
+            chosen = result
+            if chosen.parent_context is None:
+                chosen = chosen.model_copy(update={"parent_context": previous.parent_context})
+            best_by_provision[provision_id] = chosen
+        elif previous.parent_context is None and result.parent_context is not None:
+            best_by_provision[provision_id] = previous.model_copy(
+                update={"parent_context": result.parent_context}
+            )
+
+    deduplicated: list[RetrievalResult] = []
+    for provision_id, result in sorted(
+        best_by_provision.items(),
+        key=lambda item: (
+            item[0] not in exact_provision_ids,
+            item[1].rank,
+            order[item[0]],
+        ),
+    ):
+        deduplicated.append(
+            result.model_copy(update={"retrieval_sources": source_order[provision_id]})
+        )
+    return deduplicated
+
+
 # Short aliases keep call sites readable while the descriptive names remain the API.
 payload_is_valid_at = is_payload_temporally_valid
 filter_payloads = filter_payloads_temporally
 
 __all__ = [
     "build_temporal_filter",
+    "deduplicate_results",
     "filter_payloads",
     "filter_payloads_temporally",
     "is_payload_temporally_valid",
