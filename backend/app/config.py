@@ -145,6 +145,44 @@ class SparseSettings(BaseSettings):
     tokenizer: str = "unicode-word"
 
 
+class RetrievalSettings(BaseSettings):
+    """Configuration for the multi-channel retrieval pipeline."""
+
+    model_config = SettingsConfigDict(
+        env_file=str(_ENV_FILE),
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False,
+        populate_by_name=True,
+    )
+
+    exact_lookup_enabled: bool = Field(
+        default=True, validation_alias=AliasChoices("EXACT_LOOKUP_ENABLED", "RETRIEVAL_EXACT_LOOKUP_ENABLED")
+    )
+    dense_prefetch: int = Field(
+        default=30, validation_alias=AliasChoices("DENSE_PREFETCH", "RETRIEVAL_DENSE_PREFETCH")
+    )
+    sparse_prefetch: int = Field(
+        default=30, validation_alias=AliasChoices("SPARSE_PREFETCH", "RETRIEVAL_SPARSE_PREFETCH")
+    )
+    rrf_k: int = Field(default=60, validation_alias=AliasChoices("RRF_K", "RETRIEVAL_RRF_K"))
+    dense_weight: float = Field(
+        default=1.0, validation_alias=AliasChoices("DENSE_WEIGHT", "RETRIEVAL_DENSE_WEIGHT")
+    )
+    sparse_weight: float = Field(
+        default=1.0, validation_alias=AliasChoices("SPARSE_WEIGHT", "RETRIEVAL_SPARSE_WEIGHT")
+    )
+    fusion_limit: int = Field(
+        default=20, validation_alias=AliasChoices("FUSION_LIMIT", "RETRIEVAL_FUSION_LIMIT")
+    )
+    final_top_k: int = Field(
+        default=8, validation_alias=AliasChoices("RETRIEVAL_TOP_K", "FINAL_TOP_K", "RETRIEVAL_FINAL_TOP_K")
+    )
+    temporal_filter_enabled: bool = Field(
+        default=True, validation_alias=AliasChoices("TEMPORAL_FILTER", "TEMPORAL_FILTER_ENABLED", "RETRIEVAL_TEMPORAL_FILTER")
+    )
+
+
 #: Canonical object-storage buckets (doc 03 §3.12.1, FR-08). Kept in sync with
 #: ``app.storage.BUCKETS`` (pinned by tests/test_object_storage.py) and the
 #: docker-compose ``MINIO_BUCKETS`` bootstrap list.
@@ -227,6 +265,12 @@ class UploadSettings(BaseSettings):
 def get_upload_settings() -> UploadSettings:
     """Return the process-wide upload settings singleton (cached until cleared)."""
     return UploadSettings()
+
+
+@lru_cache(maxsize=1)
+def get_retrieval_settings() -> RetrievalSettings:
+    """Return the process-wide retrieval settings singleton."""
+    return RetrievalSettings()
 
 
 @lru_cache(maxsize=1)
