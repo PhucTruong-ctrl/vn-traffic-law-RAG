@@ -4,7 +4,6 @@ from app.query.query_understanding import QueryIntent, QueryPlan
 from app.retrieval.comparison import ComparisonRetriever
 from app.retrieval.contracts import CandidateSet, RetrievalResult
 
-
 BEFORE = date(2024, 1, 1)
 AFTER = date(2025, 1, 1)
 
