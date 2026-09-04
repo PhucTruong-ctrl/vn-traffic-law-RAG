@@ -24,6 +24,7 @@ from app.retrieval.contracts import CandidateSet, RetrievalResult
 from app.retrieval.filters import build_temporal_filter, deduplicate_results
 from app.verification.l2_citation import L2CitationVerifier
 
+from .repair import MAX_REPAIR_ATTEMPTS, repair_route
 from .state import QueryState
 
 Service = Any
@@ -164,8 +165,8 @@ def _exact_reference(plan: Any) -> dict[str, str | None] | None:
 
 
 def _max_repair_attempts(state: QueryState) -> int:
-    """Use an explicit state bound, otherwise the configured workflow bound."""
-    return state.get("max_repair_attempts", get_settings().max_repair_attempts)
+    """Use an explicit state bound, otherwise the shared workflow bound."""
+    return state.get("max_repair_attempts", get_settings().max_repair_attempts or MAX_REPAIR_ATTEMPTS)
 
 
 def _safe_route(state: QueryState) -> str:
@@ -672,6 +673,8 @@ def build_query_graph(services: GraphServices | None = None) -> CompiledStateGra
         "verify": lambda s: _verify(s, services),
         "finalize": _finalize,
         "abstain": _abstain,
+        "regenerate": lambda s: {**s, "repair_attempts": s.get("repair_attempts", 0) + 1},
+        "temporal_retry": lambda s: {**s, "repair_attempts": s.get("repair_attempts", 0) + 1},
     }
     for name, node in nodes.items():
         graph.add_node(name, node)
@@ -699,9 +702,11 @@ def build_query_graph(services: GraphServices | None = None) -> CompiledStateGra
         lambda state: (
             "finalize"
             if state.get("verification_result", {}).get("status") == "VALID"
-            else "abstain"
+            else repair_route(state, max_attempts=_max_repair_attempts(state))
         ),
     )
+    graph.add_edge("regenerate", "generate")
+    graph.add_edge("temporal_retry", "resolve_temporal")
     graph.add_edge("finalize", END)
     graph.add_edge("abstain", END)
     return graph.compile()
