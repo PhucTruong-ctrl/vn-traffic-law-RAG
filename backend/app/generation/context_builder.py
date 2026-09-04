@@ -37,10 +37,7 @@ def build_context(
         effective = f"{item.effective_from.isoformat()}–{effective_to}"
         applied = f"; applied {applied_date.isoformat()}" if applied_date else ""
         source = item.source_id or "retrieval"
-        provenance = (
-            f"source={source}; page={item.page_number}; "
-            f"interval={effective}{applied}"
-        )
+        provenance = f"source={source}; page={item.page_number}; interval={effective}{applied}"
         citation = f"{item.document_number}, Điều {item.article}"
         if item.clause:
             citation += f", khoản {item.clause}"
