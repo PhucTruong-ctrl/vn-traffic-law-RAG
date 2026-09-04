@@ -38,3 +38,28 @@ def test_failure():
     )
     with pytest.raises(StructuredGenerationError):
         GeminiStructuredGenerator(client).generate("q", "e")
+
+
+def test_default_runtime_path_uses_configured_gemini(monkeypatch):
+    import app.config as config
+    import google.genai as genai
+
+    calls = []
+    payload = {
+        "answer_summary": "s",
+        "claims": [{"claim": "c", "claim_type": "OTHER", "provision_ids": ["p"]}],
+    }
+    client = SimpleNamespace(
+        models=SimpleNamespace(
+            generate_content=lambda **kwargs: calls.append(kwargs) or SimpleNamespace(parsed=payload)
+        )
+    )
+    monkeypatch.setattr(config, "get_generation_settings", lambda: SimpleNamespace(
+        model="configured-gemini-model", gemini_api_key="test-key"
+    ))
+    monkeypatch.setattr(genai, "Client", lambda **kwargs: client)
+
+    answer = GeminiStructuredGenerator().generate("q", "e")
+
+    assert answer.answer_summary == "s"
+    assert calls[0]["model"] == "configured-gemini-model"
