@@ -39,10 +39,9 @@ def test_query_trace_store_replaces_same_trace_id_and_lists_traces() -> None:
 def test_emit_query_trace_is_safe_when_langfuse_disabled(monkeypatch) -> None:
     monkeypatch.setattr(langfuse_client, "_client", None)
     monkeypatch.setattr(
-        langfuse_client, "get_settings",
-        lambda: type(
-            "Settings", (), {"langfuse_enabled": False, "prompt_source": "LANGFUSE"}
-        )(),
+        langfuse_client,
+        "get_settings",
+        lambda: type("Settings", (), {"langfuse_enabled": False, "prompt_source": "LANGFUSE"})(),
     )
     trace = QueryTrace("query")
     trace.add_span("retrieve", input={"q": "query"}, output={"hits": 1})

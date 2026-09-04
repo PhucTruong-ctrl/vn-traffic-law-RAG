@@ -32,20 +32,18 @@ def test_l5_accepts_deterministically_supported_claim_without_judge():
 
 def test_l5_fails_closed_when_judge_rejects_or_is_unavailable():
     draft = {"claims": [{"claim": "xe cơ giới bị tạm giữ", "provision_ids": ["p1"]}]}
-    context = [
-        {"provision_id": "p1", "text": "người điều khiển phải xuất trình giấy phép."}
-    ]
+    context = [{"provision_id": "p1", "text": "người điều khiển phải xuất trình giấy phép."}]
     rejected = L5ClaimVerifier(judge=lambda *_: False).verify(draft, context)
     assert not rejected.passed
     assert rejected.issues[0].code == "L5_CLAIM_NOT_SUPPORTED"
-    unavailable = L5ClaimVerifier(
-        judge=lambda *_: (_ for _ in ()).throw(RuntimeError())
-    ).verify(draft, context)
+    unavailable = L5ClaimVerifier(judge=lambda *_: (_ for _ in ()).throw(RuntimeError())).verify(
+        draft, context
+    )
     assert not unavailable.passed
     assert unavailable.issues[0].code == "L5_JUDGE_UNAVAILABLE"
+
+
 def test_l5_rejects_claim_without_citation():
-    result = L5ClaimVerifier(judge_enabled=False).verify(
-        {"claims": [{"claim": "Có hiệu lực"}]}
-    )
+    result = L5ClaimVerifier(judge_enabled=False).verify({"claims": [{"claim": "Có hiệu lực"}]})
     assert not result.passed
     assert result.issues[0].code == "L5_CLAIM_WITHOUT_CITATION"
