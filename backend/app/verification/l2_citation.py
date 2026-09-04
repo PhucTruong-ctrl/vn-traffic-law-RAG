@@ -60,7 +60,22 @@ class L2CitationVerifier:
         issues: list[VerificationIssue] = []
         checked: list[str] = []
         for claim_index, claim in enumerate(_value(draft, "claims", ()) or ()):
-            for citation in _value(claim, "citations", ()) or ():
+            provision_ids = _value(claim, "provision_ids", None)
+            if provision_ids is None:
+                # Legacy drafts carried citation objects instead of Claim IDs.
+                citations = _value(claim, "citations", ()) or ()
+            else:
+                citations = provision_ids
+                if not citations:
+                    issues.append(
+                        VerificationIssue(
+                            "L2_INVALID_CITATION",
+                            "claim has no provision_ids",
+                            claim_index=claim_index,
+                        )
+                    )
+                    continue
+            for citation in citations:
                 pid = _provision_id(citation) or (
                     citation if isinstance(citation, str) else None
                 )

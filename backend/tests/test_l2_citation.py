@@ -13,6 +13,10 @@ def draft(*citations):
     return SimpleNamespace(claims=[SimpleNamespace(citations=list(citations))])
 
 
+def claim_ids(*provision_ids):
+    return SimpleNamespace(claims=[SimpleNamespace(provision_ids=list(provision_ids))])
+
+
 def test_l2_accepts_retrieved_accepted_provision():
     result = L2CitationVerifier([record()]).verify(draft("p1"), [record()])
     assert result.passed and result.checked_provision_ids == ["p1"]
@@ -30,3 +34,12 @@ def test_l2_rejects_unaccepted_and_mismatched_metadata():
     verifier = L2CitationVerifier([record()])
     citation = SimpleNamespace(provision_id="p1", article="9")
     assert verifier.verify(draft(citation), [record()]).passed is False
+
+
+def test_l2_checks_normal_claim_provision_ids():
+    result = L2CitationVerifier([record()]).verify(claim_ids("p1"), [record()])
+    assert result.passed and result.checked_provision_ids == ["p1"]
+
+    result = L2CitationVerifier([record()]).verify(claim_ids("fake"), [record()])
+    assert result.passed is False
+    assert result.issues[0].code == "L2_UNKNOWN_PROVISION"
