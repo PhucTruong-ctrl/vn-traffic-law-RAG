@@ -76,7 +76,9 @@ def run(plan, records, **kwargs):
 
 def test_current_workflow_completes_with_valid_citation():
     record = provision("p-current")
-    plan = SimpleNamespace(normalized_query="question", intent="CURRENT", effective_date=TODAY, missing_query_information=[])
+    plan = SimpleNamespace(
+        normalized_query="question", intent="CURRENT", effective_date=TODAY, missing_query_information=[]
+    )
     state = run(plan, [record])
     assert state["final_response"]["status"] == "COMPLETED"
     assert state["verification_result"]["status"] == "VALID"
@@ -84,7 +86,9 @@ def test_current_workflow_completes_with_valid_citation():
 
 def test_historical_workflow_serves_resolved_historical_date():
     record = provision("p-historical", end=date(2023, 1, 1))
-    plan = SimpleNamespace(normalized_query="question", intent="HISTORICAL", effective_date=HISTORICAL, missing_query_information=[])
+    plan = SimpleNamespace(
+        normalized_query="question", intent="HISTORICAL", effective_date=HISTORICAL, missing_query_information=[]
+    )
     state = run(plan, [record])
     assert state["final_response"]["status"] == "COMPLETED"
     assert state["query_understanding"].effective_date == HISTORICAL
@@ -93,16 +97,24 @@ def test_historical_workflow_serves_resolved_historical_date():
 def test_comparison_workflow_retrieves_both_dates():
     before = provision("p-before", end=date(2024, 1, 1))
     after = provision("p-after", start=date(2024, 1, 1))
-    plan = SimpleNamespace(normalized_query="question", intent="COMPARISON", comparison_from=date(2023, 1, 1), comparison_to=TODAY, missing_query_information=[])
+    plan = SimpleNamespace(
+        normalized_query="question",
+        intent="COMPARISON",
+        comparison_from=date(2023, 1, 1), comparison_to=TODAY, missing_query_information=[]
+    )
     graph = make_graph(plan, [before, after])
-    state = graph.invoke({"question": "question", "query_date": TODAY, "max_repair_attempts": 0})
+    state = graph.invoke(
+            {"question": "question", "query_date": TODAY, "max_repair_attempts": 0}
+        )
     assert set(state["recall_candidates"]) == {"before", "after"}
     assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
 
 
 def test_out_of_scope_abstains_without_retrieval():
     calls = []
-    plan = SimpleNamespace(intent="OUT_OF_SCOPE", missing_query_information=[])
+    plan = SimpleNamespace(
+        intent="OUT_OF_SCOPE", missing_query_information=[]
+    )
     state = make_graph(plan, [provision("p")]).invoke({"question": "tax", "max_repair_attempts": 0})
     assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
 
