@@ -57,7 +57,10 @@ class L6EvidenceVerifier:
                     _get(record, "provision_id", _get(record, "id")) in ids
                     and _get(record, "text", _get(record, "content", "")).strip()
                     and _get(record, "effective_from", query_date) <= query_date
-                    and (_get(record, "effective_to") is None or query_date < _get(record, "effective_to"))
+                    and (
+                        _get(record, "effective_to") is None
+                        or query_date < _get(record, "effective_to")
+                    )
                     for record in records
                 ):
                     missing.append(str(_get(claim, "claim", "claim")))

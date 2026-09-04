@@ -170,7 +170,9 @@ def _exact_reference(plan: Any) -> dict[str, str | None] | None:
 
 def _max_repair_attempts(state: QueryState) -> int:
     """Use an explicit state bound, otherwise the shared workflow bound."""
-    return state.get("max_repair_attempts", get_settings().max_repair_attempts or MAX_REPAIR_ATTEMPTS)
+    return state.get(
+            "max_repair_attempts", get_settings().max_repair_attempts or MAX_REPAIR_ATTEMPTS
+        )
 
 
 def _safe_route(state: QueryState) -> str:
