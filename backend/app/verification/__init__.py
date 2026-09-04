@@ -1,5 +1,12 @@
-"""Verification layers."""
+"""Answer verification layers."""
 
-from .l2_citation import L2CitationVerifier, LayerResult, VerificationIssue
+from .abstention import AbstentionDecision, AbstentionReason, abstain
+from .l6_evidence import L6EvidenceVerifier, L6Result
 
-__all__ = ["L2CitationVerifier", "LayerResult", "VerificationIssue"]
+__all__ = [
+    "AbstentionDecision",
+    "AbstentionReason",
+    "L6EvidenceVerifier",
+    "L6Result",
+    "abstain",
+]
