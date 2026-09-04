@@ -9,8 +9,10 @@ from app.observability.query_trace import QueryTrace, QueryTraceStore
 
 def test_query_trace_records_ordered_spans_and_serializes_metadata() -> None:
     trace = QueryTrace("query", user_id="u1", metadata={"request_id": "r1"})
-    retrieve = trace.add_span("retrieve", input={"query": "query"}, output={"hits": 2}, latency_ms=12)
-    answer = trace.add_span("answer", output={"text": "ok"})
+    retrieve = trace.add_span(
+        "retrieve", input={"query": "query"}, output={"hits": 2}, latency_ms=12
+    )
+    trace.add_span("answer", output={"text": "ok"})
     trace.finish({"answer": "ok"})
 
     payload = trace.as_dict()
@@ -36,7 +38,12 @@ def test_query_trace_store_replaces_same_trace_id_and_lists_traces() -> None:
 
 def test_emit_query_trace_is_safe_when_langfuse_disabled(monkeypatch) -> None:
     monkeypatch.setattr(langfuse_client, "_client", None)
-    monkeypatch.setattr(langfuse_client, "get_settings", lambda: type("Settings", (), {"langfuse_enabled": False, "prompt_source": "LANGFUSE"})())
+    monkeypatch.setattr(
+        langfuse_client, "get_settings",
+        lambda: type(
+            "Settings", (), {"langfuse_enabled": False, "prompt_source": "LANGFUSE"}
+        )(),
+    )
     trace = QueryTrace("query")
     trace.add_span("retrieve", input={"q": "query"}, output={"hits": 1})
     trace.finish({"answer": "ok"})

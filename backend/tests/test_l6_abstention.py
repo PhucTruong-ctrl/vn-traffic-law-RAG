@@ -44,8 +44,14 @@ def test_l6_returns_standardized_abstention_reasons():
         (None, [], {}, AbstentionReason.VERIFICATION_FAILURE),
         ([], [], {"query_date": date(2024, 1, 1)}, AbstentionReason.MISSING_EVIDENCE),
         ([claim("claim", "p1")], [evidence("p1")], {}, AbstentionReason.MISSING_DATE),
-        ([], [], {"query_date": date(2024, 1, 1), "in_scope": False}, AbstentionReason.OUT_OF_SCOPE),
-        ([], [], {"query_date": date(2024, 1, 1), "verification_ok": False}, AbstentionReason.VERIFICATION_FAILURE),
+        (
+            [], [], {"query_date": date(2024, 1, 1), "in_scope": False},
+            AbstentionReason.OUT_OF_SCOPE,
+        ),
+        (
+            [], [], {"query_date": date(2024, 1, 1), "verification_ok": False},
+            AbstentionReason.VERIFICATION_FAILURE,
+        ),
     ]
 
     for claims, records, kwargs, expected in cases:
