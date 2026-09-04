@@ -6,16 +6,36 @@ modelRoles:
   tiny: openai-codex/gpt-5.6-luna:low
   commit: openai-codex/gpt-5.6-luna:low
   task: openai-codex/gpt-5.6-luna:medium
-  plan:  openai-codex/gpt-5.6-luna:xhigh
-  slow:  openai-codex/gpt-5.6-luna:xhigh
+  plan: openai-codex/gpt-5.6-luna:high
+  slow: openai-codex/gpt-5.6-luna:high
   vision: openai-codex/gpt-5.6-luna:low
   designer: openai-codex/gpt-5.6-luna:medium
   advisor: openai-codex/gpt-5.6-luna:low
+providers:
+  openai-codex:
+    codeMode: auto
+textVerbosity: low
+defaultThinkingLevel: medium
+compaction:
+  asyncEnabled: false
+  keepRecentTokens: 12000
+  methodOrder:
+    - remote
+    - snapcompact
+    - shake
+    - soft
 tools:
   approvalMode: yolo
-
+  intentTracing: false
+  xdevDocs: catalog
+grep:
+  enabled: false
+glob:
+  enabled: false
+astGrep:
+  enabled: false
 advisor:
-  enabled: true
+  enabled: false
   syncBacklog: 1
   immuneTurns: 5
 
@@ -26,43 +46,10 @@ skills:
   includeSkills:
     - verification-before-completion
     - simplify
-    - ask-matt
     - code-review
     - codebase-design
     - diagnosing-bugs
     - domain-modeling
-    - grill-with-docs
-    - implement
-    - improve-codebase-architecture
-    - prototype
-    - research
     - resolving-merge-conflicts
-    - setup-matt-pocock-skills
     - tdd
-    - to-spec
-    - to-tickets
-    - triage
-    - wayfinder
-    - wizard
-    - grill-me
-    - grilling
-    - handoff
-    - teach
-    - to-questionnaire
-    - wait-what
-    - writing-for-agents
-    - git-guardrails-claude-code
-    - migrate-to-shoehorn
-    - scaffold-exercises
-    - setup-pre-commit
-    - library-skills
-    - martin-clean-code
-    - computer-use
-    - orca-cli
     - ui-ux-pro-max
-    - ponytail
-    - ponytail-review
-    - ponytail-audit
-    - ponytail-debt
-    - ponytail-gain
-    - ponytail-help
