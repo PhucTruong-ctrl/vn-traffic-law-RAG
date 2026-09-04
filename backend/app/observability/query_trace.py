@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -17,17 +17,19 @@ class QueryTrace:
     metadata: dict[str, Any] = field(default_factory=dict)
     spans: list[dict[str, Any]] = field(default_factory=list)
     output: Any = None
-    started_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     ended_at: datetime | None = None
 
-    def add_span(self, name: str, *, input: Any = None, output: Any = None, **metadata: Any) -> dict[str, Any]:
+    def add_span(
+        self, name: str, *, input: Any = None, output: Any = None, **metadata: Any
+    ) -> dict[str, Any]:
         span = {"name": name, "input": input, "output": output, **metadata}
         self.spans.append(span)
         return span
 
     def finish(self, output: Any = None) -> QueryTrace:
         self.output = output
-        self.ended_at = datetime.now(timezone.utc)
+        self.ended_at = datetime.now(UTC)
         return self
 
     def as_dict(self) -> dict[str, Any]:
