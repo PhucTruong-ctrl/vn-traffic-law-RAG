@@ -15,11 +15,14 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from app.config import get_retrieval_settings, get_settings
+from app.generation import GeminiStructuredGenerator, StructuredAnswer, StructuredGenerationError
 from app.query.evidence_gate import EvidenceCompletenessGate, EvidenceStatus, targeted_query_for_gap
 from app.query.query_understanding import QueryAnalyzer
+from app.query.temporal_verifier import verify_temporal
 from app.retrieval.comparison import ComparisonResult
 from app.retrieval.contracts import CandidateSet, RetrievalResult
 from app.retrieval.filters import build_temporal_filter, deduplicate_results
+from app.verification.l2_citation import L2CitationVerifier
 
 from .state import QueryState
 
@@ -100,6 +103,7 @@ class GraphServices:
     context_builder: Service = None
     generator: Service = None
     verifier: Service = None
+    temporal_verifier: Service = None
 
 
 def _call(
@@ -540,15 +544,109 @@ def _build_context(state: QueryState, services: GraphServices) -> QueryState:
 
 
 def _generate(state: QueryState, services: GraphServices) -> QueryState:
-    return {"draft_answer": {"status": "SKELETON", "answer": None}}
+    generator = services.generator or GeminiStructuredGenerator()
+    try:
+        answer = _call(
+            generator,
+            _question(state),
+            state.get("context_package", state.get("expanded_context", [])),
+            service_name="generator",
+            method_names=("generate",),
+        )
+    except StructuredGenerationError as exc:
+        return {
+            "draft_answer": None,
+            "verification_result": {
+                "status": "REPAIRABLE",
+                "reason_code": "L1_SCHEMA_INVALID",
+                "error": str(exc),
+            },
+        }
+    return {"draft_answer": StructuredAnswer.model_validate(answer)}
 
 
 def _verify(state: QueryState, services: GraphServices) -> QueryState:
-    return {"verification_result": {"status": "SKELETON", "verified": False}}
+    draft = state.get("draft_answer")
+    if draft is None:
+        return {
+            "verification_result": state.get(
+                "verification_result", {"status": "REPAIRABLE", "reason_code": "L1_SCHEMA_INVALID"}
+            )
+        }
+    try:
+        answer = StructuredAnswer.model_validate(draft)
+    except Exception as exc:
+        return {
+            "verification_result": {
+                "status": "ABSTAIN",
+                "reason_code": "L1_SCHEMA_INVALID",
+                "error": str(exc),
+            }
+        }
+    if answer.should_abstain:
+        return {
+            "verification_result": {"status": "ABSTAIN", "reason_code": "INSUFFICIENT_EVIDENCE"}
+        }
+
+    context = _items(state.get("expanded_context", state.get("context_package", [])))
+    provisions = state.get("provisions", context)
+    if not all(getattr(claim, "provision_ids", None) for claim in answer.claims):
+        return {"verification_result": {"status": "ABSTAIN", "reason_code": "L1_SCHEMA_INVALID"}}
+    l2 = _call(
+        services.verifier or L2CitationVerifier(provisions),
+        answer,
+        context,
+        service_name="verifier",
+        method_names=("verify",),
+        provisions=provisions,
+        expanded=context,
+    )
+    if not l2.passed:
+        return {
+            "verification_result": {
+                "status": "ABSTAIN",
+                "reason_code": l2.issues[0].code,
+                "issues": l2.issues,
+            }
+        }
+    cited = [
+        item
+        for claim in answer.claims
+        for pid in claim.provision_ids
+        for item in context
+        if getattr(item, "provision_id", None) == pid
+    ]
+    query_date = _plan_date(state)
+    temporal = services.temporal_verifier
+    l3 = (
+        temporal.verify(cited, query_date=query_date)
+        if temporal is not None
+        else verify_temporal(cited, query_date=query_date)
+    )
+    if not l3.verified:
+        return {
+            "verification_result": {
+                "status": "ABSTAIN",
+                "reason_code": l3.reason_code or "L3_TEMPORAL_INVALID",
+            }
+        }
+    return {"verification_result": {"status": "VALID", "verified_claims": answer.claims}}
 
 
 def _finalize(state: QueryState) -> QueryState:
-    return {"final_response": state.get("draft_answer", {"status": "SKELETON", "answer": None})}
+    verification: dict[str, Any] = state.get("verification_result", {})
+    draft = state.get("draft_answer")
+    if verification.get("status") != "VALID" or draft is None:
+        return _abstain(state)
+    answer = StructuredAnswer.model_validate(draft)
+    summary = " ".join(claim.claim.strip() for claim in answer.claims)
+    return {
+        "final_response": {
+            "status": "COMPLETED",
+            "answer_summary": summary,
+            "claims": [claim.model_dump() for claim in answer.claims],
+        }
+    }
 
 
 def _abstain(state: QueryState) -> QueryState:
@@ -596,7 +694,14 @@ def build_query_graph(services: GraphServices | None = None) -> CompiledStateGra
     graph.add_edge("targeted_retrieval", "fuse")
     graph.add_edge("build_context", "generate")
     graph.add_edge("generate", "verify")
-    graph.add_edge("verify", "finalize")
+    graph.add_conditional_edges(
+        "verify",
+        lambda state: (
+            "finalize"
+            if state.get("verification_result", {}).get("status") == "VALID"
+            else "abstain"
+        ),
+    )
     graph.add_edge("finalize", END)
     graph.add_edge("abstain", END)
     return graph.compile()

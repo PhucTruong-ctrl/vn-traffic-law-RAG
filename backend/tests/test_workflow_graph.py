@@ -18,6 +18,10 @@ def services(**overrides):
         reranker=lambda question, candidates: candidates,
         context_expander=lambda candidates, **_: candidates,
         context_builder=lambda candidates: candidates,
+        generator=lambda question, context: {
+            "answer_summary": "placeholder",
+            "claims": [{"claim": "placeholder", "claim_type": "OTHER", "provision_ids": ["p"]}],
+        },
     )
     defaults.update(overrides)
     return GraphServices(**defaults)
@@ -66,15 +70,15 @@ def test_incomplete_evidence_uses_configured_default_repair_bound() -> None:
     assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
 
 
-def test_generate_and_verify_are_non_answering_skeletons() -> None:
+def test_generate_and_verify_abstain_without_verification_evidence() -> None:
     class CompleteGate:
         def evaluate(self, plan, context):
             return type("Gate", (), {"status": EvidenceStatus.COMPLETE, "evidence_gaps": []})()
 
     graph = build_query_graph(services(evidence_gate=CompleteGate()))
     state = graph.invoke({"question": "mức phạt", "max_repair_attempts": 0})
-    assert state["final_response"]["status"] == "SKELETON"
-    assert state["verification_result"]["verified"] is False
+    assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
+    assert state["verification_result"]["status"] == "ABSTAIN"
 
 
 def test_graph_rejects_missing_required_service() -> None:
@@ -598,3 +602,18 @@ def test_comparison_without_both_dates_abstains() -> None:
     state = graph.invoke({"question": "ambiguous comparison", "max_repair_attempts": 0})
     assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
     assert calls == []
+
+
+def test_invalid_verification_routes_to_abstain_not_finalize() -> None:
+    graph = build_query_graph(
+        services(
+            generator=lambda question, context: {
+                "should_abstain": True,
+                "answer_summary": "",
+                "claims": [],
+            }
+        )
+    )
+    state = graph.invoke({"question": "mức phạt", "max_repair_attempts": 0})
+    assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
+    assert state.get("verification_result", {}).get("status") != "VALID"
