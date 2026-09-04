@@ -18,6 +18,10 @@ def services(**overrides):
         reranker=lambda question, candidates: candidates,
         context_expander=lambda candidates, **_: candidates,
         context_builder=lambda candidates: candidates,
+        generator=lambda question, context: {
+            "answer_summary": "placeholder",
+            "claims": [{"claim": "placeholder", "claim_type": "OTHER", "provision_ids": ["p"]}],
+        },
     )
     defaults.update(overrides)
     return GraphServices(**defaults)
