@@ -4,7 +4,6 @@ from types import SimpleNamespace
 from app.verification.abstention import AbstentionReason
 from app.verification.l6_evidence import L6EvidenceVerifier
 
-
 verifier = L6EvidenceVerifier()
 
 
