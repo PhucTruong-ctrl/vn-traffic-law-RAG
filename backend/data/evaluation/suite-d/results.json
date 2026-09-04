@@ -1,0 +1,61 @@
+{
+  "gold_version": "gold-v1",
+  "variants": [
+    {
+      "variant": "G1",
+      "status": "FAILED_VALIDATION",
+      "returned_invalid_citation_rate": 0.0,
+      "records_evaluated": 200,
+      "raw_results": [],
+      "reason": "runner contract not present in baseline"
+    },
+    {
+      "variant": "G2",
+      "status": "FAILED_VALIDATION",
+      "returned_invalid_citation_rate": 0.0,
+      "records_evaluated": 200,
+      "raw_results": [],
+      "reason": "runner contract not present in baseline"
+    },
+    {
+      "variant": "G3",
+      "status": "FAILED_VALIDATION",
+      "returned_invalid_citation_rate": 0.0,
+      "records_evaluated": 200,
+      "raw_results": [],
+      "reason": "runner contract not present in baseline"
+    },
+    {
+      "variant": "G4",
+      "status": "FAILED_VALIDATION",
+      "returned_invalid_citation_rate": 0.0,
+      "records_evaluated": 200,
+      "raw_results": [],
+      "reason": "runner contract not present in baseline"
+    },
+    {
+      "variant": "G5",
+      "status": "FAILED_VALIDATION",
+      "returned_invalid_citation_rate": 0.0,
+      "records_evaluated": 200,
+      "raw_results": [],
+      "reason": "runner contract not present in baseline"
+    },
+    {
+      "variant": "G6",
+      "status": "FAILED_VALIDATION",
+      "returned_invalid_citation_rate": 0.0,
+      "records_evaluated": 200,
+      "raw_results": [],
+      "reason": "runner contract not present in baseline"
+    },
+    {
+      "variant": "G7",
+      "status": "FAILED_VALIDATION",
+      "returned_invalid_citation_rate": 0.0,
+      "records_evaluated": 200,
+      "raw_results": [],
+      "reason": "runner contract not present in baseline"
+    }
+  ]
+}
