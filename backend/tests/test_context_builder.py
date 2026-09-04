@@ -45,6 +45,7 @@ def test_invalid_budget():
     with pytest.raises(ValueError):
         build_context([], max_chars=-1)
 
+
 def test_oversized_block_is_skipped_and_later_block_fits():
     value = build_context(
         [item("a", 1, 1, "one two"), item("b", 1, 2, "three")],
