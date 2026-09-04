@@ -1,0 +1,8 @@
+{
+  "status": "PARTIAL",
+  "retained_raw_failures": true,
+  "source_runs": [
+    "suite-d",
+    "ragflow-baseline"
+  ]
+}
