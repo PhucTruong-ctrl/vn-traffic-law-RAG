@@ -41,8 +41,9 @@ def test_failure():
 
 
 def test_default_runtime_path_uses_configured_gemini(monkeypatch):
-    import app.config as config
     import google.genai as genai
+
+    import app.config as config
 
     calls = []
     payload = {
@@ -51,7 +52,8 @@ def test_default_runtime_path_uses_configured_gemini(monkeypatch):
     }
     client = SimpleNamespace(
         models=SimpleNamespace(
-            generate_content=lambda **kwargs: calls.append(kwargs) or SimpleNamespace(parsed=payload)
+            generate_content=lambda **kwargs: calls.append(kwargs)
+            or SimpleNamespace(parsed=payload)
         )
     )
     monkeypatch.setattr(
