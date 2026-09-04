@@ -49,10 +49,10 @@ def build_context(
         )
         tokens = len(block.split())
         if max_tokens is not None and used_tokens + tokens > max_tokens:
-            break
+            continue
         candidate = "\n\n".join([*blocks, block])
         if len(candidate) > max_chars:
-            break
+            continue
         blocks.append(block)
         used_tokens += tokens
     return "\n\n".join(blocks)
