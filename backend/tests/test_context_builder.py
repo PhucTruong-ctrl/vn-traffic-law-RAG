@@ -49,8 +49,8 @@ def test_oversized_block_is_skipped_and_later_block_fits():
     value = build_context(
         [item("a", 1, 1, "one two"), item("b", 1, 2, "three")],
         applied_date=date(2025, 1, 2),
-        max_tokens=15,
+        max_tokens=10,
     )
-    assert "a@v1" in value
+    assert "a@v1" not in value
     assert "b@v1" in value
     assert "applied 2025-01-02" in value
