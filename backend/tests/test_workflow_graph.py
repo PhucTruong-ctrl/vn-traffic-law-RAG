@@ -66,15 +66,15 @@ def test_incomplete_evidence_uses_configured_default_repair_bound() -> None:
     assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
 
 
-def test_generate_and_verify_are_non_answering_skeletons() -> None:
+def test_generate_and_verify_fail_closed_without_verification_evidence() -> None:
     class CompleteGate:
         def evaluate(self, plan, context):
             return type("Gate", (), {"status": EvidenceStatus.COMPLETE, "evidence_gaps": []})()
 
     graph = build_query_graph(services(evidence_gate=CompleteGate()))
     state = graph.invoke({"question": "mức phạt", "max_repair_attempts": 0})
-    assert state["final_response"]["status"] == "SKELETON"
-    assert state["verification_result"]["verified"] is False
+    assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
+    assert state["verification_result"]["status"] != "VALID"
 
 
 def test_graph_rejects_missing_required_service() -> None:
@@ -598,3 +598,20 @@ def test_comparison_without_both_dates_abstains() -> None:
     state = graph.invoke({"question": "ambiguous comparison", "max_repair_attempts": 0})
     assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
     assert calls == []
+
+
+def test_pipeline_fails_closed_on_invalid_citation_and_temporal_provision():
+    from app.generation.schemas import ClaimType, StructuredAnswer
+    from app.retrieval.contracts import RetrievalResult
+    provision = RetrievalResult(rank=1, provision_id="p1", provision_version=1, document_id="d", document_version_id="dv", text="fine", source_text="fine", parent_context=None, document_number="1", article="1", clause=None, point=None, effective_from=date(2020,1,1), effective_to=date(2021,1,1), page_number=1, retrieval_sources=["s"], fused_score=1.0, added_by=None, source_id=None, depth=0)
+    answer = StructuredAnswer(answer_summary="fine", claims=[{"claim":"fine", "claim_type": ClaimType.OTHER, "provision_ids":["p1"]}])
+    class CompleteGate:
+        def evaluate(self, plan, context):
+            return type("R", (), {"status": EvidenceStatus.COMPLETE, "evidence_gaps": []})()
+    graph = build_query_graph(services(
+        analyzer=lambda q, **_: SimpleNamespace(normalized_query=q, intent="CURRENT", effective_date=date(2025,1,1), missing_query_information=[]),
+        retriever=lambda q, **_: [provision], fusion=lambda x:x, reranker=lambda q,x:x, context_expander=lambda x, **_: [], context_builder=lambda x:x, evidence_gate=CompleteGate(), generator=lambda q,e: answer,
+    ))
+    state = graph.invoke({"question":"fine", "max_repair_attempts":0})
+    assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
+    assert state["verification_result"]["reason_code"] == "L3_TEMPORAL_INVALID"
