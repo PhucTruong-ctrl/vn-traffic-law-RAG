@@ -29,7 +29,7 @@ def repair_route(state: dict[str, Any], *, max_attempts: int = MAX_REPAIR_ATTEMP
         return "targeted_retrieval"
     if reason in {"L3_TEMPORAL_INVALID", "L3_TEMPORAL_RETRY"}:
         return "temporal_retry"
-    if reason and (reason.startswith("L4_") or reason.startswith("L5_") or reason.startswith("L6_")):
+    if reason and any(reason.startswith(prefix) for prefix in ("L4_", "L5_", "L6_")):
         return "regenerate"
     return ABSTAIN
 

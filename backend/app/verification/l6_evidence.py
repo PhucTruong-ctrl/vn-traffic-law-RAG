@@ -21,7 +21,9 @@ class L6Result:
 
 
 def _get(value: Any, key: str, default: Any = None) -> Any:
-    return value.get(key, default) if isinstance(value, Mapping) else getattr(value, key, default)
+    return (
+        value.get(key, default) if isinstance(value, Mapping) else getattr(value, key, default)
+    )
 
 
 class L6EvidenceVerifier:

@@ -138,7 +138,9 @@ def _plan_date(state: QueryState) -> date | None:
     if intent == "COMPARISON":
         return getattr(plan, "comparison_to", None)
     effective_date = getattr(plan, "effective_date", None)
-    if intent in {"HISTORICAL", "SOURCE_SEARCH", "CURRENT"} and isinstance(effective_date, date):
+    if intent in {"HISTORICAL", "SOURCE_SEARCH", "CURRENT"} and isinstance(
+        effective_date, date
+    ):
         return effective_date
     temporal = state.get("temporal_context")
     if isinstance(temporal, date):
@@ -148,7 +150,9 @@ def _plan_date(state: QueryState) -> date | None:
             if isinstance(value := temporal.get(key), date):
                 return value
     return (
-        getattr(plan, "effective_date", None) or state.get("query_date") or state.get("input_date")
+        getattr(plan, "effective_date", None)
+        or state.get("query_date")
+        or state.get("input_date")
     )
 
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 from app.observability.langfuse_client import FallbackPrompt, build_prompt
 
 
