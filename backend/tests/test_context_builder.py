@@ -8,9 +8,17 @@ from app.generation.context_builder import build_context
 
 def item(pid, version, rank, text="text"):
     return SimpleNamespace(
-        provision_id=pid, provision_version=version, rank=rank, text=text,
-        document_number="12/2024/NĐ-CP", article="7", clause="2", point="a",
-        effective_from=date(2024, 1, 1), effective_to=None, page_number=3,
+        provision_id=pid,
+        provision_version=version,
+        rank=rank,
+        text=text,
+        document_number="12/2024/NĐ-CP",
+        article="7",
+        clause="2",
+        point="a",
+        effective_from=date(2024, 1, 1),
+        effective_to=None,
+        page_number=3,
         source_id="scan-1",
     )
 
@@ -23,7 +31,11 @@ def test_order_dedup_and_provenance_annotation():
 
 
 def test_applied_date_and_budgets():
-    value = build_context([item("a", 1, 1, "one two"), item("b", 1, 2, "three four")], applied_date=date(2025, 1, 2), max_tokens=8)
+    value = build_context(
+        [item("a", 1, 1, "one two"), item("b", 1, 2, "three four")],
+        applied_date=date(2025, 1, 2),
+        max_tokens=8,
+    )
     assert "applied 2025-01-02" in value
     assert "b@v1" not in value
     assert len(value) <= 12_000

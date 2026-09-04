@@ -46,7 +46,10 @@ def build_context(
             citation += f", khoản {item.clause}"
         if item.point:
             citation += f", điểm {item.point}"
-        block = f"[{item.provision_id}@v{item.provision_version}] {citation} ({provenance})\n{item.text}"
+        block = (
+            f"[{item.provision_id}@v{item.provision_version}] {citation} "
+            f"({provenance})\n{item.text}"
+        )
         tokens = len(block.split())
         if max_tokens is not None and used_tokens + tokens > max_tokens:
             break
