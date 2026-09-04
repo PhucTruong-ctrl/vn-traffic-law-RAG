@@ -1,0 +1,13 @@
+{
+  "frozen_on": "2026-09-06",
+  "scope": "M7 evaluation and stabilization",
+  "allowed_after_freeze": [
+    "defect fixes"
+  ],
+  "forbidden_after_freeze": [
+    "feature changes",
+    "gold-set edits",
+    "tuning changes",
+    "baseline reruns with changed inputs"
+  ]
+}
