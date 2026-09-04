@@ -26,13 +26,21 @@ def build_context(
         key = (str(item.provision_id), int(item.provision_version))
         if key not in unique:
             unique[key] = item
-    ordered = sorted(unique.values(), key=lambda item: (item.rank, str(item.provision_id), item.provision_version))
+    ordered = sorted(
+        unique.values(),
+        key=lambda item: (item.rank, str(item.provision_id), item.provision_version),
+    )
     blocks: list[str] = []
     used_tokens = 0
     for item in ordered:
-        effective = f"{item.effective_from.isoformat()}–{item.effective_to.isoformat() if item.effective_to else 'present'}"
+        effective_to = item.effective_to.isoformat() if item.effective_to else "present"
+        effective = f"{item.effective_from.isoformat()}–{effective_to}"
         applied = f"; applied {applied_date.isoformat()}" if applied_date else ""
-        provenance = f"source={item.source_id or 'retrieval'}; page={item.page_number}; interval={effective}{applied}"
+        source = item.source_id or "retrieval"
+        provenance = (
+            f"source={source}; page={item.page_number}; "
+            f"interval={effective}{applied}"
+        )
         citation = f"{item.document_number}, Điều {item.article}"
         if item.clause:
             citation += f", khoản {item.clause}"
