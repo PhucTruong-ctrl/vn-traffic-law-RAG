@@ -24,11 +24,7 @@ class StructuredGenerationError(ValueError):
 
 
 class GeminiStructuredGenerator:
-    """Generate a :class:`StructuredAnswer` using Gemini's JSON schema mode.
-
-    Validation is deliberately delegated to Pydantic; malformed JSON is never
-    repaired with regular expressions or string substitutions.
-    """
+    """Generate a :class:`StructuredAnswer` using Gemini's JSON schema mode."""
 
     model_version = MODEL_VERSION
     prompt_name = PROMPT_NAME
@@ -38,12 +34,15 @@ class GeminiStructuredGenerator:
         self._client = client
         self._model = model
 
-    def generate(self, query: str, evidence: Any, *, feedback: str | None = None) -> StructuredAnswer:
+    def generate(
+        self, query: str, evidence: Any, *, feedback: str | None = None
+    ) -> StructuredAnswer:
         client = self._client
         model = self._model
         if client is None or model is None:
-            from app.config import get_generation_settings
             from google import genai
+
+            from app.config import get_generation_settings
 
             settings = get_generation_settings()
             model = model or settings.model
@@ -75,7 +74,8 @@ class GeminiStructuredGenerator:
             try:
                 return StructuredAnswer.model_validate(value)
             except Exception as exc:
-                raise StructuredGenerationError("Gemini structured answer schema validation failed") from exc
+                message = "Gemini structured answer schema validation failed"
+                raise StructuredGenerationError(message) from exc
         except StructuredGenerationError:
             raise
         except Exception as exc:
