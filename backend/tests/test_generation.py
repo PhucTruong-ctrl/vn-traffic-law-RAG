@@ -23,8 +23,9 @@ def test_adapter():
     }
     client = SimpleNamespace(
         models=SimpleNamespace(
-            generate_content=lambda **kwargs: calls.append(kwargs)
-            or SimpleNamespace(parsed=payload)
+            generate_content=lambda **kwargs: (
+                calls.append(kwargs) or SimpleNamespace(parsed=payload)
+            )
         )
     )
     answer = GeminiStructuredGenerator(client).generate("q", "e")
@@ -52,8 +53,9 @@ def test_default_runtime_path_uses_configured_gemini(monkeypatch):
     }
     client = SimpleNamespace(
         models=SimpleNamespace(
-            generate_content=lambda **kwargs: calls.append(kwargs)
-            or SimpleNamespace(parsed=payload)
+            generate_content=lambda **kwargs: (
+                calls.append(kwargs) or SimpleNamespace(parsed=payload)
+            )
         )
     )
     monkeypatch.setattr(

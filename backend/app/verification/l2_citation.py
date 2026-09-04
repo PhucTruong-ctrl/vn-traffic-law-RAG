@@ -76,9 +76,7 @@ class L2CitationVerifier:
                     )
                     continue
             for citation in citations:
-                pid = _provision_id(citation) or (
-                    citation if isinstance(citation, str) else None
-                )
+                pid = _provision_id(citation) or (citation if isinstance(citation, str) else None)
                 if not pid:
                     issues.append(
                         VerificationIssue(

@@ -41,9 +41,7 @@ def verify_temporal(
     if query_date is None:
         return TemporalVerificationResult(False, L3_TEMPORAL_INVALID)
     invalid = tuple(
-        str(_value(item, "provision_id", ""))
-        for item in citations
-        if not _valid(item, query_date)
+        str(_value(item, "provision_id", "")) for item in citations if not _valid(item, query_date)
     )
     return TemporalVerificationResult(
         not invalid,
