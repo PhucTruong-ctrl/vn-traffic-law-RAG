@@ -601,7 +601,15 @@ def test_comparison_without_both_dates_abstains() -> None:
 
 
 def test_invalid_verification_routes_to_abstain_not_finalize() -> None:
-    graph = build_query_graph(services(generator=lambda question, context: {"should_abstain": True, "answer_summary": "", "claims": []}))
+    graph = build_query_graph(
+        services(
+            generator=lambda question, context: {
+                "should_abstain": True,
+                "answer_summary": "",
+                "claims": [],
+            }
+        )
+    )
     state = graph.invoke({"question": "mức phạt", "max_repair_attempts": 0})
     assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
     assert state.get("verification_result", {}).get("status") != "VALID"

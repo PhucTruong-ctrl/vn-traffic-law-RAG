@@ -54,9 +54,11 @@ def test_default_runtime_path_uses_configured_gemini(monkeypatch):
             generate_content=lambda **kwargs: calls.append(kwargs) or SimpleNamespace(parsed=payload)
         )
     )
-    monkeypatch.setattr(config, "get_generation_settings", lambda: SimpleNamespace(
-        model="configured-gemini-model", gemini_api_key="test-key"
-    ))
+    monkeypatch.setattr(
+        config,
+        "get_generation_settings",
+        lambda: SimpleNamespace(model="configured-gemini-model", gemini_api_key="test-key"),
+    )
     monkeypatch.setattr(genai, "Client", lambda **kwargs: client)
 
     answer = GeminiStructuredGenerator().generate("q", "e")
