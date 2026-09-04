@@ -3,7 +3,6 @@ from time import perf_counter
 from types import SimpleNamespace
 
 from app.query.evidence_gate import EvidenceStatus
-from app.retrieval.contracts import RetrievalResult
 from app.workflow.graph import GraphServices, build_query_graph
 
 
