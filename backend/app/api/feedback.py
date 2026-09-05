@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.orm import Session
 
 from app.api.db import get_db
-from app.api.errors import APIError, new_trace_id, NOT_FOUND
+from app.api.errors import NOT_FOUND, APIError, new_trace_id
 from app.persistence.models import QueryFeedback, QueryTrace
 
 router = APIRouter(prefix="/api/v1", tags=["feedback"])
