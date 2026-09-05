@@ -1,12 +1,28 @@
 """VNLaw backend application entrypoint."""
 
 from fastapi import FastAPI, Request
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 from app.api import chat, documents, errors, feedback, jobs, search
 from app.observability.health import metrics, readiness
+from app.security import redact_sensitive, security_headers, validate_request_size
 
 app = FastAPI()
+
+
+@app.middleware("http")
+async def security_middleware(request: Request, call_next):
+    """Apply response hardening and reject oversized declared request bodies."""
+    try:
+        validate_request_size(request.headers.get("Content-Length") and int(request.headers["Content-Length"]))
+    except (TypeError, ValueError):
+        return JSONResponse(
+            status_code=413,
+            content={"error": {"code": "REQUEST_TOO_LARGE", "message": "Request body exceeds the maximum allowed size."}},
+        )
+    response = await call_next(request)
+    response.headers.update(security_headers())
+    return response
 
 
 @app.middleware("http")
