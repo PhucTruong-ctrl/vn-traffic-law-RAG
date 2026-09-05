@@ -83,6 +83,13 @@ Generated: 2026-09-05T17:13:19.246718+00:00
 - The first downstream stage attempted to enqueue via the default Docker hostname `redis`, while the direct host run used `127.0.0.1`; it failed before continuing because `redis` was not resolvable from the host process.
 - Full 13-document completion remains unverified; no claim of full corpus ingest/index is made.
 
+## Latest execution evidence
+
+- Direct parse, normalization and extraction succeeded for `tt-18-2024`; the database contains parsed-document and provision rows from manual runs.
+- Reference resolution exposed and was fixed for duplicate target handling; focused reference tests report 11 passed.
+- The quality gate correctly leaves extracted rows `PENDING` when review/temporal evidence is incomplete, so the index actor does not create a collection. This is why Qdrant remains empty rather than receiving unsupported records.
+- Full 13-document corpus processing is not complete: only `tt-18-2024` has persisted parsed output; scan documents still require a stable OCR/Docling runtime and Vietnamese OCR assets.
+
 ## Current decisions
 
 - All 13 previously pending manifests were changed to `ACCEPTED` under explicit user authorization at 2026-09-05T17:29:51Z using reviewer identity `Phuc Truong <phuctruong@student>`; README candidate relations were accepted per that authorization.
