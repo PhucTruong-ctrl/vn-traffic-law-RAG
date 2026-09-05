@@ -1,4 +1,5 @@
 """Langfuse adapter for the complete query pipeline."""
+
 from __future__ import annotations
 
 from app.observability.langfuse_client import get_langfuse, trace_legal_query

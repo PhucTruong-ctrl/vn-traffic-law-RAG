@@ -1,4 +1,5 @@
 """Deterministic-first claim support verification with fail-closed judging."""
+
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
@@ -20,9 +21,7 @@ def _tokens(s: str) -> set[str]:
 
 
 class L5ClaimVerifier:
-    def __init__(
-        self, judge: Callable[..., Any] | None = None, judge_enabled: bool = True
-    ) -> None:
+    def __init__(self, judge: Callable[..., Any] | None = None, judge_enabled: bool = True) -> None:
         self.judge, self.judge_enabled = judge, judge_enabled
 
     def verify(
@@ -50,11 +49,7 @@ class L5ClaimVerifier:
                     VerificationIssue("L5_CLAIM_NOT_SUPPORTED", "no cited passage", claim_index=i)
                 )
                 continue
-            claim_text = (
-                _text(claim)
-                if _v(claim, "claim") is None
-                else str(_v(claim, "claim"))
-            )
+            claim_text = _text(claim) if _v(claim, "claim") is None else str(_v(claim, "claim"))
             if _tokens(claim_text) & set().union(*(_tokens(p) for p in passages)):
                 checked.append(str(i))
                 continue

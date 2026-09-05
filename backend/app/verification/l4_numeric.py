@@ -1,4 +1,5 @@
 """Deterministic grounding of claim numbers against cited context."""
+
 from __future__ import annotations
 
 import re
@@ -7,9 +8,7 @@ from typing import Any
 
 from .l2_citation import LayerResult, VerificationIssue
 
-_NUM = re.compile(
-    r"(?<![\w])(?:\d{1,3}(?:[.\s]\d{3})+|\d+(?:[,.]\d+)?)(?![\w])"
-)
+_NUM = re.compile(r"(?<![\w])(?:\d{1,3}(?:[.\s]\d{3})+|\d+(?:[,.]\d+)?)(?![\w])")
 
 
 def _v(item: Any, name: str, default: Any = None) -> Any:
