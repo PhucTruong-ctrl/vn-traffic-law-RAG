@@ -1,5 +1,6 @@
 """Behavior tests for the standalone search API."""
 from __future__ import annotations
+
 from datetime import date
 from types import SimpleNamespace
 
