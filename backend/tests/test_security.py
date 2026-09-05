@@ -1,32 +1,17 @@
-import pytest
+from __future__ import annotations
 
-from app.security import redact_sensitive, security_headers, validate_request_size
-
-
-def test_redact_sensitive_values():
-    text = "api_key=abc123 token: secret-token password=hunter2 ordinary=value"
-
-    redacted = redact_sensitive(text)
-
-    assert "abc123" not in redacted
-    assert "secret-token" not in redacted
-    assert "hunter2" not in redacted
-    assert redacted.count("[REDACTED]") == 3
-    assert "ordinary=value" in redacted
+from app.security import admin_token_is_valid, safe_upload_name
 
 
-def test_security_headers_are_safe_defaults():
-    assert security_headers() == {
-        "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "DENY",
-        "Referrer-Policy": "no-referrer",
-        "Content-Security-Policy": "default-src 'none'",
-    }
+def test_admin_token_comparison_requires_strong_token_and_matches() -> None:
+    expected = "a" * 32
+    assert admin_token_is_valid({"x-admin-token": expected}, expected)
+    assert not admin_token_is_valid({"x-admin-token": "b" * 32}, expected)
+    assert not admin_token_is_valid({"x-admin-token": "short"}, expected)
 
 
-def test_validate_request_size_allows_boundary_and_unknown_length():
-    validate_request_size(1_048_576)
-    validate_request_size(None)
-
-    with pytest.raises(ValueError):
-        validate_request_size(1_048_577)
+def test_upload_name_rejects_traversal_and_non_pdf() -> None:
+    assert safe_upload_name("document.PDF")
+    assert not safe_upload_name("../document.pdf")
+    assert not safe_upload_name("dir/document.pdf")
+    assert not safe_upload_name("document.pdf.exe")

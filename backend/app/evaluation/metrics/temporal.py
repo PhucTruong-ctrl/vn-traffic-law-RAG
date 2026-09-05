@@ -1,4 +1,4 @@
-"""Deterministic temporal validity metrics for cited provisions."""
+"""Deterministic temporal metrics for validity and context separation."""
 
 from __future__ import annotations
 
@@ -57,18 +57,86 @@ def _aggregate(values: Mapping[str, float | None], categories: Mapping[str, str]
     )
 
 
+def _citation_ids(values: object) -> set[str]:
+    if not isinstance(values, Sequence) or isinstance(values, (str, bytes)):
+        return set()
+    return {
+        str(item.get("provision_id"))
+        if isinstance(item, Mapping) and item.get("provision_id") is not None
+        else str(item)
+        for item in values
+    }
+
+
+def current_historical_separation_accuracy(record: Mapping[str, object]) -> float | None:
+    """Score CURRENT/HISTORICAL citations as one if all are valid at query_date.
+
+    Contract: category, query_date, and non-empty citations (or results).
+    Other categories and missing/empty populations are NA.
+    """
+    if str(record.get("category", "")) not in {"CURRENT", "HISTORICAL"}:
+        return None
+    query_date = _date(record.get("query_date"))
+    citations = cast(
+        Sequence[Mapping[str, object]], record.get("citations", record.get("results", []))
+    )
+    if query_date is None or not citations:
+        return None
+    return float(all(is_temporally_valid(item, query_date) for item in citations))
+
+
+def comparison_separation_accuracy(record: Mapping[str, object]) -> float | None:
+    """Score independent before/after citation populations for COMPARISON.
+
+    Contract: comparison_dates is a pair of dates and comparison_citations is
+    {"before": [...], "after": [...]}. Both sides must be non-empty, valid at
+    their own date, and have no citation ID in common. Missing data is NA.
+    """
+    if str(record.get("category", "")) != "COMPARISON":
+        return None
+    raw_dates = record.get("comparison_dates")
+    if (
+        not isinstance(raw_dates, Sequence)
+        or isinstance(raw_dates, (str, bytes))
+        or len(raw_dates) != 2
+    ):
+        return None
+    dates = (_date(raw_dates[0]), _date(raw_dates[1]))
+    sides = record.get("comparison_citations")
+    if not isinstance(sides, Mapping) or dates[0] is None or dates[1] is None:
+        return None
+    before, after = sides.get("before", []), sides.get("after", [])
+    if (
+        not isinstance(before, Sequence)
+        or isinstance(before, (str, bytes))
+        or not before
+        or not isinstance(after, Sequence)
+        or isinstance(after, (str, bytes))
+        or not after
+    ):
+        return None
+    if _citation_ids(before) & _citation_ids(after):
+        return 0.0
+    return float(
+        all(is_temporally_valid(item, dates[0]) for item in before)
+        and all(is_temporally_valid(item, dates[1]) for item in after)
+    )
+
+
 def evaluate_temporal(
     queries: Mapping[str, Mapping[str, object]] | Sequence[Mapping[str, object]],
 ) -> dict[str, MetricReport]:
-    """Evaluate temporal validity and leakage over query records.
+    """Evaluate validity, leakage, and temporal separation over records.
 
-    Each record contains ``query_date`` and ordered mapping citations in
-    ``citations`` (or ``results``), with effective interval and review metadata.
+    Records contain category, query_date, and citations/results. COMPARISON
+    records additionally contain comparison_dates and comparison_citations.
     """
     records = list(queries.values()) if isinstance(queries, Mapping) else list(queries)
     values: dict[str, dict[str, float | None]] = {
         "temporal_validity_accuracy": {},
         "temporal_leakage_rate": {},
+        "current_historical_separation_accuracy": {},
+        "comparison_separation_accuracy": {},
     }
     categories: dict[str, str] = {}
     for index, record in enumerate(records):
@@ -78,13 +146,18 @@ def evaluate_temporal(
         citations = cast(
             Sequence[Mapping[str, object]], record.get("citations", record.get("results", []))
         )
-        if query_date is None:
-            valid = leakage = None
-        else:
-            valid = temporal_validity_accuracy(citations, query_date)
-            leakage = temporal_leakage_rate(citations, query_date)
+        valid = leakage = None
+        if query_date is not None:
+            valid, leakage = (
+                temporal_validity_accuracy(citations, query_date),
+                temporal_leakage_rate(citations, query_date),
+            )
         values["temporal_validity_accuracy"][key] = valid
         values["temporal_leakage_rate"][key] = leakage
+        values["current_historical_separation_accuracy"][key] = (
+            current_historical_separation_accuracy(record)
+        )
+        values["comparison_separation_accuracy"][key] = comparison_separation_accuracy(record)
     return {name: _aggregate(result, categories) for name, result in values.items()}
 
 
@@ -92,5 +165,7 @@ __all__ = [
     "is_temporally_valid",
     "temporal_validity_accuracy",
     "temporal_leakage_rate",
+    "current_historical_separation_accuracy",
+    "comparison_separation_accuracy",
     "evaluate_temporal",
 ]
