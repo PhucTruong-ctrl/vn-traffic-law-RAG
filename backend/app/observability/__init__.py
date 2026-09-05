@@ -15,3 +15,5 @@ __all__ = [
     "get_langfuse",
     "trace_legal_query",
 ]
+
+from app.observability.health import HealthCheck, Metrics, metrics, readiness
