@@ -1,4 +1,6 @@
+import json
 from pathlib import Path
+
 from scripts.validate_gold_set import validate_gold_set
 
 ROOT = Path(__file__).resolve().parents[2]

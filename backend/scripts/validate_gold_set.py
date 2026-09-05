@@ -1,9 +1,11 @@
 """Validate the versioned evaluation gold set and its integrity metadata."""
 from __future__ import annotations
+
 import hashlib
 import json
 from pathlib import Path
 from typing import Any
+
 from app.evaluation.gold_set import GoldCategory, validate_record
 
 
