@@ -135,6 +135,12 @@ Generated: 2026-09-05T17:13:19.246718+00:00
 - A direct OCR attempt on `nd-166-2024` produced repeated Tesseract OSD failures and no accepted IR artifact.
 - Current clean database state is migration revision `0003`, with `legal_documents=2`, `parsed_documents=1`, and `legal_provisions=0`; this is not full Task 1 evidence.
 
+## Final execution result
+
+- The latest full-corpus attempt used the intact backend environment and the real parser. `nd-119-2024` parsed successfully (27 pages, 386 IR elements); `nd-158-2024` entered a long CPU MinerU run and was stopped after no output artifact was produced.
+- A direct OCR attempt on `nd-166-2024` produced usable Tesseract text on a rendered page, but Docling OCR still produced repeated OSD failures; no accepted canonical IR resulted.
+- The current state therefore remains partial and does not satisfy the 13-document ingestion/index acceptance criteria.
+
 ## Current decisions
 
 - All 13 previously pending manifests were changed to `ACCEPTED` under explicit user authorization at 2026-09-05T17:29:51Z using reviewer identity `Phuc Truong <phuctruong@student>`; README candidate relations were accepted per that authorization.
