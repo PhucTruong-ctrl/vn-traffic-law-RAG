@@ -153,6 +153,12 @@ Generated: 2026-09-05T17:13:19.246718+00:00
 - Historical README evidence explicitly labels batch-04/05 relations as candidates requiring provision-level resolver confirmation; user authorization changed manifest review metadata but did not produce missing IR/provision artifacts.
 - Task 1 remains incomplete until all 13 official PDFs are parsed and their resulting database/index evidence is captured.
 
+## Final status after repeated processing
+
+- Existing local workspaces and Git history contain no extraction artifacts for the remaining pending documents.
+- Direct parser execution has produced only partial coverage; large scans remain CPU-bound and no stable OCR artifact is available for all 13 documents.
+- Task 1 acceptance is therefore still not evidenced for the full corpus.
+
 ## Current decisions
 
 - All 13 previously pending manifests were changed to `ACCEPTED` under explicit user authorization at 2026-09-05T17:29:51Z using reviewer identity `Phuc Truong <phuctruong@student>`; README candidate relations were accepted per that authorization.
