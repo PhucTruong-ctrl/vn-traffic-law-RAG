@@ -123,6 +123,7 @@ def _provider() -> None:
 
 
 def readiness() -> dict[str, Any]:
+    checks = [_run("db", _db), _run("retrieval", _qdrant), _run("provider", _provider)]
     unhealthy = [c.name for c in checks if c.status != "healthy"]
     return {
         "status": "ready" if not unhealthy else "degraded",
