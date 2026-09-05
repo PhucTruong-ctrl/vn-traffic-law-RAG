@@ -97,6 +97,12 @@ Generated: 2026-09-05T17:13:19.246718+00:00
 - The quality/temporal gate correctly keeps extracted provisions pending when required review/effect evidence is absent; those rows are not indexed.
 - Full 13-document processing remains incomplete. Current database evidence is not sufficient for Task 1 completion: not all documents have parsed IR/provisions, document relations are zero, and Qdrant has no collection.
 
+## Current verified database/index state
+
+- Current counts after sequential parser/extractor attempts: `legal_documents=13`, `document_versions=1`, `parsed_documents=10`, `legal_provisions=28`, `provision_references=108`, `document_relations=0`, `ingestion_runs=52`.
+- Qdrant collection `legal_provisions_v1` now exists after explicit collection bootstrap; it contains no indexed points because zero provision rows satisfy `review_status=ACCEPTED` and a resolved effective interval.
+- This is a truthful gate outcome, not a successful full-corpus ingest.
+
 ## Current decisions
 
 - All 13 previously pending manifests were changed to `ACCEPTED` under explicit user authorization at 2026-09-05T17:29:51Z using reviewer identity `Phuc Truong <phuctruong@student>`; README candidate relations were accepted per that authorization.
