@@ -76,4 +76,4 @@ Generated: 2026-09-05T17:13:19.246718+00:00
 - All 13 previously pending manifests were changed to `ACCEPTED` under explicit user authorization at 2026-09-05T17:29:51Z using reviewer identity `Phuc Truong <phuctruong@student>`; README candidate relations were accepted per that authorization.
 - Delegated review confirmed the existing validator already conditionally requires review metadata only for ACCEPTED/REJECTED; focused schema tests report 38 passed.
 - README candidate relations were accepted as review metadata by explicit user instruction; no structured relation rows were inserted because the manifest schema has no relation array and database ingestion was not completed.
-- Ingest/index count report remains unavailable: services are healthy, but database migration could not authenticate from the host and no provision extraction output exists.
+- Ingest/index count report remains unavailable: services are healthy and migrations are complete, but no provision extraction output was persisted and Qdrant has zero collections.
