@@ -1,6 +1,4 @@
-"""Independent legal-provision search API (FR-21)."""
-
-from __future__ import annotations
+from __future__
 
 import uuid
 from datetime import date
@@ -35,66 +33,32 @@ class SearchRequest(BaseModel):
 
 
 def _serialize(result: RetrievalResult) -> dict[str, Any]:
-    interval = {
-        "from": result.effective_from.isoformat(),
-        "to": result.effective_to.isoformat() if result.effective_to else None,
-    }
-    return {
-        "rank": result.rank,
-        "provision_id": result.provision_id,
-        "provision_version": result.provision_version,
-        "document_id": result.document_id,
-        "document_version_id": result.document_version_id,
-        "document_number": result.document_number,
-        "article": result.article,
-        "clause": result.clause,
-        "point": result.point,
-        "hierarchy": {"article": result.article, "clause": result.clause, "point": result.point},
-        "snippet": result.source_text or result.text,
-        "effective_from": interval["from"],
-        "effective_to": interval["to"],
-        "interval": interval,
-        "status": "EFFECTIVE",
-        "page_number": result.page_number,
-        "provenance": {
-            "retrieval_sources": result.retrieval_sources,
-            "source_id": result.source_id,
-            "document_version_id": result.document_version_id,
-        },
-    }
+    interval = {"from": result.effective_from.isoformat(), "to": result.effective_to.isoformat() if result.effective_to else None}
+    return {"rank": result.rank, "provision_id": result.provision_id, "provision_version": result.provision_version, "document_id": result.document_id, "document_version_id": result.document_version_id, "document_number": result.document_number, "article": result.article, "clause": result.clause, "point": result.point, "hierarchy": {"article": result.article, "clause": result.clause, "point": result.point}, "snippet": result.source_text or result.text, "effective_from": interval["from"], "effective_to": interval["to"], "interval": interval, "status": "EFFECTIVE", "page_number": result.page_number, "provenance": {"retrieval_sources": result.retrieval_sources, "source_id": result.source_id, "document_version_id": result.document_version_id}}
 
 
 def _build_retriever(mode: str) -> Any:
     client = _default_client()
+    encoder = cast(SparseEncoder, BM25SparseEncoder())
     if mode == "sparse":
         return SparseRetriever(client, encoder, top_k=100)
     embedder = get_embedding_provider(get_embedding_settings())
     if mode == "dense":
         return DenseRetriever(client, embedder, top_k=100)
-        return HybridRetriever(client, embedder, encoder)
+    return HybridRetriever(client, embedder, encoder)
 
 
 def _retrieve(request: SearchRequest) -> CandidateSet:
     retriever = _build_retriever(request.mode)
     query_date = request.effective_date or date.today()
     if request.mode == "hybrid":
-        return retriever.retrieve(
-            request.query, query_date=query_date, vehicle_type=request.vehicle_type
-        )
-    # Dense/sparse adapters accept Qdrant filters; temporal filtering is owned
-    # by the shared index contract and therefore remains active for every mode.
+        return retriever.retrieve(request.query, query_date=query_date, vehicle_type=request.vehicle_type)
     from app.retrieval.filters import build_temporal_filter
-
-    return retriever.search(
-        request.query,
-        query_filter=build_temporal_filter(query_date, vehicle_type=request.vehicle_type),
-        limit=100,
-    )
+    return retriever.search(request.query, query_filter=build_temporal_filter(query_date, vehicle_type=request.vehicle_type), limit=100)
 
 
 @router.post("/search", response_model=None)
 def search(request: Annotated[SearchRequest, Body()]) -> dict[str, Any]:
-    """Search indexed provisions without invoking the generator."""
     trace_id = uuid.uuid4().hex
     candidates = _retrieve(request)
     items = candidates.results
@@ -104,10 +68,4 @@ def search(request: Annotated[SearchRequest, Body()]) -> dict[str, Any]:
     size = request.page_size or request.top_k
     start = (request.page - 1) * size
     page_items = items[start : start + size]
-    return {
-        "results": [_serialize(item) for item in page_items],
-        "page": request.page,
-        "page_size": size,
-        "total": len(items),
-        "trace_id": trace_id,
-    }
+    return {"results": [_serialize(item) for item in page_items], "page": request.page, "page_size": size, "total": len(items), "trace_id": trace_id}
