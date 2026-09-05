@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, cast
 
 from fastapi import APIRouter, Body
 from pydantic import BaseModel, ConfigDict, Field
@@ -15,7 +15,7 @@ from app.retrieval.dense import DenseRetriever
 from app.retrieval.embedding import get_embedding_provider
 from app.retrieval.hybrid import HybridRetriever
 from app.retrieval.qdrant_store import _default_client
-from app.retrieval.sparse import BM25SparseEncoder
+from app.retrieval.sparse import BM25SparseEncoder, SparseEncoder
 from app.retrieval.sparse_retriever import SparseRetriever
 
 router = APIRouter(prefix="/api/v1", tags=["search"])
@@ -67,11 +67,11 @@ def _serialize(result: RetrievalResult) -> dict[str, Any]:
 def _build_retriever(mode: str) -> Any:
     client = _default_client()
     if mode == "sparse":
-        return SparseRetriever(client, BM25SparseEncoder(), top_k=100)
+        return SparseRetriever(client, encoder, top_k=100)
     embedder = get_embedding_provider(get_embedding_settings())
     if mode == "dense":
         return DenseRetriever(client, embedder, top_k=100)
-    return HybridRetriever(client, embedder, BM25SparseEncoder())
+        return HybridRetriever(client, embedder, encoder)
 
 
 def _retrieve(request: SearchRequest) -> CandidateSet:
