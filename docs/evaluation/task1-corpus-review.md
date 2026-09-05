@@ -73,7 +73,7 @@ Generated: 2026-09-05T17:13:19.246718+00:00
 
 ## Final execution blocker
 
-- Consistent host-endpoint execution reached the real parser. Docling now has an explicit CPU accelerator setting; direct verification parsed the 5-page text-layer `tt-18-2024` PDF into 95 IR elements. Scan PDFs still require OCR, and `/usr/share/tessdata` has `eng`, `osd`, `spa` but no Vietnamese `vie.traineddata`; MinerU attempts exceed the actor time limit.
+- Consistent host-endpoint execution reached the real parser. Docling now has an explicit CPU accelerator setting; direct verification parsed the 5-page text-layer `tt-18-2024` PDF into 95 IR elements. A subsequent real worker run still failed because the installed transformer/torch stack is unstable under the long-lived Dramatiq process (`GenerationMixin`/`TORCH_LIBRARY` import errors). Scan PDFs also require OCR, and the host tessdata lacks Vietnamese `vie.traineddata`; MinerU attempts exceed the actor time limit.
 - Database and Qdrant remain empty after the real run: no parsed IR, provisions, relations, or indexed points were produced.
 - This report deliberately does not claim Task 1 complete; parser/OCR runtime prerequisites remain required.
 
