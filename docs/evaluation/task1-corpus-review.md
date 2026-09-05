@@ -71,6 +71,12 @@ Generated: 2026-09-05T17:13:19.246718+00:00
 - Twelve ingestion jobs were submitted through the real Dramatiq queue; no documents, parsed documents, provisions, or Qdrant points were persisted before the worker run ended.
 - Therefore no ingest/index completion is claimed.
 
+## Final execution blocker
+
+- Consistent host-endpoint execution reached the real parser. Scan PDFs route to Docling OCR and MinerU fallback. Docling import crashes while loading the installed torch stack; OCR readiness is also incomplete because `/usr/share/tessdata` has `eng`, `osd`, `spa` but no Vietnamese `vie.traineddata`; MinerU attempts exceed the actor time limit.
+- Database and Qdrant remain empty after the real run: no parsed IR, provisions, relations, or indexed points were produced.
+- This report deliberately does not claim Task 1 complete; parser/OCR runtime prerequisites remain required.
+
 ## Current decisions
 
 - All 13 previously pending manifests were changed to `ACCEPTED` under explicit user authorization at 2026-09-05T17:29:51Z using reviewer identity `Phuc Truong <phuctruong@student>`; README candidate relations were accepted per that authorization.
