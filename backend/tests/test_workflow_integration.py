@@ -41,6 +41,9 @@ class CompleteGate:
 
 
 class DeterministicTemporal:
+    def __init__(self, plan):
+        self.plan = plan
+
     def __call__(self, plan, *, query_date):
         return query_date
 
@@ -59,7 +62,7 @@ def make_graph(plan, records, answer=None, *, gate=None, verifier=None):
     return build_query_graph(
         GraphServices(
             analyzer=lambda question, **_: plan,
-            temporal=DeterministicTemporal(),
+            temporal=DeterministicTemporal(plan),
             expander=lambda plan, **_: [SimpleNamespace(text="question", source="original")],
             retriever=lambda query, **_: records,
             fusion=lambda candidates: candidates,
@@ -137,13 +140,7 @@ def test_invalid_citation_is_blocked_and_rate_is_zero():
     )
     answer = {
         "answer_summary": "unsupported",
-        "claims": [
-            {
-                "claim": "unsupported",
-                "claim_type": "OTHER",
-                "provision_ids": ["p-fake"],
-            }
-        ],
+        "claims": [{"claim": "unsupported", "claim_type": "OTHER", "provision_ids": ["p-fake"]}],
     }
     state = run(plan, [record], answer=answer)
     assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
@@ -158,8 +155,10 @@ def test_incomplete_evidence_repairs_then_completes():
         def evaluate(self, plan, context):
             nonlocal calls
             calls += 1
-            status = EvidenceStatus.INCOMPLETE if calls == 1 else EvidenceStatus.COMPLETE
-            return SimpleNamespace(status=status, evidence_gaps=[])
+            return SimpleNamespace(
+                status=EvidenceStatus.INCOMPLETE if calls == 1 else EvidenceStatus.COMPLETE,
+                evidence_gaps=[],
+            )
 
     record = provision("p-repair")
     plan = SimpleNamespace(
