@@ -1,4 +1,5 @@
 """Verified legal chat endpoint."""
+
 from __future__ import annotations
 
 import uuid
