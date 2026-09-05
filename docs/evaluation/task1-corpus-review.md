@@ -110,6 +110,12 @@ Generated: 2026-09-05T17:13:19.246718+00:00
 - Current services are healthy and the database was reset/reinitialized as authorized; local service port publication is subject to the Docker daemon runtime and is not used as an ingestion requirement.
 - Full acceptance is still not met: only one document has successful real parse/extract evidence, the remaining corpus is not persisted, relations are not complete, and Qdrant has no verified points.
 
+## Final state audit
+
+- Final repository audit confirms the Task 1 evidence report is committed and unrelated user changes remain uncommitted.
+- Runtime services report healthy in Compose, but the reset database currently has no migrated application tables until migration is rerun after service readiness.
+- Full Task 1 acceptance remains unmet: the available direct evidence covers only `tt-18-2024`; the complete 13-document IR/provision/relation/index evidence is absent.
+
 ## Current decisions
 
 - All 13 previously pending manifests were changed to `ACCEPTED` under explicit user authorization at 2026-09-05T17:29:51Z using reviewer identity `Phuc Truong <phuctruong@student>`; README candidate relations were accepted per that authorization.
