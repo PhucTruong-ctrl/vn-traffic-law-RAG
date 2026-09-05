@@ -5,6 +5,7 @@ artifact records every manifest's provenance, digest, licence, and coverage.
 """
 from __future__ import annotations
 
+
 import argparse
 import hashlib
 import json
@@ -20,10 +21,8 @@ DEFAULT_OUTPUT = Path("../data/candidate-corpus-manifest.json")
 
 def _canonical(value: Any) -> bytes:
     return (
-        json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "
-"
+        json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n"
     ).encode("utf-8")
-
 
 def _sha256(value: Any) -> str:
     return hashlib.sha256(_canonical(value)).hexdigest()
@@ -72,7 +71,14 @@ def build_candidate_corpus(manifests_dir: Path) -> dict[str, Any]:
         "manifest_count": len(entries),
         "coverage": {
             "documents": len(entries),
-            "review_status_counts": {status: sum(e["coverage"]["review_status"] == status for e in entries) for status in sorted({e["coverage"]["review_status"] for e in entries})},
+            "review_status_counts": {
+                status: sum(
+                    entry["coverage"]["review_status"] == status for entry in entries
+                )
+                for status in sorted(
+                    {entry["coverage"]["review_status"] for entry in entries}
+                )
+            },
             "source_domains": sorted({e["source_url"].split("/")[2] for e in entries}),
         },
         "entries": entries,
