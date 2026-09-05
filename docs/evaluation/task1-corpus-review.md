@@ -122,6 +122,13 @@ Generated: 2026-09-05T17:13:19.246718+00:00
 - The clean database was reinitialized but direct host-side Alembic access remains unreliable because Docker publishes the declared port without a stable host listener in this environment; service-internal PostgreSQL access is healthy.
 - The complete Task 1 deliverable is still not evidenced: parsed IR/provisions for all 13 documents, reviewed relations, and Qdrant point counts are missing.
 
+## Latest audit
+
+- After the authorized reset, all four data services report healthy in Compose.
+- The current PostgreSQL volume is empty and has no application tables until Alembic is rerun from a repository-native environment; the host cannot reach the published port reliably in this Docker setup.
+- A network migration attempt using a fresh uv image was blocked by dependency download DNS failure (`rapidocr`), so no schema or corpus claims are made from that attempt.
+- Full 13-document parse/provision/relation/index evidence remains absent.
+
 ## Current decisions
 
 - All 13 previously pending manifests were changed to `ACCEPTED` under explicit user authorization at 2026-09-05T17:29:51Z using reviewer identity `Phuc Truong <phuctruong@student>`; README candidate relations were accepted per that authorization.
