@@ -42,9 +42,6 @@ class CompleteGate:
 
 
 class DeterministicTemporal:
-    def __init__(self, plan):
-        self.plan = plan
-
     def __call__(self, plan, *, query_date):
         return query_date
 
@@ -52,25 +49,35 @@ class DeterministicTemporal:
 def make_graph(plan, records, answer=None, *, gate=None, verifier=None):
     answer = answer or {
         "answer_summary": "Điều 7 áp dụng.",
-        "claims": [{"claim": "Điều 7 áp dụng.", "claim_type": "OTHER", "provision_ids": [records[0]["provision_id"]]}],
+        "claims": [
+            {
+                "claim": "Điều 7 áp dụng.",
+                "claim_type": "OTHER",
+                "provision_ids": [records[0]["provision_id"]],
+            }
+        ],
     }
-    return build_query_graph(GraphServices(
-        analyzer=lambda question, **_: plan,
-        temporal=DeterministicTemporal(plan),
-        expander=lambda plan, **_: [SimpleNamespace(text="question", source="original")],
-        retriever=lambda query, **_: records,
-        fusion=lambda candidates: candidates,
-        reranker=lambda question, candidates: candidates,
-        context_expander=lambda candidates, **_: [],
-        evidence_gate=gate or CompleteGate(),
-        context_builder=lambda candidates: candidates,
-        generator=lambda question, context: answer,
-        verifier=verifier,
-    ))
+    return build_query_graph(
+        GraphServices(
+            analyzer=lambda question, **_: plan,
+            temporal=DeterministicTemporal(),
+            expander=lambda plan, **_: [SimpleNamespace(text="question", source="original")],
+            retriever=lambda query, **_: records,
+            fusion=lambda candidates: candidates,
+            reranker=lambda question, candidates: candidates,
+            context_expander=lambda candidates, **_: [],
+            evidence_gate=gate or CompleteGate(),
+            context_builder=lambda candidates: candidates,
+            generator=lambda question, context: answer,
+            verifier=verifier,
+        )
+    )
 
 
 def run(plan, records, **kwargs):
-    return make_graph(plan, records, **kwargs).invoke({"question": "question", "query_date": TODAY, "max_repair_attempts": 1})
+    return make_graph(plan, records, **kwargs).invoke(
+        {"question": "question", "query_date": TODAY, "max_repair_attempts": 1}
+    )
 
 
 def test_current_workflow_completes_with_valid_citation():
@@ -99,29 +106,33 @@ def test_comparison_workflow_retrieves_both_dates():
     plan = SimpleNamespace(
         normalized_query="question",
         intent="COMPARISON",
-        comparison_from=date(2023, 1, 1), comparison_to=TODAY, missing_query_information=[]
+        comparison_from=date(2023, 1, 1),
+        comparison_to=TODAY,
+        missing_query_information=[],
     )
     graph = make_graph(plan, [before, after])
-    state = graph.invoke(
-            {"question": "question", "query_date": TODAY, "max_repair_attempts": 0}
-        )
+    state = graph.invoke({"question": "question", "query_date": TODAY, "max_repair_attempts": 0})
     assert set(state["recall_candidates"]) == {"before", "after"}
     assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
 
 
 def test_out_of_scope_abstains_without_retrieval():
-    calls = []
-    plan = SimpleNamespace(
-        intent="OUT_OF_SCOPE", missing_query_information=[]
-    )
+    plan = SimpleNamespace(intent="OUT_OF_SCOPE", missing_query_information=[])
     state = make_graph(plan, [provision("p")]).invoke({"question": "tax", "max_repair_attempts": 0})
     assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
 
 
 def test_invalid_citation_is_blocked_and_rate_is_zero():
     record = provision("p-real")
-    plan = SimpleNamespace(normalized_query="question", intent="CURRENT", effective_date=TODAY, missing_query_information=[])
-    answer = {"answer_summary": "unsupported", "claims": [{"claim": "unsupported", "claim_type": "OTHER", "provision_ids": ["p-fake"]}]}
+    plan = SimpleNamespace(
+        normalized_query="question", intent="CURRENT", effective_date=TODAY, missing_query_information=[]
+    )
+    answer = {
+        "answer_summary": "unsupported",
+        "claims": [
+            {"claim": "unsupported", "claim_type": "OTHER", "provision_ids": ["p-fake"]}
+        ],
+    }
     state = run(plan, [record], answer=answer)
     assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
     assert state["verification_result"]["reason_code"] == "L2_UNKNOWN_PROVISION"
@@ -130,13 +141,18 @@ def test_invalid_citation_is_blocked_and_rate_is_zero():
 
 def test_incomplete_evidence_repairs_then_completes():
     calls = 0
+
     class RepairGate:
         def evaluate(self, plan, context):
             nonlocal calls
             calls += 1
-            return SimpleNamespace(status=EvidenceStatus.INCOMPLETE if calls == 1 else EvidenceStatus.COMPLETE, evidence_gaps=[])
+            status = EvidenceStatus.INCOMPLETE if calls == 1 else EvidenceStatus.COMPLETE
+            return SimpleNamespace(status=status, evidence_gaps=[])
+
     record = provision("p-repair")
-    plan = SimpleNamespace(normalized_query="question", intent="CURRENT", effective_date=TODAY, missing_query_information=[])
+    plan = SimpleNamespace(
+        normalized_query="question", intent="CURRENT", effective_date=TODAY, missing_query_information=[]
+    )
     state = run(plan, [record], gate=RepairGate())
     assert state["repair_attempts"] == 1
     assert state["final_response"]["status"] == "COMPLETED"
@@ -144,7 +160,9 @@ def test_incomplete_evidence_repairs_then_completes():
 
 def test_workflow_latency_is_deterministic_and_bounded():
     record = provision("p-latency")
-    plan = SimpleNamespace(normalized_query="question", intent="CURRENT", effective_date=TODAY, missing_query_information=[])
+    plan = SimpleNamespace(
+        normalized_query="question", intent="CURRENT", effective_date=TODAY, missing_query_information=[]
+    )
     started = perf_counter()
     state = run(plan, [record])
     elapsed = perf_counter() - started
