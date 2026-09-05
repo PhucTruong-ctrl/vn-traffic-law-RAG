@@ -50,25 +50,21 @@ def _persist_reference(
     session: Any, source: Any, candidate: Any, targets: Mapping[object, Any]
 ) -> None:
     """Persist one candidate, keeping retries idempotent."""
+    target = None
+    if candidate.resolution_status in {"RESOLVED", "PENDING_REVIEW"}:
+        target = targets.get(str(candidate.target_provision_id))
+        if target is None and candidate.target_version is not None:
+            target = targets.get((candidate.target_provision_id, candidate.target_version))
     existing = session.scalar(
         select(ProvisionReference).where(
             ProvisionReference.source_legal_provision_id == source.id,
-            ProvisionReference.target_legal_provision_id == (
-                targets.get(str(candidate.target_provision_id)).id
-                if targets.get(str(candidate.target_provision_id)) is not None
-                else None
-            ),
+            ProvisionReference.target_legal_provision_id == (target.id if target is not None else None),
             ProvisionReference.relation_type == candidate.relation_type,
         )
     )
     if existing is not None:
         return
 
-    target = None
-    if candidate.resolution_status in {"RESOLVED", "PENDING_REVIEW"}:
-        target = targets.get(str(candidate.target_provision_id))
-        if target is None and candidate.target_version is not None:
-            target = targets.get((candidate.target_provision_id, candidate.target_version))
     resolved = candidate.resolution_status in {"RESOLVED", "PENDING_REVIEW"} and target is not None
     target_id = target.id if target is not None else None
     target_provision_id = target.provision_id if target is not None else None
