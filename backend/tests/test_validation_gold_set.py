@@ -56,9 +56,7 @@ def test_validation_gold_covers_temporal_and_adversarial_cases() -> None:
     categories = {record["category"] for record in records}
     assert {"HISTORICAL", "COMPARISON", "CURRENT", "ADVERSARIAL_CITATION"} <= categories
     assert all(
-        record["required_evidence"]
-        for record in records
-        if record["category"] != "OUT_OF_SCOPE"
+        record["required_evidence"] for record in records if record["category"] != "OUT_OF_SCOPE"
     )
 
 

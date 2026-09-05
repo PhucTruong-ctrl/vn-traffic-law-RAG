@@ -12,7 +12,11 @@ def test_gold_set_is_complete_and_integrity_checked() -> None:
     records = json.loads(GOLD.read_text(encoding="utf-8"))["records"]
     assert len(records) == 200
     assert {record["category"] for record in records} >= {
-        "CURRENT", "HISTORICAL", "COMPARISON", "OUT_OF_SCOPE", "ADVERSARIAL_CITATION"
+        "CURRENT",
+        "HISTORICAL",
+        "COMPARISON",
+        "OUT_OF_SCOPE",
+        "ADVERSARIAL_CITATION",
     }
     assert not validate_gold_set(GOLD, HASH)
 

@@ -1,4 +1,5 @@
 """Validate the versioned evaluation gold set and its integrity metadata."""
+
 from __future__ import annotations
 
 import hashlib
@@ -49,6 +50,7 @@ def main() -> int:
     for error in errors:
         print(error)
     return 1 if errors else 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())
