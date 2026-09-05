@@ -147,6 +147,12 @@ Generated: 2026-09-05T17:13:19.246718+00:00
 - Sequential real parsing was retried with the intact environment. `nd-158-2024` entered the MinerU CPU pipeline but produced no output after 80 seconds and was stopped; no downstream rows were fabricated.
 - Current direct evidence still does not cover all 13 documents.
 
+## Latest direct evidence
+
+- Current checkout contains no committed or local extraction artifacts for the remaining pending documents.
+- Historical README evidence explicitly labels batch-04/05 relations as candidates requiring provision-level resolver confirmation; user authorization changed manifest review metadata but did not produce missing IR/provision artifacts.
+- Task 1 remains incomplete until all 13 official PDFs are parsed and their resulting database/index evidence is captured.
+
 ## Current decisions
 
 - All 13 previously pending manifests were changed to `ACCEPTED` under explicit user authorization at 2026-09-05T17:29:51Z using reviewer identity `Phuc Truong <phuctruong@student>`; README candidate relations were accepted per that authorization.
