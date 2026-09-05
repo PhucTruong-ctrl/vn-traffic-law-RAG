@@ -38,8 +38,10 @@ class FeedbackRequest(BaseModel):
         sensitive_markers = (
             "password",
             "secret",
+            "api key",
             "api_key",
             "apikey",
+            "access token",
             "access_token",
             "bearer ",
             "private key",
