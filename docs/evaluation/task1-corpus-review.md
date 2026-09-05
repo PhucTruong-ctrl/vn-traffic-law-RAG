@@ -77,6 +77,12 @@ Generated: 2026-09-05T17:13:19.246718+00:00
 - Database and Qdrant remain empty after the real run: no parsed IR, provisions, relations, or indexed points were produced.
 - This report deliberately does not claim Task 1 complete; parser/OCR runtime prerequisites remain required.
 
+## Current execution result
+
+- Direct real parser + extraction execution succeeded for `tt-18-2024`: 5 pages, 71 persisted provisions in the successful manual parse/extract run.
+- The first downstream stage attempted to enqueue via the default Docker hostname `redis`, while the direct host run used `127.0.0.1`; it failed before continuing because `redis` was not resolvable from the host process.
+- Full 13-document completion remains unverified; no claim of full corpus ingest/index is made.
+
 ## Current decisions
 
 - All 13 previously pending manifests were changed to `ACCEPTED` under explicit user authorization at 2026-09-05T17:29:51Z using reviewer identity `Phuc Truong <phuctruong@student>`; README candidate relations were accepted per that authorization.
