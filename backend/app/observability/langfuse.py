@@ -11,6 +11,7 @@ def emit_query_trace(trace: QueryTrace) -> QueryTrace:
     root = trace_legal_query(trace.query, trace.trace_id, trace.user_id, trace.metadata)
     for span in trace.spans:
         child = root.start_observation(name=span["name"], as_type="span", input=span.get("input"))
+        child = root.start_observation(as_type="span", name=span["name"], input=span.get("input"))
         if span.get("output") is not None:
             child.update(output=span["output"])
         child.end()
