@@ -90,6 +90,13 @@ Generated: 2026-09-05T17:13:19.246718+00:00
 - The quality gate correctly leaves extracted rows `PENDING` when review/temporal evidence is incomplete, so the index actor does not create a collection. This is why Qdrant remains empty rather than receiving unsupported records.
 - Full 13-document corpus processing is not complete: only `tt-18-2024` has persisted parsed output; scan documents still require a stable OCR/Docling runtime and Vietnamese OCR assets.
 
+## Latest verified state
+
+- One real text-layer document (`tt-18-2024`) reached parse, normalize, extract and reference-resolution stages.
+- The reference persistence duplicate-key defect was fixed and focused resolver tests pass.
+- The quality/temporal gate correctly keeps extracted provisions pending when required review/effect evidence is absent; those rows are not indexed.
+- Full 13-document processing remains incomplete. Current database evidence is not sufficient for Task 1 completion: not all documents have parsed IR/provisions, document relations are zero, and Qdrant has no collection.
+
 ## Current decisions
 
 - All 13 previously pending manifests were changed to `ACCEPTED` under explicit user authorization at 2026-09-05T17:29:51Z using reviewer identity `Phuc Truong <phuctruong@student>`; README candidate relations were accepted per that authorization.
