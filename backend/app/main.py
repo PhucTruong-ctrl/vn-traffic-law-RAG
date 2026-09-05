@@ -3,7 +3,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
 
-from app.api import chat, documents, errors, feedback, jobs, search
+from app.api import chat, documents, errors, feedback, jobs, review, search
 from app.observability.health import metrics, readiness
 
 app = FastAPI()
@@ -29,6 +29,7 @@ app.include_router(chat.router)
 app.include_router(documents.router)
 app.include_router(feedback.router)
 app.include_router(jobs.router)
+app.include_router(review.router)
 app.include_router(search.router)
 
 

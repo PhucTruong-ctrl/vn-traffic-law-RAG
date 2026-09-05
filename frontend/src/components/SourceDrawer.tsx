@@ -1,0 +1,3 @@
+"use client";
+import { Citation } from "./CitationCard";
+export default function SourceDrawer({ citation, onClose }: { citation: Citation | null; onClose: () => void }) { if (!citation) return null; return <div className="drawer-backdrop" role="presentation" onClick={onClose}><aside className="source-drawer" role="dialog" aria-modal="true" aria-labelledby="source-title" onClick={e => e.stopPropagation()}><button type="button" onClick={onClose} aria-label="Đóng">×</button><h2 id="source-title">Đoạn trích nguồn</h2><p>{citation.source_text || "Không có nội dung đoạn trích."}</p>{citation.page != null && <p><strong>Trang:</strong> {citation.page}</p>}{citation.bbox && <p><strong>Bounding box:</strong> {citation.bbox.join(", ")}</p>}</aside></div>; }

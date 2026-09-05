@@ -3,6 +3,11 @@
 import { FormEvent, useState } from "react";
 
 import FeedbackWidget from "../src/components/FeedbackWidget";
+import CitationCard from "../src/components/CitationCard";
+import QueryControls from "../src/components/QueryControls";
+import SourceDrawer from "../src/components/SourceDrawer";
+import AbstentionResult from "../src/components/AbstentionResult";
+import ProgressEvents from "../src/components/ProgressEvents";
 
 type Claim = {
   claim?: string;
@@ -15,6 +20,9 @@ type Citation = {
   document_number?: string;
   article?: string;
   source_url?: string;
+  source_text?: string;
+  page?: number | string;
+  bbox?: number[];
 };
 
 type ChatResponse = {
@@ -24,6 +32,7 @@ type ChatResponse = {
   citations?: Citation[];
   abstention?: { reason_code?: string } | null;
   disclaimer?: string;
+  progress_events?: Array<Record<string, unknown>>;
   trace_id?: string;
 };
 
@@ -33,6 +42,8 @@ export default function Home() {
   const [question, setQuestion] = useState("");
   const [queryDate, setQueryDate] = useState("");
   const [vehicle, setVehicle] = useState("");
+  const [comparisonDate, setComparisonDate] = useState("");
+  const [drawerCitation, setDrawerCitation] = useState<Citation | null>(null);
   const [response, setResponse] = useState<ChatResponse | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -90,22 +101,7 @@ export default function Home() {
             aria-describedby="question-help"
           />
           <p id="question-help" className="field-help">Nêu tình huống cụ thể để kết quả chính xác hơn.</p>
-          <div className="form-grid">
-            <div>
-              <label htmlFor="query-date">Ngày áp dụng</label>
-              <input id="query-date" type="date" value={queryDate} onChange={(event) => setQueryDate(event.target.value)} />
-            </div>
-            <div>
-              <label htmlFor="vehicle">Loại phương tiện</label>
-              <input
-                id="vehicle"
-                value={vehicle}
-                onChange={(event) => setVehicle(event.target.value)}
-                placeholder="Ô tô, xe máy..."
-                maxLength={100}
-              />
-            </div>
-          </div>
+          <QueryControls queryDate={queryDate} vehicle={vehicle} comparisonDate={comparisonDate} onQueryDateChange={setQueryDate} onVehicleChange={setVehicle} onComparisonDateChange={setComparisonDate} />
           <button type="submit" disabled={loading || !question.trim()} aria-busy={loading}>
             {loading ? "Đang kiểm tra..." : "Gửi câu hỏi"}
           </button>
@@ -125,11 +121,7 @@ export default function Home() {
             </div>
             <h2 id="answer-title">Kết quả</h2>
             {abstained ? (
-              <div className="alert warning">
-                <p>Không thể đưa ra kết luận chắc chắn cho câu hỏi này.</p>
-                {response.abstention?.reason_code && <p>Mã lý do: <code>{response.abstention.reason_code}</code></p>}
-                <p>Hãy bổ sung tình tiết hoặc tham khảo cơ quan có thẩm quyền.</p>
-              </div>
+              <AbstentionResult reason={response.abstention?.reason_code} reasonCode={response.abstention?.reason_code} disclaimer={response.disclaimer} />
             ) : (
               <>
                 <p className="answer-text">{response.answer || "Không có nội dung trả lời."}</p>
@@ -154,7 +146,7 @@ export default function Home() {
                 <ul className="citations">
                   {response.citations.map((citation, index) => (
                     <li key={`${citation.provision_id}-${index}`}>
-                      <strong>{citation.document_number || citation.provision_id || "Quy định liên quan"}</strong>
+                      <CitationCard citation={citation} onOpenSource={setDrawerCitation} />
                       {citation.article && <span> · {citation.article}</span>}
                       {citation.source_url && (
                         <a href={citation.source_url} target="_blank" rel="noreferrer">Xem nguồn</a>
@@ -164,9 +156,11 @@ export default function Home() {
                 </ul>
               </div>
             )}
+            {response.progress_events && <ProgressEvents events={response.progress_events} />}
             {response.disclaimer && <p className="disclaimer">{response.disclaimer}</p>}
             {response.trace_id && <details className="trace"><summary>Thông tin truy vết</summary><code>{response.trace_id}</code></details>}
             {response.trace_id && <FeedbackWidget traceId={response.trace_id} />}
+            <SourceDrawer citation={drawerCitation} onClose={() => setDrawerCitation(null)} />
           </section>
         )}
       </section>

@@ -43,6 +43,34 @@ This profile is intentionally separate and must not be started alongside a
 heavy ingestion/evaluation run. No external RAGFlow deployment or benchmark
 run is claimed by this baseline.
 
+## Gate M6 demo stabilization checks
+
+These are runnable checks for the operator; this document does not claim that
+they have been run.
+
+```bash
+# 1. Validate the release graph and required healthchecks without starting it.
+docker compose --project-directory . -f deploy/compose/compose.release.yml config >/tmp/vnlaw-release.yml
+python - <<'PY'
+import yaml
+with open('/tmp/vnlaw-release.yml') as f:
+    services = yaml.safe_load(f)["services"]
+assert set(services) == {"frontend", "backend", "worker", "postgres", "qdrant", "redis", "minio", "migrate"}
+assert all("healthcheck" in spec for name, spec in services.items() if name != "migrate")
+PY
+
+# 2. Start the release stack and wait for app health.
+docker compose --project-directory . -f deploy/compose/compose.release.yml up -d
+curl --fail http://127.0.0.1:8000/api/v1/health/live
+curl --fail http://127.0.0.1:3000
+
+# 3. Exercise deterministic browser smoke checks against a mockable API boundary.
+(cd frontend && npm ci && npx playwright install chromium && npm run test:e2e)
+
+# 4. Stop the stack after the rehearsal.
+docker compose --project-directory . -f deploy/compose/compose.release.yml down
+```
+
 ## Adapter boundary
 
 `app.ingestion.adapters.ragflow_adapter` defines the application-owned
