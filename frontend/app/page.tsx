@@ -2,6 +2,8 @@
 
 import { FormEvent, useState } from "react";
 
+import FeedbackWidget from "../src/components/FeedbackWidget";
+
 type Claim = {
   claim?: string;
   claim_type?: string;
@@ -164,6 +166,7 @@ export default function Home() {
             )}
             {response.disclaimer && <p className="disclaimer">{response.disclaimer}</p>}
             {response.trace_id && <details className="trace"><summary>Thông tin truy vết</summary><code>{response.trace_id}</code></details>}
+            {response.trace_id && <FeedbackWidget traceId={response.trace_id} />}
           </section>
         )}
       </section>
