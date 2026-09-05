@@ -55,7 +55,11 @@ def test_validation_gold_covers_temporal_and_adversarial_cases() -> None:
     records = _load()[0]["records"]
     categories = {record["category"] for record in records}
     assert {"HISTORICAL", "COMPARISON", "CURRENT", "ADVERSARIAL_CITATION"} <= categories
-    assert all(record["required_evidence"] for record in records if record["category"] != "OUT_OF_SCOPE")
+    assert all(
+        record["required_evidence"]
+        for record in records
+        if record["category"] != "OUT_OF_SCOPE"
+    )
 
 
 @pytest.mark.parametrize("path", [GOLD_PATH, READINESS_PATH])

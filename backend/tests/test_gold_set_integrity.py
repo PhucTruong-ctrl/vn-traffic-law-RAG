@@ -1,6 +1,5 @@
 import json
 from pathlib import Path
-from app.evaluation.gold_set import GoldCategory
 from scripts.validate_gold_set import validate_gold_set
 
 ROOT = Path(__file__).resolve().parents[2]

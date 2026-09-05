@@ -1,6 +1,7 @@
 """Validate the versioned evaluation gold set and its integrity metadata."""
 from __future__ import annotations
-import hashlib, json
+import hashlib
+import json
 from pathlib import Path
 from typing import Any
 from app.evaluation.gold_set import GoldCategory, validate_record
@@ -39,7 +40,10 @@ def validate_gold_set(path: Path, hash_path: Path | None = None) -> list[str]:
 
 def main() -> int:
     root = Path(__file__).resolve().parents[2]
-    errors = validate_gold_set(root / "data/gold-sets/gold-v1/gold.json", root / "data/gold-sets/gold-v1/hash.json")
+    errors = validate_gold_set(
+        root / "data/gold-sets/gold-v1/gold.json",
+        root / "data/gold-sets/gold-v1/hash.json",
+    )
     for error in errors:
         print(error)
     return 1 if errors else 0
