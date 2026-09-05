@@ -19,7 +19,10 @@ DEFAULT_OUTPUT = Path("../data/candidate-corpus-manifest.json")
 
 
 def _canonical(value: Any) -> bytes:
-    return (json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
+    return (
+        json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "
+"
+    ).encode("utf-8")
 
 
 def _sha256(value: Any) -> str:
