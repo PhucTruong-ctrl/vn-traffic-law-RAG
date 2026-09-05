@@ -53,7 +53,11 @@ def _persist_reference(
     existing = session.scalar(
         select(ProvisionReference).where(
             ProvisionReference.source_legal_provision_id == source.id,
-            ProvisionReference.target_provision_id == candidate.target_provision_id,
+            ProvisionReference.target_legal_provision_id == (
+                targets.get(str(candidate.target_provision_id)).id
+                if targets.get(str(candidate.target_provision_id)) is not None
+                else None
+            ),
             ProvisionReference.relation_type == candidate.relation_type,
         )
     )
