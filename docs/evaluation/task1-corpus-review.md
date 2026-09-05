@@ -51,14 +51,14 @@ Generated: 2026-09-05T17:13:19.246718+00:00
 ## Validation and ingest blockers
 
 - All 13 downloaded PDF hashes match the corresponding manifest `file_hash`.
-- The existing manifest validator rejects all four batch-06 manifests because its schema requires `reviewed_by` and `reviewed_at` even while `review_status` is `PENDING`.
+- The existing manifest validator accepts PENDING without review metadata and requires review metadata for ACCEPTED/REJECTED; all 27 manifests validate after review metadata was added.
 - Corpus QA ran successfully but loaded 0 provision outputs: no real extraction/provision artifacts exist under the supported data paths.
 - No manifest-to-PDF ingestion command exists. The runtime pipeline accepts PDFs through object storage/upload API and then requires PostgreSQL, Redis, MinIO, Qdrant, parser adapters, temporal/reference resolution and (for indexing) configured embedding provider.
 - Compose service verification: MinIO and Qdrant became healthy; PostgreSQL exits because the hardened read-only compose configuration cannot chmod/create its data directories; Redis exits because append-only persistence is denied under the read-only configuration. A delegated fix review made no change because `docker-compose.yml` contains pre-existing uncommitted user changes.
 
 ## Current decisions
 
-- No manifest was changed to `ACCEPTED`.
+- All 13 previously pending manifests were changed to `ACCEPTED` under explicit user authorization at 2026-09-05T17:29:51Z using reviewer identity `Phuc Truong <phuctruong@student>`; README candidate relations were accepted per that authorization.
 - Delegated review confirmed the existing validator already conditionally requires review metadata only for ACCEPTED/REJECTED; focused schema tests report 38 passed.
-- No relation was inserted into PostgreSQL: README notes candidate relations, while the database relation contract requires structured relation type, source evidence and review metadata.
-- No ingest/index count report can truthfully be produced until PostgreSQL and Redis are operational and parsed provisions exist.
+- README candidate relations were accepted as review metadata by explicit user instruction; no structured relation rows were inserted because the manifest schema has no relation array and database ingestion was not completed.
+- Ingest/index count report remains unavailable: services are healthy, but database migration could not authenticate from the host and no provision extraction output exists.
