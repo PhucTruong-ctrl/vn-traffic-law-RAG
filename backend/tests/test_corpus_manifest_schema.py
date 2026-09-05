@@ -76,6 +76,21 @@ def test_review_fields_not_required_for_pending_or_dropped(review_status: str) -
     assert validate_manifest(manifest) == []
 
 
+def test_explicit_null_review_fields_are_valid_before_decision() -> None:
+    manifest = base_manifest()
+    manifest["reviewed_by"] = None
+    manifest["reviewed_at"] = None
+    assert validate_manifest(manifest) == []
+
+
+def test_null_review_fields_fail_after_review_decision() -> None:
+    manifest = base_manifest()
+    manifest["review_status"] = "ACCEPTED"
+    manifest["reviewed_by"] = None
+    manifest["reviewed_at"] = None
+    assert validate_manifest(manifest)
+
+
 def test_invalid_review_status_fails() -> None:
     manifest = base_manifest()
     manifest["review_status"] = "REVIEWED"
