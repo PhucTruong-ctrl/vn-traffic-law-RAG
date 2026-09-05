@@ -116,6 +116,12 @@ Generated: 2026-09-05T17:13:19.246718+00:00
 - Runtime services report healthy in Compose, but the reset database currently has no migrated application tables until migration is rerun after service readiness.
 - Full Task 1 acceptance remains unmet: the available direct evidence covers only `tt-18-2024`; the complete 13-document IR/provision/relation/index evidence is absent.
 
+## Final audit update
+
+- Current Compose services are healthy after the authorized reset.
+- The clean database was reinitialized but direct host-side Alembic access remains unreliable because Docker publishes the declared port without a stable host listener in this environment; service-internal PostgreSQL access is healthy.
+- The complete Task 1 deliverable is still not evidenced: parsed IR/provisions for all 13 documents, reviewed relations, and Qdrant point counts are missing.
+
 ## Current decisions
 
 - All 13 previously pending manifests were changed to `ACCEPTED` under explicit user authorization at 2026-09-05T17:29:51Z using reviewer identity `Phuc Truong <phuctruong@student>`; README candidate relations were accepted per that authorization.
