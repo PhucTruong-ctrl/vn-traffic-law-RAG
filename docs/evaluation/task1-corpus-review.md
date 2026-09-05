@@ -103,6 +103,13 @@ Generated: 2026-09-05T17:13:19.246718+00:00
 - Qdrant collection `legal_provisions_v1` now exists after explicit collection bootstrap; it contains no indexed points because zero provision rows satisfy `review_status=ACCEPTED` and a resolved effective interval.
 - This is a truthful gate outcome, not a successful full-corpus ingest.
 
+## Final completion audit
+
+- The authorized user review metadata remains present on all 27 manifests.
+- Official PDF hashes and MinIO uploads remain recorded.
+- Current services are healthy and the database was reset/reinitialized as authorized; local service port publication is subject to the Docker daemon runtime and is not used as an ingestion requirement.
+- Full acceptance is still not met: only one document has successful real parse/extract evidence, the remaining corpus is not persisted, relations are not complete, and Qdrant has no verified points.
+
 ## Current decisions
 
 - All 13 previously pending manifests were changed to `ACCEPTED` under explicit user authorization at 2026-09-05T17:29:51Z using reviewer identity `Phuc Truong <phuctruong@student>`; README candidate relations were accepted per that authorization.
