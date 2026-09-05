@@ -141,6 +141,12 @@ Generated: 2026-09-05T17:13:19.246718+00:00
 - A direct OCR attempt on `nd-166-2024` produced usable Tesseract text on a rendered page, but Docling OCR still produced repeated OSD failures; no accepted canonical IR resulted.
 - The current state therefore remains partial and does not satisfy the 13-document ingestion/index acceptance criteria.
 
+## Final processing attempt
+
+- Clean database schema was reinitialized and 13 legal-document owners were staged from the accepted manifests.
+- Sequential real parsing was retried with the intact environment. `nd-158-2024` entered the MinerU CPU pipeline but produced no output after 80 seconds and was stopped; no downstream rows were fabricated.
+- Current direct evidence still does not cover all 13 documents.
+
 ## Current decisions
 
 - All 13 previously pending manifests were changed to `ACCEPTED` under explicit user authorization at 2026-09-05T17:29:51Z using reviewer identity `Phuc Truong <phuctruong@student>`; README candidate relations were accepted per that authorization.
