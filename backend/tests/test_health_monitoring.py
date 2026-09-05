@@ -13,7 +13,7 @@ def test_metrics_are_prometheus_safe_and_bounded():
     output = metrics.prometheus()
     assert 'requests{component="api",status="ok"} 1' in output
     assert "secret" not in output
-    assert "latency_count{operation=\"search\"} 1" in output
+    assert 'latency_count{operation="search"} 1' in output
 
 
 def test_health_endpoints_return_safe_shapes(monkeypatch):

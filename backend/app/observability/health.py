@@ -110,6 +110,7 @@ def _db() -> None:
 
 def _qdrant() -> None:
     from app.retrieval.qdrant_store import ensure_qdrant_collection
+
     client = ensure_qdrant_collection()
     client.get_collection(PROVISION_ALIAS)
 
