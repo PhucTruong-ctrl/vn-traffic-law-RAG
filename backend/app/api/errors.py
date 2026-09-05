@@ -34,7 +34,9 @@ class APIError(Exception):
     status_code = 500
     code = INTERNAL_ERROR
 
-    def __init__(self, message: str, *, status_code: int | None = None, code: str | None = None) -> None:
+    def __init__(
+        self, message: str, *, status_code: int | None = None, code: str | None = None
+    ) -> None:
         super().__init__(message)
         self.message = message
         if status_code is not None:
@@ -110,6 +112,9 @@ def register_error_handlers(app: FastAPI) -> None:
     async def _on_internal_error(request: Request, exc: Exception) -> JSONResponse:
         trace_id = current_trace_id() or new_trace_id()
         logger.exception(
-            "unhandled error trace_id=%s method=%s path=%s", trace_id, request.method, request.url.path
+            "unhandled error trace_id=%s method=%s path=%s",
+            trace_id,
+            request.method,
+            request.url.path,
         )
         return error_response(500, INTERNAL_ERROR, "Internal server error.", trace_id=trace_id)
