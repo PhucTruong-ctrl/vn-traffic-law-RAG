@@ -11,7 +11,7 @@ from typing import Any
 from sqlalchemy import text
 
 from app.api.db import get_engine
-from app.config import get_embedding_settings, get_qdrant_settings
+from app.config import get_embedding_settings
 from app.retrieval.qdrant_store import PROVISION_ALIAS
 
 
@@ -38,7 +38,13 @@ class Metrics:
 
     @staticmethod
     def _key(name: str, labels: dict[str, str] | None) -> tuple[str, tuple[tuple[str, str], ...]]:
-        clean = tuple(sorted((k, v) for k, v in (labels or {}).items() if k in {"component", "operation", "status"}))
+        clean = tuple(
+            sorted(
+                (k, v)
+                for k, v in (labels or {}).items()
+                if k in {"component", "operation", "status"}
+            )
+        )
         return name, clean
 
     def inc(self, name: str, labels: dict[str, str] | None = None, value: int = 1) -> None:
@@ -67,10 +73,18 @@ class Metrics:
 def _labels(labels: tuple[tuple[str, str], ...]) -> str:
     if not labels:
         return ""
-    return "{" + ",".join(f'{k}="{v.replace(chr(92), chr(92)+chr(92)).replace(chr(34), chr(92)+chr(34))}"' for k, v in labels) + "}"
+    return (
+        "{"
+        + ",".join(
+            f'{k}="{v.replace(chr(92), chr(92) + chr(92)).replace(chr(34), chr(92) + chr(34))}"'
+            for k, v in labels
+        )
+        + "}"
+    )
 
 
 metrics = Metrics()
+
 
 def _run(name: str, check: Callable[[], None]) -> HealthCheck:
     started = time.perf_counter()
@@ -80,7 +94,11 @@ def _run(name: str, check: Callable[[], None]) -> HealthCheck:
         metrics.inc("vnlaw_health_checks_total", {"component": name, "status": "unhealthy"})
         return HealthCheck(name, "degraded")
     finally:
-        metrics.observe("vnlaw_health_check_duration_seconds", time.perf_counter() - started, {"component": name})
+        metrics.observe(
+            "vnlaw_health_check_duration_seconds",
+            time.perf_counter() - started,
+            {"component": name},
+        )
     metrics.inc("vnlaw_health_checks_total", {"component": name, "status": "healthy"})
     return HealthCheck(name, "healthy")
 
