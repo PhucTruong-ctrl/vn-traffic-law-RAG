@@ -1,6 +1,5 @@
 """Behavior tests for the verified chat API."""
 from __future__ import annotations
-
 from datetime import date
 from types import SimpleNamespace
 
