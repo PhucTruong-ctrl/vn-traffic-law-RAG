@@ -129,6 +129,12 @@ Generated: 2026-09-05T17:13:19.246718+00:00
 - A network migration attempt using a fresh uv image was blocked by dependency download DNS failure (`rapidocr`), so no schema or corpus claims are made from that attempt.
 - Full 13-document parse/provision/relation/index evidence remains absent.
 
+## Latest parse attempt
+
+- Full-corpus sequential parse was started with the intact backend toolchain and completed only `nd-119-2024` (`27` pages, `386` IR elements) before the next large scan (`nd-158-2024`) entered a long-running MinerU CPU job and the process was stopped.
+- A direct OCR attempt on `nd-166-2024` produced repeated Tesseract OSD failures and no accepted IR artifact.
+- Current clean database state is migration revision `0003`, with `legal_documents=2`, `parsed_documents=1`, and `legal_provisions=0`; this is not full Task 1 evidence.
+
 ## Current decisions
 
 - All 13 previously pending manifests were changed to `ACCEPTED` under explicit user authorization at 2026-09-05T17:29:51Z using reviewer identity `Phuc Truong <phuctruong@student>`; README candidate relations were accepted per that authorization.
