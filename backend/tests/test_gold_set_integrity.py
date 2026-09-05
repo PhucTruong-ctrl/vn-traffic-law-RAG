@@ -24,4 +24,7 @@ def test_gold_set_is_complete_and_integrity_checked() -> None:
 def test_gold_set_has_no_placeholder_content() -> None:
     text = GOLD.read_text(encoding="utf-8").lower()
     assert "placeholder" not in text
-    assert all(record["review_status"].upper() == "APPROVED" for record in json.loads(text)["records"])
+    assert all(
+        record["review_status"].upper() == "APPROVED"
+        for record in json.loads(text)["records"]
+    )
