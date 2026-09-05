@@ -56,6 +56,14 @@ Generated: 2026-09-05T17:13:19.246718+00:00
 - No manifest-to-PDF ingestion command exists. The runtime pipeline accepts PDFs through object storage/upload API and then requires PostgreSQL, Redis, MinIO, Qdrant, parser adapters, temporal/reference resolution and (for indexing) configured embedding provider.
 - Compose service verification: MinIO and Qdrant became healthy; PostgreSQL exits because the hardened read-only compose configuration cannot chmod/create its data directories; Redis exits because append-only persistence is denied under the read-only configuration. A delegated fix review made no change because `docker-compose.yml` contains pre-existing uncommitted user changes.
 
+## Runtime result
+
+- Local runtime was reset as explicitly authorized. PostgreSQL, Redis, Qdrant and MinIO all report healthy.
+- Database migrations completed through Alembic head `0003`.
+- All 13 PDFs were uploaded to MinIO `source-pdfs/task1/<document>.pdf`.
+- Twelve ingestion jobs were submitted through the real Dramatiq queue; no documents, parsed documents, provisions, or Qdrant points were persisted before the worker run ended.
+- Therefore no ingest/index completion is claimed.
+
 ## Current decisions
 
 - All 13 previously pending manifests were changed to `ACCEPTED` under explicit user authorization at 2026-09-05T17:29:51Z using reviewer identity `Phuc Truong <phuctruong@student>`; README candidate relations were accepted per that authorization.
