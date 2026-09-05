@@ -56,6 +56,13 @@ Generated: 2026-09-05T17:13:19.246718+00:00
 - No manifest-to-PDF ingestion command exists. The runtime pipeline accepts PDFs through object storage/upload API and then requires PostgreSQL, Redis, MinIO, Qdrant, parser adapters, temporal/reference resolution and (for indexing) configured embedding provider.
 - Compose service verification: MinIO and Qdrant became healthy; PostgreSQL exits because the hardened read-only compose configuration cannot chmod/create its data directories; Redis exits because append-only persistence is denied under the read-only configuration. A delegated fix review made no change because `docker-compose.yml` contains pre-existing uncommitted user changes.
 
+## Final corpus state
+
+- Final manifest metadata hash: `sha256:593439506264d45dbbddd2cdac327e9ec4b6d0f14d7f6d91cca6849c2b55dbe2`.
+- PostgreSQL counts after migration and smoke: `legal_documents=0`, `document_versions=0`, `parsed_documents=0`, `document_elements=0`, `legal_provisions=0`, `document_relations=0`, `ingestion_runs=0`.
+- Qdrant health endpoint responds successfully; collection list is empty.
+- The 13 official PDFs are present in local MinIO under `source-pdfs/task1/`, but the worker smoke did not persist ingestion rows.
+
 ## Runtime result
 
 - Local runtime was reset as explicitly authorized. PostgreSQL, Redis, Qdrant and MinIO all report healthy.
