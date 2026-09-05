@@ -5,7 +5,6 @@ from types import SimpleNamespace
 from app.query.evidence_gate import EvidenceStatus
 from app.workflow.graph import GraphServices, build_query_graph
 
-
 TODAY = date(2025, 1, 1)
 HISTORICAL = date(2022, 1, 1)
 
