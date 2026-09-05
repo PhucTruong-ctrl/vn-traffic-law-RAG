@@ -1,0 +1,27 @@
+# RAGFlow benchmark-only profile (VNLRAG-142).
+# Never combine with the release stack or production ingestion.
+name: vnlaw-ragflow-benchmark
+
+services:
+  ragflow:
+    image: infiniflow/ragflow:v0.26.4
+    container_name: vnlaw-ragflow
+    profiles: [ragflow]
+    ports:
+      - "127.0.0.1:${RAGFLOW_WEB_PORT:-8088}:80"
+      - "127.0.0.1:${RAGFLOW_API_PORT:-9380}:9380"
+    environment:
+      RAGFLOW_API_HOST: ${RAGFLOW_API_HOST:-0.0.0.0}
+      RAGFLOW_API_PORT: ${RAGFLOW_API_PORT:-9380}
+    volumes:
+      - ragflow_data:/ragflow
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent --show-error http://127.0.0.1:80/healthz >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  ragflow_data:
