@@ -66,7 +66,11 @@ async def chat(request: Annotated[ChatRequest, Body()]) -> dict[str, Any]:
 def _citations(result: dict[str, Any], final: dict[str, Any]) -> list[dict[str, Any]]:
     """Expose citation metadata from verified claims and retrieved context."""
     context = result.get("expanded_context") or result.get("context_package") or []
-    by_id = {getattr(item, "provision_id", None): item for item in context if getattr(item, "provision_id", None)}
+    by_id = {
+        getattr(item, "provision_id", None): item
+        for item in context
+        if getattr(item, "provision_id", None)
+    }
     citations: list[dict[str, Any]] = []
     for claim in final.get("claims", []):
         for provision_id in claim.get("provision_ids", []):
