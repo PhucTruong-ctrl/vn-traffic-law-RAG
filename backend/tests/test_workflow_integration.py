@@ -83,7 +83,10 @@ def run(plan, records, **kwargs):
 def test_current_workflow_completes_with_valid_citation():
     record = provision("p-current")
     plan = SimpleNamespace(
-        normalized_query="question", intent="CURRENT", effective_date=TODAY, missing_query_information=[]
+        normalized_query="question",
+        intent="CURRENT",
+        effective_date=TODAY,
+        missing_query_information=[],
     )
     state = run(plan, [record])
     assert state["final_response"]["status"] == "COMPLETED"
@@ -93,7 +96,10 @@ def test_current_workflow_completes_with_valid_citation():
 def test_historical_workflow_serves_resolved_historical_date():
     record = provision("p-historical", end=date(2023, 1, 1))
     plan = SimpleNamespace(
-        normalized_query="question", intent="HISTORICAL", effective_date=HISTORICAL, missing_query_information=[]
+        normalized_query="question",
+        intent="HISTORICAL",
+        effective_date=HISTORICAL,
+        missing_query_information=[],
     )
     state = run(plan, [record])
     assert state["final_response"]["status"] == "COMPLETED"
@@ -125,12 +131,19 @@ def test_out_of_scope_abstains_without_retrieval():
 def test_invalid_citation_is_blocked_and_rate_is_zero():
     record = provision("p-real")
     plan = SimpleNamespace(
-        normalized_query="question", intent="CURRENT", effective_date=TODAY, missing_query_information=[]
+        normalized_query="question",
+        intent="CURRENT",
+        effective_date=TODAY,
+        missing_query_information=[],
     )
     answer = {
         "answer_summary": "unsupported",
         "claims": [
-            {"claim": "unsupported", "claim_type": "OTHER", "provision_ids": ["p-fake"]}
+            {
+                "claim": "unsupported",
+                "claim_type": "OTHER",
+                "provision_ids": ["p-fake"],
+            }
         ],
     }
     state = run(plan, [record], answer=answer)
@@ -151,7 +164,10 @@ def test_incomplete_evidence_repairs_then_completes():
 
     record = provision("p-repair")
     plan = SimpleNamespace(
-        normalized_query="question", intent="CURRENT", effective_date=TODAY, missing_query_information=[]
+        normalized_query="question",
+        intent="CURRENT",
+        effective_date=TODAY,
+        missing_query_information=[],
     )
     state = run(plan, [record], gate=RepairGate())
     assert state["repair_attempts"] == 1
@@ -161,7 +177,10 @@ def test_incomplete_evidence_repairs_then_completes():
 def test_workflow_latency_is_deterministic_and_bounded():
     record = provision("p-latency")
     plan = SimpleNamespace(
-        normalized_query="question", intent="CURRENT", effective_date=TODAY, missing_query_information=[]
+        normalized_query="question",
+        intent="CURRENT",
+        effective_date=TODAY,
+        missing_query_information=[],
     )
     started = perf_counter()
     state = run(plan, [record])
