@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 
-
 _SENSITIVE_VALUE = r"(?:[^\s,;]+|\"[^\"]*\"|'[^']*')"
 _SENSITIVE_PATTERN = re.compile(
     rf"(?P<label>api[-_ ]?key|access[-_ ]?token|auth(?:orization)?|bearer|token|password)"
