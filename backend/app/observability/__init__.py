@@ -10,8 +10,14 @@ from app.observability.langfuse_client import (
 
 __all__ = [
     "FallbackPrompt",
+    "HealthCheck",
+    "Metrics",
     "NoOpLangfuse",
     "build_prompt",
     "get_langfuse",
+    "metrics",
+    "readiness",
     "trace_legal_query",
 ]
+
+from app.observability.health import HealthCheck, Metrics, metrics, readiness

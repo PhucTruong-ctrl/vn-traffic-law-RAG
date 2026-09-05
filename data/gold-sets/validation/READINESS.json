@@ -1,0 +1,9 @@
+{
+  "dataset": "VNLRAG validation held-out",
+  "split": "VALIDATION",
+  "gold_version": "gold-v1-validation-2026-09-05",
+  "record_count": 40,
+  "gold_set_hash": "25e9eb48d5db00fbf6a64273780df0c9f1f19cf0d43c7b822dee927636b65ef3",
+  "frozen": false,
+  "source": "gold-v1 draft records 021-060; held out from development"
+}
