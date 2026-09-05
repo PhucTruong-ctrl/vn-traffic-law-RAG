@@ -1,8 +1,10 @@
 """VNLaw backend application entrypoint."""
 
 from fastapi import FastAPI, Request
+from fastapi.responses import PlainTextResponse
 
 from app.api import chat, documents, errors, feedback, jobs, search
+from app.observability.health import metrics, readiness
 
 app = FastAPI()
 
@@ -34,3 +36,15 @@ app.include_router(search.router)
 def health_live() -> dict[str, str]:
     """Liveness probe used by container healthchecks."""
     return {"status": "ok"}
+
+
+@app.get("/api/v1/health/ready")
+def health_ready() -> dict:
+    """Readiness reports dependency degradation without exposing internals."""
+    return readiness()
+
+
+@app.get("/metrics", response_class=PlainTextResponse)
+def prometheus_metrics() -> PlainTextResponse:
+    """Expose bounded, non-sensitive process metrics."""
+    return PlainTextResponse(metrics.prometheus(), media_type="text/plain; version=0.0.4")
