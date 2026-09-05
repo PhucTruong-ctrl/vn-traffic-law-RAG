@@ -39,6 +39,8 @@ def test_graph_registers_only_documented_application_nodes() -> None:
         "expand_legal_context",
         "check_evidence",
         "targeted_retrieval",
+        "regenerate",
+        "temporal_retry",
         "build_context",
         "generate",
         "verify",
