@@ -120,6 +120,7 @@ def extract_actor(job_id: str) -> None:
             # Already extracted (resume path) — never duplicate provision rows.
             set_stage(run, "EXTRACTING")
             session.commit()
+            resolve_refs_actor.send(job_id)
             return
 
         extracted = extract_legal_provisions(ir, document_version_id=str(version.id))
