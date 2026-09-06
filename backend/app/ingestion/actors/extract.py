@@ -24,7 +24,12 @@ import dramatiq
 
 from app.config import get_queue_settings
 from app.ingestion.context_enricher import enrich_provision
-from app.ingestion.projection import project_provenance, project_provisions, validate_provisions
+from app.ingestion.projection import (
+    _parse_iso_date,
+    project_provenance,
+    project_provisions,
+    validate_provisions,
+)
 from app.ingestion.structure_extractor import extract_legal_provisions
 from app.persistence.models import DocumentVersion, ProvisionProvenance
 
@@ -53,6 +58,17 @@ def _ensure_document_version(session, run, *, ir) -> DocumentVersion:
     """Reuse the latest document version or create version 1 (PENDING)."""
     version = latest_document_version(session, run.document_id)
     if version is not None:
+        manifest = dict(run.manifest_json or {})
+        if not version.effective_from:
+            version.effective_from = _parse_iso_date(manifest.get("effective_from"))
+        if not version.effective_to:
+            version.effective_to = _parse_iso_date(manifest.get("effective_to"))
+        if manifest:
+            merged_manifest = dict(version.manifest_json or {})
+            for key, value in manifest.items():
+                if key not in merged_manifest or merged_manifest[key] is None:
+                    merged_manifest[key] = value
+            version.manifest_json = merged_manifest
         return version
     fallback_hash = hashlib.sha256(ir.model_dump_json().encode("utf-8")).hexdigest()
     version = DocumentVersion(

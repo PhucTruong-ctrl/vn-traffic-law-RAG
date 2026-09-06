@@ -38,7 +38,7 @@ from app.ingestion.actors import normalize as normalize_module
 from app.ingestion.actors import parse as parse_module
 from app.ingestion.actors import resolve_refs, resolve_temporal
 from app.ingestion.actors.embed import embed_actor
-from app.ingestion.actors.extract import extract_actor
+from app.ingestion.actors.extract import _ensure_document_version, extract_actor
 from app.ingestion.actors.index import index_actor
 from app.ingestion.actors.normalize import normalize_actor
 from app.ingestion.actors.parse import parse_actor
@@ -52,7 +52,7 @@ from app.ingestion.queue import (
     get_broker,
     make_retry_when,
 )
-from app.persistence.models import IngestionRun
+from app.persistence.models import DocumentVersion, IngestionRun
 
 #: Actor queue names (== stage names, doc 03 §3.13.2).
 ACTOR_NAMES = [
@@ -159,6 +159,37 @@ def _messages(broker: StubBroker, queue_name: str) -> list[Message]:
 
 def _queue_empty(broker: StubBroker, queue_name: str) -> bool:
     return broker.queues[queue_name].empty()
+
+
+def test_existing_version_merges_manifest_effective_dates() -> None:
+    session = _FakeSession()
+    version = DocumentVersion(
+        document_id="nd-160-2024",
+        version=1,
+        manifest_json={"document_number": "160/2024/NĐ-CP"},
+        content_hash="hash",
+        review_status="PENDING",
+    )
+    run = _run(
+        document_id="nd-160-2024",
+        manifest_json={
+            "document_number": "160/2024/NĐ-CP",
+            "effective_from": "2025-01-01",
+            "effective_to": None,
+        },
+    )
+    monkeypatch = pytest.MonkeyPatch()
+    try:
+        monkeypatch.setattr(state_module, "latest_document_version", lambda _session, _document_id: version)
+        result = _ensure_document_version(session, run, ir=Mock(model_dump_json=lambda: "{}"))
+    finally:
+        monkeypatch.undo()
+
+    assert result is version
+    assert version.effective_from.isoformat() == "2025-01-01"
+    assert version.effective_to is None
+    assert version.manifest_json["effective_from"] == "2025-01-01"
+    assert version.review_status == "PENDING"
 
 
 def test_bootstrap_run_merges_repo_manifest_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
