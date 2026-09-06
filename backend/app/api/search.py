@@ -7,7 +7,7 @@ from datetime import date
 from typing import Annotated, Any, Literal, cast
 
 from fastapi import APIRouter, Body, Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.config import get_embedding_settings
 from app.retrieval.contracts import CandidateSet, RetrievalResult
@@ -26,6 +26,14 @@ class SearchRequest(BaseModel):
 
     query: str = Field(min_length=1)
     effective_date: date | None = None
+
+    @field_validator("effective_date", mode="before")
+    @classmethod
+    def parse_effective_date(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            return date.fromisoformat(value)
+        return value
+
     document_type: str | None = Field(default=None, min_length=1, max_length=64)
     vehicle_type: str | None = None
     top_k: int = Field(default=10, ge=1, le=100)

@@ -68,13 +68,23 @@ def test_search_response_fields_filters_mode_and_pagination(
         def retrieve(self, query: str, **kwargs: object) -> SimpleNamespace:
             seen.update(mode=mode, query=query, kwargs=kwargs)
             return SimpleNamespace(
-                results=[_result(1), _result(2, "99/2024", "CIRCULAR"), _result(3)]
+                results=[
+                    _result(1),
+                    _result(2, "99/2024", "CIRCULAR"),
+                    _result(3),
+                    _result(4, "7/2024", "DECREE-ANNEX"),
+                ]
             )
 
         def search(self, query: str, **kwargs: object) -> SimpleNamespace:
             seen.update(mode=mode, query=query, kwargs=kwargs)
             return SimpleNamespace(
-                results=[_result(1), _result(2, "99/2024", "CIRCULAR"), _result(3)]
+                results=[
+                    _result(1),
+                    _result(2, "99/2024", "CIRCULAR"),
+                    _result(3),
+                    _result(4, "7/2024", "DECREE-ANNEX"),
+                ]
             )
 
     monkeypatch.setattr(search_api, "_build_retriever", lambda selected: Retriever())
@@ -83,7 +93,7 @@ def test_search_response_fields_filters_mode_and_pagination(
         json={
             "query": "tax",
             "mode": mode,
-            "document_type": "12",
+            "document_type": "decree",
             "page": 2,
             "page_size": 1,
         },

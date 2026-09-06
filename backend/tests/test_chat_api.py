@@ -53,11 +53,17 @@ def test_chat_disclaimer_trace_citations_and_abstention(
                 "expanded_context": [context],
             }
 
-    monkeypatch.setattr(chat_api, "build_query_graph", lambda: Graph())
-    response = TestClient(app).post(
-        "/api/v1/chat",
-        json={"question": "hello", "query_date": "2024-01-02"},
-    )
+    monkeypatch.setattr(chat_api, "build_query_graph", lambda _services: Graph())
+    from app.api.db import get_db
+
+    app.dependency_overrides[get_db] = lambda: iter([object()])
+    try:
+        response = TestClient(app).post(
+            "/api/v1/chat",
+            json={"question": "hello", "query_date": "2024-01-02"},
+        )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
     assert response.status_code == 200
     payload = response.json()
     assert payload["status"] == expected

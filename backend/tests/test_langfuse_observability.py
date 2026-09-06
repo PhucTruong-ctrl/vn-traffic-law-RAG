@@ -134,6 +134,11 @@ def test_disabled_langfuse_returns_noop_stub(disabled_langfuse: None) -> None:
 
 def test_disabled_run_legal_query_trace_completes_offline(disabled_langfuse: None) -> None:
     """Full trace run succeeds and never loads the langfuse SDK (no network)."""
+    langfuse_modules = [
+        name for name in sys.modules if name == "langfuse" or name.startswith("langfuse.")
+    ]
+    for name in langfuse_modules:
+        del sys.modules[name]
     trace_id = run_legal_query_trace("mức phạt vượt đèn đỏ năm 2024?")
     assert trace_id
     assert isinstance(langfuse_client._client, langfuse_client.NoOpLangfuse)

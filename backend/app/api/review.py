@@ -44,8 +44,16 @@ class ReviewDecisionRequest(BaseModel):
 
 
 def _response(row: ReviewItem, trace_id: str | None = None) -> ReviewItemResponse:
-    payload = ReviewItemResponse.model_validate(row, from_attributes=True).model_dump()
-    payload["trace_id"] = trace_id or uuid.uuid4().hex
+    payload = ReviewItemResponse.model_validate(
+        {
+            **{
+                field: getattr(row, field)
+                for field in ReviewItemResponse.model_fields
+                if field != "trace_id"
+            },
+            "trace_id": trace_id or uuid.uuid4().hex,
+        }
+    ).model_dump()
     return ReviewItemResponse.model_validate(payload)
 
 

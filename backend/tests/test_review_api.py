@@ -22,7 +22,9 @@ class Session:
         return [self.row] if self.row.status == "PENDING" else []
 
     def scalar(self, statement: object) -> ReviewItem | None:
-        return self.row
+        criterion = statement.whereclause
+        requested_id = criterion.right.value
+        return self.row if self.row.id == requested_id else None
 
     def commit(self) -> None:
         self.committed = True

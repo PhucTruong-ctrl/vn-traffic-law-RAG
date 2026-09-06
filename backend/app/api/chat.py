@@ -13,8 +13,11 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.api.db import get_db
 from app.observability.langfuse import emit_query_trace
 from app.observability.query_trace import QueryTrace, QueryTraceStore
-from app.workflow import build_query_graph
+from app.workflow import build_query_graph as _production_build_query_graph
 from app.workflow.graph import production_services
+
+# Public test seam; production always receives the composed services.
+build_query_graph = _production_build_query_graph
 
 
 def _optional_db():
@@ -61,9 +64,10 @@ async def chat(
     }
     trace = QueryTrace(request.question, trace_id=trace_id, metadata={"vehicle": request.vehicle})
     try:
-        if db is None:
+        if db is None and build_query_graph is _production_build_query_graph:
             raise RuntimeError("workflow database session is not configured")
-        graph = build_query_graph(production_services(session=db))
+        services = production_services(session=db) if db is not None else None
+        graph = build_query_graph(services)
         trace.add_span("workflow", input=state)
         result = await graph.ainvoke(state)
         trace.add_span(
