@@ -72,12 +72,15 @@ def _ensure_document_version(session, run, *, ir) -> DocumentVersion:
                     merged_manifest[key] = value
             version.manifest_json = merged_manifest
         return version
+    manifest = dict(run.manifest_json or {})
     fallback_hash = hashlib.sha256(ir.model_dump_json().encode("utf-8")).hexdigest()
     version = DocumentVersion(
         document_id=run.document_id,
         version=1,
-        manifest_json=dict(run.manifest_json or {}),
+        manifest_json=manifest,
         content_hash=run.file_hash or fallback_hash,
+        effective_from=_parse_iso_date(manifest.get("effective_from")),
+        effective_to=_parse_iso_date(manifest.get("effective_to")),
         review_status="PENDING",
     )
     session.add(version)
