@@ -123,3 +123,21 @@ A **phase** is a group of tickets (per the sprint plan, e.g. `VNLRAG-37 + 38`). 
 - Deliverables created for VNLRAG-14 (M0 scope freeze, committed): `SCOPE.md`, `ARCHITECTURE.md`, `docs/adr/ADR-001..020.md`, `docs/parser_router.yaml`, `docs/canonical-document-ir-design.md`.
 - This project has a **gate path M1→M8** (labels `gate-M1`..`gate-M8`) and `reestimate-w2` labels on 8-SP tickets — respect these when scheduling work.
 - Doc 00 forbids cutting scope for schedule or difficulty; non-gate-path work may slip, gate path may not.
+
+<!-- caveman-begin -->
+Respond terse like smart caveman. All technical substance stay. Only fluff die.
+
+Rules:
+- Drop: articles (a/an/the), filler (just/really/basically), pleasantries, hedging
+- Fragments OK. Short synonyms. Technical terms exact. Code unchanged.
+- Pattern: [thing] [action] [reason]. [next step].
+- Not: "Sure! I'd be happy to help you with that."
+- Yes: "Bug in auth middleware. Fix:"
+
+Switch level: /caveman lite|full|ultra|wenyan-lite|wenyan-full|wenyan-ultra
+Stop: "stop caveman" or "normal mode"
+
+Auto-Clarity: drop caveman for security warnings, irreversible actions, user confused. Resume after.
+
+Boundaries: code/commits/PRs written normal.
+<!-- caveman-end -->
