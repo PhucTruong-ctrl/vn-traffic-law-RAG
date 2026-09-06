@@ -46,6 +46,7 @@ from ._state import (
     set_stage,
     stage_done,
 )
+from .resolve_refs import resolve_refs_actor
 
 _QUEUE_SETTINGS = get_queue_settings()
 _ACTOR_OPTIONS: dict[str, Any] = {
@@ -147,10 +148,5 @@ def extract_actor(job_id: str) -> None:
         session.commit()
     finally:
         session.close()
-
-    from .resolve_refs import resolve_refs_actor
-
     resolve_refs_actor.send(job_id)
-
-
 __all__ = ["extract_actor"]

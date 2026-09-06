@@ -22,11 +22,11 @@ build_query_graph = _production_build_query_graph
 
 
 def _optional_db():
+    """Return a database session when configured; otherwise yield ``None``."""
     try:
         yield from get_db()
-    except Exception:
+    except RuntimeError:
         yield None
-
 
 router = APIRouter(prefix="/api/v1", tags=["chat"])
 _TRACE_STORE = QueryTraceStore()
