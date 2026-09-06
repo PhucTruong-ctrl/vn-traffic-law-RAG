@@ -40,11 +40,17 @@ class EvaluationRunManifest(BaseModel):
 
     def manifest_hash(self) -> str:
         payload = {
+            "git_commit": self.git_commit,
+            "corpus_version": self.corpus_version,
+            "corpus_hash": self.corpus_hash,
+            "gold_set_version": self.gold_set_version,
+            "gold_set_hash": self.gold_set_hash,
+            "suite": self.suite,
+            "variant": self.variant,
             "config_snapshot": self.config_snapshot,
             "model_ids": self.model_ids,
             "prompt_versions": self.prompt_versions,
-            "corpus_hash": self.corpus_hash,
-            "gold_set_hash": self.gold_set_hash,
+            "parser_versions": self.parser_versions,
         }
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         return hashlib.sha256(encoded.encode()).hexdigest()
