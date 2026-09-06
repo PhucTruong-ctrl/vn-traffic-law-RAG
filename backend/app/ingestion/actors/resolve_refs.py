@@ -50,22 +50,21 @@ def _persist_reference(
     session: Any, source: Any, candidate: Any, targets: Mapping[object, Any]
 ) -> None:
     """Persist one candidate, keeping retries idempotent."""
-    existing = session.scalar(
-        select(ProvisionReference).where(
-            ProvisionReference.source_legal_provision_id == source.id,
-            ProvisionReference.target_provision_id == candidate.target_provision_id,
-            ProvisionReference.relation_type == candidate.relation_type,
-            ProvisionReference.source_text == candidate.source_text,
-        )
-    )
-    if existing is not None:
-        return
-
     target = None
     if candidate.resolution_status in {"RESOLVED", "PENDING_REVIEW"}:
         target = targets.get(str(candidate.target_provision_id))
         if target is None and candidate.target_version is not None:
             target = targets.get((candidate.target_provision_id, candidate.target_version))
+    existing = session.scalar(
+        select(ProvisionReference).where(
+            ProvisionReference.source_legal_provision_id == source.id,
+            ProvisionReference.target_legal_provision_id == (target.id if target is not None else None),
+            ProvisionReference.relation_type == candidate.relation_type,
+        )
+    )
+    if existing is not None:
+        return
+
     resolved = candidate.resolution_status in {"RESOLVED", "PENDING_REVIEW"} and target is not None
     target_id = target.id if target is not None else None
     target_provision_id = target.provision_id if target is not None else None
@@ -114,6 +113,7 @@ def resolve_refs_actor(job_id: str) -> None:
         legacy_text = manifest.get("reference_text")
         legacy_provisions = manifest.get("provisions")
         known_documents = manifest.get("known_documents", {})
+        relation_notes = manifest.get("relation_notes", "")
         malformed_documents = not isinstance(known_documents, Mapping)
         if malformed_documents:
             known_documents = {}
@@ -198,7 +198,7 @@ def resolve_refs_actor(job_id: str) -> None:
             "\n".join(row.source_text for row in persisted) if persisted else legacy_text
         )
         manifest_docs = extract_manifest_relations(
-            manifest.get("relation_notes"), run.document_id, known_documents
+            relation_notes, run.document_id, known_documents
         )
         docs = manifest_docs or (
             extract_document_relations(relation_text, run.document_id, known_documents)

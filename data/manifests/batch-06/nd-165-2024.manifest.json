@@ -11,7 +11,7 @@
   "effective_to": null,
   "status": "EFFECTIVE",
   "relation_notes": "Nguồn PDF chính thức datafiles.chinhphu.vn; legal review and indexing remain pending.",
-  "review_status": "PENDING",
-  "reviewed_by": null,
-  "reviewed_at": null
+  "review_status": "ACCEPTED",
+  "reviewed_by": "Phuc Truong <phuctruong@student>",
+  "reviewed_at": "2026-09-05T17:29:51Z"
 }

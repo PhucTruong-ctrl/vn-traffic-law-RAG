@@ -11,5 +11,7 @@
   "effective_to": null,
   "status": "EFFECTIVE",
   "relation_notes": "Quy định về thanh toán điện tử giao thông đường bộ; IMPLEMENTS Luật Đường bộ 35/2024/QH15 và Luật Trật tự, an toàn giao thông đường bộ 36/2024/QH15. Nguồn PDF chính thức datafiles.chinhphu.vn.",
-  "review_status": "PENDING"
+  "review_status": "ACCEPTED",
+  "reviewed_by": "Phuc Truong <phuctruong@student>",
+  "reviewed_at": "2026-09-05T17:29:51Z"
 }
