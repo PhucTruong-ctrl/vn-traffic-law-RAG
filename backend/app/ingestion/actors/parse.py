@@ -30,6 +30,7 @@ import dramatiq
 from app.config import get_queue_settings
 from app.ingestion.adapters.docling_adapter import DoclingAdapter
 from app.ingestion.adapters.mineru_adapter import MinerUAdapter
+from app.ingestion.adapters.pdfplumber_adapter import PdfPlumberAdapter
 from app.ingestion.document_ir import ParsedDocument
 from app.ingestion.parser_router import ParserRouter, RoutingInputs
 from app.storage.object_storage import ObjectStoragePort, get_object_storage
@@ -122,7 +123,14 @@ def _primary_parse(
 def _alternate_parse(
     pdf_path: Path, *, inputs: RoutingInputs, object_key: str, parsed_document_id: str
 ) -> ParsedDocument:
-    """MinerU parse (fallback/challenger parser, doc 03 §3.7.1)."""
+    """Parse the searchable-PDF alternate, retaining MinerU for scans/OCR."""
+    if inputs.has_text_layer:
+        return PdfPlumberAdapter().parse(
+            pdf_path,
+            source_object_key=object_key,
+            parsed_document_id=parsed_document_id,
+            document_id=inputs.document_id,
+        )
     with tempfile.TemporaryDirectory(prefix="vnlaw-mineru-") as output_dir:
         return MinerUAdapter().parse_pdf(
             str(pdf_path),
@@ -170,7 +178,12 @@ def route_and_parse(
         alternate_docs.append(parsed)
         return parsed
 
-    decision, outcome = router.route_and_gate(inputs, _primary, alternate_runner=_alternate)
+    decision, outcome = router.route_and_gate(
+        inputs,
+        _primary,
+        alternate_runner=_alternate,
+        alternate_parser="pdfplumber" if inputs.has_text_layer else None,
+    )
     record = router.record_decision(decision, outcome)
 
     if outcome.terminal_outcome != "accepted":
@@ -180,6 +193,8 @@ def route_and_parse(
     if outcome.source_parser == "docling" and primary_docs:
         return primary_docs[-1], record
     if outcome.source_parser == "mineru" and alternate_docs:
+        return alternate_docs[-1], record
+    if outcome.source_parser == "pdfplumber" and alternate_docs:
         return alternate_docs[-1], record
     raise ParseRejectedError(
         f"no accepted parser document (source_parser={outcome.source_parser!r})"
