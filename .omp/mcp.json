@@ -5,7 +5,7 @@
       "type": "stdio",
       "command": "codegraph",
       "args": ["serve", "--mcp"],
-      "cwd": "/home/phuctruong/orca/workspaces/bom-fixed/dev",
+      "cwd": "/home/haki/orca/vn-traffic-law-RAG",
       "enabled": true
     },
     "context7": {
