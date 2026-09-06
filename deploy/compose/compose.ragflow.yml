@@ -55,11 +55,11 @@ services:
   redis:
     image: redis:7-alpine
     profiles: [ragflow]
-    command: redis-server --appendonly yes
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-ragflow}"]
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -96,6 +96,7 @@ services:
       MINIO_PASSWORD: ${MINIO_ROOT_PASSWORD:-ragflow-minio}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-ragflow}
     volumes:
       - ragflow_data:/ragflow
     healthcheck:
