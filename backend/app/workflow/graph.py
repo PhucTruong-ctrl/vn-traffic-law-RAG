@@ -105,6 +105,7 @@ class GraphServices:
     generator: Service = None
     verifier: Service = None
     temporal_verifier: Service = None
+    legal_verifier: Service = None
 
 
 def _call(
@@ -196,6 +197,7 @@ def _analyze(state: QueryState, services: GraphServices) -> QueryState:
         service_name="analyzer",
         method_names=("analyze",),
         current_date=_today(state),
+        effect_change_dates=state.get("effect_change_dates", ()),
     )
     return {"query_understanding": plan} if plan is not None else {}
 
@@ -595,23 +597,43 @@ def _verify(state: QueryState, services: GraphServices) -> QueryState:
     provisions = state.get("provisions", context)
     if not all(getattr(claim, "provision_ids", None) for claim in answer.claims):
         return {"verification_result": {"status": "ABSTAIN", "reason_code": "L1_SCHEMA_INVALID"}}
-    l2 = _call(
-        services.verifier or L2CitationVerifier(provisions),
-        answer,
-        context,
-        service_name="verifier",
-        method_names=("verify",),
-        provisions=provisions,
-        expanded=context,
-    )
-    if not l2.passed:
-        return {
-            "verification_result": {
-                "status": "ABSTAIN",
-                "reason_code": l2.issues[0].code,
-                "issues": l2.issues,
+    if services.legal_verifier is not None:
+        query_date = _plan_date(state)
+        legal = _call(
+            services.legal_verifier,
+            answer,
+            context,
+            query_date=query_date,
+            service_name="legal_verifier",
+            method_names=("verify",),
+        )
+        if not legal.passed:
+            return {
+                "verification_result": {
+                    "status": "ABSTAIN",
+                    "reason_code": legal.reason_code or "VERIFICATION_FAILURE",
+                    "issues": list(legal.issues),
+                    "missing": list(legal.missing),
+                }
             }
-        }
+    else:
+        l2 = _call(
+            services.verifier or L2CitationVerifier(provisions),
+            answer,
+            context,
+            service_name="verifier",
+            method_names=("verify",),
+            provisions=provisions,
+            expanded=context,
+        )
+        if not l2.passed:
+            return {
+                "verification_result": {
+                    "status": "ABSTAIN",
+                    "reason_code": l2.issues[0].code,
+                    "issues": l2.issues,
+                }
+            }
     cited = [
         item
         for claim in answer.claims

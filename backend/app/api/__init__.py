@@ -1,5 +1,5 @@
-"""HTTP API routers."""
+"""HTTP API layer (VNLRAG-135): document upload + ingestion job status.
 
-from . import chat, documents, errors, feedback, jobs, search
-
-__all__ = ["chat", "documents", "errors", "feedback", "jobs", "search"]
+Routers are imported by ``app.main``; the standard error shape lives in
+:mod:`app.api.errors`.
+"""

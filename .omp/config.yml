@@ -45,12 +45,28 @@ debug:
 
 skills:
   includeSkills:
-    - verification-before-completion
-    - simplify
-    - code-review
-    - codebase-design
+    - ask-matt
+    - grill-with-docs
+    - triage
+    - improve-codebase-architecture
+    - setup-matt-pocock-skills
+    - to-spec
+    - to-tickets
+    - implement
+    - wayfinder
+    - prototype
     - diagnosing-bugs
-    - domain-modeling
-    - resolving-merge-conflicts
+    - research
     - tdd
-    - ui-ux-pro-max
+    - domain-modeling
+    - codebase-design
+    - code-review
+    - resolving-merge-conflicts
+    - wizard
+    - grill-me
+    - handoff
+    - teach
+    - to-questionnaire
+    - wait-what
+    - grilling
+    - writing-for-agents

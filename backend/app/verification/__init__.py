@@ -5,6 +5,7 @@ from .l2_citation import L2CitationVerifier, LayerResult, VerificationIssue
 from .l4_numeric import L4NumericVerifier
 from .l5_claim import L5ClaimVerifier
 from .l6_evidence import L6EvidenceVerifier, L6Result
+from .workflow import LegalVerificationBoundary, VerificationBoundaryResult
 
 __all__ = [
     "AbstentionDecision",
@@ -15,6 +16,8 @@ __all__ = [
     "L6EvidenceVerifier",
     "L6Result",
     "LayerResult",
+    "LegalVerificationBoundary",
+    "VerificationBoundaryResult",
     "VerificationIssue",
     "abstain",
 ]

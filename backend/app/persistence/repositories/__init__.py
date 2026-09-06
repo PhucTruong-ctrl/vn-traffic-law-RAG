@@ -10,7 +10,6 @@ from .documents import DocumentRepository
 from .hashing import content_hash, manifest_hash
 from .provisions import ProvisionRepository
 from .relations import RelatedProvision, RelationRepository
-from .review_items import ReviewItemNotFoundError, ReviewItemRepository
 from .temporal import TemporalRepository
 
 __all__ = [
@@ -18,8 +17,6 @@ __all__ = [
     "ProvisionRepository",
     "RelatedProvision",
     "RelationRepository",
-    "ReviewItemNotFoundError",
-    "ReviewItemRepository",
     "TemporalRepository",
     "content_hash",
     "manifest_hash",
