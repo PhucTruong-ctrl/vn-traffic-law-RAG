@@ -244,7 +244,10 @@ def project_provisions(
     """
 
     provisions: list[LegalProvision] = []
+    versions: dict[str, int] = {}
     for item in extracted:
+        version = versions.get(item.provision_id, 0) + 1
+        versions[item.provision_id] = version
         content_hash = _sha256_hex(item.source_text)
         if content_hash != item.content_hash:
             raise ValueError(
@@ -289,7 +292,7 @@ def project_provisions(
                 bbox=item.bbox,
                 source_element_ids=item.source_element_ids,
                 content_hash=content_hash,
-                version=item.version,
+                version=version,
                 review_status=provision_review_status,
             )
         )
