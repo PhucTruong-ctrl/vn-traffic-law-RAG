@@ -83,6 +83,7 @@ services:
     environment:
       RAGFLOW_API_HOST: ${RAGFLOW_API_HOST:-0.0.0.0}
       RAGFLOW_API_PORT: ${RAGFLOW_API_PORT:-9380}
+      API_PROXY_SCHEME: python
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
       MYSQL_DBNAME: ${MYSQL_DATABASE:-rag_flow}
