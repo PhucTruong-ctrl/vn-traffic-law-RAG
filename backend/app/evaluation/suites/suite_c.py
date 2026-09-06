@@ -100,10 +100,11 @@ VARIANTS: tuple[SuiteCVariant, ...] = (
 class ValidationSetBlocked(RuntimeError):
     """Raised when VNLRAG-93's complete validation set is unavailable."""
 
-    def __init__(self, actual: int) -> None:
+    def __init__(self, actual: int, *, reason: str | None = None) -> None:
         self.actual = actual
+        detail = f"found {actual}" if reason is None else reason
         super().__init__(
-            f"Suite C requires exactly {VALIDATION_SET_SIZE} validation records; found {actual}"
+            f"Suite C requires exactly {VALIDATION_SET_SIZE} validation records; {detail}"
         )
 
 
@@ -117,12 +118,19 @@ def validate_validation_set(
     """Validate the complete set before any provider or storage side effects."""
     if len(records) != VALIDATION_SET_SIZE:
         raise ValidationSetBlocked(len(records))
-    return tuple(
-        validate_record(record.model_dump(mode="python"))
-        if isinstance(record, GoldRecord)
-        else validate_record(dict(record))
-        for record in records
-    )
+    parsed: list[GoldRecord] = []
+    seen: set[str] = set()
+    for index, record in enumerate(records):
+        value = validate_record(
+            record.model_dump(mode="python") if isinstance(record, GoldRecord) else dict(record)
+        )
+        if value.id in seen:
+            raise ValidationSetBlocked(
+                len(records), reason=f"duplicate record id: {value.id}"
+            )
+        seen.add(value.id)
+        parsed.append(value)
+    return tuple(parsed)
 
 
 Evaluator = Callable[[SuiteCVariant, GoldRecord], Mapping[str, Any]]

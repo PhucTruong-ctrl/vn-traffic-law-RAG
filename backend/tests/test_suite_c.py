@@ -54,6 +54,14 @@ def test_incomplete_validation_set_blocks_without_running() -> None:
     assert error.value.actual == 1
 
 
+def test_duplicate_validation_ids_block_before_running() -> None:
+    records = valid_records()
+    records[-1] = records[0]
+
+    with pytest.raises(ValidationSetBlocked, match="duplicate record id: 0"):
+        validate_validation_set(records)
+
+
 def test_runner_never_invokes_evaluator_when_validation_set_is_incomplete() -> None:
     called = False
 
