@@ -250,3 +250,41 @@ def test_runner_reports_all_failure_categories_without_losing_raw_outcomes() -> 
         "provider_timeout": 1,
         "provider_auth": 1,
     }
+
+
+def test_runner_categorizes_malformed_ranking_failure_and_retains_raw_result() -> None:
+    class Writer:
+        def __init__(self) -> None:
+            self.finished: list[dict[str, object]] = []
+            self.results: list[dict[str, object]] = []
+
+        def start(self, *_args: object, **_kwargs: object) -> str:
+            return "run-1"
+
+        def append_result(self, _run_id: str, result: dict[str, object], **_kwargs: object) -> None:
+            self.results.append(result)
+
+        def finish(self, _run_id: str, **kwargs: object) -> None:
+            self.finished.append(kwargs)
+
+    writer = Writer()
+
+    def evaluator(_variant: object, record: GoldRecord) -> dict[str, object]:
+        if record.id == "0":
+            return {"status": "OK", "retrieved": "malformed", "raw": {"source": "provider"}}
+        return {"status": "OK", "provision_ids": []}
+
+    run_suite_c(
+        valid_records(),
+        evaluator=evaluator,
+        writer=writer,
+        manifest_for=lambda _: None,
+        session=None,
+        storage=None,
+        variants=VARIANTS[:1],
+    )
+
+    assert writer.results[0]["retrieval"]["outcome"]["status"] == "FAILED"
+    assert writer.finished[0]["metrics"]["failure_categories"] == {
+        "retrieved must be a non-string Sequence": 1,
+    }

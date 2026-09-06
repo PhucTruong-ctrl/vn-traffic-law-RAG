@@ -183,16 +183,6 @@ def run_suite_c(
                 except Exception as exc:
                     evaluator_failed = True
                     outcome = {"status": "FAILED", "error": f"{type(exc).__name__}: {exc}"}
-                if outcome.get("error") or str(outcome.get("status", "")).upper() in {
-                    "FAILED",
-                    "ERROR",
-                }:
-                    evaluator_failed = True
-                    category = str(
-                        outcome.get("failure_category") or outcome.get("error") or "UNKNOWN"
-                    )
-                    failure_categories[category] = failure_categories.get(category, 0) + 1
-
                 invalid_ranking = next(
                     (
                         name
@@ -212,6 +202,16 @@ def run_suite_c(
                         "status": "FAILED",
                         "error": (f"{invalid_ranking} must be a non-string Sequence"),
                     }
+
+                if outcome.get("error") or str(outcome.get("status", "")).upper() in {
+                    "FAILED",
+                    "ERROR",
+                }:
+                    evaluator_failed = True
+                    category = str(
+                        outcome.get("failure_category") or outcome.get("error") or "UNKNOWN"
+                    )
+                    failure_categories[category] = failure_categories.get(category, 0) + 1
 
                 writer.append_result(
                     run_id,
