@@ -1998,12 +1998,7 @@ def _discover_variant_runs(base_dir: Path) -> dict[str, Path]:
             )
         ):
             continue
-        manifest_json = _safe_load_json(manifest)
-        if manifest_json is None:
-            continue
-        manifest_hash = hashlib.sha256(
-            json.dumps(manifest_json, sort_keys=True, ensure_ascii=False).encode()
-        ).hexdigest()
+        manifest_hash = _sha256(manifest)
         group = by_hash.setdefault(manifest_hash, {})
         group.setdefault(variant, run_root)
         if {"p1", "p2", "p3"} <= set(group):

@@ -1203,27 +1203,22 @@ def test_discover_variant_runs_requires_full_trio(tmp_path: Path) -> None:
         _discover_variant_runs(base)
 
 
-def test_discover_variant_runs_prefers_newest_trio(tmp_path: Path) -> None:
-    """ora-6 #A: with TWO complete trios (different manifest hashes, different
-    timestamps), discovery returns the NEWER trio — not the first complete one
-    found in an oldest-first walk."""
+def test_discover_variant_runs_does_not_group_byte_different_manifests(tmp_path: Path) -> None:
+    """Manifest identity is the exact input-manifest file bytes, not parsed JSON."""
     base = tmp_path / "runs"
-    # Older trio (hash differs from the newer trio's manifest content).
-    old_docs: tuple[str, ...] = ("old-a", "old-b", "old-c")
-    _write_synthetic_run(base, "run-20260809-000000-aaaaaa", "docling", doc_ids=old_docs)
-    _write_synthetic_run(base, "run-20260809-000001-bbbbbb", "mineru", doc_ids=old_docs)
-    _write_synthetic_run(base, "run-20260809-000002-cccccc", "p3-parser-router", doc_ids=old_docs)
-    # Newer trio (later timestamps, DIFFERENT manifest content -> different hash).
-    new_docs: tuple[str, ...] = ("new-a", "new-b", "new-c")
-    _write_synthetic_run(base, "run-20260809-000003-dddddd", "docling", doc_ids=new_docs)
-    _write_synthetic_run(base, "run-20260809-000004-eeeeee", "mineru", doc_ids=new_docs)
-    _write_synthetic_run(base, "run-20260809-000005-ffffff", "p3-parser-router", doc_ids=new_docs)
+    docs = ("same-a", "same-b", "same-c")
+    for run_id, parser in (
+        ("run-20260809-000000-aaaaaa", "docling"),
+        ("run-20260809-000001-bbbbbb", "mineru"),
+        ("run-20260809-000002-cccccc", "p3-parser-router"),
+    ):
+        _write_synthetic_run(base, run_id, parser, doc_ids=docs)
+    # Keep JSON semantics identical while changing only insignificant bytes.
+    manifest = base / "run-20260809-000001-bbbbbb" / "input-manifest.json"
+    manifest.write_bytes(manifest.read_bytes().replace(b"\"entries\":", b"\"entries\" :"))
 
-    runs = _discover_variant_runs(base)
-    assert set(runs) == {"p1", "p2", "p3"}
-    assert runs["p1"].name == "run-20260809-000003-dddddd"
-    assert runs["p2"].name == "run-20260809-000004-eeeeee"
-    assert runs["p3"].name == "run-20260809-000005-ffffff"
+    with pytest.raises(ValueError, match="no COMPLETED p1/p2/p3 run trio"):
+        _discover_variant_runs(base)
 
 
 def test_report_uses_recorded_git_commit_not_checkout(
