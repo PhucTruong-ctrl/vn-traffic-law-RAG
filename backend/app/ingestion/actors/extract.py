@@ -21,6 +21,7 @@ import hashlib
 from typing import Any
 
 import dramatiq
+from sqlalchemy import text
 
 from app.config import get_queue_settings
 from app.ingestion.context_enricher import enrich_provision
@@ -93,6 +94,15 @@ def extract_actor(job_id: str) -> None:
             raise JobNotFoundError(f"ingestion run {job_id!r} not found")
         if stage_done(run, "EXTRACTING"):
             return
+
+        # PostgreSQL advisory locks serialize version/provision creation for retries.
+        # Other SQLAlchemy-supported databases keep the existing idempotency path.
+        bind = session.get_bind()
+        if bind.dialect.name == "postgresql":
+            session.execute(
+                text("SELECT pg_advisory_xact_lock(hashtextextended(:document_id, 0))"),
+                {"document_id": str(run.document_id)},
+            )
 
         parsed_row, elements = load_parsed_document(session, run.document_id)
         if parsed_row is None:
