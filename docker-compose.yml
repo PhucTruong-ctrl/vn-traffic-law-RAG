@@ -16,7 +16,6 @@ x-service-hardening: &service-hardening
 
 services:
   postgres:
-    <<: *service-hardening
     container_name: vnlaw-postgres
     image: postgres:18.4
     environment:
@@ -54,7 +53,6 @@ services:
     networks: [vnlaw-network]
 
   redis:
-    <<: *service-hardening
     container_name: vnlaw-redis
     image: redis:8.10.0
     ports:
@@ -116,4 +114,3 @@ volumes:
 networks:
   vnlaw-network:
     driver: bridge
-    internal: true
