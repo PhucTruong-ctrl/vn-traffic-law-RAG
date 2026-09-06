@@ -4,58 +4,58 @@
     {
       "variant": "G1",
       "status": "FAILED_VALIDATION",
-      "returned_invalid_citation_rate": 0.0,
-      "records_evaluated": 200,
+      "returned_invalid_citation_rate": null,
+      "records_evaluated": 0,
       "raw_results": [],
-      "reason": "runner contract not present in baseline"
+      "reason": "runner contract not present in baseline; evaluation not run"
     },
     {
       "variant": "G2",
       "status": "FAILED_VALIDATION",
-      "returned_invalid_citation_rate": 0.0,
-      "records_evaluated": 200,
+      "returned_invalid_citation_rate": null,
+      "records_evaluated": 0,
       "raw_results": [],
-      "reason": "runner contract not present in baseline"
+      "reason": "runner contract not present in baseline; evaluation not run"
     },
     {
       "variant": "G3",
       "status": "FAILED_VALIDATION",
-      "returned_invalid_citation_rate": 0.0,
-      "records_evaluated": 200,
+      "returned_invalid_citation_rate": null,
+      "records_evaluated": 0,
       "raw_results": [],
-      "reason": "runner contract not present in baseline"
+      "reason": "runner contract not present in baseline; evaluation not run"
     },
     {
       "variant": "G4",
       "status": "FAILED_VALIDATION",
-      "returned_invalid_citation_rate": 0.0,
-      "records_evaluated": 200,
+      "returned_invalid_citation_rate": null,
+      "records_evaluated": 0,
       "raw_results": [],
-      "reason": "runner contract not present in baseline"
+      "reason": "runner contract not present in baseline; evaluation not run"
     },
     {
       "variant": "G5",
       "status": "FAILED_VALIDATION",
-      "returned_invalid_citation_rate": 0.0,
-      "records_evaluated": 200,
+      "returned_invalid_citation_rate": null,
+      "records_evaluated": 0,
       "raw_results": [],
-      "reason": "runner contract not present in baseline"
+      "reason": "runner contract not present in baseline; evaluation not run"
     },
     {
       "variant": "G6",
       "status": "FAILED_VALIDATION",
-      "returned_invalid_citation_rate": 0.0,
-      "records_evaluated": 200,
+      "returned_invalid_citation_rate": null,
+      "records_evaluated": 0,
       "raw_results": [],
-      "reason": "runner contract not present in baseline"
+      "reason": "runner contract not present in baseline; evaluation not run"
     },
     {
       "variant": "G7",
       "status": "FAILED_VALIDATION",
-      "returned_invalid_citation_rate": 0.0,
-      "records_evaluated": 200,
+      "returned_invalid_citation_rate": null,
+      "records_evaluated": 0,
       "raw_results": [],
-      "reason": "runner contract not present in baseline"
+      "reason": "runner contract not present in baseline; evaluation not run"
     }
   ]
 }
