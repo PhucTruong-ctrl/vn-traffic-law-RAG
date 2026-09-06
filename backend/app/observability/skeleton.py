@@ -20,7 +20,7 @@ from app.config import get_settings
 from app.observability.langfuse_client import build_prompt, get_langfuse, trace_legal_query
 
 # Model ids used by the skeleton spans (doc 07 §7.3.3).
-GENERATION_MODEL = "gemini-3.5-flash"
+GENERATION_MODEL = "gemini-3.7-flash"
 EMBEDDING_MODEL = "gemini-embedding-2"
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]

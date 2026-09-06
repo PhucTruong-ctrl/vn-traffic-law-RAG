@@ -1,3 +1,6 @@
+> **MVP rebaseline — 06/09/2026**: The defense release scope is reduced to a fixed 5–10-document reviewed corpus, 30–50 evaluation questions, current and as-of-date retrieval, structure-aware citations, evidence gating, abstention, and a working chat UI. RAGFlow comparison, feedback, large-scale background ingestion, advanced observability/security, and production backup automation are deferred.
+>
+Tài liệu này chốt baseline phạm vi v2 và được rebaseline cho release bảo vệ ngày 16/09/2026: MVP gồm corpus 5–10 văn bản, 30–50 câu đánh giá, truy vấn hiện hành/theo ngày, citation kiểm chứng, evidence gate, abstention và chat UI.
 # SCOPE — Phạm Vi Dự Án VNLRAG v2
 
 Tài liệu này chốt baseline phạm vi của hệ thống RAG nhận biết cấu trúc và thời gian hiệu lực để hỗ trợ tra cứu pháp luật giao thông Việt Nam (bản thiết kế lại v2), phục vụ triển khai theo kế hoạch đến hạn hoàn thành 12/09/2026 và bảo vệ 14/09/2026.
@@ -103,7 +106,7 @@ Tóm tắt tech stack (chi tiết tại [ARCHITECTURE.md](ARCHITECTURE.md)):
 - **Lưu trữ**: PostgreSQL 18 + SQLAlchemy 2 + Alembic (metadata và versioning, nguồn chân lý); Qdrant v1.19 (dense + sparse + payload filter + RRF, index dẫn xuất); ObjectStoragePort (S3-compatible, MinIO là ứng viên hiện tại).
 - **Background jobs / observability**: Redis + Dramatiq 2.x; Langfuse Cloud (mặc định).
 - **Frontend**: Next.js + TypeScript (+ shadcn/ui).
-- **LLM**: generator Gemini 3.5 Flash; judge độc lập GPT-5.4 mini (snapshot pin); embedding/reranker là ứng viên chờ benchmark Suite B/C.
+- **LLM**: generator Gemini 3.7 Flash; independent judge Gemini 3.5 Flash Lite; embedding/reranker là ứng viên chờ benchmark rút gọn.
 - **RAGFlow chỉ là baseline so sánh bên ngoài**, chạy trong môi trường benchmark riêng, không nằm trong compose production.
 - Không dùng pgvector; không dùng full LangChain/Haystack/LlamaIndex trong core implementation (chỉ giữ `langgraph`, `langchain-core` nếu cần).
 

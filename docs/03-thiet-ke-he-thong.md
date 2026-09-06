@@ -1,3 +1,6 @@
+> **MVP rebaseline — 06/09/2026**: The defense release scope is reduced to a fixed 5–10-document reviewed corpus, 30–50 evaluation questions, current and as-of-date retrieval, structure-aware citations, evidence gating, abstention, and a working chat UI. RAGFlow comparison, feedback, large-scale background ingestion, advanced observability/security, and production backup automation are deferred.
+>
+> **Model policy**: Gemini 3.7 Flash is the primary structured-answer generator. Gemini 3.5 Flash Lite is the independent semantic judge. OpenAI/GPT-5.4 is not used. Earlier scope/model statements in this document are superseded by this rebaseline.
 # 03. Thiết Kế Hệ Thống
 
 > **Giai đoạn SDLC**: 3 - Thiết kế hệ thống
@@ -233,7 +236,7 @@ Sau số lần repair có giới hạn: **ABSTAIN**. Cơ chế đếm bước n�
 
 ### 3.2.5. Deployment topology
 
-Compose production gồm: frontend, backend, worker, PostgreSQL, Qdrant, Redis, MinIO. Các provider bên ngoài tùy chọn: Langfuse Cloud, Gemini API, OpenAI API (judge), Jina API (embedding/reranker). RAGFlow nằm trong môi trường benchmark riêng. MinerU chạy qua pipeline backend CPU; nếu cần dedicated runtime thì chạy container parser riêng.
+Compose MVP gồm frontend, backend, PostgreSQL và Qdrant. Redis/Dramatiq, MinIO, Langfuse và các provider phụ trợ chỉ là tùy chọn, không nằm trên đường tới hạn của bản bảo vệ. Gemini API là provider LLM duy nhất.
 
 ```mermaid
 graph LR
@@ -248,8 +251,8 @@ graph LR
     LF["Langfuse Cloud"]
     LLM["Gemini 3.5 Flash API"]
     J["Jina API"]
-    O["OpenAI GPT-5.4 mini API (L5 judge)"]
-
+    G["Gemini 3.7 Flash API (generator)"]
+    J["Gemini 3.5 Flash Lite API (L5 judge)"]
     B --> FE
     FE --> API
     API --> PG
@@ -269,7 +272,7 @@ graph LR
     API -. "trace async" .-> LF
 ```
 
-Ghi chú về L5 judge: `OpenAI GPT-5.4 mini API` được gọi theo hai chế độ: (1) **online** trong verifier L5 cho các trường hợp ngữ nghĩa không kết luận được bằng deterministic rule, với hành vi lỗi/latency được ghi tường minh và giới hạn repair/abstention (xem 3.24.2); (2) **evaluation** cho metric thứ cấp trong Suite D. Cả hai chế độ dùng cùng model snapshot pin; judge không bao giờ quyết định citation ID hay temporal validity (ADR-008).
+Ghi chú về L5 judge: Gemini 3.5 Flash Lite chỉ xử lý semantic claim support khi deterministic rules chưa kết luận được; lỗi provider hoặc timeout phải fail-closed sang repair giới hạn hoặc ABSTAIN.
 
 Cấu hình ràng buộc cục bộ:
 
@@ -3635,7 +3638,7 @@ def is_effective(effective_from, effective_to, query_date) -> bool:
 **L5 Claim support verifier**:
 
 - Tầng 1 deterministic: keyword overlap đã chuẩn hóa; amount/number consistency; provision chứa entity pháp lý cần thiết; không mâu thuẫn ngày; exact phrase support khi claim chứa mức phạt hoặc số điểm;
-- Tầng 2 LLM judge độc lập (GPT-5.4 mini, snapshot pin) **được bật online trong verifier L5** cho trường hợp ngữ nghĩa mà tầng deterministic không kết luận được; judge chỉ nhận một claim + các provision được cite, không nhìn answer tổng thể hay gold answer;
+- Tầng 2 LLM judge độc lập (Gemini 3.5 Flash Lite) chỉ dùng cho claim support semantic; không quyết định citation ID, temporal validity hoặc numeric grounding.
   - Hành vi lỗi/latency của judge online: judge timeout (config, khởi điểm 10s) hoặc judge provider error -> claim đó được đánh giá `L5_JUDGE_UNAVAILABLE` và được xử lý qua repair path có giới hạn; nếu không xác minh được, claim bị loại hoặc dẫn tới ABSTAIN, không bao giờ được giữ với trạng thái "chưa kiểm chứng";
   - Nếu judge online bị tắt bằng config (ví dụ khi không đủ budget hoặc ở final evaluation), mọi claim mà deterministic không kết luận được sẽ bị đánh giá fail theo chính sách fail-closed (`L5_CLAIM_NOT_SUPPORTED`), không đổi hành vi verified-or-abstain.
 
@@ -4356,7 +4359,7 @@ Generator không có tool access. Verifier L2/L5 từ chối claim không đư�
 - **Không thu thập PII**: hệ thống không yêu cầu người dùng cung cấp PII; query trace lưu `question` và metadata kỹ thuật, không lưu định danh người dùng.
 - **Retention**: nếu bật conversation history (FR-29, P1), mặc định giữ query trace 30 ngày; retention job xóa record hết hạn theo lịch (cron) và có dry-run/audit; evaluation trace được giữ lâu hơn vì không chứa PII.
 - **Delete job**: có job xóa record theo `trace_id`/user scope với test; mọi thao tác delete có audit.
-- **Provider data disclosure**: ghi rõ dữ liệu nào được gửi tới provider (Gemini, Jina, OpenAI, Langfuse) trong tài liệu vận hành: câu hỏi + context pháp lý (không PII) tới generator/judge/embedding/reranker; token usage và trace (không PII) tới Langfuse.
+- **Provider data disclosure**: chỉ Gemini/Jina/Langfuse được phép làm provider ngoài; gửi câu hỏi và context pháp lý tối thiểu, không gửi PII.
 - **Evaluation data privacy**: gold set và input evaluation không chứa thông tin cá nhân thực; feedback không yêu cầu PII.
 - Hệ thống không tuyên bố "tuân thủ hoàn toàn" quy định pháp luật nào nếu chưa có legal compliance review; tài liệu chỉ mô tả biện pháp giảm thiểu dữ liệu cá nhân.
 
@@ -4430,7 +4433,7 @@ Mỗi ADR ghi status, context, decision, consequences và date theo đúng chu�
 
 - **Status**: Accepted
 - **Context**: LLM có thể tạo claim không được hỗ trợ, số liệu sai hoặc citation không tồn tại; citation regex là không đủ.
-- **Decision**: Six verifiers tách rời (L1 schema, L2 citation ID, L3 temporal, L4 numeric grounding, L5 claim support, L6 evidence completeness). Deterministic-first; LLM judge độc lập (GPT-5.4 mini snapshot pin) chỉ ở L5 cho trường hợp ngữ nghĩa. Bất biến API: Returned Invalid Citation Rate = 0.
+- **Decision**: sáu verifier tách rời; Gemini 3.5 Flash Lite chỉ là semantic judge thứ cấp ở L5 và fail-closed. Deterministic checks remain the source of truth.
 - **Quyết định bổ sung (judge online)**: L5 semantic judge được phép chạy online trong verifier với fail-closed behavior (timeout/provider error -> repair có giới hạn hoặc ABSTAIN); khi tắt judge, claim không kết luận được bằng deterministic bị xử lý fail-closed. Judge không bao giờ quyết định citation ID hay temporal validity. Xem 3.24.2.
 - **Consequences**: Draft không đạt không bao giờ ra ngoài; chi phí verify tăng nhẹ (online judge tốn thêm latency/cost, có timeout và giới hạn); judge là nguồn thứ cấp, không quyết định citation/temporal.
 - **Date**: 2026-07-19

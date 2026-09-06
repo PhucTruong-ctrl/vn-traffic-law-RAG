@@ -1,11 +1,14 @@
+> **MVP rebaseline — 06/09/2026**: The defense release scope is reduced to a fixed 5–10-document reviewed corpus, 30–50 evaluation questions, current and as-of-date retrieval, structure-aware citations, evidence gating, abstention, and a working chat UI. RAGFlow comparison, feedback, large-scale background ingestion, advanced observability/security, and production backup automation are deferred.
+>
+> **Model policy**: Gemini 3.7 Flash is the primary structured-answer generator. Gemini 3.5 Flash Lite is the independent semantic judge. OpenAI/GPT-5.4 is not used. Earlier scope/model statements in this document are superseded by this rebaseline.
 # 00. Phạm Vi và Quyết Định Thiết Kế
 
 > **Tên dự án**: VN Traffic Law RAG  
 > **Ngày tạo**: 16/06/2026  
 > **Ngày baseline v1**: 19/07/2026  
 > **Ngày thiết kế lại v2**: 08/08/2026  
-> **Hạn hoàn thành**: 12/09/2026  
-> **Ngày bảo vệ**: 14/09/2026  
+> **Hạn hoàn thành / release candidate**: 16/09/2026  
+> **Ngày báo cáo / bảo vệ**: 16/09/2026  
 > **Trạng thái**: Baseline thiết kế đã chốt (bản thiết kế lại v2)  
 > **Vai trò tài liệu**: Nguồn quyết định kiến trúc và phạm vi cao nhất của dự án
 
@@ -318,8 +321,8 @@ Tài liệu hoặc provision được gửi review khi:
 | Sparse retrieval | Qdrant sparse BM25 |
 | Fusion | Qdrant RRF |
 | Reranker | Ứng viên: Jina Reranker v3 |
-| Generator | Gemini 3.5 Flash |
-| Judge độc lập | GPT-5.4 mini (snapshot đã pin) |
+| Generator | Gemini 3.7 Flash | `gemini-3.7-flash` | Structured legal answer theo schema cấp claim |
+| Judge độc lập | Gemini 3.5 Flash Lite | `gemini-3.5-flash-lite` | Semantic judge fail-closed và metric thứ cấp |
 | Evaluation | Ragas v0.4.x + deterministic custom metrics |
 | Object storage | MinIO (S3-compatible) |
 | Background jobs | Redis (broker + cache) + Dramatiq 2.x |

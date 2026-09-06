@@ -6,7 +6,7 @@ from typing import Any, Protocol, cast
 
 from .schemas import StructuredAnswer
 
-MODEL_VERSION = "gemini-3.5-flash"
+MODEL_VERSION = "gemini-3.7-flash"
 PROMPT_NAME = "legal-generator-v1"
 PROMPT_VERSION = "1"
 

@@ -30,7 +30,7 @@ def test_adapter():
     )
     answer = GeminiStructuredGenerator(client).generate("q", "e")
     assert answer.claims[0].provision_ids == ["p"]
-    assert calls[0]["model"] == "gemini-3.5-flash"
+    assert calls[0]["model"] == "gemini-3.7-flash"
 
 
 def test_failure():

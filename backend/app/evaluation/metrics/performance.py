@@ -6,7 +6,6 @@ from collections.abc import Mapping, Sequence
 from numbers import Real
 from typing import Any
 
-
 NA_REASON = "no eligible values"
 
 
@@ -16,7 +15,11 @@ def _number(value: object) -> float | None:
 
 def aggregate_numeric(records: Sequence[Mapping[str, Any]], field: str) -> dict[str, Any]:
     """Return a mean over present numeric values, preserving NA when absent."""
-    values = [number for number in (_number(record.get(field)) for record in records) if number is not None]
+    values = [
+        number
+        for number in (_number(record.get(field)) for record in records)
+        if number is not None
+    ]
     if not values:
         return {"value": None, "count": 0, "reason": NA_REASON}
     return {"value": sum(values) / len(values), "count": len(values)}
@@ -26,9 +29,7 @@ def _usage(record: Mapping[str, Any]) -> dict[str, float]:
     value = record.get("token_usage")
     if isinstance(value, Mapping):
         return {
-            str(key): number
-            for key, raw in value.items()
-            if (number := _number(raw)) is not None
+            str(key): number for key, raw in value.items() if (number := _number(raw)) is not None
         }
     total = _number(value)
     return {"total_tokens": total} if total is not None else {}

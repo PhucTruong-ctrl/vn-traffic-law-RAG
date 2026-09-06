@@ -1,3 +1,6 @@
+> **MVP rebaseline (06/09/2026)**: The defense release is intentionally reduced to a fixed 5–10-document corpus, 30–50 evaluation questions, current/as-of-date retrieval, verifiable citations, evidence gating, abstention, and a working chat UI. RAGFlow comparison, feedback, large-scale background ingestion, advanced observability/security, and production backup automation are deferred.
+>
+> **Models**: Gemini 3.7 Flash is the primary structured-answer generator; Gemini 3.5 Flash Lite is the independent semantic judge. OpenAI/GPT-5.4 is not used.
 # 🏛️ VN Traffic Law RAG (VNLRAG) — Khóa Luận Tốt Nghiệp 2026
 
 > **Đề tài**: Hệ thống RAG nhận biết cấu trúc và thời gian hiệu lực (structure-aware + temporal) cho pháp luật giao thông Việt Nam, với trích dẫn chính xác (Điều/Khoản/Điểm) và cơ chế **verified-or-abstain** — chỉ trả lời khi mọi bằng chứng đã được kiểm chứng.
@@ -7,7 +10,7 @@
 - **Bắt đầu**: 16/06/2026
 - **M0 — Scope Freeze**: 19/07/2026
 - **Triển khai v2**: 8 tuần (W1–W8)
-- **Bảo vệ**: 14/09/2026
+- **Báo cáo / bảo vệ**: 16/09/2026
 
 ## 📚 Tài liệu thiết kế
 
@@ -52,10 +55,10 @@
 | IR trung gian | Canonical Document IR (`document-ir-v1`) |
 | Database | PostgreSQL 18 (nguồn chân lý) + SQLAlchemy 2 + Alembic |
 | Vector DB | Qdrant v1.19 (index dẫn xuất, dense + sparse + RRF fusion) |
-| Background jobs | Redis + Dramatiq 2.x (background ingestion) |
+| LLM | Gemini 3.7 Flash (generator) + Gemini 3.5 Flash Lite (independent judge) |
 | Object storage | ObjectStoragePort (S3-compatible); MinIO là ứng viên hiện tại |
 | Observability | Langfuse (ngoài đường tới hạn) |
-| LLM | Gemini 3.5 Flash (generator) + GPT-5.4 mini (judge độc lập) + Jina Reranker v3 |
+| LLM | Gemini 3.7 Flash (generator) + Gemini 3.5 Flash Lite (independent judge) + Jina Reranker v3 |
 | Frontend | Next.js 16 App Router + TypeScript + Tailwind + shadcn/ui |
 | Evaluation | Ragas 0.4.x + deterministic metrics |
 | Testing | pytest + Playwright |

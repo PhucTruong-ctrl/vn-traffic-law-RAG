@@ -1,3 +1,6 @@
+> **MVP rebaseline — 06/09/2026**: The defense release scope is reduced to a fixed 5–10-document reviewed corpus, 30–50 evaluation questions, current and as-of-date retrieval, structure-aware citations, evidence gating, abstention, and a working chat UI. RAGFlow comparison, feedback, large-scale background ingestion, advanced observability/security, and production backup automation are deferred.
+>
+> **Model policy**: Gemini 3.7 Flash is the primary structured-answer generator. Gemini 3.5 Flash Lite is the independent semantic judge. OpenAI/GPT-5.4 is not used. Earlier scope/model statements in this document are superseded by this rebaseline.
 # 07. Triển Khai (Deployment)
 
 > **Giai đoạn SDLC**: 6 - Triển khai
@@ -66,9 +69,9 @@ Các service nội bộ (postgres, qdrant, redis, minio) không expose port ra h
 
 ### 7.1.3. Thành phần bên ngoài
 
-| Thành phần | Vị trí | Ghi chú |
-|---|---|---|
-| Langfuse Cloud | Bên ngoài, KHÔNG nằm trong compose | Observability, prompt management, experiment; ngoài đường tới hạn (ADR-009) |
+| Gemini API | Bên ngoài | Gemini 3.7 Flash generator and Gemini 3.5 Flash Lite semantic judge |
+| Jina API | Bên ngoài | Optional embedding/reranker only |
+| RAGFlow | Không nằm trong MVP compose | Deferred benchmark only |
 | Gemini API | Bên ngoài | Generator (gemini-3.5-flash) và embedding ứng viên (gemini-embedding-2) |
 | OpenAI API | Bên ngoài | Judge GPT-5.4 mini snapshot cho L5 và metric thứ cấp |
 | Jina API | Bên ngoài | Embedding ứng viên E2/E3 và reranker jina-reranker-v3 |
