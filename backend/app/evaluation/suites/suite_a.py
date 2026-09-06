@@ -1979,6 +1979,19 @@ def _discover_variant_runs(base_dir: Path) -> dict[str, Path]:
         manifest = run_root / "input-manifest.json"
         if not manifest.is_file():
             continue
+        phase = VARIANT_PHASE_DIR[variant]
+        # A COMPLETED marker alone is not release evidence: require the durable
+        # phase artifacts that the report hashes and reads. This prevents an
+        # interrupted/incomplete M7 tree from being selected as the freeze trio.
+        if any(not (run_root / phase / artifact).is_file() for artifact in (
+            "run.json",
+            "results.json",
+            "metrics.json",
+            "routing-and-gates.json",
+            "artifacts-manifest.json",
+            "report.md",
+        )):
+            continue
         # Newest-first iteration: the newest run per variant is seen first, so
         # setdefault keeps it (older runs never overwrite a newer one).
         group = by_hash.setdefault(_sha256(manifest), {})
