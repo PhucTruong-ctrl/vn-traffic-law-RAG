@@ -91,7 +91,7 @@ def test_ragflow_metadata_resolution_preserves_provenance_and_fails_closed() -> 
         [citation, {**citation, "page_number": 13}, {"text": "Điều 5"}],
         {key: "nd-168-2024__dieu-5"},
     )
-    assert result.mapped == [{**citation, "canonical_provision_id": "nd-168-2024__dieu-5"}]
+    assert result.mapped == [{**citation, "canonical_provision_id": "nd-168-2024__dieu-5", "mapping_status": "MAPPED", "mapping_reason": "PRIMARY_METADATA"}]
     assert result.unmappable == 2
     assert result.mapping_accuracy == 1 / 3
 
