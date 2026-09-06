@@ -212,15 +212,41 @@ def test_runner_reports_all_failure_categories_without_losing_raw_outcomes() -> 
         def __init__(self) -> None:
             self.finished: list[dict[str, object]] = []
             self.results: list[dict[str, object]] = []
-        def start(self, *_args: object, **_kwargs: object) -> str: return "run-1"
-        def append_result(self, _run_id: str, result: dict[str, object], **_kwargs: object) -> None: self.results.append(result)
-        def finish(self, _run_id: str, **kwargs: object) -> None: self.finished.append(kwargs)
+
+        def start(self, *_args: object, **_kwargs: object) -> str:
+            return "run-1"
+
+        def append_result(self, _run_id: str, result: dict[str, object], **_kwargs: object) -> None:
+            self.results.append(result)
+
+        def finish(self, _run_id: str, **kwargs: object) -> None:
+            self.finished.append(kwargs)
+
     writer = Writer()
+
     def evaluator(_variant: object, record: GoldRecord) -> dict[str, object]:
-        if record.id == "0": return {"status": "FAILED", "failure_category": "provider_timeout", "error": "timed out"}
-        if record.id == "1": return {"status": "ERROR", "failure_category": "provider_auth", "error": "unauthorized"}
+        if record.id == "0":
+            return {
+                "status": "FAILED",
+                "failure_category": "provider_timeout",
+                "error": "timed out",
+            }
+        if record.id == "1":
+            return {"status": "ERROR", "failure_category": "provider_auth", "error": "unauthorized"}
         return {"status": "OK", "provision_ids": []}
-    run_suite_c(valid_records(), evaluator=evaluator, writer=writer, manifest_for=lambda _: None, session=None, storage=None, variants=VARIANTS[:1])
+
+    run_suite_c(
+        valid_records(),
+        evaluator=evaluator,
+        writer=writer,
+        manifest_for=lambda _: None,
+        session=None,
+        storage=None,
+        variants=VARIANTS[:1],
+    )
     assert writer.results[0]["retrieval"]["outcome"]["failure_category"] == "provider_timeout"
     assert writer.results[1]["retrieval"]["outcome"]["failure_category"] == "provider_auth"
-    assert writer.finished[0]["metrics"]["failure_categories"] == {"provider_timeout": 1, "provider_auth": 1}
+    assert writer.finished[0]["metrics"]["failure_categories"] == {
+        "provider_timeout": 1,
+        "provider_auth": 1,
+    }
