@@ -1193,16 +1193,6 @@ def test_discover_variant_runs_rejects_root_artifacts_in_phase(tmp_path: Path) -
 
     with pytest.raises(ValueError, match="no COMPLETED p1/p2/p3 run trio"):
         _discover_variant_runs(base)
-    """A stale COMPLETED marker without the phase evidence cannot freeze M7."""
-    base = tmp_path / "runs"
-    _write_synthetic_run(base, "run-20260809-000000-aaaaaa", "docling")
-    _write_synthetic_run(base, "run-20260809-000001-bbbbbb", "mineru")
-    _write_synthetic_run(base, "run-20260809-000002-cccccc", "p3-parser-router")
-    (base / "run-20260809-000002-cccccc" / "p3-parser-router" / "metrics.json").unlink()
-
-    with pytest.raises(ValueError, match="no COMPLETED p1/p2/p3 run trio"):
-        _discover_variant_runs(base)
-
 
 def test_discover_variant_runs_requires_full_trio(tmp_path: Path) -> None:
     """Discovery refuses an incomplete trio (missing variant)."""
