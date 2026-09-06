@@ -54,6 +54,19 @@ def test_incomplete_validation_set_blocks_without_running() -> None:
     assert error.value.actual == 1
 
 
+def test_non_approved_validation_record_blocks_before_running() -> None:
+    records = valid_records()
+    payload = records[7].model_dump(mode="python")
+    payload["review_status"] = ReviewStatus.REVIEWED
+    payload["hash"] = GoldRecord.model_validate({**payload, "hash": "0" * 64}).computed_hash()
+    records[7] = GoldRecord.model_validate(payload)
+
+    with pytest.raises(ValidationSetBlocked, match=(
+        r"record 7 has review status REVIEWED; Suite C requires APPROVED records"
+    )):
+        validate_validation_set(records)
+
+
 def test_duplicate_validation_ids_block_before_running() -> None:
     records = valid_records()
     records[-1] = records[0]

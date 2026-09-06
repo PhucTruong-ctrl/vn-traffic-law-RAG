@@ -11,7 +11,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from app.evaluation.gold_set import GoldRecord, validate_record
+from app.evaluation.gold_set import GoldRecord, ReviewStatus, validate_record
 from app.evaluation.metrics.retrieval import evaluate_retrieval
 from app.evaluation.run import EvaluationRunManifest, EvaluationRunWriter
 
@@ -124,6 +124,14 @@ def validate_validation_set(
         value = validate_record(
             record.model_dump(mode="python") if isinstance(record, GoldRecord) else dict(record)
         )
+        if value.review_status is not ReviewStatus.APPROVED:
+            raise ValidationSetBlocked(
+                len(records),
+                reason=(
+                    f"record {value.id} has review status {value.review_status.value}; "
+                    "Suite C requires APPROVED records"
+                ),
+            )
         if value.id in seen:
             raise ValidationSetBlocked(
                 len(records), reason=f"duplicate record id: {value.id}"
