@@ -822,7 +822,16 @@ def test_needs_review_creates_review_items_and_halts(
             assert items[0].status == "PENDING"  # the review queue
             assert "UNKNOWN_EFFECTIVE_DATE" in items[0].reason_code
 
-        # Re-run: gating again must not create a second review item.
+        # Resolving the audit row must allow the gate to evaluate again.
+        with Session(engine) as session:
+            item = session.scalar(
+                select(ReviewItem).where(ReviewItem.ingestion_run_id == run_id)
+            )
+            assert item is not None
+            item.status = "REJECTED"
+            session.commit()
+
+        # Re-run: historical resolved rows do not block re-evaluation.
         quality_gate_actor.send(job_id)
         broker.join("quality_gate", timeout=60_000)
         worker.join()
