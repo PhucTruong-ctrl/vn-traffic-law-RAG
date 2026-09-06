@@ -5,11 +5,14 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TypeAlias
 
 _ID = re.compile(
     r"^(?P<doc>[a-z0-9-]+):(?P<kind>article|clause|point):(?P<num>[\w.-]+)$", re.I
 )
+
+
+Citation: TypeAlias = Mapping[str, Any]
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,7 +28,7 @@ class CitationMetadata:
     effective_to: str | None
 
     @classmethod
-    def from_citation(cls, citation: Mapping[str, Any]) -> "CitationMetadata | None":
+    def from_citation(cls, citation: Citation) -> "CitationMetadata | None":
         document_id = citation.get("document_id")
         if not isinstance(document_id, str) or not document_id:
             return None
@@ -51,7 +54,7 @@ class CitationResolution:
 
 
 def resolve_citation(
-    citation: Mapping[str, Any],
+    citation: Citation,
     metadata_map: Mapping[CitationMetadata, str],
 ) -> dict[str, Any] | None:
     """Resolve only an exact explicit metadata key; otherwise fail closed."""
@@ -66,7 +69,7 @@ def resolve_citation(
 
 
 def resolve_citations(
-    citations: Sequence[Mapping[str, Any]],
+    citations: Sequence[Citation],
     metadata_map: Mapping[CitationMetadata, str],
 ) -> CitationResolution:
     """Resolve RAGFlow citations from an explicit metadata-to-ID manifest."""
@@ -84,7 +87,7 @@ def resolve_citations(
     )
 
 
-def map_citation(citation: Mapping[str, Any], canonical_ids: set[str]) -> str | None:
+def map_citation(citation: Citation, canonical_ids: set[str]) -> str | None:
     """Map only an exact canonical ID; never guess."""
     value = (
         citation.get("canonical_provision_id")
@@ -101,7 +104,7 @@ def map_citation(citation: Mapping[str, Any], canonical_ids: set[str]) -> str | 
 
 
 def map_citations(
-    citations: Sequence[Mapping[str, Any]], canonical_ids: set[str]
+    citations: Sequence[Citation], canonical_ids: set[str]
 ) -> dict[str, Any]:
     mapped = [x for c in citations if (x := map_citation(c, canonical_ids)) is not None]
     unmappable = len(citations) - len(mapped)
