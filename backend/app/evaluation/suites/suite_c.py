@@ -175,6 +175,7 @@ def run_suite_c(
         run_ids.append(run_id)
         try:
             metric_records: list[dict[str, object]] = []
+            failure_categories: dict[str, int] = {}
             evaluator_failed = False
             for index, record in enumerate(validation_records):
                 try:
@@ -187,6 +188,8 @@ def run_suite_c(
                     "ERROR",
                 }:
                     evaluator_failed = True
+                    category = str(outcome.get("failure_category") or outcome.get("error") or "UNKNOWN")
+                    failure_categories[category] = failure_categories.get(category, 0) + 1
 
                 invalid_ranking = next(
                     (
@@ -263,7 +266,7 @@ def run_suite_c(
             writer.finish(
                 run_id,
                 status="FAILED" if evaluator_failed else "COMPLETED",
-                metrics=metrics,
+                metrics={**metrics, "failure_categories": failure_categories},
                 metric_availability={
                     name: (
                         "ABSENT_EVALUATOR_FAILURE"
