@@ -33,6 +33,7 @@ from app.config import (
     get_queue_settings,
 )
 from app.ingestion import actors
+from app.ingestion.actors import _state as state_module
 from app.ingestion.actors import normalize as normalize_module
 from app.ingestion.actors import parse as parse_module
 from app.ingestion.actors import resolve_refs, resolve_temporal
@@ -158,6 +159,21 @@ def _messages(broker: StubBroker, queue_name: str) -> list[Message]:
 
 def _queue_empty(broker: StubBroker, queue_name: str) -> bool:
     return broker.queues[queue_name].empty()
+
+
+def test_bootstrap_run_merges_repo_manifest_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Bootstrap reads accepted corpus metadata from the repository manifest tree."""
+    session = _FakeSession()
+    run = state_module.bootstrap_run(
+        session,
+        job_id="job-manifest",
+        document_id="nd-160-2024",
+        object_key="documents/nd-160-2024/source/file.pdf",
+    )
+
+    assert run.manifest_json["effective_from"] == "2025-01-01"
+    assert run.manifest_json["document_number"] == "160/2024/NĐ-CP"
+    assert run.manifest_json["source_object_key"] == "documents/nd-160-2024/source/file.pdf"
 
 
 # --- config ------------------------------------------------------------------

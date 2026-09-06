@@ -48,8 +48,9 @@ from app.persistence.models import (
     ParsedDocument as ParsedDocumentRow,
 )
 
-_BACKEND_DIR = Path(__file__).resolve().parents[2]
-_ENV_FILE = _BACKEND_DIR.parent / ".env"
+_REPO_ROOT = Path(__file__).resolve().parents[4]
+_ENV_FILE = _REPO_ROOT / ".env"
+_MANIFESTS_DIR = _REPO_ROOT / "data" / "manifests"
 
 #: Ordered pipeline stages (doc 03 §3.13.2).  ``current_stage``/``status`` use
 #: these exact values (matching the docs and the existing ``QUEUED`` /
@@ -159,8 +160,7 @@ def bootstrap_run(
             "message must carry document_id when no run row exists yet"
         )
     manifest = {"source_object_key": object_key}
-    manifest_path = _BACKEND_DIR.parent / "data" / "manifests"
-    for candidate in manifest_path.rglob(f"{document_id}.manifest.json"):
+    for candidate in _MANIFESTS_DIR.rglob(f"{document_id}.manifest.json"):
         try:
             import json
 
