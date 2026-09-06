@@ -28,7 +28,7 @@ class CitationMetadata:
     effective_to: str | None
 
     @classmethod
-    def from_citation(cls, citation: Citation) -> "CitationMetadata | None":
+    def from_citation(cls, citation: Citation) -> CitationMetadata | None:
         document_id = citation.get("document_id")
         if not isinstance(document_id, str) or not document_id:
             return None
