@@ -1,0 +1,17 @@
+{
+  "document_id": "nd-165-2024",
+  "source_url": "https://datafiles.chinhphu.vn/cpp/files/vbpq/2025/01/165_2024_nd-cp_26122024-signed.pdf",
+  "downloaded_at": "2026-09-05T09:00:00+07:00",
+  "file_hash": "86bf780099ad05f4ef276a621fbf96cf7a02b2679cb6e14bd738a9fcdd006105",
+  "document_number": "165/2024/NĐ-CP",
+  "document_type": "DECREE",
+  "issuer": "Chính phủ",
+  "issued_date": "2024-12-26",
+  "effective_from": "2025-01-01",
+  "effective_to": null,
+  "status": "EFFECTIVE",
+  "relation_notes": "Nguồn PDF chính thức datafiles.chinhphu.vn; review corpus đã chấp nhận. Việc lập chỉ mục corpus và xác thực provision-level downstream vẫn là công việc tiếp theo; PDF không có trong checkout nên không thể kiểm tra hash độc lập.",
+  "review_status": "ACCEPTED",
+  "reviewed_by": "corpus-reviewer-01",
+  "reviewed_at": "2026-09-06T00:00:00Z"
+}

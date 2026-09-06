@@ -15,6 +15,7 @@ def payload() -> dict[str, object]:
         "document_version_id": "version-1",
         "document_id": "nd-168-2024",
         "document_number": "168/2024/NĐ-CP",
+        "document_type": "DECREE",
         "article": "7",
         "clause": None,
         "point": "đ",
@@ -35,6 +36,7 @@ def test_payload_maps_to_strict_result(payload: dict[str, object]) -> None:
     assert result.retrieval_sources == ["dense"]
     assert result.effective_from == date(2025, 1, 1)
     assert result.point == "đ"
+    assert result.document_type == "DECREE"
 
 
 def test_payload_rejects_non_accepted(payload: dict[str, object]) -> None:

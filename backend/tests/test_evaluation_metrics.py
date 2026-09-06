@@ -8,7 +8,12 @@ from app.evaluation.metrics.evidence import (
     multi_hop_evidence_completeness,
 )
 from app.evaluation.metrics.retrieval import evaluate_retrieval, ndcg_at, recall_at, reciprocal_rank
-from app.evaluation.metrics.temporal import temporal_leakage_rate, temporal_validity_accuracy
+from app.evaluation.metrics.temporal import (
+    comparison_separation_accuracy,
+    evaluate_temporal,
+    temporal_leakage_rate,
+    temporal_validity_accuracy,
+)
 
 
 def test_hand_computed_ranking_metrics_and_duplicate_ids():
@@ -59,5 +64,87 @@ def test_temporal_half_open_interval_and_leakage():
 
 def test_temporal_metadata_without_review_status_is_invalid():
     citations = [{"effective_from": "2024-01-01", "effective_to": None}]
-
     assert temporal_validity_accuracy(citations, date(2025, 1, 1)) == 0
+
+
+def _citation(provision_id: str, start: str, end: str | None = None) -> dict[str, object]:
+    return {
+        "provision_id": provision_id,
+        "effective_from": start,
+        "effective_to": end,
+        "review_status": "ACCEPTED",
+    }
+
+
+def test_current_historical_separation_is_binary_and_category_eligible():
+    records = [
+        {
+            "id": "current-ok",
+            "category": "CURRENT",
+            "query_date": "2025-01-01",
+            "citations": [_citation("new", "2025-01-01")],
+        },
+        {
+            "id": "historical-mixed",
+            "category": "HISTORICAL",
+            "query_date": "2024-06-01",
+            "citations": [
+                _citation("old", "2024-01-01", "2025-01-01"),
+                _citation("new", "2025-01-01"),
+            ],
+        },
+        {
+            "id": "comparison-na",
+            "category": "COMPARISON",
+            "query_date": "2025-01-01",
+            "citations": [],
+        },
+    ]
+    report = evaluate_temporal(records)["current_historical_separation_accuracy"]
+    assert report.value == 0.5
+    assert report.numerator == 2 and report.denominator == 2
+    assert report.per_query == {"current-ok": 1.0, "historical-mixed": 0.0, "comparison-na": None}
+    assert report.by_category == {"CURRENT": 1.0, "HISTORICAL": 0.0}
+
+
+def test_comparison_separation_requires_two_independent_temporal_sides():
+    good = {
+        "category": "COMPARISON",
+        "comparison_dates": ["2024-06-01", "2025-06-01"],
+        "comparison_citations": {
+            "before": [_citation("old", "2024-01-01", "2025-01-01")],
+            "after": [_citation("new", "2025-01-01")],
+        },
+    }
+    mixed = {
+        **good,
+        "comparison_citations": {
+            "before": [_citation("new", "2025-01-01")],
+            "after": [_citation("old", "2024-01-01", "2025-01-01")],
+        },
+    }
+    duplicate = {
+        **good,
+        "comparison_citations": {
+            "before": good["comparison_citations"]["before"],
+            "after": [_citation("old", "2025-01-01")],
+        },
+    }
+    assert comparison_separation_accuracy(good) == 1.0
+    assert comparison_separation_accuracy(mixed) == 0.0
+    assert comparison_separation_accuracy(duplicate) == 0.0
+    report = evaluate_temporal(
+        [{"id": "good", **good}, {"id": "missing", "category": "COMPARISON"}]
+    )["comparison_separation_accuracy"]
+    assert report.value == 1.0 and report.by_category == {"COMPARISON": 1.0}
+    assert report.per_query["missing"] is None
+
+
+def test_separation_reports_na_without_eligible_population():
+    report = evaluate_temporal(
+        [{"id": "x", "category": "OUT_OF_SCOPE", "query_date": "2025-01-01", "citations": []}]
+    )
+    for name in ("current_historical_separation_accuracy", "comparison_separation_accuracy"):
+        assert report[name].value is None
+        assert report[name].status == "na"
+        assert report[name].na_reason == "no citations eligible for temporal evaluation"

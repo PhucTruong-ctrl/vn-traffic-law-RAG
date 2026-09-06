@@ -11,5 +11,7 @@
   "effective_to": null,
   "status": "EFFECTIVE",
   "relation_notes": "Sửa đổi, bổ sung Thông tư 12/2020/TT-BGTVT về tổ chức, quản lý vận tải bằng xe ô tô và dịch vụ hỗ trợ vận tải đường bộ; relation candidate AMENDS, cần resolver xác nhận provision-level. Nguồn PDF chính thức datafiles.chinhphu.vn.",
-  "review_status": "PENDING"
+  "review_status": "ACCEPTED",
+  "reviewed_by": "corpus-reviewer-01",
+  "reviewed_at": "2026-09-06T00:00:00Z"
 }

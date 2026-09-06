@@ -11,12 +11,15 @@ from __future__ import annotations
 import sys
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from app.config import get_settings
 from app.observability import langfuse_client
+from app.observability.langfuse import emit_query_trace
 from app.observability.langfuse_client import build_prompt, get_langfuse
+from app.observability.query_trace import QueryTrace
 from app.observability.skeleton import run_legal_query_trace
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -28,6 +31,35 @@ FALLBACK_FILES = [
     "generator.yaml",
     "claim-verifier.yaml",
 ]
+
+
+class _Observation:
+    def __init__(self, name: str, calls: list[tuple[str, str]]) -> None:
+        self.name = name
+        self.calls = calls
+
+    def start_observation(self, *, name: str, **_: Any) -> _Observation:
+        self.calls.append(("start", name))
+        return _Observation(name, self.calls)
+
+    def update(self, **_: Any) -> _Observation:
+        return self
+
+    def end(self) -> _Observation:
+        self.calls.append(("end", self.name))
+        return self
+
+
+class _Langfuse:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str]] = []
+
+    def start_observation(self, *, name: str, **_: Any) -> _Observation:
+        self.calls.append(("start", name))
+        return _Observation(name, self.calls)
+
+    def flush(self) -> None:
+        return None
 
 
 def _has_real_langfuse_keys() -> bool:
@@ -49,13 +81,29 @@ def disabled_langfuse(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     langfuse_client._client = None
 
 
-def test_settings_defaults_without_credentials() -> None:
-    """Settings defaults hold even when no real keys are present (no .env needed)."""
-    settings = get_settings()
-    assert settings.app_env
-    assert settings.prompt_source in {"LANGFUSE", "CACHE", "RELEASE_FALLBACK"}
-    assert settings.fallback_prompts_dir
-    assert settings.max_ingestion_workers == 1
+def test_emit_query_trace_starts_exactly_one_child_per_recorded_span(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = _Langfuse()
+    monkeypatch.setattr(langfuse_client, "_client", client)
+    monkeypatch.setattr(
+        langfuse_client,
+        "get_settings",
+        lambda: type("Settings", (), {"langfuse_enabled": True, "prompt_source": "LANGFUSE"})(),
+    )
+    monkeypatch.setattr(langfuse_client, "LangfuseObservationWrapper", _Observation, raising=False)
+    trace = QueryTrace("query", trace_id="trace-1")
+    trace.add_span("retrieve", input={"q": "query"}, output={"hits": 1})
+    trace.add_span("answer", output={"text": "ok"})
+    trace.finish({"text": "ok"})
+
+    emit_query_trace(trace)
+
+    assert [name for action, name in client.calls if action == "start"] == [
+        "legal_query",
+        "retrieve",
+        "answer",
+    ]
 
 
 @pytest.mark.skipif(
@@ -71,12 +119,26 @@ def test_settings_load_real_keys_from_env() -> None:
     assert settings.langfuse_host
 
 
+def test_settings_defaults_without_credentials() -> None:
+    """Settings defaults hold even when no real keys are present (no .env needed)."""
+    settings = get_settings()
+    assert settings.app_env
+    assert settings.prompt_source in {"LANGFUSE", "CACHE", "RELEASE_FALLBACK"}
+    assert settings.fallback_prompts_dir
+    assert settings.max_ingestion_workers == 1
+
+
 def test_disabled_langfuse_returns_noop_stub(disabled_langfuse: None) -> None:
     assert isinstance(get_langfuse(), langfuse_client.NoOpLangfuse)
 
 
 def test_disabled_run_legal_query_trace_completes_offline(disabled_langfuse: None) -> None:
     """Full trace run succeeds and never loads the langfuse SDK (no network)."""
+    langfuse_modules = [
+        name for name in sys.modules if name == "langfuse" or name.startswith("langfuse.")
+    ]
+    for name in langfuse_modules:
+        del sys.modules[name]
     trace_id = run_legal_query_trace("mức phạt vượt đèn đỏ năm 2024?")
     assert trace_id
     assert isinstance(langfuse_client._client, langfuse_client.NoOpLangfuse)

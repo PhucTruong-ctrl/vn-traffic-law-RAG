@@ -14,16 +14,27 @@ from typing import Any
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
-from app.config import get_retrieval_settings, get_settings
+from app.config import get_embedding_settings, get_retrieval_settings, get_settings
 from app.generation import GeminiStructuredGenerator, StructuredAnswer, StructuredGenerationError
+from app.generation.context_builder import build_context
+from app.persistence.repositories.provisions import ProvisionRepository
+from app.persistence.repositories.relations import RelationRepository
+from app.persistence.repositories.temporal import TemporalRepository
 from app.query.evidence_gate import EvidenceCompletenessGate, EvidenceStatus, targeted_query_for_gap
 from app.query.query_understanding import QueryAnalyzer
 from app.query.temporal_verifier import verify_temporal
 from app.retrieval.comparison import ComparisonResult
+from app.retrieval.context_expansion import LegalContextExpander
 from app.retrieval.contracts import CandidateSet, RetrievalResult
+from app.retrieval.embedding import get_embedding_provider
 from app.retrieval.filters import build_temporal_filter, deduplicate_results
+from app.retrieval.hybrid import HybridRetriever
+from app.retrieval.qdrant_store import _default_client
+from app.retrieval.sparse import BM25SparseEncoder
 from app.verification.l2_citation import L2CitationVerifier
+from app.verification.workflow import LegalVerificationBoundary
 
+from .repair import MAX_REPAIR_ATTEMPTS, repair_route
 from .state import QueryState
 
 Service = Any
@@ -104,6 +115,41 @@ class GraphServices:
     generator: Service = None
     verifier: Service = None
     temporal_verifier: Service = None
+    legal_verifier: Service = None
+
+
+def production_services(*, session: Any = None) -> GraphServices:
+    """Build concrete providers from application configuration.
+
+    A database session is required because PostgreSQL is authoritative for
+    exact lookup, temporal validation, and citation metadata.
+    """
+    if session is None:
+        raise RuntimeError("workflow database session is not configured")
+    temporal_repository = TemporalRepository(session)
+    relation_repository = RelationRepository(session)
+    provision_repository = ProvisionRepository(session)
+    exact_lookup = __import__("app.retrieval.exact_lookup", fromlist=["ExactLookup"]).ExactLookup(
+        provision_repository
+    )
+    client = _default_client()
+    embedder = get_embedding_provider(get_embedding_settings())
+    hybrid = HybridRetriever(
+        client, embedder, BM25SparseEncoder(), exact_lookup, temporal_repository=temporal_repository
+    )
+    expander = LegalContextExpander(relation_repository, temporal_repository)
+    return GraphServices(
+        temporal=lambda plan, *, query_date: query_date,
+        expander=lambda plan, **_: [],
+        retriever=hybrid,
+        dense_retriever=hybrid,
+        fusion=lambda candidates: _items(candidates),
+        reranker=lambda question, candidates: candidates,
+        context_expander=expander,
+        context_builder=lambda candidates: build_context(_items(candidates)),
+        generator=GeminiStructuredGenerator(),
+        legal_verifier=LegalVerificationBoundary(),
+    )
 
 
 def _call(
@@ -164,8 +210,10 @@ def _exact_reference(plan: Any) -> dict[str, str | None] | None:
 
 
 def _max_repair_attempts(state: QueryState) -> int:
-    """Use an explicit state bound, otherwise the configured workflow bound."""
-    return state.get("max_repair_attempts", get_settings().max_repair_attempts)
+    """Use an explicit state bound, otherwise the shared workflow bound."""
+    return state.get(
+        "max_repair_attempts", get_settings().max_repair_attempts or MAX_REPAIR_ATTEMPTS
+    )
 
 
 def _safe_route(state: QueryState) -> str:
@@ -193,6 +241,7 @@ def _analyze(state: QueryState, services: GraphServices) -> QueryState:
         service_name="analyzer",
         method_names=("analyze",),
         current_date=_today(state),
+        effect_change_dates=state.get("effect_change_dates", ()),
     )
     return {"query_understanding": plan} if plan is not None else {}
 
@@ -525,6 +574,9 @@ def _build_context(state: QueryState, services: GraphServices) -> QueryState:
             service_name="context_builder",
             method_names=("build",),
         )
+        if isinstance(value, str):
+            state_context = context
+            return {"context_package": state_context, "prompt_context": value}
     else:
         value = _comparison_result(
             _call(
@@ -543,13 +595,24 @@ def _build_context(state: QueryState, services: GraphServices) -> QueryState:
     return {"context_package": value}
 
 
+def _normalize_answer_numbers(value: Any, key: str | None = None) -> Any:
+    if isinstance(value, dict):
+        return {name: _normalize_answer_numbers(item, name) for name, item in value.items()}
+    if isinstance(value, list):
+        values = [_normalize_answer_numbers(item, key) for item in value]
+        return [str(item) for item in values] if key == "numbers" else values
+    return value
+
+
 def _generate(state: QueryState, services: GraphServices) -> QueryState:
     generator = services.generator or GeminiStructuredGenerator()
     try:
         answer = _call(
             generator,
             _question(state),
-            state.get("context_package", state.get("expanded_context", [])),
+            state.get(
+                "prompt_context", state.get("context_package", state.get("expanded_context", []))
+            ),
             service_name="generator",
             method_names=("generate",),
         )
@@ -562,7 +625,18 @@ def _generate(state: QueryState, services: GraphServices) -> QueryState:
                 "error": str(exc),
             },
         }
-    return {"draft_answer": StructuredAnswer.model_validate(answer)}
+    try:
+        normalized = _normalize_answer_numbers(answer)
+        return {"draft_answer": StructuredAnswer.model_validate(normalized)}
+    except Exception as exc:
+        return {
+            "draft_answer": None,
+            "verification_result": {
+                "status": "ABSTAIN",
+                "reason_code": "L1_SCHEMA_INVALID",
+                "error": str(exc),
+            },
+        }
 
 
 def _verify(state: QueryState, services: GraphServices) -> QueryState:
@@ -574,7 +648,7 @@ def _verify(state: QueryState, services: GraphServices) -> QueryState:
             )
         }
     try:
-        answer = StructuredAnswer.model_validate(draft)
+        answer = StructuredAnswer.model_validate(_normalize_answer_numbers(draft))
     except Exception as exc:
         return {
             "verification_result": {
@@ -589,26 +663,46 @@ def _verify(state: QueryState, services: GraphServices) -> QueryState:
         }
 
     context = _items(state.get("expanded_context", state.get("context_package", [])))
-    provisions = state.get("provisions", context)
+    context = [item for item in context if getattr(item, "review_status", "ACCEPTED") == "ACCEPTED"]
     if not all(getattr(claim, "provision_ids", None) for claim in answer.claims):
         return {"verification_result": {"status": "ABSTAIN", "reason_code": "L1_SCHEMA_INVALID"}}
-    l2 = _call(
-        services.verifier or L2CitationVerifier(provisions),
-        answer,
-        context,
-        service_name="verifier",
-        method_names=("verify",),
-        provisions=provisions,
-        expanded=context,
-    )
-    if not l2.passed:
-        return {
-            "verification_result": {
-                "status": "ABSTAIN",
-                "reason_code": l2.issues[0].code,
-                "issues": l2.issues,
+    if services.legal_verifier is not None:
+        query_date = _plan_date(state)
+        legal = _call(
+            services.legal_verifier,
+            answer,
+            context,
+            query_date=query_date,
+            service_name="legal_verifier",
+            method_names=("verify",),
+        )
+        if not legal.passed:
+            return {
+                "verification_result": {
+                    "status": "ABSTAIN",
+                    "reason_code": legal.reason_code or "VERIFICATION_FAILURE",
+                    "issues": list(legal.issues),
+                    "missing": list(legal.missing),
+                }
             }
-        }
+    else:
+        legal = LegalVerificationBoundary(
+            citation=services.verifier or L2CitationVerifier()
+        ).verify(
+            answer,
+            context,
+            query_date=_plan_date(state),
+            in_scope=str(getattr(state.get("query_understanding"), "intent", "")) != "OUT_OF_SCOPE",
+        )
+        if not legal.passed:
+            return {
+                "verification_result": {
+                    "status": "ABSTAIN",
+                    "reason_code": legal.reason_code or "VERIFICATION_FAILURE",
+                    "issues": list(legal.issues),
+                    "missing": list(legal.missing),
+                }
+            }
     cited = [
         item
         for claim in answer.claims
@@ -650,7 +744,13 @@ def _finalize(state: QueryState) -> QueryState:
 
 
 def _abstain(state: QueryState) -> QueryState:
-    return {"final_response": {"status": "INSUFFICIENT_EVIDENCE", "answer": None}}
+    verification = state.get("verification_result")
+    if not verification or verification.get("status") == "VALID":
+        verification = {"status": "ABSTAIN", "reason_code": "INSUFFICIENT_EVIDENCE"}
+    return {
+        "verification_result": verification,
+        "final_response": {"status": "INSUFFICIENT_EVIDENCE", "answer": None},
+    }
 
 
 def build_query_graph(services: GraphServices | None = None) -> CompiledStateGraph:
@@ -672,6 +772,8 @@ def build_query_graph(services: GraphServices | None = None) -> CompiledStateGra
         "verify": lambda s: _verify(s, services),
         "finalize": _finalize,
         "abstain": _abstain,
+        "regenerate": lambda s: {**s, "repair_attempts": s.get("repair_attempts", 0) + 1},
+        "temporal_retry": lambda s: {**s, "repair_attempts": s.get("repair_attempts", 0) + 1},
     }
     for name, node in nodes.items():
         graph.add_node(name, node)
@@ -699,12 +801,14 @@ def build_query_graph(services: GraphServices | None = None) -> CompiledStateGra
         lambda state: (
             "finalize"
             if state.get("verification_result", {}).get("status") == "VALID"
-            else "abstain"
+            else repair_route(state, max_attempts=_max_repair_attempts(state))
         ),
     )
+    graph.add_edge("regenerate", "generate")
+    graph.add_edge("temporal_retry", "resolve_temporal")
     graph.add_edge("finalize", END)
     graph.add_edge("abstain", END)
     return graph.compile()
 
 
-__all__ = ["GraphServices", "build_query_graph"]
+__all__ = ["GraphServices", "build_query_graph", "production_services"]

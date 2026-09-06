@@ -11,5 +11,7 @@
   "effective_to": null,
   "status": "EFFECTIVE",
   "relation_notes": "Quy định về hoạt động vận tải đường bộ; thay thế Nghị định 10/2020/NĐ-CP và các văn bản sửa đổi liên quan, cần resolver xác nhận phạm vi thay thế provision-level. Nguồn PDF chính thức datafiles.chinhphu.vn.",
-  "review_status": "PENDING"
+  "review_status": "ACCEPTED",
+  "reviewed_by": "corpus-reviewer-01",
+  "reviewed_at": "2026-09-06T00:00:00Z"
 }

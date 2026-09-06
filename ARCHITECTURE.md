@@ -1,3 +1,6 @@
+> **MVP rebaseline — 06/09/2026**: The defense release scope is reduced to a fixed 5–10-document reviewed corpus, 30–50 evaluation questions, current and as-of-date retrieval, structure-aware citations, evidence gating, abstention, and a working chat UI. RAGFlow comparison, feedback, large-scale background ingestion, advanced observability/security, and production backup automation are deferred.
+>
+> **Model policy**: Gemini 3.7 Flash is the primary structured-answer generator. Gemini 3.5 Flash Lite is the independent semantic judge. OpenAI/GPT-5.4 is not used. Earlier scope/model statements in this document are superseded by this rebaseline.
 # ARCHITECTURE — Kiến Trúc Hệ Thống VNLRAG v2
 
 Tài liệu này mô tả kiến trúc tổng quan của hệ thống VN Traffic Law RAG (bản thiết kế lại v2) ở mức đủ để triển khai theo phạm vi đã đóng băng tại M0 — Scope Freeze 19/07/2026 (xem [SCOPE.md](SCOPE.md)). Chi tiết thiết kế nằm ở `docs/03-thiet-ke-he-thong.md` và `docs/04-tech-stack-llm-research.md`.
@@ -46,11 +49,11 @@ Tổng hợp từ `docs/04-tech-stack-llm-research.md` §4.2 (đồng bộ với
 | Dense embedding | Gemini Embedding 2 (ứng viên E1) | 768 dimensions (cấu hình thử nghiệm) | Chưa chốt vĩnh viễn, chọn sau Suite B |
 | Dense embedding | Jina Embeddings v5 text-nano (E2) | 768 dims | Ứng viên |
 | Dense embedding | Jina Embeddings v5 text-small (E3) | 1024 dims | Ứng viên |
-| Sparse retrieval | Qdrant sparse BM25 | `qdrant/bm25` hoặc encoder tiếng Việt nếu cần | Lexical retrieval trong cùng collection |
-| Fusion | Qdrant RRF | Query API prefetch + fusion | k và weights configurable |
+| Generator | Gemini 3.7 Flash | `gemini-3.7-flash` | Structured legal answer theo schema cấp claim |
+| Judge độc lập | Gemini 3.5 Flash Lite | `gemini-3.5-flash-lite` | L5 semantic judge + evaluation metric thứ cấp |
 | Reranker | Jina Reranker v3 | `jina-reranker-v3` (ứng viên chính) | Rerank sau RRF; chưa khẳng định cải thiện trước benchmark |
-| Generator | Gemini 3.5 Flash | `gemini-3.5-flash` | Structured legal answer theo schema cấp claim |
-| Judge độc lập | GPT-5.4 mini | `gpt-5.4-mini-2026-03-17` (snapshot pin) | L5 semantic judge + evaluation metric thứ cấp |
+| Generator | Gemini 3.7 Flash | `gemini-3.7-flash` | Structured legal answer theo schema cấp claim |
+| Judge độc lập | Gemini 3.5 Flash Lite | `gemini-3.5-flash-lite` | L5 semantic judge + evaluation metric thứ cấp |
 | Evaluation | Ragas + deterministic custom metrics | Ragas 0.4.x (0.4.3) | Deterministic là headline, LLM judge là thứ cấp |
 | Object storage | ObjectStoragePort (S3-compatible); MinIO là ứng viên hiện tại | MinIO date-tagged community release (AIStor) | PDF nguồn, parser output, artifact review/evaluation |
 | Background jobs | Dramatiq | v2.2.0 | Actor ingestion idempotent, Redis broker |

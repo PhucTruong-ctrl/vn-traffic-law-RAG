@@ -11,5 +11,7 @@
   "effective_to": null,
   "status": "EFFECTIVE",
   "relation_notes": "Quy định bảo hiểm bắt buộc trách nhiệm dân sự của chủ xe cơ giới; quan hệ liên ngành với Luật Trật tự, an toàn giao thông đường bộ 36/2024/QH15 cần resolver xác nhận. Đã có Nghị định 220/2026/NĐ-CP sửa đổi, cần cập nhật hiệu lực provision-level. Nguồn PDF chính thức datafiles.chinhphu.vn.",
-  "review_status": "PENDING"
+  "review_status": "ACCEPTED",
+  "reviewed_by": "corpus-reviewer-01",
+  "reviewed_at": "2026-09-06T00:00:00Z"
 }

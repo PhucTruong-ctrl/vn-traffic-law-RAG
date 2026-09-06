@@ -6,7 +6,8 @@ from app.query.evidence_gate import EvidenceGateResult, EvidenceStatus
 from app.query.query_understanding_types import EvidenceType
 from app.retrieval.comparison import ComparisonResult
 from app.retrieval.contracts import CandidateSet, RetrievalResult
-from app.workflow.graph import GraphServices, build_query_graph
+from app.workflow import graph as workflow_graph
+from app.workflow.graph import GraphServices, build_query_graph, production_services
 
 
 def services(**overrides):
@@ -39,6 +40,8 @@ def test_graph_registers_only_documented_application_nodes() -> None:
         "expand_legal_context",
         "check_evidence",
         "targeted_retrieval",
+        "regenerate",
+        "temporal_retry",
         "build_context",
         "generate",
         "verify",
@@ -317,6 +320,37 @@ def test_out_of_scope_plan_abstains_before_retrieval() -> None:
     assert calls == []
 
 
+def test_production_services_retrieves_with_normalized_query(monkeypatch) -> None:
+    calls = []
+
+    class FakeRetriever:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def retrieve(self, query, **kwargs):
+            calls.append(query)
+            return []
+
+    monkeypatch.setattr(workflow_graph, "HybridRetriever", FakeRetriever)
+    monkeypatch.setattr(workflow_graph, "_default_client", lambda: object())
+    monkeypatch.setattr(workflow_graph, "get_embedding_provider", lambda settings: object())
+
+    services = production_services(session=object())
+    plan = SimpleNamespace(
+        normalized_query="normalized legal query",
+        intent="CURRENT",
+        effective_date=date(2025, 1, 1),
+        missing_query_information=[],
+    )
+
+    workflow_graph._retrieve(
+        {"question": "raw question", "query_understanding": plan},
+        services,
+    )
+
+    assert calls == ["normalized legal query"]
+
+
 def test_retrieval_uses_expansion_variants() -> None:
     calls = []
     plan = SimpleNamespace(
@@ -399,6 +433,12 @@ def test_hyde_variant_uses_dense_path_without_exact_or_sparse_retrieval() -> Non
     assert calls[1][0:2] == ("dense", "synthetic answer")
     assert set(calls[1][2]) == {"query_filter", "limit"}
     assert calls[1][2]["limit"] > 0
+
+
+def test_default_verification_does_not_mark_valid_without_l4_l5_l6():
+    graph = build_query_graph(services())
+    state = graph.invoke({"question": "mức phạt", "max_repair_attempts": 0})
+    assert state["verification_result"]["status"] != "VALID"
 
 
 def test_comparison_retrieval_keeps_independent_before_and_after() -> None:

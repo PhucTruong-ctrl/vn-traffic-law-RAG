@@ -158,10 +158,20 @@ def bootstrap_run(
             "cannot bootstrap ingestion_runs without a document_id; the parse "
             "message must carry document_id when no run row exists yet"
         )
+    manifest = {"source_object_key": object_key}
+    manifest_path = _BACKEND_DIR.parent / "data" / "manifests"
+    for candidate in manifest_path.rglob(f"{document_id}.manifest.json"):
+        try:
+            import json
+
+            manifest = {**json.loads(candidate.read_text(encoding="utf-8")), **manifest}
+        except (OSError, ValueError):
+            pass
+        break
     run = IngestionRun(
         job_id=job_id,
         document_id=document_id,
-        manifest_json={"source_object_key": object_key},
+        manifest_json=manifest,
         file_hash="",
         status=STATUS_QUEUED,
         current_stage=STATUS_QUEUED,

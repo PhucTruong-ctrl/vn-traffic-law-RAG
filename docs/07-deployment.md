@@ -1,3 +1,6 @@
+> **MVP rebaseline — 06/09/2026**: The defense release scope is reduced to a fixed 5–10-document reviewed corpus, 30–50 evaluation questions, current and as-of-date retrieval, structure-aware citations, evidence gating, abstention, and a working chat UI. RAGFlow comparison, feedback, large-scale background ingestion, advanced observability/security, and production backup automation are deferred.
+>
+> **Model policy**: Gemini 3.7 Flash is the primary structured-answer generator. Gemini 3.5 Flash Lite is the independent semantic judge. OpenAI/GPT-5.4 is not used. Earlier scope/model statements in this document are superseded by this rebaseline.
 # 07. Triển Khai (Deployment)
 
 > **Giai đoạn SDLC**: 6 - Triển khai
@@ -66,11 +69,9 @@ Các service nội bộ (postgres, qdrant, redis, minio) không expose port ra h
 
 ### 7.1.3. Thành phần bên ngoài
 
-| Thành phần | Vị trí | Ghi chú |
-|---|---|---|
-| Langfuse Cloud | Bên ngoài, KHÔNG nằm trong compose | Observability, prompt management, experiment; ngoài đường tới hạn (ADR-009) |
-| Gemini API | Bên ngoài | Generator (gemini-3.5-flash) và embedding ứng viên (gemini-embedding-2) |
-| OpenAI API | Bên ngoài | Judge GPT-5.4 mini snapshot cho L5 và metric thứ cấp |
+| Gemini API | Bên ngoài | Gemini 3.7 Flash generator and Gemini 3.5 Flash Lite semantic judge |
+| Jina API | Bên ngoài | Optional embedding/reranker only |
+| RAGFlow | Không nằm trong MVP compose | Deferred benchmark only |
 | Jina API | Bên ngoài | Embedding ứng viên E2/E3 và reranker jina-reranker-v3 |
 | RAGFlow | Môi trường benchmark RIÊNG | KHÔNG nằm trong compose production (ADR-010, FR-31) |
 
@@ -111,7 +112,7 @@ graph LR
     LF["Langfuse Cloud"]
     GEN["Gemini API"]
     JN["Jina API"]
-    OA["OpenAI API (judge)"]
+    GEMJ["Gemini API (semantic judge)"]
     RAGF["RAGFlow (benchmark riêng)"]
 
     B --> FE
@@ -610,7 +611,7 @@ FALLBACK_PROMPT_VERSION_CLAIM_VERIFIER=
 
 # Generator
 GENERATION_PROVIDER=gemini
-GENERATION_MODEL=gemini-3.5-flash
+
 GEMINI_API_KEY=
 GENERATION_FALLBACK_ENABLED=false
 
@@ -626,9 +627,8 @@ RERANKER_BUFFER=4
 JINA_API_KEY=
 
 # Judge (L5 semantic + metric thứ cấp)
-EVALUATION_JUDGE_PROVIDER=openai
-EVALUATION_JUDGE_MODEL=gpt-5.4-mini-2026-03-17
-OPENAI_API_KEY=
+
+
 
 # Security
 ADMIN_TOKEN=change-me
@@ -917,8 +917,7 @@ Lập lịch ingestion batch: dừng demo (hoặc chọn thời điểm không d
 | Provider | Mục đích | Model pin | Ghi chú |
 |---|---|---|---|
 | Langfuse Cloud | Tracing, prompt, experiment | Server v4 / SDK v4.x | Ngoài đường tới hạn; `LANGFUSE_ENABLED=false` không fail query |
-| Gemini API | Generator | `gemini-3.5-flash` | Có thể cần embedding `gemini-embedding-2` (ứng viên) |
-| OpenAI API | Judge (hai vai) | `gpt-5.4-mini-2026-03-17` | Online L5 semantic judge (fail-closed, doc 03 ADR-008) + metric thứ cấp trong evaluation |
+| Gemini API | Generator và semantic judge | Gemini 3.7 Flash; Gemini 3.5 Flash Lite | Theo model policy ở đầu tài liệu |
 | Jina API | Embedding E2/E3, reranker | `jina-embeddings-v5-text-nano`, `jina-embeddings-v5-text-small`, `jina-reranker-v3` | Embedding quyết định sau Suite B |
 
 ### 7.7.2. Endpoint provider health (admin-only)
@@ -1488,8 +1487,6 @@ git push origin v1.0.0-rc2
   "embedding_model": "gemini-embedding-2",
   "embedding_dimensions": 768,
   "reranker_model": "jina-reranker-v3",
-  "generator_model": "gemini-3.5-flash",
-  "judge_model": "gpt-5.4-mini-2026-03-17",
   "prompt_versions": {
     "legal-query-analyzer-v1": "…",
     "legal-query-rewriter-v1": "…",
@@ -1613,7 +1610,6 @@ Admin-only `GET /api/v1/admin/health/providers` (mục 7.7.2); chạy thủ côn
   "generation_ms": 3200,
   "verification_ms": 45,
   "total_ms": 3520,
-  "generator_model": "gemini-3.5-flash"
 }
 ```
 
@@ -1914,8 +1910,8 @@ UDEF commit pin
 UDEF rulespec path (UDEF_RULESPEC_PATH)
 DuckDuckGo hoặc SerpAPI config
 query-time HITL endpoint
-automatic Gemini -> OpenAI failover
-OpenAI usage JSON file
+automatic provider failover
+Provider usage JSON file
 Oracle VPS là production bắt buộc
 ```
 
@@ -1944,7 +1940,7 @@ Kiến trúc triển khai chốt:
 ```text
 frontend (Next.js)  +  backend (FastAPI)  +  worker (Dramatiq)
 PostgreSQL 18       +  Qdrant v1.19.0     +  Redis 8        +  MinIO
-External: Langfuse Cloud, Gemini API, OpenAI API, Jina API
+External: Langfuse Cloud, Gemini API, Jina API
 RAGFlow: môi trường benchmark riêng
 ```
 

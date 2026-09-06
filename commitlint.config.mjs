@@ -46,6 +46,7 @@ export default {
         "perf",
         "refactor",
         "revert",
+        "style",
         "test",
       ],
     ],

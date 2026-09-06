@@ -10,9 +10,9 @@ class QueryState(TypedDict, total=False):
     question: str
     query_date: date
     vehicle_type: str | None
-    # Transport aliases are accepted by the safe adapters in graph.py.
     input_question: str
     input_date: date
+    effect_change_dates: list[date]
     query_understanding: Any
     temporal_context: Any
     expansion_set: Any
@@ -23,6 +23,7 @@ class QueryState(TypedDict, total=False):
     evidence_status: Any
     evidence_gaps: list[Any]
     context_package: Any
+    prompt_context: str
     draft_answer: Any
     verification_result: Any
     repair_attempts: int

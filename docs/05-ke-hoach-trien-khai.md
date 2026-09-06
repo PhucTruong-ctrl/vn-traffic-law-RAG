@@ -1,14 +1,17 @@
+> **MVP rebaseline — 06/09/2026**: The defense release scope is reduced to a fixed 5–10-document reviewed corpus, 30–50 evaluation questions, current and as-of-date retrieval, structure-aware citations, evidence gating, abstention, and a working chat UI. RAGFlow comparison, feedback, large-scale background ingestion, advanced observability/security, and production backup automation are deferred.
+>
+> **Model policy**: Gemini 3.7 Flash is the primary structured-answer generator. Gemini 3.5 Flash Lite is the independent semantic judge. OpenAI/GPT-5.4 is not used. Earlier scope/model statements in this document are superseded by this rebaseline.
 # 05. Kế Hoạch Triển Khai (Implementation Plan)
 
 > **Giai đoạn SDLC**: 4 - Thực hiện và cài đặt
 > **Ngày tạo**: 16/06/2026
-> **Ngày baseline v1**: 19/07/2026
-> **Ngày thiết kế lại v2**: 08/08/2026
+> **Hạn hoàn thành / release candidate**: 16/09/2026
+> **Ngày báo cáo / bảo vệ**: 16/09/2026
 > **Ngày bắt đầu kế hoạch mới**: 20/07/2026
-> **Hạn hoàn thành**: 12/09/2026
-> **Ngày tập bảo vệ**: 13/09/2026
-> **Ngày bảo vệ**: 14/09/2026
-> **Tổng thời gian**: 55 ngày triển khai và hoàn thiện
+> **Ngày bảo vệ**: 16/09/2026
+> **Tổng thời gian**: kế hoạch rebaseline đến ngày báo cáo 16/09/2026
+> **Ngày tập bảo vệ**: 15/09/2026
+> **Ngày bảo vệ**: 16/09/2026
 > **Tên đề tài**: Xây dựng hệ thống RAG nhận biết cấu trúc và thời gian hiệu lực để hỗ trợ tra cứu pháp luật giao thông Việt Nam với trích dẫn có thể kiểm chứng
 > **English title**: A Structure-Aware and Temporal RAG System for Vietnamese Traffic Law Question Answering with Verifiable Citations
 > **Tài liệu quyết định nguồn**: [00-scope-and-decisions.md](00-scope-and-decisions.md)

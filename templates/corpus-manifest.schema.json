@@ -97,17 +97,18 @@
       "enum": ["PENDING", "ACCEPTED", "REJECTED", "DROPPED"]
     },
     "reviewed_by": {
-      "type": "string",
+      "type": ["string", "null"],
       "minLength": 1,
-      "description": "Reviewer identity; required when review_status is ACCEPTED or REJECTED."
+      "description": "Reviewer identity; null while review_status is PENDING; required when review_status is ACCEPTED or REJECTED."
     },
     "reviewed_at": {
-      "type": "string",
+      "type": ["string", "null"],
       "anyOf": [
         { "format": "date" },
-        { "format": "date-time" }
+        { "format": "date-time" },
+        { "type": "null" }
       ],
-      "description": "ISO 8601 review timestamp; required when review_status is ACCEPTED or REJECTED."
+      "description": "ISO 8601 review timestamp; null while review_status is PENDING; required when review_status is ACCEPTED or REJECTED."
     }
   },
   "allOf": [
@@ -120,7 +121,17 @@
         "required": ["review_status"]
       },
       "then": {
-        "required": ["reviewed_by", "reviewed_at"]
+        "required": ["reviewed_by", "reviewed_at"],
+        "properties": {
+          "reviewed_by": { "type": "string", "minLength": 1 },
+          "reviewed_at": {
+            "type": "string",
+            "anyOf": [
+              { "format": "date" },
+              { "format": "date-time" }
+            ]
+          }
+        }
       }
     },
     {

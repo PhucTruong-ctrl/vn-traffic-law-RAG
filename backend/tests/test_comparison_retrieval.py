@@ -39,6 +39,7 @@ def _result(provision_id: str, document_number: str) -> RetrievalResult:
         source_text=f"Nguồn {provision_id}",
         parent_context=None,
         document_number=document_number,
+        document_type="DECREE",
         article="7",
         clause=None,
         point=None,

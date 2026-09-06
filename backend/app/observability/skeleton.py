@@ -17,10 +17,10 @@ import uuid
 from pathlib import Path
 
 from app.config import get_settings
-from app.observability.langfuse_client import build_prompt, get_langfuse, trace_legal_query
+from app.observability.langfuse_client import get_langfuse, resolve_prompt, trace_legal_query
 
 # Model ids used by the skeleton spans (doc 07 §7.3.3).
-GENERATION_MODEL = "gemini-3.5-flash"
+GENERATION_MODEL = "gemini-3.7-flash"
 EMBEDDING_MODEL = "gemini-embedding-2"
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -69,7 +69,7 @@ def run_legal_query_trace(query: str) -> str:
     dense.end()
 
     # generate: LLM call with model_id and pinned fallback prompt metadata.
-    generator_prompt = build_prompt(
+    generator_prompt = resolve_prompt(
         name="legal-generator-v1", fallback_path=_fallback_dir() / "generator.yaml"
     )
     generation = root.start_observation(

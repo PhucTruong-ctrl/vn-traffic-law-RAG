@@ -898,6 +898,7 @@ class ParserRouter:
         primary_runner: Callable[[], ParsedDocument],
         *,
         alternate_runner: Callable[[], ParsedDocument] | None = None,
+        alternate_parser: str | None = None,
         group_a_thresholds: GroupAThresholds | None = None,
         expected_tables: int | None = None,
     ) -> tuple[RoutingDecision, GateOutcome]:
@@ -948,7 +949,14 @@ class ParserRouter:
                     )
                 return decision, self.ocr_route_terminal_outcome(inputs, problems)
 
-        fallback_parser = decision.expected_fallback or self.config.fallback
+        # A searchable-text alternate may be supplied by the ingestion actor
+        # without changing the authoritative scan/OCR route (which remains
+        # MinerU).  The decision record still reports the configured fallback.
+        fallback_parser = (
+            alternate_parser
+            if alternate_parser and inputs.has_text_layer
+            else decision.expected_fallback or self.config.fallback
+        )
 
         if decision.compare_parsers:
             if alternate_runner is None:

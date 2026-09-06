@@ -143,9 +143,14 @@ class SparseEncoder(Protocol):
     deterministic: the same input always yields the same weight dict.
     """
 
-    name: str
-    version: str
-    vocabulary: dict[str, int]
+    @property
+    def name(self) -> str: ...
+
+    @property
+    def version(self) -> str: ...
+
+    @property
+    def vocabulary(self) -> dict[str, int]: ...
 
     def encode(self, text: str) -> dict[int, float]: ...
 

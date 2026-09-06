@@ -36,37 +36,29 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      # CPU-only paths for docling/mineru (github runners have no GPU).
       CUDA_VISIBLE_DEVICES: ""
     defaults:
       run:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
-
       - name: Install uv + Python 3.11
         uses: astral-sh/setup-uv@v5
         with:
           version: "0.11.x"
           python-version: "3.11"
           enable-cache: true
-
       - name: Sync locked deps (clean-env check)
         run: uv sync --locked
-
       - name: Lint (ruff check)
         run: uv run ruff check .
-
       - name: Format check (ruff format)
         run: uv run ruff format --check .
-
       - name: Type check (mypy, excl. pre-existing observability errors)
         run: uv run mypy app --exclude 'observability'
-
       - name: Unit tests (integration-marked tests excluded)
         run: uv run pytest tests/ -q --no-cov -m "not integration"
 
-  # Opt-in only: real Docling conversion + MinerU pipeline (model downloads).
   integration-tests:
     name: Integration tests (opt-in, workflow_dispatch)
     runs-on: ubuntu-latest
@@ -75,8 +67,6 @@ jobs:
     env:
       MINERU_INTEGRATION: "1"
       CUDA_VISIBLE_DEVICES: ""
-      # PostgreSQL for the repository integration tests (VNLRAG-39); the
-      # scratch databases are created by the tests' own conftest.
       DATABASE_URL: postgresql+psycopg://vnlaw:change-me@localhost:5432/vnlaw
     services:
       postgres:
@@ -97,17 +87,14 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
-
       - name: Install uv + Python 3.11
         uses: astral-sh/setup-uv@v5
         with:
           version: "0.11.x"
           python-version: "3.11"
           enable-cache: true
-
       - name: Sync locked deps (clean-env check)
         run: uv sync --locked
-
       - name: Integration tests
         run: uv run pytest tests/ -q --no-cov -m integration
 
@@ -120,20 +107,16 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Node 20 + npm cache
+      - name: Install Node 22 + npm cache
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-
       - name: Install locked deps
         run: npm ci
-
       - name: Type check (tsc --noEmit)
         run: npm run typecheck
-
       - name: Build (next build)
         run: npm run build
 
@@ -145,24 +128,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Full history so base.sha is available to commitlint --from.
           fetch-depth: 0
-
-      - name: Install Node 20 + npm cache
+      - name: Install Node 22 + npm cache
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-
-      # commitlint + config-conventional live in frontend/node_modules.
       - name: Install commitlint deps
         run: npm ci
         working-directory: frontend
-
-      # Same invocation as .husky/commit-msg, scoped to the PR's commits.
-      # `npm exec --prefix frontend --no --` (not `npx --prefix`) is used because
-      # it resolves the binary from frontend/node_modules portably across npm
-      # 10 (node 20, CI) and npm 12 (local), and is not shadowed by PATH aliases.
       - name: Lint PR commit messages
         run: npm exec --prefix frontend --no -- commitlint --config commitlint.config.mjs --from "${{ github.event.pull_request.base.sha }}" --to "${{ github.event.pull_request.head.sha }}"
+
+  release-stack-acceptance:
+    name: Release stack acceptance (Gate M6)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate release compose
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.RELEASE_POSTGRES_PASSWORD }}
+          MINIO_ROOT_USER: ${{ secrets.RELEASE_MINIO_ROOT_USER }}
+          MINIO_ROOT_PASSWORD: ${{ secrets.RELEASE_MINIO_ROOT_PASSWORD }}
+        run: docker compose -f deploy/compose/compose.release.yml config --quiet
+      - name: Report missing release credentials
+        if: env.POSTGRES_PASSWORD == '' || env.MINIO_ROOT_USER == '' || env.MINIO_ROOT_PASSWORD == ''
+        run: |
+          echo "Gate M6 blocked: release credentials are not configured; no stack acceptance claimed."
+          exit 1

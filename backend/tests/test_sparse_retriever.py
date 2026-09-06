@@ -21,6 +21,7 @@ _PAYLOAD = {
     "source_text": "d) Mức phạt đối với xe đạp.",
     "parent_context": None,
     "document_number": "168/2024/NĐ-CP",
+    "document_type": "DECREE",
     "article": "7",
     "clause": None,
     "point": "d",

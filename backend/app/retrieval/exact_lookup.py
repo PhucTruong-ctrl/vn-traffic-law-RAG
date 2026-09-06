@@ -82,6 +82,7 @@ def _result(row: LegalProvision, rank: int) -> RetrievalResult:
         source_text=row.source_text,
         parent_context=row.parent_context,
         document_number=document.document_number,
+        document_type=document.document_type,
         article=row.article,
         clause=row.clause,
         point=row.point,
