@@ -161,9 +161,7 @@ def _relation_value(relation: Any, name: str, default: Any) -> Any:
 def _result(row: Any, rank: int, relation: Any, depth: int) -> RetrievalResult:
     document_version = getattr(row, "document_version", None)
     document = getattr(document_version, "document", None)
-    document_type = getattr(document, "document_type", None) or getattr(
-        row, "document_type", None
-    )
+    document_type = getattr(document, "document_type", None) or getattr(row, "document_type", None)
     document_number = getattr(document, "document_number", None) or getattr(
         row, "document_number", None
     )

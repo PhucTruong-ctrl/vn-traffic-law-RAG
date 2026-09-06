@@ -230,19 +230,19 @@ def test_batch_06_manifests_match_readme_and_accepted_review_contract() -> None:
         assert manifest["review_status"] == "ACCEPTED"
         assert manifest["reviewed_by"] == "corpus-reviewer-01"
         assert manifest["reviewed_at"] == "2026-09-06T00:00:00Z"
-        assert "legal review and indexing remain pending" in manifest["relation_notes"]
+        assert "legal review and indexing remain pending" not in manifest["relation_notes"]
         assert validate_manifest(manifest) == []
 
 
 def test_all_manifests_have_accepted_review_metadata() -> None:
     """Every committed corpus manifest has a complete accepted review record."""
     paths = sorted(
-            Path(__file__)
-            .resolve()
-            .parents[2]
-            .joinpath("data", "manifests")
-            .glob("batch-*/*.manifest.json")
-        )
+        Path(__file__)
+        .resolve()
+        .parents[2]
+        .joinpath("data", "manifests")
+        .glob("batch-*/*.manifest.json")
+    )
     assert len(paths) == 27
     for path in paths:
         manifest = json.loads(path.read_text(encoding="utf-8"))
