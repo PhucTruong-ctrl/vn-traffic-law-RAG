@@ -63,8 +63,15 @@ def resolve_citation(
     metadata = CitationMetadata.from_citation(citation)
     if metadata is None:
         return None
-    primary = CitationMetadata(metadata.document_id, None, metadata.span, metadata.text,
-                               metadata.content_hash, metadata.effective_from, metadata.effective_to)
+    primary = CitationMetadata(
+        metadata.document_id,
+        None,
+        metadata.span,
+        metadata.text,
+        metadata.content_hash,
+        metadata.effective_from,
+        metadata.effective_to,
+    )
     provision_id = metadata_map.get(primary)
     reason = "PRIMARY_METADATA"
     if provision_id is None:
@@ -87,8 +94,16 @@ def resolve_citations(
     for citation in citations:
         resolved = resolve_citation(citation, metadata_map)
         if resolved is None:
-            resolved = {**dict(citation), "mapping_status": "UNMAPPABLE",
-                        "mapping_reason": "INVALID_METADATA" if CitationMetadata.from_citation(citation) is None else "NO_EXACT_METADATA"}
+            reason = (
+                "INVALID_METADATA"
+                if CitationMetadata.from_citation(citation) is None
+                else "NO_EXACT_METADATA"
+            )
+            resolved = {
+                **dict(citation),
+                "mapping_status": "UNMAPPABLE",
+                "mapping_reason": reason,
+            }
         else:
             mapped.append(resolved)
         items.append(resolved)

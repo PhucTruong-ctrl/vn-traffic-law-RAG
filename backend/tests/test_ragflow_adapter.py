@@ -91,7 +91,14 @@ def test_ragflow_metadata_resolution_preserves_provenance_and_fails_closed() -> 
         [citation, {**citation, "page_number": 13}, {"text": "Điều 5"}],
         {key: "nd-168-2024__dieu-5"},
     )
-    assert result.mapped == [{**citation, "canonical_provision_id": "nd-168-2024__dieu-5", "mapping_status": "MAPPED", "mapping_reason": "PRIMARY_METADATA"}]
+    assert result.mapped == [
+        {
+            **citation,
+            "canonical_provision_id": "nd-168-2024__dieu-5",
+            "mapping_status": "MAPPED",
+            "mapping_reason": "PAGE_FALLBACK",
+        }
+    ]
     assert result.unmappable == 2
     assert result.mapping_accuracy == 1 / 3
 
@@ -111,8 +118,19 @@ def test_metadata_resolution_uses_hash_text_span_before_page_and_keeps_unmappabl
         {primary: "nd-168-2024__dieu-5", page_variant: "nd-168-2024__page-12"},
     )
     assert result.items == [
-        {**citation, "canonical_provision_id": "nd-168-2024__dieu-5", "mapping_status": "MAPPED", "mapping_reason": "PRIMARY_METADATA"},
-        {"document_id": "nd-168-2024", "page_number": 99, "text": "không có", "mapping_status": "UNMAPPABLE", "mapping_reason": "NO_EXACT_METADATA"},
+        {
+            **citation,
+            "canonical_provision_id": "nd-168-2024__dieu-5",
+            "mapping_status": "MAPPED",
+            "mapping_reason": "PRIMARY_METADATA",
+        },
+        {
+            "document_id": "nd-168-2024",
+            "page_number": 99,
+            "text": "không có",
+            "mapping_status": "UNMAPPABLE",
+            "mapping_reason": "NO_EXACT_METADATA",
+        },
     ]
     assert result.mapped == [result.items[0]]
     assert result.unmappable == 1
