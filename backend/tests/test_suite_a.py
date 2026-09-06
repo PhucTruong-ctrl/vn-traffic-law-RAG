@@ -1174,7 +1174,22 @@ def test_generate_first_pass_report_from_artifacts(tmp_path: Path) -> None:
     assert "## 1. P1 (Docling) — run run-20260809-000000-aaaaaa" in regenerated
 
 
-def test_discover_variant_runs_ignores_incomplete_completed_artifact(tmp_path: Path) -> None:
+def test_discover_variant_runs_rejects_root_artifacts_in_phase(tmp_path: Path) -> None:
+    """Discovery must use the writer's canonical root/phase artifact layout."""
+    base = tmp_path / "runs"
+    for run_id, parser in (
+        ("run-20260809-000000-aaaaaa", "docling"),
+        ("run-20260809-000001-bbbbbb", "mineru"),
+        ("run-20260809-000002-cccccc", "p3-parser-router"),
+    ):
+        _write_synthetic_run(base, run_id, parser)
+    phase = "p3-parser-router"
+    run_root = base / "run-20260809-000002-cccccc"
+    (run_root / phase / "report.md").write_text("wrong location", encoding="utf-8")
+    (run_root / "report.md").unlink()
+
+    with pytest.raises(ValueError, match="no COMPLETED p1/p2/p3 run trio"):
+        _discover_variant_runs(base)
     """A stale COMPLETED marker without the phase evidence cannot freeze M7."""
     base = tmp_path / "runs"
     _write_synthetic_run(base, "run-20260809-000000-aaaaaa", "docling")
