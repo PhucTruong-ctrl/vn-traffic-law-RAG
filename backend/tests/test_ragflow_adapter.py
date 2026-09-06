@@ -1,11 +1,3 @@
-from __future__ import annotations
-
-from collections.abc import Sequence
-
-from app.evaluation.ragflow_adapter import map_citation, map_citations
-from app.ingestion.adapters.ragflow_adapter import RAGFlowIngestionPort, RAGFlowRetrievalPort
-from app.ingestion.retrieval_units import RetrievalUnit
-from app.retrieval.contracts import CandidateSet
 
 
 class FakeIngest:
@@ -65,3 +57,34 @@ def test_ragflow_mapping_does_not_guess_from_text_or_partial_ids() -> None:
 
     assert map_citation({"id": "nd-168-2024:article:5-extra"}, canonical_ids) is None
     assert map_citation({"text": "Điều 5"}, canonical_ids) is None
+def test_ragflow_metadata_resolution_preserves_provenance_and_fails_closed() -> None:
+    citation = {
+        "document_id": "nd-168-2024",
+        "page_number": 12,
+        "span": "s-7",
+        "text": "Điều 5",
+        "content_hash": "abc123",
+        "effective_from": "2024-01-01",
+        "effective_to": None,
+        "rank": 1,
+    }
+    key = CitationMetadata(
+        document_id="nd-168-2024",
+        page=12,
+        span="s-7",
+        text="Điều 5",
+        content_hash="abc123",
+        effective_from="2024-01-01",
+        effective_to=None,
+    )
+
+    result = resolve_citations(
+        [citation, {**citation, "page_number": 13}, {"text": "Điều 5"}],
+        {key: "nd-168-2024__dieu-5"},
+    )
+
+    assert result.mapped == [
+        {**citation, "canonical_provision_id": "nd-168-2024__dieu-5"}
+    ]
+    assert result.unmappable == 2
+    assert result.mapping_accuracy == 1 / 3
