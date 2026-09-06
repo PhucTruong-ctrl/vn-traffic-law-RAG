@@ -27,7 +27,8 @@ _PAGE_RE = re.compile(r"^(?:trang\s+)?\d+(?:\s*/\s*\d+)?$", re.I)
 _NOISE_RE = re.compile(r"about:blank|thư viện pháp luật|mã tra cứu", re.I)
 _DATE_RE = re.compile(r"^\d{1,2}/\d{1,2}/\d{2,4},.*about:blank$", re.I)
 _END_RE = re.compile(r"[A-Za-zÀ-ỹĐđ,;]$")
-LineEntry: TypeAlias = tuple[str, tuple[float, float, float, float] | None]
+BBox: TypeAlias = tuple[float, float, float, float]
+LineEntry: TypeAlias = tuple[str, BBox | None]
 
 
 class SearchableTextRequiredError(RuntimeError):
@@ -129,7 +130,7 @@ def _bbox(
 
 def _words_lines(
     words: list[dict[str, Any]],
-) -> list[tuple[str, tuple[float, float, float, float] | None]]:
+) -> list[LineEntry]:
     groups: list[list[dict[str, Any]]] = []
     for word in sorted(
         words, key=lambda item: (float(item.get("top", 0)), float(item.get("x0", 0)))
@@ -138,7 +139,7 @@ def _words_lines(
             groups[-1].append(word)
         else:
             groups.append([word])
-    result = []
+    result: list[LineEntry] = []
     for group in groups:
         text = " ".join(str(item.get("text", "")) for item in group)
         result.append(
@@ -184,20 +185,24 @@ class PdfPlumberAdapter:
         with pdfplumber.open(path) as pdf:
             for page in pdf.pages:
                 tables = list(page.find_tables())
-                boxes = [table.bbox for table in tables]
-                filtered = (
-                    page.filter(
-                        lambda obj, boxes=boxes: (
-                            not any(
-                                x0 - 2 <= obj.get("x0", 0) <= x1 + 2
-                                and top - 2 <= obj.get("top", 0) <= bottom + 2
-                                for x0, top, x1, bottom in boxes
-                            )
-                        )
+                boxes: list[BBox] = [
+                    (
+                        float(table.bbox[0]),
+                        float(table.bbox[1]),
+                        float(table.bbox[2]),
+                        float(table.bbox[3]),
                     )
-                    if boxes
-                    else page
-                )
+                    for table in tables
+                ]
+
+                def outside_table(obj: dict[str, Any], table_boxes: list[BBox] = boxes) -> bool:
+                    return not any(
+                        x0 - 2 <= obj.get("x0", 0) <= x1 + 2
+                        and top - 2 <= obj.get("top", 0) <= bottom + 2
+                        for x0, top, x1, bottom in table_boxes
+                    )
+
+                filtered = page.filter(outside_table) if boxes else page
                 words = filtered.extract_words() if hasattr(filtered, "extract_words") else []
                 if words:
                     searchable = True
@@ -206,11 +211,21 @@ class PdfPlumberAdapter:
                     text = filtered.extract_text() or ""
                     searchable = searchable or bool(text.strip())
                     lines = [(line, None) for line in text.splitlines()]
-                table_rows = []
+                table_rows: list[tuple[str, BBox]] = []
                 for table in tables:
                     md = table_to_markdown(table.extract())
                     if md:
-                        table_rows.append((md, tuple(float(v) for v in table.bbox)))
+                        table_rows.append(
+                            (
+                                md,
+                                (
+                                    float(table.bbox[0]),
+                                    float(table.bbox[1]),
+                                    float(table.bbox[2]),
+                                    float(table.bbox[3]),
+                                ),
+                            )
+                        )
                 page_data.append((page, lines, table_rows))
         if not searchable:
             raise SearchableTextRequiredError(
@@ -226,7 +241,7 @@ class PdfPlumberAdapter:
         )
         pages: list[ParsedPage] = []
         order = 0
-        for page_number, (page, lines, tables) in enumerate(page_data, 1):
+        for page_number, (page, lines, table_rows) in enumerate(page_data, 1):
             width, height = float(page.width), float(page.height)
             records: list[tuple[float, str, str, tuple[float, float, float, float] | None]] = []
             cleaned = _clean_line_entries(lines, counts)
@@ -234,7 +249,7 @@ class PdfPlumberAdapter:
                 records.append(
                     ((raw_box[1] if raw_box else float(index)), text, "paragraph", raw_box)
                 )
-            for md, raw_box in tables:
+            for md, raw_box in table_rows:
                 records.append((raw_box[1], md, "table", raw_box))
             records.sort(key=lambda item: item[0])
             elements: list[DocumentElement] = []

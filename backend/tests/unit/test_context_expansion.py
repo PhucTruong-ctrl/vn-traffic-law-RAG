@@ -18,6 +18,7 @@ def result(provision_id: str, rank: int) -> RetrievalResult:
         source_text="seed text",
         parent_context=None,
         document_number="168/2024/NĐ-CP",
+        document_type="DECREE",
         article="7",
         clause=None,
         point=None,
@@ -47,7 +48,11 @@ def row(provision_id: str) -> SimpleNamespace:
         effective_to=None,
         page_number=1,
         document_version=SimpleNamespace(
-            document=SimpleNamespace(document_id="doc-1", document_number="168/2024/NĐ-CP")
+            document=SimpleNamespace(
+                document_id="doc-1",
+                document_number="168/2024/NĐ-CP",
+                document_type="DECREE",
+            )
         ),
     )
 

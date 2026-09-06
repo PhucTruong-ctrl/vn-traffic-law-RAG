@@ -3,6 +3,7 @@
 from fastapi import FastAPI, Request
 
 from app.api import chat, documents, errors, feedback, jobs, review, search
+from app.observability.health import readiness
 
 app = FastAPI()
 
@@ -31,6 +32,6 @@ def health_live() -> dict[str, str]:
 
 
 @app.get("/api/v1/health/ready")
-def health_ready() -> dict[str, str]:
-    """Readiness probe; dependency-specific checks belong to adapters."""
-    return {"status": "ok"}
+def health_ready() -> dict[str, object]:
+    """Readiness probe reporting dependency checks."""
+    return readiness()

@@ -16,6 +16,7 @@ def payload() -> dict[str, object]:
         "document_id": "doc-1",
         "document_version_id": "version-1",
         "document_number": "168/2024/NĐ-CP",
+        "document_type": "DECREE",
         "article": "7",
         "clause": None,
         "point": "đ",

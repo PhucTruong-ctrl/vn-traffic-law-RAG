@@ -18,6 +18,7 @@ def candidate(provision_id: str, rank: int) -> RetrievalResult:
         source_text=f"source {provision_id}",
         parent_context=None,
         document_number="168/2024/NĐ-CP",
+        document_type="DECREE",
         article="7",
         clause=None,
         point=None,

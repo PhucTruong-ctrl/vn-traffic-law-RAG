@@ -32,6 +32,7 @@ def _result(
         source_text="Nguồn",
         parent_context=parent_context,
         document_number="168/2024/NĐ-CP",
+        document_type="DECREE",
         article="7",
         clause=None,
         point=None,

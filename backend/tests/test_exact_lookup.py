@@ -8,6 +8,7 @@ def _row(provision_id: str = "p-đ", *, vehicle_types: list[str] | None = None) 
     document = SimpleNamespace(
         document_id="doc-168",
         document_number="168/2024/NĐ-CP",
+        document_type="DECREE",
         source_id=None,
     )
     version = SimpleNamespace(

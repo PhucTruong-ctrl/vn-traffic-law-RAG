@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol, cast
 
-from app.config import get_generation_settings
+import app.config as config
 
 from .schemas import StructuredAnswer
 
@@ -46,7 +46,7 @@ class GeminiStructuredGenerator:
         client = self._client
         model = self._model
         if client is None or model is None:
-            settings = get_generation_settings()
+            settings = config.get_generation_settings()
             model = model or settings.model
             if client is None:
                 if not settings.gemini_api_key:

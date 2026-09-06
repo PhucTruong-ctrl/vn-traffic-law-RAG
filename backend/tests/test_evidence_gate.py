@@ -41,6 +41,7 @@ def _result(provision_id: str, text: str) -> RetrievalResult:
         source_text=text,
         parent_context=None,
         document_number="168/2024/NĐ-CP",
+        document_type="DECREE",
         article="7",
         clause=None,
         point="đ",

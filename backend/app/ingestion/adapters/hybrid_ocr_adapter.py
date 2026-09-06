@@ -12,7 +12,7 @@ import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, cast
 
 from PIL import Image
 
@@ -49,7 +49,20 @@ def _as_box(points: Any, width: int, height: int) -> tuple[float, float, float, 
     )
 
 
-def _result_lines(result: Any, width: int, height: int) -> list[OCRLine]:
+class _OCRResult(Protocol):
+    def json(self) -> Any: ...
+
+
+class _OCRPredictor(Protocol):
+    def predict(self, image: Image.Image | str) -> Any: ...
+
+
+def _predict(detector: Any, image_path: str | Path) -> _OCRResult:
+    result = next(iter(detector.predict(str(image_path))))
+    return cast(_OCRResult, result)
+
+
+def _result_lines(result: _OCRResult, width: int, height: int) -> list[OCRLine]:
     data = getattr(result, "json", None)
     if callable(data):
         data = data()
@@ -75,7 +88,7 @@ def _result_lines(result: Any, width: int, height: int) -> list[OCRLine]:
 
 
 def _recognize(predictor: Any, image: Image.Image) -> tuple[str, float | None]:
-    result = predictor.predict(image)
+    result = cast(_OCRPredictor, predictor).predict(image)
     if isinstance(result, str):
         return result, None
     if isinstance(result, tuple):
@@ -107,7 +120,7 @@ class HybridOCRAdapter:
 
     def _load_detector(self) -> None:
         if self._detector is None:
-            from paddleocr import PaddleOCR
+            from paddleocr import PaddleOCR  # type: ignore[import-untyped]
 
             self._detector = PaddleOCR(
                 lang="vi",
@@ -124,8 +137,8 @@ class HybridOCRAdapter:
     def _load_recognizer(self) -> None:
         if self._recognizer is None:
             try:
-                from vietocr.tool.config import Cfg
-                from vietocr.tool.predictor import Predictor
+                from vietocr.tool.config import Cfg  # type: ignore[import-not-found]
+                from vietocr.tool.predictor import Predictor  # type: ignore[import-not-found]
             except ModuleNotFoundError as exc:
                 raise RuntimeError(
                     "VietOCR mode requires a separately installed optional package"
@@ -148,7 +161,7 @@ class HybridOCRAdapter:
         with Image.open(image_path) as opened:
             image = opened.convert("RGB")
         width, height = image.size
-        result = next(iter(self._detector.predict(str(image_path))))
+        result = _predict(self._detector, image_path)
         lines = _result_lines(result, width, height)
         elements: list[DocumentElement] = []
         for reading_order, line in enumerate(lines):

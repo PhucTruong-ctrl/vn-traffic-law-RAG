@@ -23,6 +23,7 @@ class QueryState(TypedDict, total=False):
     evidence_status: Any
     evidence_gaps: list[Any]
     context_package: Any
+    prompt_context: str
     draft_answer: Any
     verification_result: Any
     repair_attempts: int
