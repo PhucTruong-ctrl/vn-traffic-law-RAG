@@ -33,8 +33,8 @@ from sqlalchemy.orm import Session
 from alembic import command
 from app.config import get_redis_settings
 from app.ingestion.actors import embed as embed_module
-from app.ingestion.actors import extract as extract_module
 from app.ingestion.actors import enqueue_parse
+from app.ingestion.actors import extract as extract_module
 from app.ingestion.actors import index as index_module
 from app.ingestion.actors import parse as parse_module
 from app.ingestion.actors import quality_gate as quality_gate_module
@@ -42,7 +42,12 @@ from app.ingestion.actors.extract import extract_actor
 from app.ingestion.actors.index import index_actor
 from app.ingestion.actors.quality_gate import quality_gate_actor
 from app.ingestion.actors.resolve_temporal import resolve_temporal_actor
-from app.ingestion.document_ir import BoundingBox, DocumentElement, ParsedDocument, ParsedPage
+from app.ingestion.document_ir import (
+    BoundingBox,
+    DocumentElement,
+    ParsedDocument,
+    ParsedPage,
+)
 from app.ingestion.queue import get_broker
 from app.persistence.models import (
     DocumentElement as DocumentElementRow,
@@ -406,7 +411,9 @@ def test_extract_retry_reuses_persisted_provisions(
 
     with Session(engine) as session:
         run = session.scalar(select(IngestionRun).where(IngestionRun.job_id == job_id))
-        version = session.scalar(select(DocumentVersion).where(DocumentVersion.document_id == document_id))
+        version = session.scalar(
+            select(DocumentVersion).where(DocumentVersion.document_id == document_id)
+        )
         assert run is not None and run.current_stage == "EXTRACTING"
         assert version is not None and version.effective_from == date(2025, 1, 1)
         assert version.manifest_json["effective_from"] == "2025-01-01"
@@ -434,7 +441,9 @@ def test_extract_retry_reuses_persisted_provisions(
 
     with Session(engine) as session:
         run = session.scalar(select(IngestionRun).where(IngestionRun.job_id == job_id))
-        version = session.scalar(select(DocumentVersion).where(DocumentVersion.document_id == document_id))
+        version = session.scalar(
+            select(DocumentVersion).where(DocumentVersion.document_id == document_id)
+        )
         rows = list(
             session.scalars(
                 select(LegalProvision).where(LegalProvision.document_version_id == version.id)
@@ -835,8 +844,12 @@ def test_failed_message_lands_in_dead_letter_queue(queue_env: Any, clean_queues:
     queue = f"fail-{uuid.uuid4().hex[:8]}"
     actor_name = f"failing_{uuid.uuid4().hex[:8]}"
 
-    @dramatiq.actor(  # noqa: E501 - decorator options
-        broker=broker, queue_name=queue, actor_name=actor_name, max_retries=0, time_limit=60
+    @dramatiq.actor(
+        broker=broker,
+        queue_name=queue,
+        actor_name=actor_name,
+        max_retries=0,
+        time_limit=60,
     )
     def failing_actor(payload: str) -> None:  # pragma: no cover - always raises
         raise RuntimeError(f"boom {payload}")
