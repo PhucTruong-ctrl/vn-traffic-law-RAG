@@ -1030,6 +1030,7 @@ def _write_synthetic_run(
         json.dumps({"fixtures_dir": str(base), "entries": [{"document_id": d} for d in doc_ids]}),
         encoding="utf-8",
     )
+    (run_root / "report.md").write_text("# Synthetic run report\n", encoding="utf-8")
     (run_root / "run.json").write_text(
         json.dumps(
             {
@@ -1134,6 +1135,8 @@ def _write_synthetic_run(
         (run_root / phase / "routing-and-gates.json").write_text(
             json.dumps({"per_document": {}}), encoding="utf-8"
         )
+
+    (run_root / phase / "report.md").write_text("# Synthetic phase report\n", encoding="utf-8")
 
 
 def test_generate_first_pass_report_from_artifacts(tmp_path: Path) -> None:
