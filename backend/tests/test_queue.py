@@ -34,6 +34,7 @@ from app.config import (
 )
 from app.ingestion import actors
 from app.ingestion.actors import _state as state_module
+from app.ingestion.actors import extract as extract_module
 from app.ingestion.actors import normalize as normalize_module
 from app.ingestion.actors import parse as parse_module
 from app.ingestion.actors import resolve_refs, resolve_temporal
@@ -180,7 +181,9 @@ def test_existing_version_merges_manifest_effective_dates() -> None:
     )
     monkeypatch = pytest.MonkeyPatch()
     try:
-        monkeypatch.setattr(state_module, "latest_document_version", lambda _session, _document_id: version)
+        monkeypatch.setattr(
+            extract_module, "latest_document_version", lambda _session, _document_id: version
+        )
         result = _ensure_document_version(session, run, ir=Mock(model_dump_json=lambda: "{}"))
     finally:
         monkeypatch.undo()
