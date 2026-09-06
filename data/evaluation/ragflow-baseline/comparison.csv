@@ -1,5 +1,5 @@
-variant,status
-B1,NOT_RUN
-B2,NOT_RUN
-B3,NOT_RUN
-B4,NOT_RUN
+variant,status,query_count,successful_queries,mean_returned_chunks,exact_recall_at_10,citation_correctness,temporal_leakage,evidence_completeness
+B1,COMPLETED,200,200,10.0,NA,NA,NA,NA
+B2,COMPLETED,200,200,10.0,NA,NA,NA,NA
+B3,COMPLETED,200,200,10.0,NA,NA,NA,NA
+B4,COMPLETED,200,183,10.0,NA,NA,NA,NA
