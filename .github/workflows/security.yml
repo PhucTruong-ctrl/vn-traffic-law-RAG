@@ -18,10 +18,12 @@ jobs:
         run: docker compose --env-file .env.example config --quiet
       - name: Assert security controls
         run: |
-          grep -q 'read_only: true' docker-compose.yml
-          grep -q 'cap_drop: [ALL]' docker-compose.yml
-          grep -q 'no-new-privileges:true' docker-compose.yml
-          grep -q 'internal: true' docker-compose.yml
+          docker compose --env-file .env.example config > /tmp/compose-config.yml
+          grep -Fqx '    read_only: true' /tmp/compose-config.yml
+          grep -Fqx '    cap_drop:' /tmp/compose-config.yml
+          grep -Fqx '      - ALL' /tmp/compose-config.yml
+          grep -Fqx '      - no-new-privileges:true' /tmp/compose-config.yml
+          grep -Fqx '    internal: true' /tmp/compose-config.yml
   backend-security:
     name: Backend security regression tests
     runs-on: ubuntu-latest

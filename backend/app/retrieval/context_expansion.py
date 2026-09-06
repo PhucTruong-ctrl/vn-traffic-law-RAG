@@ -161,13 +161,21 @@ def _relation_value(relation: Any, name: str, default: Any) -> Any:
 def _result(row: Any, rank: int, relation: Any, depth: int) -> RetrievalResult:
     document_version = getattr(row, "document_version", None)
     document = getattr(document_version, "document", None)
+    document_type = getattr(document, "document_type", None) or getattr(
+        row, "document_type", None
+    )
     document_number = getattr(document, "document_number", None) or getattr(
         row, "document_number", None
     )
     document_id = getattr(document, "document_id", None) or getattr(row, "document_id", None)
     effective_from = getattr(row, "effective_from", None)
     article = getattr(row, "article", None)
-    if effective_from is None or article is None or document_number is None:
+    if (
+        effective_from is None
+        or article is None
+        or document_number is None
+        or document_type is None
+    ):
         raise ValueError("accepted related provision lacks citation metadata")
     relation_type = _relation_value(relation, "relation_type", "RELATION")
     return RetrievalResult(
@@ -180,6 +188,7 @@ def _result(row: Any, rank: int, relation: Any, depth: int) -> RetrievalResult:
         source_text=row.source_text,
         parent_context=row.parent_context,
         document_number=document_number,
+        document_type=document_type,
         article=article,
         clause=row.clause,
         point=row.point,

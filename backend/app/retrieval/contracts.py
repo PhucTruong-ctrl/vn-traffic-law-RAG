@@ -22,6 +22,7 @@ class RetrievalResult(BaseModel):
     source_text: str
     parent_context: str | None
     document_number: str
+    document_type: str
     article: str
     clause: str | None
     point: str | None
@@ -82,6 +83,7 @@ def result_from_payload(
         "source_text": payload.get("source_text"),
         "parent_context": payload.get("parent_context"),
         "document_number": payload.get("document_number"),
+        "document_type": payload.get("document_type"),
         "article": payload.get("article"),
         "clause": payload.get("clause"),
         "point": payload.get("point"),

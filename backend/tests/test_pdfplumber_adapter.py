@@ -2,6 +2,7 @@ from collections import Counter
 
 from app.ingestion.adapters.pdfplumber_adapter import (
     SearchableTextRequiredError,
+    _clean_line_entries,
     clean_lines,
     table_to_markdown,
 )
@@ -92,3 +93,23 @@ def test_searchable_alternate_can_be_named_without_changing_scan_route():
     )
     assert outcome.terminal_outcome == "accepted"
     assert outcome.source_parser == "pdfplumber"
+
+
+def test_clean_line_entries_keeps_bbox_aligned_after_removed_header():
+    entries = _clean_line_entries(
+        [
+            ("Trang 2 / 10", (0, 1, 100, 10)),
+            ("Điều 2. Nội dung", (10, 20, 90, 30)),
+        ]
+    )
+    assert entries == [("Điều 2. Nội dung", (10, 20, 90, 30))]
+
+
+def test_clean_line_entries_unions_bbox_for_merged_continuation():
+    entries = _clean_line_entries(
+        [
+            ("Nội dung về an toàn", (10, 20, 60, 30)),
+            ("giao thông đường bộ.", (5, 31, 95, 40)),
+        ]
+    )
+    assert entries == [("Nội dung về an toàn giao thông đường bộ.", (5, 20, 95, 40))]

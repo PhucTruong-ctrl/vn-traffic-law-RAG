@@ -63,6 +63,16 @@ def test_list_pending_items(client: object) -> None:
     assert response.json()[0]["id"] == str(row.id)
 
 
+def test_missing_review_item_returns_standard_404(client: object) -> None:
+    http, _, _ = client
+    response = http.get(f"/api/v1/review/items/{uuid.uuid4()}")
+    assert response.status_code == 404
+    payload = response.json()
+    assert payload["error"]["code"] == "NOT_FOUND"
+    assert payload["error"]["message"] == "Review item was not found."
+    assert isinstance(payload["error"]["trace_id"], str)
+
+
 def test_decision_requires_reviewer_and_evidence(client: object) -> None:
     http, session, _ = client
     response = http.post("/api/v1/review/items/x/decision", json={"decision": "ACCEPTED"})

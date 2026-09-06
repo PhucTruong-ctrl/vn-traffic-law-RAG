@@ -68,11 +68,7 @@ def create_feedback(
     request_trace_id = new_trace_id()
     trace = db.query(QueryTrace).filter(QueryTrace.trace_id == request.trace_id).first()
     if trace is None:
-        raise APIError(
-            "Query trace was not found.",
-            status_code=404,
-            code=NOT_FOUND,
-        )
+        raise APIError(NOT_FOUND, "Query trace was not found.", status_code=404)
     row = QueryFeedback(
         query_trace_id=trace.id,
         useful=request.correctness == "correct",

@@ -61,11 +61,9 @@ async def chat(
     }
     trace = QueryTrace(request.question, trace_id=trace_id, metadata={"vehicle": request.vehicle})
     try:
-        graph = (
-            build_query_graph(production_services(session=db))
-            if db is not None
-            else build_query_graph()
-        )
+        if db is None:
+            raise RuntimeError("workflow database session is not configured")
+        graph = build_query_graph(production_services(session=db))
         trace.add_span("workflow", input=state)
         result = await graph.ainvoke(state)
         trace.add_span(

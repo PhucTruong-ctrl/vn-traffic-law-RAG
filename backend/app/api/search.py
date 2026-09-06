@@ -46,6 +46,7 @@ def _serialize(result: RetrievalResult) -> dict[str, Any]:
         "document_id": result.document_id,
         "document_version_id": result.document_version_id,
         "document_number": result.document_number,
+        "document_type": result.document_type,
         "article": result.article,
         "clause": result.clause,
         "point": result.point,
@@ -103,7 +104,7 @@ def search(
     items = candidates.results
     if request.document_type:
         wanted = request.document_type.casefold()
-        items = [item for item in items if wanted in item.document_number.casefold()]
+        items = [item for item in items if wanted == item.document_type.casefold()]
     size = request.page_size or request.top_k
     start = (request.page - 1) * size
     page_items = items[start : start + size]

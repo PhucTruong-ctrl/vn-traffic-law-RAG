@@ -12,7 +12,7 @@ import unicodedata
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeAlias
 
 from app.ingestion.document_ir import BoundingBox, DocumentElement, ParsedDocument, ParsedPage
 
@@ -27,6 +27,7 @@ _PAGE_RE = re.compile(r"^(?:trang\s+)?\d+(?:\s*/\s*\d+)?$", re.I)
 _NOISE_RE = re.compile(r"about:blank|thư viện pháp luật|mã tra cứu", re.I)
 _DATE_RE = re.compile(r"^\d{1,2}/\d{1,2}/\d{2,4},.*about:blank$", re.I)
 _END_RE = re.compile(r"[A-Za-zÀ-ỹĐđ,;]$")
+LineEntry: TypeAlias = tuple[str, tuple[float, float, float, float] | None]
 
 
 class SearchableTextRequiredError(RuntimeError):
@@ -41,32 +42,47 @@ def _is_noise(line: str) -> bool:
     return bool(_PAGE_RE.fullmatch(line) or _NOISE_RE.search(line) or _DATE_RE.fullmatch(line))
 
 
-def clean_lines(lines: list[str], repeated: Counter[str] | None = None) -> list[str]:
-    """Clean extracted lines, preserving headings and joining only continuations."""
+def _clean_line_entries(
+    entries: list[LineEntry], repeated: Counter[str] | None = None
+) -> list[LineEntry]:
+    """Clean text entries without losing the bbox paired with each line."""
     repeated = repeated or Counter()
-    kept: list[str] = []
-    for raw in lines:
+    kept: list[LineEntry] = []
+    for raw, raw_box in entries:
         line = _norm(raw)
-        if not line or _is_noise(line):
-            continue
-        if repeated[line.casefold()] > 1:
+        if not line or _is_noise(line) or repeated[line.casefold()] > 1:
             continue
         line = re.sub(r"(\.{5,}|_{5,})", " [Cần điền thông tin] ", line)
         if line == "[Cần điền thông tin]":
             continue
-        kept.append(line)
-    merged: list[str] = []
-    for line in kept:
+        kept.append((line, raw_box))
+    merged: list[LineEntry] = []
+    for line, raw_box in kept:
         if (
             merged
-            and _END_RE.search(merged[-1][-1:])
+            and _END_RE.search(merged[-1][0][-1:])
             and line[0] in _VIET_LOWER
             and not _HEADING_RE.match(line)
         ):
-            merged[-1] += " " + line
+            previous, previous_box = merged[-1]
+            if previous_box and raw_box:
+                raw_box = (
+                    min(previous_box[0], raw_box[0]),
+                    min(previous_box[1], raw_box[1]),
+                    max(previous_box[2], raw_box[2]),
+                    max(previous_box[3], raw_box[3]),
+                )
+            else:
+                raw_box = previous_box or raw_box
+            merged[-1] = (previous + " " + line, raw_box)
         else:
-            merged.append(line)
+            merged.append((line, raw_box))
     return merged
+
+
+def clean_lines(lines: list[str], repeated: Counter[str] | None = None) -> list[str]:
+    """Clean extracted lines, preserving headings and joining only continuations."""
+    return [line for line, _ in _clean_line_entries([(line, None) for line in lines], repeated)]
 
 
 def table_to_markdown(table: list[list[Any]] | None) -> str:
@@ -213,9 +229,8 @@ class PdfPlumberAdapter:
         for page_number, (page, lines, tables) in enumerate(page_data, 1):
             width, height = float(page.width), float(page.height)
             records: list[tuple[float, str, str, tuple[float, float, float, float] | None]] = []
-            cleaned = clean_lines([line for line, _ in lines], counts)
-            for index, text in enumerate(cleaned):
-                raw_box = lines[min(index, len(lines) - 1)][1] if lines else None
+            cleaned = _clean_line_entries(lines, counts)
+            for index, (text, raw_box) in enumerate(cleaned):
                 records.append(
                     ((raw_box[1] if raw_box else float(index)), text, "paragraph", raw_box)
                 )

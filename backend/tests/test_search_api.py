@@ -12,7 +12,7 @@ from app.api import search as search_api
 from app.main import app
 
 
-def _result(rank: int, number: str = "12/2024") -> SimpleNamespace:
+def _result(rank: int, number: str = "12/2024", document_type: str = "DECREE") -> SimpleNamespace:
     return SimpleNamespace(
         rank=rank,
         provision_id=f"p-{rank}",
@@ -22,6 +22,7 @@ def _result(rank: int, number: str = "12/2024") -> SimpleNamespace:
         text="text",
         source_text="snippet",
         document_number=number,
+        document_type=document_type,
         article="Điều 1",
         clause=None,
         point=None,
@@ -41,6 +42,22 @@ def test_search_validates_request_and_rejects_unknown_mode() -> None:
     assert client.post("/api/v1/search", json={"query": "x", "top_k": 101}).status_code == 422
 
 
+def test_search_accepts_iso_effective_date(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: dict[str, object] = {}
+
+    class Retriever:
+        def retrieve(self, query: str, **kwargs: object) -> SimpleNamespace:
+            seen.update(kwargs)
+            return SimpleNamespace(results=[])
+
+    monkeypatch.setattr(search_api, "_build_retriever", lambda selected: Retriever())
+    response = TestClient(app).post(
+        "/api/v1/search", json={"query": "speed", "effective_date": "2025-06-01"}
+    )
+    assert response.status_code == 200
+    assert seen["query_date"] == date(2025, 6, 1)
+
+
 @pytest.mark.parametrize("mode", ["hybrid", "dense", "sparse"])
 def test_search_response_fields_filters_mode_and_pagination(
     monkeypatch: pytest.MonkeyPatch, mode: str
@@ -50,11 +67,15 @@ def test_search_response_fields_filters_mode_and_pagination(
     class Retriever:
         def retrieve(self, query: str, **kwargs: object) -> SimpleNamespace:
             seen.update(mode=mode, query=query, kwargs=kwargs)
-            return SimpleNamespace(results=[_result(1), _result(2, "99/2024"), _result(3)])
+            return SimpleNamespace(
+                results=[_result(1), _result(2, "99/2024", "CIRCULAR"), _result(3)]
+            )
 
         def search(self, query: str, **kwargs: object) -> SimpleNamespace:
             seen.update(mode=mode, query=query, kwargs=kwargs)
-            return SimpleNamespace(results=[_result(1), _result(2, "99/2024"), _result(3)])
+            return SimpleNamespace(
+                results=[_result(1), _result(2, "99/2024", "CIRCULAR"), _result(3)]
+            )
 
     monkeypatch.setattr(search_api, "_build_retriever", lambda selected: Retriever())
     response = TestClient(app).post(

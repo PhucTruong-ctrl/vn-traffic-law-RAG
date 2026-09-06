@@ -69,7 +69,7 @@ def get_review_item(
 ) -> ReviewItemResponse:
     row = ReviewItemRepository(db).get(item_id)
     if row is None:
-        raise APIError("Review item was not found.", status_code=404, code=NOT_FOUND)
+        raise APIError(NOT_FOUND, "Review item was not found.", status_code=404)
     return _response(row, request.headers.get("X-Trace-ID"))
 
 
@@ -83,7 +83,7 @@ def decide_review_item(
     """Record an explicit human decision; no decision is inferred or defaulted."""
     row = ReviewItemRepository(db).get(item_id)
     if row is None:
-        raise APIError("Review item was not found.", status_code=404, code=NOT_FOUND)
+        raise APIError(NOT_FOUND, "Review item was not found.", status_code=404)
     row.evidence = {**(row.evidence or {}), "review_decision": request.evidence}
     ReviewItemRepository(db).record_decision(item_id, request.decision, request.reviewer)
     db.commit()
