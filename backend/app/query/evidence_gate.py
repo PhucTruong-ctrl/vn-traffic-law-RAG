@@ -79,7 +79,8 @@ class EvidenceCompletenessGate:
             if types and candidate.provision_id not in covered_provisions:
                 covered_provisions.append(candidate.provision_id)
 
-        gaps = [evidence for evidence in plan.required_evidence if evidence not in covered_types]
+        required_evidence = getattr(plan, "required_evidence", ())
+        gaps = [evidence for evidence in required_evidence if evidence not in covered_types]
         return EvidenceGateResult(
             status=EvidenceStatus.INCOMPLETE if gaps else EvidenceStatus.COMPLETE,
             evidence_gaps=gaps,
