@@ -120,7 +120,7 @@ def validate_validation_set(
         raise ValidationSetBlocked(len(records))
     parsed: list[GoldRecord] = []
     seen: set[str] = set()
-    for index, record in enumerate(records):
+    for record in records:
         value = validate_record(
             record.model_dump(mode="python") if isinstance(record, GoldRecord) else dict(record)
         )
@@ -188,7 +188,9 @@ def run_suite_c(
                     "ERROR",
                 }:
                     evaluator_failed = True
-                    category = str(outcome.get("failure_category") or outcome.get("error") or "UNKNOWN")
+                    category = str(
+                        outcome.get("failure_category") or outcome.get("error") or "UNKNOWN"
+                    )
                     failure_categories[category] = failure_categories.get(category, 0) + 1
 
                 invalid_ranking = next(

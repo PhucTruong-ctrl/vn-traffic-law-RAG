@@ -27,9 +27,20 @@ def test_ragflow_ports_are_provider_neutral() -> None:
 def test_ragflow_citation_mapping_accepts_canonical_fields_and_case_normalization() -> None:
     canonical_ids = {"nd-168-2024:article:5", "nd-168-2024:clause:2"}
 
-    assert map_citation({"canonical_provision_id": "nd-168-2024:article:5"}, canonical_ids) == "nd-168-2024:article:5"
-    assert map_citation({"provision_id": "ND-168-2024:ARTICLE:5"}, canonical_ids) == "nd-168-2024:article:5"
-    assert map_citation({"id": "nd-168-2024:clause:2"}, canonical_ids) == "nd-168-2024:clause:2"
+    assert (
+        map_citation(
+            {"canonical_provision_id": "nd-168-2024:article:5"}, canonical_ids
+        )
+        == "nd-168-2024:article:5"
+    )
+    assert (
+        map_citation({"provision_id": "ND-168-2024:ARTICLE:5"}, canonical_ids)
+        == "nd-168-2024:article:5"
+    )
+    assert (
+        map_citation({"id": "nd-168-2024:clause:2"}, canonical_ids)
+        == "nd-168-2024:clause:2"
+    )
 
 
 def test_ragflow_mapping_counts_unmappable_citations_in_accuracy() -> None:
@@ -42,7 +53,11 @@ def test_ragflow_mapping_counts_unmappable_citations_in_accuracy() -> None:
         {"nd-168-2024:article:5"},
     )
 
-    assert result == {"mapped": ["nd-168-2024:article:5"], "unmappable": 2, "mapping_accuracy": 1 / 3}
+    assert result == {
+        "mapped": ["nd-168-2024:article:5"],
+        "unmappable": 2,
+        "mapping_accuracy": 1 / 3,
+    }
 
 
 def test_ragflow_mapping_does_not_guess_from_text_or_partial_ids() -> None:
