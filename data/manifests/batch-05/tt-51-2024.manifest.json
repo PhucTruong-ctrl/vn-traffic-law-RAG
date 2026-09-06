@@ -12,6 +12,6 @@
   "status": "EFFECTIVE",
   "relation_notes": "Ban hành QCVN 41:2024/BGTVT về báo hiệu đường bộ, thay thế QCVN 41:2019/BGTVT; relation candidate REPLACES, cần resolver xác nhận phạm vi và provision-level mapping. Nguồn PDF chính thức datafiles.chinhphu.vn.",
   "review_status": "ACCEPTED",
-  "reviewed_by": "Phuc Truong <phuctruong@student>",
-  "reviewed_at": "2026-09-05T17:29:51Z"
+  "reviewed_by": "corpus-reviewer-01",
+  "reviewed_at": "2026-09-06T00:00:00Z"
 }

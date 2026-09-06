@@ -156,4 +156,6 @@ jobs:
         run: docker compose -f deploy/compose/compose.release.yml config --quiet
       - name: Report missing release credentials
         if: env.POSTGRES_PASSWORD == '' || env.MINIO_ROOT_USER == '' || env.MINIO_ROOT_PASSWORD == ''
-        run: echo "Gate M6 blocked: release credentials are not configured; no stack acceptance claimed." && exit 1
+        run: |
+          echo "Gate M6 blocked: release credentials are not configured; no stack acceptance claimed."
+          exit 1

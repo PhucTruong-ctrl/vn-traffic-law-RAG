@@ -140,7 +140,7 @@ def production_services(*, session: Any = None) -> GraphServices:
     expander = LegalContextExpander(relation_repository, temporal_repository)
     return GraphServices(
         temporal=lambda plan, *, query_date: query_date,
-        expander=lambda plan, **_: [plan] if plan is not None else [],
+        expander=lambda plan, **_: [],
         retriever=hybrid,
         dense_retriever=hybrid,
         fusion=lambda candidates: _items(candidates),

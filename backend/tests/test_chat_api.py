@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import date
 from types import SimpleNamespace
 
@@ -9,7 +10,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api import chat as chat_api
+from app.api import feedback as feedback_api
 from app.main import app
+from app.observability.query_trace import QueryTrace as ObservabilityQueryTrace
+from app.persistence.models import QueryFeedback, QueryTrace
 from app.workflow.graph import GraphServices
 
 
@@ -54,16 +58,15 @@ def test_chat_disclaimer_trace_citations_and_abstention(
             }
 
     monkeypatch.setattr(chat_api, "build_query_graph", lambda _services: Graph())
-    from app.api.db import get_db
 
-    app.dependency_overrides[get_db] = lambda: iter([object()])
+    app.dependency_overrides[chat_api._optional_db] = lambda: None
     try:
         response = TestClient(app).post(
             "/api/v1/chat",
             json={"question": "hello", "query_date": "2024-01-02"},
         )
     finally:
-        app.dependency_overrides.pop(get_db, None)
+        app.dependency_overrides.pop(chat_api._optional_db, None)
     assert response.status_code == 200
     payload = response.json()
     assert payload["status"] == expected
@@ -147,8 +150,6 @@ def test_chat_uses_injected_production_composition(monkeypatch: pytest.MonkeyPat
     def override_db():
         yield object()
 
-    from app.main import app
-
     app.dependency_overrides[get_db] = override_db
     try:
         response = TestClient(app).post(
@@ -158,3 +159,68 @@ def test_chat_uses_injected_production_composition(monkeypatch: pytest.MonkeyPat
         app.dependency_overrides.pop(get_db, None)
     assert response.status_code == 200
     assert response.json()["status"] == "ABSTAINED"
+
+
+class ChatFeedbackSession:
+    """Fake request session shared by chat and feedback calls."""
+
+    def __init__(self) -> None:
+        self.traces: dict[str, object] = {}
+        self.added: list[object] = []
+        self.persistence_traces: dict[str, object] = {}
+        self.committed = False
+        self._filtered_trace_id: str | None = None
+
+    def add(self, row: object) -> None:
+        self.added.append(row)
+        if isinstance(row, (QueryTrace, ObservabilityQueryTrace)):
+            if not hasattr(row, "id") or row.id is None:
+                row.id = uuid.uuid4()
+            self.traces[row.trace_id] = row
+        elif isinstance(row, QueryFeedback):
+            row.id = uuid.uuid4()
+
+    def commit(self) -> None:
+        self.committed = True
+
+    def query(self, model: object) -> ChatFeedbackSession:
+        assert model is QueryTrace
+        return self
+
+    def filter(self, expression: object) -> ChatFeedbackSession:
+        self._filtered_trace_id = expression.right.value
+        return self
+
+    def first(self) -> object | None:
+        return self.traces.get(self._filtered_trace_id)
+
+    def refresh(self, row: object) -> None:
+        assert getattr(row, "id", None) is not None
+
+
+def test_chat_trace_is_available_to_feedback(monkeypatch: pytest.MonkeyPatch) -> None:
+    class Graph:
+        async def ainvoke(self, state: dict[str, object]) -> dict[str, object]:
+            return {"verification_result": {"status": "ABSTAIN"}, "final_response": {}}
+
+    session = ChatFeedbackSession()
+    monkeypatch.setattr(chat_api, "build_query_graph", lambda _services: Graph())
+    app.dependency_overrides[chat_api._optional_db] = lambda: session
+    app.dependency_overrides[feedback_api.get_db] = lambda: session
+    try:
+        client = TestClient(app)
+        chat_response = client.post("/api/v1/chat", json={"question": "hello"})
+        assert chat_response.status_code == 200
+        trace_id = chat_response.json()["trace_id"]
+        assert trace_id in session.traces
+
+        feedback_response = client.post(
+            "/api/v1/feedback",
+            json={"trace_id": trace_id, "correctness": "correct"},
+        )
+    finally:
+        app.dependency_overrides.pop(chat_api._optional_db, None)
+        app.dependency_overrides.pop(feedback_api.get_db, None)
+    assert feedback_response.status_code == 201
+    assert feedback_response.json()["trace_id"] == trace_id
+    assert session.committed

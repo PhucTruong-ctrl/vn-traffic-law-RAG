@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 DEFAULT_INPUT = Path("/tmp/vnlrag-task1-pdfs")
-DEFAULT_OUTPUT = Path("/tmp/vnlrag-task1-ocr")
+DEFAULT_OUTPUT = Path("/tmp/vnlrag-task1-ocr-result")
 
 
 def atomic_write(path: Path, value: Any) -> None:

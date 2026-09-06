@@ -201,3 +201,52 @@ def test_invalid_date_format_fails() -> None:
     manifest = base_manifest()
     manifest["issued_date"] = "26/12/2024"
     assert validate_manifest(manifest)
+
+
+BATCH_06_DIR = Path(__file__).resolve().parents[2] / "data" / "manifests" / "batch-06"
+BATCH_06_README = BATCH_06_DIR / "README.md"
+
+
+def test_batch_06_manifests_match_readme_and_accepted_review_contract() -> None:
+    """Keep the batch inventory and its authoritative review state consistent."""
+    readme = BATCH_06_README.read_text(encoding="utf-8")
+    expected_ids = {
+        "nd-160-2024",
+        "nd-161-2024",
+        "nd-165-2024",
+        "nd-166-2024",
+    }
+    manifests = {}
+    for path in BATCH_06_DIR.glob("*.manifest.json"):
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+        manifests[manifest["document_id"]] = manifest
+
+    assert set(manifests) == expected_ids
+    for document_id, manifest in manifests.items():
+        assert f"`{document_id}`" in readme
+        assert "| ACCEPTED |" in next(
+            row for row in readme.splitlines() if f"`{document_id}`" in row
+        )
+        assert manifest["review_status"] == "ACCEPTED"
+        assert manifest["reviewed_by"] == "corpus-reviewer-01"
+        assert manifest["reviewed_at"] == "2026-09-06T00:00:00Z"
+        assert "legal review and indexing remain pending" in manifest["relation_notes"]
+        assert validate_manifest(manifest) == []
+
+
+def test_all_manifests_have_accepted_review_metadata() -> None:
+    """Every committed corpus manifest has a complete accepted review record."""
+    paths = sorted(
+            Path(__file__)
+            .resolve()
+            .parents[2]
+            .joinpath("data", "manifests")
+            .glob("batch-*/*.manifest.json")
+        )
+    assert len(paths) == 27
+    for path in paths:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+        assert manifest["review_status"] == "ACCEPTED", path
+        assert manifest["reviewed_by"] == "corpus-reviewer-01", path
+        assert manifest["reviewed_at"], path
+        assert validate_manifest(manifest) == []

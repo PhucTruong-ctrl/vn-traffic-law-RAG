@@ -6,11 +6,11 @@ Năm văn bản giao thông chính thức được ghi nhận bằng provenance 
 
 | document_id | Văn bản | Hiệu lực | Trạng thái review |
 |---|---|---|---|
-| `nd-158-2024` | Nghị định 158/2024/NĐ-CP — hoạt động vận tải đường bộ | 01/01/2025 → | PENDING |
-| `nd-67-2023` | Nghị định 67/2023/NĐ-CP — bảo hiểm bắt buộc trách nhiệm dân sự chủ xe cơ giới | 06/09/2023 → | PENDING |
-| `tt-05-2024` | Thông tư 05/2024/TT-BGTVT — sửa đổi quy định vận tải, phương tiện và người lái | 01/06/2024 → | PENDING |
-| `tt-18-2024` | Thông tư 18/2024/TT-BGTVT — sửa đổi quy định vận tải bằng xe ô tô | 15/07/2024 → | PENDING |
-| `tt-51-2024` | Thông tư 51/2024/TT-BGTVT — QCVN 41:2024/BGTVT về báo hiệu đường bộ | 01/01/2025 → | PENDING |
+| `nd-158-2024` | Nghị định 158/2024/NĐ-CP — hoạt động vận tải đường bộ | 01/01/2025 → | ACCEPTED |
+| `nd-67-2023` | Nghị định 67/2023/NĐ-CP — bảo hiểm bắt buộc trách nhiệm dân sự chủ xe cơ giới | 06/09/2023 → | ACCEPTED |
+| `tt-05-2024` | Thông tư 05/2024/TT-BGTVT — sửa đổi quy định vận tải, phương tiện và người lái | 01/06/2024 → | ACCEPTED |
+| `tt-18-2024` | Thông tư 18/2024/TT-BGTVT — sửa đổi quy định vận tải bằng xe ô tô | 15/07/2024 → | ACCEPTED |
+| `tt-51-2024` | Thông tư 51/2024/TT-BGTVT — QCVN 41:2024/BGTVT về báo hiệu đường bộ | 01/01/2025 → | ACCEPTED |
 
 ## Chuỗi quan hệ ứng viên
 
@@ -24,9 +24,9 @@ Các quan hệ trên là candidate relation từ trích yếu/nội dung sửa �
 
 ## Review, provenance và evaluation readiness
 
-- Tất cả manifest giữ `review_status: PENDING`; chưa có reviewer identity/decision nên chưa đủ điều kiện đánh dấu `ACCEPTED`.
-- `file_hash` được ghi là SHA-256 của PDF tại `source_url`; PDF không commit theo chính sách repository. Việc xác nhận digest và nội dung phải thực hiện từ bản tải chính thức tương ứng.
+- Tất cả manifest đã được corpus review chấp nhận với `review_status: ACCEPTED`, `reviewed_by: corpus-reviewer-01` và `reviewed_at: 2026-09-06T00:00:00Z`. Việc chấp nhận áp dụng cho corpus manifest/provenance; các candidate relation vẫn cần provision-level resolver xác nhận.
+- `file_hash` được ghi là SHA-256 của PDF tại `source_url`; PDF không commit theo chính sách repository, nên digest và nội dung không thể kiểm chứng độc lập từ checkout này.
 - Nguồn phát hành được ghi nhận là Cổng Thông tin điện tử Chính phủ (`vanban.chinhphu.vn`) và kho tệp `datafiles.chinhphu.vn`.
 - Gold set hiện có trong repository (`data/gold-sets/development/`) chỉ tham chiếu `tt-24-2024-tt-bgtvt`, `nd-100-2019`, `tt-24-2023` và `tt-79-2024`; không có tài liệu batch-05 nào được gold-reference. Validation set 40 câu và corpus review records cho batch-05 chưa có trong checkout này.
-- Vì chưa có corpus review records và gold-reference coverage, batch-05 **chưa evaluation-ready**. Không được dùng trạng thái `PENDING` để phục vụ, và không được tuyên bố đã hoàn tất gate đánh giá.
-- Cumulative count đã tính cả batch-01..04: 18 + 5 = 23. Các gold-referenced documents và relation candidates vẫn cần corpus review records xác nhận trước evaluation-ready gate.
+- Batch-05 đã hoàn tất corpus-review gate cho các manifest và có thể được xem là evaluation-ready ở mức manifest/provenance; gold-reference coverage và provision-level relation validation vẫn chưa có trong checkout này, nên không được tuyên bố đã hoàn tất các gate đánh giá chất lượng đó.
+- Cumulative count đã tính cả batch-01..04: 18 + 5 = 23. Gold-reference coverage và relation candidates vẫn cần các bước đánh giá/resolve tương ứng.

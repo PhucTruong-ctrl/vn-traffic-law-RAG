@@ -6,7 +6,8 @@ from app.query.evidence_gate import EvidenceGateResult, EvidenceStatus
 from app.query.query_understanding_types import EvidenceType
 from app.retrieval.comparison import ComparisonResult
 from app.retrieval.contracts import CandidateSet, RetrievalResult
-from app.workflow.graph import GraphServices, build_query_graph
+from app.workflow import graph as workflow_graph
+from app.workflow.graph import GraphServices, build_query_graph, production_services
 
 
 def services(**overrides):
@@ -317,6 +318,37 @@ def test_out_of_scope_plan_abstains_before_retrieval() -> None:
     state = graph.invoke({"question": "tax advice", "max_repair_attempts": 0})
     assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
     assert calls == []
+
+
+def test_production_services_retrieves_with_normalized_query(monkeypatch) -> None:
+    calls = []
+
+    class FakeRetriever:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def retrieve(self, query, **kwargs):
+            calls.append(query)
+            return []
+
+    monkeypatch.setattr(workflow_graph, "HybridRetriever", FakeRetriever)
+    monkeypatch.setattr(workflow_graph, "_default_client", lambda: object())
+    monkeypatch.setattr(workflow_graph, "get_embedding_provider", lambda settings: object())
+
+    services = production_services(session=object())
+    plan = SimpleNamespace(
+        normalized_query="normalized legal query",
+        intent="CURRENT",
+        effective_date=date(2025, 1, 1),
+        missing_query_information=[],
+    )
+
+    workflow_graph._retrieve(
+        {"question": "raw question", "query_understanding": plan},
+        services,
+    )
+
+    assert calls == ["normalized legal query"]
 
 
 def test_retrieval_uses_expansion_variants() -> None:

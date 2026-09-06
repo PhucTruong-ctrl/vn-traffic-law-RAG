@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.api.db import get_db
 from app.observability.langfuse import emit_query_trace
 from app.observability.query_trace import QueryTrace, QueryTraceStore
+from app.persistence.models import QueryTrace as QueryTraceRow
 from app.workflow import build_query_graph as _production_build_query_graph
 from app.workflow.graph import production_services
 
@@ -84,7 +85,24 @@ async def chat(
             "final_response": {},
         }
     trace.finish(result)
-    _TRACE_STORE.save(trace)
+    if db is None:
+        _TRACE_STORE.save(trace)
+    else:
+        verification = result.get("verification_result") or {}
+        plan = result.get("query_understanding")
+        db.add(
+            QueryTraceRow(
+                trace_id=trace_id,
+                question=request.question,
+                intent=str(getattr(plan, "intent", "UNKNOWN")),
+                query_date=request.query_date,
+                vehicle_type=request.vehicle,
+                response_status=str(verification.get("status", "UNKNOWN")),
+                citations=_citations(result, result.get("final_response") or {}),
+                verification_summary=verification,
+            )
+        )
+        db.commit()
     with suppress(Exception):
         emit_query_trace(trace)
     final = result.get("final_response") or {}
