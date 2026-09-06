@@ -1,12 +1,15 @@
+> **MVP rebaseline — 06/09/2026**: The defense release scope is reduced to a fixed 5–10-document reviewed corpus, 30–50 evaluation questions, current and as-of-date retrieval, structure-aware citations, evidence gating, abstention, and a working chat UI. RAGFlow comparison, feedback, large-scale background ingestion, advanced observability/security, and production backup automation are deferred.
+>
+> **Model policy**: Gemini 3.7 Flash is the primary structured-answer generator. Gemini 3.5 Flash Lite is the independent semantic judge. OpenAI/GPT-5.4 is not used. Earlier scope/model statements in this document are superseded by this rebaseline.
 # 06. Kiểm Thử và Đánh Giá (Test and Evaluation)
 
 > **Giai đoạn SDLC**: 5 - Kiểm thử và đánh giá
 > **Ngày tạo**: 16/06/2026
 > **Ngày baseline v1**: 19/07/2026
 > **Ngày thiết kế lại v2**: 08/08/2026
-> **Hạn hoàn thành**: 12/09/2026
-> **Ngày tập bảo vệ**: 13/09/2026
-> **Ngày bảo vệ**: 14/09/2026
+> **Hạn hoàn thành / release candidate**: 16/09/2026
+> **Ngày tập bảo vệ**: 15/09/2026
+> **Ngày bảo vệ**: 16/09/2026
 > **Tài liệu quyết định nguồn**: [00-scope-and-decisions.md](00-scope-and-decisions.md)
 > **Tài liệu yêu cầu nguồn**: [02-yeu-cau-he-thong.md](02-yeu-cau-he-thong.md)
 > **Tài liệu thiết kế nguồn**: [03-thiet-ke-he-thong.md](03-thiet-ke-he-thong.md)
@@ -132,7 +135,7 @@ Chính sách split bắt buộc (doc 03 mục 3.1, nguyên tắc 17):
 
 ### 6.1.6. Mapping đánh giá cũ (v1) sang v2
 
-| Thành phần cũ (v1) | Thành phần mới (v2) |
+| Custom deterministic metrics + Gemini judge | Deterministic metrics are headline; Gemini 3.5 Flash Lite is secondary and fail-closed |
 |---|---|
 | Variants V1-V6 (fixed-token, Docling hybrid, legal provision chunking) | Suite C R1-R10 trên legal chunk + dense + sparse + expansion + temporal |
 | Custom RAGAS-lite, GPT-4o-mini judge | Deterministic metrics headline + Ragas v0.4.x + GPT-5.4 mini (snapshot pin) làm thứ cấp |
@@ -660,8 +663,8 @@ Kiểm tra contract của generator (Gemini 3.5 Flash, structured output):
 - invalid provision ID;
 - timeout;
 - provider error.
-
-Schema fail phải đi qua repair path (regenerate structured output), không sửa JSON bằng regex (doc 03 mục 3.23, W6 gate).
+#### 6.2.2.7. Judge provider contract (Gemini 3.5 Flash Lite, L5)
+The judge is optional secondary evidence. Provider failure, timeout, or unavailable configuration must fail closed to repair or abstention.
 
 #### 6.2.2.7. Judge provider contract (GPT-5.4 mini, L5)
 

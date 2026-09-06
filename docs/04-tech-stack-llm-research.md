@@ -1,3 +1,6 @@
+> **MVP rebaseline — 06/09/2026**: The defense release scope is reduced to a fixed 5–10-document reviewed corpus, 30–50 evaluation questions, current and as-of-date retrieval, structure-aware citations, evidence gating, abstention, and a working chat UI. RAGFlow comparison, feedback, large-scale background ingestion, advanced observability/security, and production backup automation are deferred.
+>
+> **Model policy**: Gemini 3.7 Flash is the primary structured-answer generator. Gemini 3.5 Flash Lite is the independent semantic judge. OpenAI/GPT-5.4 is not used. Earlier scope/model statements in this document are superseded by this rebaseline.
 # 04. Nghiên Cứu Công Nghệ và LLM (Tech Stack and LLM Research)
 
 > **Giai đoạn SDLC**: 3 - Thiết kế  
@@ -80,8 +83,8 @@ Bảng này đồng bộ với mục 7 của doc 00. Mọi khác biệt phải �
 | Sparse retrieval | Qdrant sparse BM25 | `qdrant/bm25` hoặc encoder tiếng Việt nếu cần | Lexical retrieval trong cùng collection | selected |
 | Fusion | Qdrant RRF | Query API prefetch + fusion, k và weights configurable | Kết hợp dense + sparse | selected |
 | Reranker | Jina Reranker v3 | `jina-reranker-v3` (ứng viên chính) | Rerank sau RRF | selected (ứng viên) |
-| Generator | Gemini 3.5 Flash | `gemini-3.5-flash` | Structured legal answer theo schema cấp claim | selected |
-| Judge độc lập | GPT-5.4 mini | `gpt-5.4-mini-2026-03-17` (snapshot pin) | L5 semantic judge + evaluation metric thứ cấp | selected |
+| Generator | Gemini 3.7 Flash | `gemini-3.7-flash` | Structured legal answer theo schema cấp claim | selected |
+| Judge độc lập | Gemini 3.5 Flash Lite | `gemini-3.5-flash-lite` | L5 semantic judge + evaluation metric thứ cấp | selected |
 | Evaluation | Ragas | 0.4.x (0.4.3), pin exact | Faithfulness, relevancy, factual correctness (thứ cấp) | selected (thứ cấp) |
 | Background jobs | Dramatiq | v2.2.0 | Actor ingestion idempotent, Redis broker | selected |
 | Cache / broker | Redis | 8.10.0 | Dramatiq broker + cache | selected |

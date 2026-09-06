@@ -1,3 +1,6 @@
+> **MVP rebaseline — 06/09/2026**: The defense release scope is reduced to a fixed 5–10-document reviewed corpus, 30–50 evaluation questions, current and as-of-date retrieval, structure-aware citations, evidence gating, abstention, and a working chat UI. RAGFlow comparison, feedback, large-scale background ingestion, advanced observability/security, and production backup automation are deferred.
+>
+> **Model policy**: Gemini 3.7 Flash is the primary structured-answer generator. Gemini 3.5 Flash Lite is the independent semantic judge. OpenAI/GPT-5.4 is not used. Earlier scope/model statements in this document are superseded by this rebaseline.
 # 01. Phân Tích Tính Khả Thi (Feasibility Analysis)
 
 > **Giai đoạn SDLC**: 1 - Phân tích tính khả thi  
@@ -170,7 +173,7 @@ Phiên bản chính xác phải được pin trong:
 | Dense embedding | Ứng viên: Gemini Embedding 2 (768 dimensions), benchmark với Jina Embeddings v5 text-nano / text-small | Không phụ thuộc GPU local, chi phí thấp với corpus nhỏ; benchmark phải đo Recall@10, MRR@10, nDCG@10 trên câu hỏi pháp luật tiếng Việt cùng latency và cost; không chốt embedding production vĩnh viễn trước khi benchmark |
 | Reranking | Jina Reranker v3 (stage chuẩn của pipeline) | Chạy qua API, không cần GPU local; chỉ khẳng định cải thiện chất lượng sau khi benchmark |
 | Generator | Gemini 3.5 Flash | Hỗ trợ structured output (`json_schema`) và context lớn |
-| Evaluation judge | GPT-5.4 mini (snapshot đã pin) | Model độc lập, pin snapshot để tăng khả năng tái lập |
+| Evaluation judge | Gemini 3.5 Flash Lite | Independent Gemini judge; deterministic metrics remain headline |
 | Background jobs | Redis + Dramatiq | Actor idempotent, pipeline ngắn rời rạc; lưu ý giới hạn thời gian mặc định 10 phút mỗi actor |
 | Object storage | S3-compatible qua `ObjectStoragePort` (MinIO là ứng viên hiện tại, chờ ADR so sánh) | Lưu PDF nguồn, đầu ra parser, ảnh trang và artifact; PostgreSQL lưu object key |
 | Observability | Langfuse Cloud | Trace, prompt management, experiment, feedback; không nằm trên đường tới hạn tính đúng đắn |
@@ -412,7 +415,7 @@ Nạp PDF + manifest
 |---|---|
 | Gemini 3.5 Flash | Paid tier: khoảng 1,50 USD / 1 triệu input token và 9,00 USD / 1 triệu output token |
 | Gemini Embedding 2 | Paid tier: khoảng 0,20 USD / 1 triệu text token |
-| GPT-5.4 mini | Khoảng 0,75 USD / 1 triệu input token và 4,50 USD / 1 triệu output token |
+| Gemini 3.5 Flash Lite | Cost/latency measured only if used; optional secondary metric |
 | Jina API (embedding v5 + reranker v3) | Khoảng 0,05 USD / 1 triệu token; tài khoản API mới có 10 triệu token miễn phí |
 | PostgreSQL local | 0 USD |
 | Qdrant local | 0 USD |
@@ -535,7 +538,7 @@ Các bề mặt cài đặt mới so với v1:
 | R9 | Evidence Completeness Gate over-abstain (bác bỏ đáp án hợp lệ) hoặc under-abstain | Trung bình | Cao | Evidence plan chuẩn hóa, threshold xác định từ baseline và validation set, không đặt ngưỡng trước thực nghiệm |
 | R10 | Corpus không được review đủ trước deadline | Trung bình | Cao | Ưu tiên corpus cốt lõi, chia batch review qua queue, cache PDF và manifest kèm file hash, đối chiếu từ nhiều nguồn chính thức |
 | R11 | Gold set bị tạo sau khi xem kết quả, gây leakage | Trung bình | Cao | Freeze gold set version, hash file, tách development/validation/final test, review độc lập |
-| R12 | LLM judge thiên lệch hoặc không ổn định | Trung bình | Trung bình | Deterministic metric làm headline, pin GPT-5.4 mini snapshot, lưu raw judge output |
+| R12 | Gemini judge drift or instability | Trung bình | Trung bình | Deterministic metrics are headline; record the Gemini model alias and raw outputs |
 | R13 | Model API, quota hoặc giá thay đổi | Trung bình | Trung bình | Provider interface, pin model ID, budget cap, không hardcode quota trong logic |
 | R14 | Langfuse không khả dụng | Thấp | Thấp | Langfuse không nằm trên đường tới hạn; trace fail không chặn query; bật/tắt qua config |
 | R15 | Hạ tầng RAGFlow baseline (tối thiểu 16 GB RAM) cạnh tranh tài nguyên local | Cao | Trung bình | Bắt buộc chạy đủ mọi variant baseline trong môi trường benchmark riêng; chạy tuần tự từng variant, dừng service không cần thiết khi benchmark; nếu RAM local không đủ, chạy tuần tự trên máy phù hợp khác thay vì lược bớt variant |
@@ -650,8 +653,8 @@ Các quyết định kiến trúc cốt lõi đã được chốt. Các mục c�
 9. Google AI for Developers, Gemini API pricing:  
    https://ai.google.dev/gemini-api/docs/pricing
 
-10. OpenAI API, GPT-5.4 mini model documentation:  
-    https://developers.openai.com/api/docs/models/gpt-5.4-mini
+10. Gemini API, Gemini 3.5 Flash Lite model documentation:  
+    Configure the provider model alias in the environment, not in source code.
 
 11. Dramatiq documentation:  
     https://dramatiq.io/
