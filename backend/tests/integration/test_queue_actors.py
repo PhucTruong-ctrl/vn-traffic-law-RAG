@@ -33,10 +33,12 @@ from sqlalchemy.orm import Session
 from alembic import command
 from app.config import get_redis_settings
 from app.ingestion.actors import embed as embed_module
+from app.ingestion.actors import extract as extract_module
 from app.ingestion.actors import enqueue_parse
 from app.ingestion.actors import index as index_module
 from app.ingestion.actors import parse as parse_module
 from app.ingestion.actors import quality_gate as quality_gate_module
+from app.ingestion.actors.extract import extract_actor
 from app.ingestion.actors.index import index_actor
 from app.ingestion.actors.quality_gate import quality_gate_actor
 from app.ingestion.actors.resolve_temporal import resolve_temporal_actor
@@ -331,6 +333,118 @@ def test_parse_chain_end_to_end_reaches_activated_resolvers(
             assert run.status == "RESOLVING_REFS"  # idempotent handoff
     finally:
         worker.stop()
+
+
+def test_extract_retry_reuses_persisted_provisions(
+    queue_env: Any, clean_queues: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A retry after provision commit must not insert the same rows again."""
+    engine = queue_env
+    document_id = _document_id()
+    job_id = _unique("job")
+    fake_ir = _nd_ir(document_id)
+
+    with Session(engine) as session:
+        session.add(
+            LegalDocument(
+                document_id=document_id,
+                document_number="168/2024/NĐ-CP",
+                document_title="Nghị định xử phạt vi phạm hành chính",
+                document_type="DECREE",
+                file_hash=uuid.uuid4().hex,
+                status="EFFECTIVE",
+            )
+        )
+        session.flush()
+        run = IngestionRun(
+            job_id=job_id,
+            document_id=document_id,
+            manifest_json={"effective_from": "2025-01-01"},
+            file_hash=uuid.uuid4().hex,
+            status="NORMALIZING",
+            current_stage="NORMALIZING",
+        )
+        session.add(run)
+        parsed = ParsedDocumentRow(
+            document_id=document_id,
+            parser="DOCLING",
+            parser_version="docling-2.1.0",
+            ir_schema_version="document-ir-v2",
+            source_object_key="fixture",
+            parse_status="SUCCESS",
+            quality_report={},
+            started_at=datetime(2025, 1, 1, tzinfo=UTC),
+            completed_at=datetime(2025, 1, 1, 0, 0, 1, tzinfo=UTC),
+        )
+        session.add(parsed)
+        session.flush()
+        for element in fake_ir.pages[0].elements:
+            session.add(
+                DocumentElementRow(
+                    parsed_document_id=parsed.id,
+                    element_id=element.element_id,
+                    element_type=element.element_type,
+                    text=element.text,
+                    page_number=element.page_number,
+                    bbox=element.bbox.model_dump() if element.bbox else None,
+                    reading_order=element.reading_order,
+                    parent_element_id=element.parent_element_id,
+                    table_html=element.table_html,
+                    source_parser=element.source_parser,
+                    parser_version=element.parser_version,
+                    parser_confidence=element.parser_confidence,
+                    raw_reference=element.raw_reference,
+                )
+            )
+        session.commit()
+
+    resolve_send = Mock()
+    monkeypatch.setattr(extract_module.resolve_refs_actor, "send", resolve_send)
+    monkeypatch.setattr(extract_module, "new_session", lambda: Session(engine))
+    monkeypatch.setattr(extract_module, "rebuild_ir", lambda row, elements: fake_ir)
+    extract_actor(job_id)
+
+    with Session(engine) as session:
+        run = session.scalar(select(IngestionRun).where(IngestionRun.job_id == job_id))
+        version = session.scalar(select(DocumentVersion).where(DocumentVersion.document_id == document_id))
+        assert run is not None and run.current_stage == "EXTRACTING"
+        assert version is not None and version.effective_from == date(2025, 1, 1)
+        assert version.manifest_json["effective_from"] == "2025-01-01"
+        first_rows = list(
+            session.scalars(
+                select(LegalProvision).where(LegalProvision.document_version_id == version.id)
+            )
+        )
+        first_ids = {row.id for row in first_rows}
+        first_count = len(first_rows)
+        assert first_count >= 3
+
+        # Simulate a worker dying after the provision transaction committed but
+        # before the stage marker became visible to the retrying message.
+        run.status = "NORMALIZING"
+        run.current_stage = "NORMALIZING"
+        session.commit()
+
+    monkeypatch.setattr(
+        extract_module,
+        "extract_legal_provisions",
+        lambda *args, **kwargs: pytest.fail("re-extracted"),
+    )
+    extract_actor(job_id)
+
+    with Session(engine) as session:
+        run = session.scalar(select(IngestionRun).where(IngestionRun.job_id == job_id))
+        version = session.scalar(select(DocumentVersion).where(DocumentVersion.document_id == document_id))
+        rows = list(
+            session.scalars(
+                select(LegalProvision).where(LegalProvision.document_version_id == version.id)
+            )
+        )
+        assert run is not None and run.current_stage == "EXTRACTING"
+        assert version is not None and version.effective_from == date(2025, 1, 1)
+        assert len(rows) == first_count
+        assert {row.id for row in rows} == first_ids
+    assert resolve_send.call_count == 2
 
 
 def test_temporal_missing_successor_hands_off_to_review(
