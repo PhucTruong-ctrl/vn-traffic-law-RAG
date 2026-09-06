@@ -1,7 +1,7 @@
 {
   "sources": [
-    "data/evaluation/temporal/results.json",
-    "data/evaluation/suite-d/results.json",
+    "backend/data/evaluation/temporal/results.json",
+    "backend/data/evaluation/suite-d/results.json",
     "data/evaluation/ragflow-baseline/comparison.csv",
     "data/evaluation/secondary/metrics.json",
     "data/evaluation/performance/metrics.json"
