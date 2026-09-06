@@ -28,3 +28,9 @@ async def trace_id_middleware(request: Request, call_next):
 def health_live() -> dict[str, str]:
     """Liveness probe used by container healthchecks."""
     return {"status": "ok"}
+
+
+@app.get("/api/v1/health/ready")
+def health_ready() -> dict[str, str]:
+    """Readiness probe; dependency-specific checks belong to adapters."""
+    return {"status": "ok"}

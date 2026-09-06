@@ -14,14 +14,23 @@ from typing import Any
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
-from app.config import get_retrieval_settings, get_settings
+from app.config import get_embedding_settings, get_retrieval_settings, get_settings
 from app.generation import GeminiStructuredGenerator, StructuredAnswer, StructuredGenerationError
+from app.generation.context_builder import build_context
+from app.persistence.repositories.provisions import ProvisionRepository
+from app.persistence.repositories.relations import RelationRepository
+from app.persistence.repositories.temporal import TemporalRepository
 from app.query.evidence_gate import EvidenceCompletenessGate, EvidenceStatus, targeted_query_for_gap
 from app.query.query_understanding import QueryAnalyzer
 from app.query.temporal_verifier import verify_temporal
 from app.retrieval.comparison import ComparisonResult
+from app.retrieval.context_expansion import LegalContextExpander
 from app.retrieval.contracts import CandidateSet, RetrievalResult
+from app.retrieval.embedding import get_embedding_provider
 from app.retrieval.filters import build_temporal_filter, deduplicate_results
+from app.retrieval.hybrid import HybridRetriever
+from app.retrieval.qdrant_store import _default_client
+from app.retrieval.sparse import BM25SparseEncoder
 from app.verification.l2_citation import L2CitationVerifier
 from app.verification.workflow import LegalVerificationBoundary
 
@@ -107,6 +116,40 @@ class GraphServices:
     verifier: Service = None
     temporal_verifier: Service = None
     legal_verifier: Service = None
+
+
+def production_services(*, session: Any = None) -> GraphServices:
+    """Build concrete providers from application configuration.
+
+    A database session is required because PostgreSQL is authoritative for
+    exact lookup, temporal validation, and citation metadata.
+    """
+    if session is None:
+        raise RuntimeError("workflow database session is not configured")
+    temporal_repository = TemporalRepository(session)
+    relation_repository = RelationRepository(session)
+    provision_repository = ProvisionRepository(session)
+    exact_lookup = __import__("app.retrieval.exact_lookup", fromlist=["ExactLookup"]).ExactLookup(
+        provision_repository
+    )
+    client = _default_client()
+    embedder = get_embedding_provider(get_embedding_settings())
+    hybrid = HybridRetriever(
+        client, embedder, BM25SparseEncoder(), exact_lookup, temporal_repository=temporal_repository
+    )
+    expander = LegalContextExpander(relation_repository, temporal_repository)
+    return GraphServices(
+        temporal=lambda plan, *, query_date: query_date,
+        expander=lambda plan, **_: [plan] if plan is not None else [],
+        retriever=hybrid,
+        dense_retriever=hybrid,
+        fusion=lambda candidates: _items(candidates),
+        reranker=lambda question, candidates: candidates,
+        context_expander=expander,
+        context_builder=lambda candidates: build_context(_items(candidates)),
+        generator=GeminiStructuredGenerator(),
+        legal_verifier=LegalVerificationBoundary(),
+    )
 
 
 def _call(
@@ -531,6 +574,9 @@ def _build_context(state: QueryState, services: GraphServices) -> QueryState:
             service_name="context_builder",
             method_names=("build",),
         )
+        if isinstance(value, str):
+            state_context = context
+            return {"context_package": state_context, "prompt_context": value}
     else:
         value = _comparison_result(
             _call(
@@ -564,7 +610,9 @@ def _generate(state: QueryState, services: GraphServices) -> QueryState:
         answer = _call(
             generator,
             _question(state),
-            state.get("context_package", state.get("expanded_context", [])),
+            state.get(
+                "prompt_context", state.get("context_package", state.get("expanded_context", []))
+            ),
             service_name="generator",
             method_names=("generate",),
         )
@@ -615,6 +663,7 @@ def _verify(state: QueryState, services: GraphServices) -> QueryState:
         }
 
     context = _items(state.get("expanded_context", state.get("context_package", [])))
+    context = [item for item in context if getattr(item, "review_status", "ACCEPTED") == "ACCEPTED"]
     if not all(getattr(claim, "provision_ids", None) for claim in answer.claims):
         return {"verification_result": {"status": "ABSTAIN", "reason_code": "L1_SCHEMA_INVALID"}}
     if services.legal_verifier is not None:
@@ -762,4 +811,4 @@ def build_query_graph(services: GraphServices | None = None) -> CompiledStateGra
     return graph.compile()
 
 
-__all__ = ["GraphServices", "build_query_graph"]
+__all__ = ["GraphServices", "build_query_graph", "production_services"]

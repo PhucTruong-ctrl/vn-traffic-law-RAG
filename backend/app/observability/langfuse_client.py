@@ -174,3 +174,30 @@ def build_prompt(name: str, fallback_path: str | Path) -> FallbackPrompt:
         template=template,
         prompt_hash=prompt_hash,
     )
+
+
+def resolve_prompt(name: str, fallback_path: str | Path) -> FallbackPrompt:
+    """Resolve a prompt through Langfuse, then local cache, then release fallback.
+
+    Provider failures are deliberately treated as unavailable sources; the
+    release-pinned file remains the final deterministic source.
+    """
+    settings = get_settings()
+    client = get_langfuse()
+    if settings.langfuse_enabled and settings.prompt_source == "LANGFUSE":
+        try:
+            remote = client.get_prompt(name=name)
+            template = getattr(remote, "prompt", None) or getattr(remote, "template", None)
+            version = getattr(remote, "version", None)
+            if template and version is not None:
+                digest = hashlib.sha256(str(template).encode("utf-8")).hexdigest()
+                return FallbackPrompt(
+                    name=name,
+                    version=str(version),
+                    template=str(template),
+                    prompt_hash=digest,
+                    source="LANGFUSE",
+                )
+        except Exception:
+            pass
+    return build_prompt(name, fallback_path)

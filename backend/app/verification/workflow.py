@@ -56,7 +56,9 @@ class LegalVerificationBoundary:
             return VerificationBoundaryResult.rejected(AbstentionReason.OUT_OF_SCOPE.value)
         if query_date is None:
             return VerificationBoundaryResult.rejected(AbstentionReason.MISSING_DATE.value)
-        records = tuple(context)
+        records = tuple(
+            item for item in context if getattr(item, "review_status", "ACCEPTED") == "ACCEPTED"
+        )
         if not records:
             return VerificationBoundaryResult.rejected(AbstentionReason.MISSING_EVIDENCE.value)
         citation = self.citation.verify(draft, records, provisions=records, expanded=records)

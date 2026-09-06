@@ -17,5 +17,15 @@
     "nd-100-2019",
     "tt-24-2023",
     "tt-79-2024"
-  ]
+  ],
+  "gold_set_hash": "da67a39217803bd78bb0d2f17579c472cdf86f12683c58c1722ce8d7099dbeca",
+  "frozen": false,
+  "freeze_status": "BLOCKED",
+  "blocker": "Development records remain DRAFT and are not eligible for a frozen validation linkage.",
+  "validation_linkage": {
+    "validation_dataset": "data/gold-sets/validation/vnlrag-validation.json",
+    "validation_readiness": "data/gold-sets/validation/READINESS.json",
+    "held_out_record_count": 40,
+    "same_content_hash": false
+  }
 }

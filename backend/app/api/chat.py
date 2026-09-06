@@ -3,15 +3,29 @@
 from __future__ import annotations
 
 import uuid
+from contextlib import suppress
 from datetime import date
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Body, Request
+from fastapi import APIRouter, Body, Depends, Request
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.workflow import GraphServices, build_query_graph
+from app.api.db import get_db
+from app.observability.langfuse import emit_query_trace
+from app.observability.query_trace import QueryTrace, QueryTraceStore
+from app.workflow import build_query_graph
+from app.workflow.graph import production_services
+
+
+def _optional_db():
+    try:
+        yield from get_db()
+    except Exception:
+        yield None
+
 
 router = APIRouter(prefix="/api/v1", tags=["chat"])
+_TRACE_STORE = QueryTraceStore()
 DISCLAIMER = "This response is informational and not legal advice."
 
 
@@ -33,7 +47,11 @@ class ChatRequest(BaseModel):
 
 
 @router.post("/chat", response_model=None)
-async def chat(request: Annotated[ChatRequest, Body()], http_request: Request) -> dict[str, Any]:
+async def chat(
+    request: Annotated[ChatRequest, Body()],
+    http_request: Request,
+    db: Annotated[Any, Depends(_optional_db)],
+) -> dict[str, Any]:
     trace_id = http_request.headers.get("X-Trace-ID") or uuid.uuid4().hex
     state: dict[str, Any] = {
         "question": request.question,
@@ -41,13 +59,20 @@ async def chat(request: Annotated[ChatRequest, Body()], http_request: Request) -
         "vehicle_type": request.vehicle,
         "comparison_date": request.comparison_date,
     }
+    trace = QueryTrace(request.question, trace_id=trace_id, metadata={"vehicle": request.vehicle})
     try:
-        try:
-            graph = build_query_graph(GraphServices())
-        except TypeError:
-            graph = build_query_graph()
+        graph = (
+            build_query_graph(production_services(session=db))
+            if db is not None
+            else build_query_graph()
+        )
+        trace.add_span("workflow", input=state)
         result = await graph.ainvoke(state)
-    except RuntimeError as exc:
+        trace.add_span(
+            "workflow_result",
+            output={"status": (result.get("verification_result") or {}).get("status")},
+        )
+    except (RuntimeError, ValueError) as exc:
         result = {
             "verification_result": {
                 "status": "ABSTAIN",
@@ -56,6 +81,10 @@ async def chat(request: Annotated[ChatRequest, Body()], http_request: Request) -
             },
             "final_response": {},
         }
+    trace.finish(result)
+    _TRACE_STORE.save(trace)
+    with suppress(Exception):
+        emit_query_trace(trace)
     final = result.get("final_response") or {}
     verification = result.get("verification_result") or {}
     status = "VERIFIED" if verification.get("status") == "VALID" else "ABSTAINED"
@@ -85,12 +114,9 @@ def _citations(result: dict[str, Any], final: dict[str, Any]) -> list[dict[str, 
     context = result.get("expanded_context") or result.get("context_package") or []
     by_id = {
         getattr(item, "provision_id", None): item
-        for item in context
+        for item in (context if isinstance(context, (list, tuple)) else [])
         if getattr(item, "provision_id", None)
         and getattr(item, "review_status", "ACCEPTED") == "ACCEPTED"
-        and getattr(item, "source_text", None)
-        and getattr(item, "page_number", None) is not None
-        and getattr(item, "bbox", None) is not None
     }
     citations: list[dict[str, Any]] = []
     for claim in final.get("claims", []):

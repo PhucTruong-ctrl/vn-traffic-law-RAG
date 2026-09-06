@@ -47,12 +47,18 @@ class QueryTrace:
 
 
 class QueryTraceStore:
-    """Small process-local persistence boundary; replaceable by a repository."""
+    """Durable boundary with an injectable repository; memory is safe fallback."""
 
-    def __init__(self) -> None:
+    def __init__(self, repository: Any | None = None) -> None:
         self._traces: dict[str, QueryTrace] = {}
+        self._repository = repository
 
     def save(self, trace: QueryTrace) -> QueryTrace:
+        if self._repository is not None:
+            method = getattr(self._repository, "save", None)
+            if callable(method):
+                method(trace.as_dict())
+                return trace
         self._traces[trace.trace_id] = trace
         return trace
 

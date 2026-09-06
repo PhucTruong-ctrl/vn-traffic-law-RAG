@@ -16,6 +16,7 @@ type Claim = {
 };
 
 type Citation = {
+  document_title?: string;
   provision_id: string;
   document_number?: string;
   article?: string;
@@ -33,6 +34,7 @@ type ChatResponse = {
   abstention?: { reason_code?: string } | null;
   disclaimer?: string;
   progress_events?: Array<Record<string, unknown>>;
+  comparison_result?: { before?: { answer?: string; claims?: Claim[]; citations?: Citation[] }; after?: { answer?: string; claims?: Claim[]; citations?: Citation[] } };
   trace_id?: string;
   metadata?: { query_date?: string | null; comparison_date?: string | null; vehicle?: string | null; comparison?: boolean };
 };
@@ -127,7 +129,12 @@ export default function Home() {
             {(appliedQueryDate || appliedComparisonDate) && (
               <p className="applied-date">Ngày áp dụng: {appliedQueryDate || "Không xác định"}{appliedComparisonDate && ` · So sánh với: ${appliedComparisonDate}`}</p>
             )}
-            {abstained ? (
+            {response.metadata?.comparison && response.comparison_result ? (
+              <div className="comparison-results">
+                <section aria-labelledby="before-title"><h3 id="before-title">Quy định trước</h3><p>{response.comparison_result.before?.answer || "Chưa có kết quả đã kiểm chứng."}</p></section>
+                <section aria-labelledby="after-title"><h3 id="after-title">Quy định sau</h3><p>{response.comparison_result.after?.answer || "Chưa có kết quả đã kiểm chứng."}</p></section>
+              </div>
+            ) : abstained ? (
               <AbstentionResult reason={response.abstention?.reason_code} reasonCode={response.abstention?.reason_code} disclaimer={response.disclaimer} />
             ) : (
               <>

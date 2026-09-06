@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Sprint 5 answer flow", () => {
+  // Gate M6: these flows exercise the rendered production contract; the API is
+  // stubbed only because CI has no release database/corpus credentials.
+  test.describe.configure({ mode: "serial" });
   test("renders the home form and validates a blank question", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Hỏi đáp pháp luật giao thông" })).toBeVisible();
@@ -31,6 +34,30 @@ test.describe("Sprint 5 answer flow", () => {
     await expect(page.getByText("Đã kiểm chứng")).toBeVisible();
     await expect(page.getByText("Mức phạt được xác định theo quy định hiện hành.")).toBeVisible();
     await expect(page.getByText("Nghị định 100/2019/NĐ-CP")).toBeVisible();
+  });
+
+  test("submits query controls and renders applied temporal metadata", async ({ page }) => {
+    await page.route("**/api/v1/chat", async (route) => {
+      const request = route.request();
+      const body = request.postDataJSON();
+      expect(body).toMatchObject({ question: "So sánh quy định", query_date: "2025-01-01", vehicle: "Ô tô", comparison_date: "2024-01-01" });
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ status: "VERIFIED", answer: "Kết quả so sánh có căn cứ.", claims: [], citations: [], metadata: { query_date: "2025-01-01", comparison_date: "2024-01-01", vehicle: "Ô tô", comparison: true }, trace_id: "trace-m6-comparison" }) });
+    });
+    await page.goto("/");
+    await page.getByLabel("Câu hỏi").fill("So sánh quy định");
+    await page.getByLabel("Ngày áp dụng").fill("2025-01-01");
+    await page.getByLabel("Loại phương tiện").fill("Ô tô");
+    await page.getByLabel("So sánh với ngày").fill("2024-01-01");
+    await page.getByRole("button", { name: "Gửi câu hỏi" }).click();
+    await expect(page.getByText("Ngày áp dụng: 2025-01-01 · So sánh với: 2024-01-01")).toBeVisible();
+  });
+
+  test("renders an API failure as an actionable alert", async ({ page }) => {
+    await page.route("**/api/v1/chat", async (route) => route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: { message: "Dịch vụ tạm thời không khả dụng" } }) }));
+    await page.goto("/");
+    await page.getByLabel("Câu hỏi").fill("Câu hỏi kiểm tra lỗi");
+    await page.getByRole("button", { name: "Gửi câu hỏi" }).click();
+    await expect(page.getByRole("alert")).toContainText("Dịch vụ tạm thời không khả dụng");
   });
 
   test("renders an abstention from the mock API boundary", async ({ page }) => {

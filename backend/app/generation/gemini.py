@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Protocol, cast
 
+from app.config import get_generation_settings
+
 from .schemas import StructuredAnswer
 
 MODEL_VERSION = "gemini-3.7-flash"
@@ -23,6 +25,10 @@ class StructuredGenerationError(ValueError):
     """Provider output was absent or failed the structured schema."""
 
 
+class GenerationConfigurationError(StructuredGenerationError):
+    """Generation cannot run because provider credentials/configuration are absent."""
+
+
 class GeminiStructuredGenerator:
     """Generate a :class:`StructuredAnswer` using Gemini's JSON schema mode."""
 
@@ -40,13 +46,20 @@ class GeminiStructuredGenerator:
         client = self._client
         model = self._model
         if client is None or model is None:
-            from google import genai
-
-            from app.config import get_generation_settings
-
             settings = get_generation_settings()
             model = model or settings.model
-            client = cast(_Client, client or genai.Client(api_key=settings.gemini_api_key))
+            if client is None:
+                if not settings.gemini_api_key:
+                    raise GenerationConfigurationError(
+                        "GEMINI_API_KEY is required for legal answer generation"
+                    )
+                try:
+                    from google import genai
+                except ImportError as exc:
+                    raise GenerationConfigurationError(
+                        "google-genai is required for legal answer generation"
+                    ) from exc
+                client = cast(_Client, genai.Client(api_key=settings.gemini_api_key))
         from google.genai import types
 
         prompt = (
@@ -88,4 +101,5 @@ __all__ = [
     "PROMPT_NAME",
     "PROMPT_VERSION",
     "StructuredGenerationError",
+    "GenerationConfigurationError",
 ]

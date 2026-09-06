@@ -6,7 +6,7 @@ import uuid
 from datetime import date
 from typing import Annotated, Any, Literal, cast
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.config import get_embedding_settings
@@ -26,7 +26,7 @@ class SearchRequest(BaseModel):
 
     query: str = Field(min_length=1)
     effective_date: date | None = None
-    document_type: str | None = None
+    document_type: str | None = Field(default=None, min_length=1, max_length=64)
     vehicle_type: str | None = None
     top_k: int = Field(default=10, ge=1, le=100)
     page: int = Field(default=1, ge=1)
@@ -93,9 +93,12 @@ def _retrieve(request: SearchRequest) -> CandidateSet:
 
 
 @router.post("/search", response_model=None)
-def search(request: Annotated[SearchRequest, Body()]) -> dict[str, Any]:
+def search(
+    request: Annotated[SearchRequest, Body()],
+    http_request: Request,
+) -> dict[str, Any]:
     """Search indexed provisions without invoking the generator."""
-    trace_id = uuid.uuid4().hex
+    trace_id = http_request.headers.get("X-Trace-ID") or uuid.uuid4().hex
     candidates = _retrieve(request)
     items = candidates.results
     if request.document_type:

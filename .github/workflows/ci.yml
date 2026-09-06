@@ -166,3 +166,20 @@ jobs:
       # 10 (node 20, CI) and npm 12 (local), and is not shadowed by PATH aliases.
       - name: Lint PR commit messages
         run: npm exec --prefix frontend --no -- commitlint --config commitlint.config.mjs --from "${{ github.event.pull_request.base.sha }}" --to "${{ github.event.pull_request.head.sha }}"
+
+  release-stack-acceptance:
+    name: Release stack acceptance (Gate M6)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate release compose
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.RELEASE_POSTGRES_PASSWORD }}
+          MINIO_ROOT_USER: ${{ secrets.RELEASE_MINIO_ROOT_USER }}
+          MINIO_ROOT_PASSWORD: ${{ secrets.RELEASE_MINIO_ROOT_PASSWORD }}
+        run: docker compose -f deploy/compose/compose.release.yml config --quiet
+      - name: Report missing release credentials
+        if: env.POSTGRES_PASSWORD == '' || env.MINIO_ROOT_USER == '' || env.MINIO_ROOT_PASSWORD == ''
+        run: echo "Gate M6 blocked: release credentials are not configured; no stack acceptance claimed." && exit 1
