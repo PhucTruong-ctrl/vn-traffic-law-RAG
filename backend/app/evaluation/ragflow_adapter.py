@@ -46,8 +46,9 @@ class CitationMetadata:
 
 @dataclass(frozen=True, slots=True)
 class CitationResolution:
-    """Resolved citations retain the original metadata and canonical ID."""
+    """Per-citation resolution plus aggregate mapping counts."""
 
+    items: list[dict[str, Any]]
     mapped: list[dict[str, Any]]
     unmappable: int
     mapping_accuracy: float | None
@@ -57,15 +58,22 @@ def resolve_citation(
     citation: Citation,
     metadata_map: Mapping[CitationMetadata, str],
 ) -> dict[str, Any] | None:
-    """Resolve only an exact explicit metadata key; otherwise fail closed."""
+    """Resolve primary content identity, then exact page-only fallback."""
 
     metadata = CitationMetadata.from_citation(citation)
     if metadata is None:
         return None
-    provision_id = metadata_map.get(metadata)
+    primary = CitationMetadata(metadata.document_id, None, metadata.span, metadata.text,
+                               metadata.content_hash, metadata.effective_from, metadata.effective_to)
+    provision_id = metadata_map.get(primary)
+    reason = "PRIMARY_METADATA"
+    if provision_id is None:
+        provision_id = metadata_map.get(metadata)
+        reason = "PAGE_FALLBACK"
     if not isinstance(provision_id, str) or not provision_id:
         return None
-    return {**dict(citation), "canonical_provision_id": provision_id}
+    return {**dict(citation), "canonical_provision_id": provision_id,
+            "mapping_status": "MAPPED", "mapping_reason": reason}
 
 
 def resolve_citations(
@@ -74,13 +82,19 @@ def resolve_citations(
 ) -> CitationResolution:
     """Resolve RAGFlow citations from an explicit metadata-to-ID manifest."""
 
-    mapped = [
-        resolved
-        for citation in citations
-        if (resolved := resolve_citation(citation, metadata_map)) is not None
-    ]
-    unmappable = len(citations) - len(mapped)
+    items = []
+    mapped = []
+    for citation in citations:
+        resolved = resolve_citation(citation, metadata_map)
+        if resolved is None:
+            resolved = {**dict(citation), "mapping_status": "UNMAPPABLE",
+                        "mapping_reason": "INVALID_METADATA" if CitationMetadata.from_citation(citation) is None else "NO_EXACT_METADATA"}
+        else:
+            mapped.append(resolved)
+        items.append(resolved)
+    unmappable = len(items) - len(mapped)
     return CitationResolution(
+        items=items,
         mapped=mapped,
         unmappable=unmappable,
         mapping_accuracy=len(mapped) / len(citations) if citations else None,

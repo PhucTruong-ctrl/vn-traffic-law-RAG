@@ -94,3 +94,26 @@ def test_ragflow_metadata_resolution_preserves_provenance_and_fails_closed() -> 
     assert result.mapped == [{**citation, "canonical_provision_id": "nd-168-2024__dieu-5"}]
     assert result.unmappable == 2
     assert result.mapping_accuracy == 1 / 3
+
+
+def test_metadata_resolution_uses_hash_text_span_before_page_and_keeps_unmappable_items() -> None:
+    citation = {
+        "document_id": "nd-168-2024",
+        "page_number": 12,
+        "span": "s-7",
+        "text": "Điều 5",
+        "content_hash": "abc123",
+    }
+    primary = CitationMetadata("nd-168-2024", None, "s-7", "Điều 5", "abc123", None, None)
+    page_variant = CitationMetadata("nd-168-2024", 12, None, None, None, None, None)
+    result = resolve_citations(
+        [citation, {"document_id": "nd-168-2024", "page_number": 99, "text": "không có"}],
+        {primary: "nd-168-2024__dieu-5", page_variant: "nd-168-2024__page-12"},
+    )
+    assert result.items == [
+        {**citation, "canonical_provision_id": "nd-168-2024__dieu-5", "mapping_status": "MAPPED", "mapping_reason": "PRIMARY_METADATA"},
+        {"document_id": "nd-168-2024", "page_number": 99, "text": "không có", "mapping_status": "UNMAPPABLE", "mapping_reason": "NO_EXACT_METADATA"},
+    ]
+    assert result.mapped == [result.items[0]]
+    assert result.unmappable == 1
+    assert result.mapping_accuracy == 1 / 2
