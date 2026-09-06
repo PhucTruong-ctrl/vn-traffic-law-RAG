@@ -1,24 +1,24 @@
 modelRoleStorage: project
 
 modelRoles:
-  default: openai-codex/gpt-5.6-luna:medium
+  default: openai-codex/gpt-5.6-luna:high
   smol: openai-codex/gpt-5.6-luna:low
   tiny: openai-codex/gpt-5.6-luna:low
   commit: openai-codex/gpt-5.6-luna:low
   task: openai-codex/gpt-5.6-luna:medium
-  plan: openai-codex/gpt-5.6-luna:high
-  slow: openai-codex/gpt-5.6-luna:high
+  plan: openai-codex/gpt-5.6-luna:xhigh
+  slow: openai-codex/gpt-5.6-luna:xhigh
   vision: openai-codex/gpt-5.6-luna:low
   designer: openai-codex/gpt-5.6-luna:medium
   advisor: openai-codex/gpt-5.6-luna:low
 providers:
   openai-codex:
     codeMode: auto
-textVerbosity: low
-defaultThinkingLevel: medium
+textVerbosity: medium
+defaultThinkingLevel: high
 compaction:
   asyncEnabled: false
-  keepRecentTokens: 12000
+  keepRecentTokens: 16000
   methodOrder:
     - remote
     - snapcompact
@@ -26,14 +26,15 @@ compaction:
     - soft
 tools:
   approvalMode: yolo
-  intentTracing: false
+  intentTracing: true
   xdevDocs: catalog
+  abortOnFabricatedResult: true
 grep:
-  enabled: false
+  enabled: true
 glob:
-  enabled: false
+  enabled: true
 astGrep:
-  enabled: false
+  enabled: true
 advisor:
   enabled: false
   syncBacklog: 1
