@@ -1,4 +1,5 @@
 """Resumable OCR batch with atomic page checkpoints and provenance."""
+
 from __future__ import annotations
 
 import argparse
@@ -36,7 +37,22 @@ def render_page(pdf: Path, output: Path, page: int) -> Path:
     output.mkdir(parents=True, exist_ok=True)
     target = output / f"page-{page:04d}.jpg"
     if not target.exists():
-        subprocess.run(["pdftoppm", "-f", str(page), "-l", str(page), "-r", "300", "-jpeg", "-singlefile", str(pdf), str(target.with_suffix(""))], check=True)
+        subprocess.run(
+            [
+                "pdftoppm",
+                "-f",
+                str(page),
+                "-l",
+                str(page),
+                "-r",
+                "300",
+                "-jpeg",
+                "-singlefile",
+                str(pdf),
+                str(target.with_suffix("")),
+            ],
+            check=True,
+        )
     return target
 
 
@@ -45,6 +61,12 @@ def main() -> int:
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--document", action="append")
+    parser.add_argument(
+        "--recognition-mode",
+        choices=("paddle", "vietocr"),
+        default="paddle",
+        help="Use PaddleOCR recognition by default; VietOCR requires the optional extra.",
+    )
     args = parser.parse_args()
     state_path = args.output / "state.json"
     state = load_state(state_path)
@@ -54,12 +76,29 @@ def main() -> int:
     except ModuleNotFoundError:
         PdfReader = None
     from app.ingestion.adapters.hybrid_ocr_adapter import HybridOCRAdapter
-    adapter = HybridOCRAdapter(device=os.environ.get("OCR_DEVICE", "cpu"))
+
+    adapter = HybridOCRAdapter(
+        device=os.environ.get("OCR_DEVICE", "cpu"), recognition_mode=args.recognition_mode
+    )
     for pdf in sorted(args.input.glob("*.pdf")):
         if pdf.stem not in selected:
             continue
         document = state["documents"].setdefault(pdf.stem, {"status": "pending", "pages": {}})
-        document.update({"status": "running", "started_at": document.get("started_at", datetime.now(UTC).isoformat()), "provenance": {"source_pdf": str(pdf), "parser": "PADDLEOCR_VIETOCR", "parser_version": "paddleocr-3.3.0+vietocr-0.3.13"}})
+        document.update(
+            {
+                "status": "running",
+                "started_at": document.get("started_at", datetime.now(UTC).isoformat()),
+                "provenance": {
+                    "source_pdf": str(pdf),
+                    "parser": "PADDLEOCR"
+                    if args.recognition_mode == "paddle"
+                    else "PADDLEOCR_VIETOCR",
+                    "parser_version": "paddleocr-3.3.0"
+                    if args.recognition_mode == "paddle"
+                    else "paddleocr-3.3.0+vietocr-0.3.13",
+                },
+            }
+        )
         atomic_write(state_path, state)
         try:
             page_dir = args.output / pdf.stem / "pages"
@@ -77,12 +116,33 @@ def main() -> int:
                     continue
                 try:
                     image = render_page(pdf, page_dir, page_number)
-                    parsed = adapter.parse_document([(page_number, image)], document_id=pdf.stem, parsed_document_id=pdf.stem, source_object_key=str(pdf), checkpoint_path=checkpoint)
-                    document["pages"][key] = {"status": "done", "image": str(image), "elements": sum(len(p.elements) for p in parsed.pages), "completed_at": datetime.now(UTC).isoformat()}
+                    parsed = adapter.parse_document(
+                        [(page_number, image)],
+                        document_id=pdf.stem,
+                        parsed_document_id=pdf.stem,
+                        source_object_key=str(pdf),
+                        checkpoint_path=checkpoint,
+                    )
+                    document["pages"][key] = {
+                        "status": "done",
+                        "image": str(image),
+                        "elements": sum(len(p.elements) for p in parsed.pages),
+                        "completed_at": datetime.now(UTC).isoformat(),
+                    }
                 except Exception as exc:
-                    document["pages"][key] = {"status": "failed", "error": f"{type(exc).__name__}: {exc}"}
+                    document["pages"][key] = {
+                        "status": "failed",
+                        "error": f"{type(exc).__name__}: {exc}",
+                    }
                 atomic_write(state_path, state)
-            document["status"] = "done" if all(document["pages"].get(str(page), {}).get("status") == "done" for page in range(1, page_count + 1)) else "partial"
+            document["status"] = (
+                "done"
+                if all(
+                    document["pages"].get(str(page), {}).get("status") == "done"
+                    for page in range(1, page_count + 1)
+                )
+                else "partial"
+            )
         except Exception as exc:
             document["status"] = "failed"
             document["error"] = f"{type(exc).__name__}: {exc}"

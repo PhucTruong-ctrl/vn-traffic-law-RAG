@@ -417,7 +417,7 @@ def _build_pipeline_options(
     # Force CPU on hosts whose installed CUDA build does not support their GPU.
     options.accelerator_options.device = "cpu"
     options.do_ocr = ocr_enabled
-    options.do_table_structure = False if ocr_enabled else True
+    options.do_table_structure = not ocr_enabled
     options.images_scale = dpi / 72.0
     if ocr_enabled:
         options.ocr_options = TesseractCliOcrOptions(

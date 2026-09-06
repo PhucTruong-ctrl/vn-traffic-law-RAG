@@ -16,12 +16,12 @@ type Claim = {
 };
 
 type Citation = {
-  provision_id?: string;
+  provision_id: string;
   document_number?: string;
   article?: string;
   source_url?: string;
   source_text?: string;
-  page?: number | string;
+  page_number?: number | string;
   bbox?: number[];
 };
 
@@ -34,6 +34,7 @@ type ChatResponse = {
   disclaimer?: string;
   progress_events?: Array<Record<string, unknown>>;
   trace_id?: string;
+  metadata?: { query_date?: string | null; comparison_date?: string | null; vehicle?: string | null; comparison?: boolean };
 };
 
 const API_PATH = "/api/v1/chat";
@@ -55,11 +56,12 @@ export default function Home() {
     setError("");
     setResponse(null);
     try {
-      const body: { question: string; query_date?: string; vehicle?: string } = {
+      const body: { question: string; query_date?: string; vehicle?: string; comparison_date?: string } = {
         question: question.trim(),
       };
       if (queryDate) body.query_date = queryDate;
       if (vehicle.trim()) body.vehicle = vehicle.trim();
+      if (comparisonDate) body.comparison_date = comparisonDate;
       const result = await fetch(API_PATH, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -78,6 +80,8 @@ export default function Home() {
   }
 
   const abstained = response?.status === "ABSTAINED";
+  const appliedQueryDate = response?.metadata?.query_date;
+  const appliedComparisonDate = response?.metadata?.comparison_date;
 
   return (
     <main className="chat-page">
@@ -120,6 +124,9 @@ export default function Home() {
               {abstained ? "Chưa đủ căn cứ" : "Đã kiểm chứng"}
             </div>
             <h2 id="answer-title">Kết quả</h2>
+            {(appliedQueryDate || appliedComparisonDate) && (
+              <p className="applied-date">Ngày áp dụng: {appliedQueryDate || "Không xác định"}{appliedComparisonDate && ` · So sánh với: ${appliedComparisonDate}`}</p>
+            )}
             {abstained ? (
               <AbstentionResult reason={response.abstention?.reason_code} reasonCode={response.abstention?.reason_code} disclaimer={response.disclaimer} />
             ) : (
@@ -140,7 +147,7 @@ export default function Home() {
                 )}
               </>
             )}
-            {!!response.citations?.length && (
+            {!!response.citations?.length && !abstained && (
               <div>
                 <h3>Căn cứ pháp lý</h3>
                 <ul className="citations">

@@ -1,13 +1,4 @@
-"""Standard API error shape and exception handlers (doc 03 §3.28.3).
-
-Every error response follows the contract::
-
-    {"error": {"code": str, "message": str, "trace_id": str}}
-
-``trace_id`` correlates the failing request across logs; it is generated per
-error unless one is supplied. Handlers are registered on the FastAPI app via
-:func:`register_error_handlers`.
-"""
+"""Standard API error shape and exception handlers."""
 
 from __future__ import annotations
 
@@ -22,7 +13,6 @@ from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 
-#: Error codes returned in the standard error shape (doc 03 §3.28.3).
 VALIDATION_ERROR = "VALIDATION_ERROR"
 INTERNAL_ERROR = "INTERNAL_ERROR"
 UNSUPPORTED_MEDIA_TYPE = "UNSUPPORTED_MEDIA_TYPE"
@@ -30,10 +20,24 @@ INVALID_CONTENT_TYPE = "INVALID_CONTENT_TYPE"
 INVALID_DOCUMENT_ID = "INVALID_DOCUMENT_ID"
 FILE_TOO_LARGE = "FILE_TOO_LARGE"
 JOB_NOT_FOUND = "JOB_NOT_FOUND"
+ABSTENTION = "ABSTENTION"
+NOT_FOUND = "NOT_FOUND"
 
 
-def _new_trace_id() -> str:
-    """Return a fresh 32-hex trace id for an error response."""
+class ProviderError(Exception):
+    """Raised when an upstream provider cannot safely answer."""
+
+
+class APIError(Exception):
+    """Application error carrying a standard API code and status."""
+
+    def __init__(self, code: str, message: str, status_code: int = 400) -> None:
+        super().__init__(message)
+        self.code = code
+        self.status_code = status_code
+
+
+def new_trace_id() -> str:
     return uuid.uuid4().hex
 
 
@@ -43,21 +47,15 @@ def error_response(
     message: str,
     trace_id: str | None = None,
 ) -> JSONResponse:
-    """Build a standard-shape error response (doc 03 §3.28.3)."""
+    trace = trace_id or new_trace_id()
     return JSONResponse(
         status_code=status_code,
-        content={
-            "error": {
-                "code": code,
-                "message": message,
-                "trace_id": trace_id or _new_trace_id(),
-            }
-        },
+        content={"error": {"code": code, "message": message, "trace_id": trace}},
+        headers={"X-Trace-ID": trace},
     )
 
 
 def _validation_error_message(errors: Sequence[Any]) -> str:
-    """Render pydantic/FastAPI validation errors into one readable line."""
     details = [
         f"{'.'.join(str(loc) for loc in err.get('loc', ()))}: {err.get('msg', 'invalid')}"
         for err in errors
@@ -66,37 +64,45 @@ def _validation_error_message(errors: Sequence[Any]) -> str:
 
 
 def register_error_handlers(app: FastAPI) -> None:
-    """Register the standard error handlers on ``app``.
-
-    * ``RequestValidationError`` -> 422 ``VALIDATION_ERROR``
-    * ``HTTPException`` -> its status with the standard shape (``HTTP_ERROR``)
-    * any other exception -> 500 ``INTERNAL_ERROR`` (logged with trace_id)
-    """
-
     @app.exception_handler(RequestValidationError)
-    async def _on_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+    async def validation_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
         return error_response(
             422,
             VALIDATION_ERROR,
             _validation_error_message(exc.errors()),
+            request.headers.get("X-Trace-ID"),
+        )
+
+    @app.exception_handler(APIError)
+    async def api_error_handler(request: Request, exc: APIError) -> JSONResponse:
+        return error_response(
+            exc.status_code,
+            exc.code,
+            str(exc),
+            request.headers.get("X-Trace-ID"),
+        )
+
+    @app.exception_handler(ProviderError)
+    async def provider_error_handler(request: Request, exc: ProviderError) -> JSONResponse:
+        return error_response(
+            502,
+            "PROVIDER_ERROR",
+            str(exc),
+            request.headers.get("X-Trace-ID"),
         )
 
     @app.exception_handler(HTTPException)
-    async def _on_http_error(request: Request, exc: HTTPException) -> JSONResponse:
-        return error_response(exc.status_code, "HTTP_ERROR", str(exc.detail))
+    async def http_error_handler(request: Request, exc: HTTPException) -> JSONResponse:
+        code = NOT_FOUND if exc.status_code == 404 else "HTTP_ERROR"
+        return error_response(
+            exc.status_code,
+            code,
+            str(exc.detail),
+            request.headers.get("X-Trace-ID"),
+        )
 
     @app.exception_handler(Exception)
-    async def _on_internal_error(request: Request, exc: Exception) -> JSONResponse:
-        trace_id = _new_trace_id()
-        logger.exception(
-            "unhandled error trace_id=%s method=%s path=%s",
-            trace_id,
-            request.method,
-            request.url.path,
-        )
-        return error_response(
-            500,
-            INTERNAL_ERROR,
-            "Internal server error.",
-            trace_id=trace_id,
-        )
+    async def internal_error_handler(request: Request, exc: Exception) -> JSONResponse:
+        trace_id = request.headers.get("X-Trace-ID") or new_trace_id()
+        logger.exception("unhandled error trace_id=%s", trace_id)
+        return error_response(500, INTERNAL_ERROR, "Internal server error", trace_id)

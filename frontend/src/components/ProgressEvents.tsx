@@ -17,7 +17,7 @@ export default function ProgressEvents({ events }: ProgressEventsProps) {
 
   return (
     <section aria-labelledby="progress-events-title" aria-live="polite">
-      <h3 id="progress-events-title">Tiến trình xử lý</h3>
+      <h2 id="progress-events-title">Tiến trình xử lý</h2>
       <ol className="progress-events">
         {events.map((item, index) => {
           const label = item.message || item.detail || item.event || item.type || "Đang xử lý";

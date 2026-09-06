@@ -37,7 +37,7 @@ export default function FeedbackWidget({
         },
         body: JSON.stringify({
           trace_id: traceId,
-          useful: value === "useful",
+          correctness: value === "useful" ? "correct" : "incorrect",
           comment: comment.trim() || null,
         }),
       });

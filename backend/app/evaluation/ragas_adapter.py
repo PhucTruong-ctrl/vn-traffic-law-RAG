@@ -41,7 +41,14 @@ def evaluate_ragas(
     """
     if not records:
         reason = "no evaluation records"
-        return RagasEvaluation({"faithfulness": _na("faithfulness", reason), "answer_relevancy": _na("answer_relevancy", reason)}, "na", reason)
+        return RagasEvaluation(
+            {
+                "faithfulness": _na("faithfulness", reason),
+                "answer_relevancy": _na("answer_relevancy", reason),
+            },
+            "na",
+            reason,
+        )
     eligible = [
         record
         for record in records
@@ -49,18 +56,46 @@ def evaluate_ragas(
     ]
     if not eligible:
         reason = "no legally verified records"
-        return RagasEvaluation({"faithfulness": _na("faithfulness", reason), "answer_relevancy": _na("answer_relevancy", reason)}, "na", reason)
+        return RagasEvaluation(
+            {
+                "faithfulness": _na("faithfulness", reason),
+                "answer_relevancy": _na("answer_relevancy", reason),
+            },
+            "na",
+            reason,
+        )
     if evaluator is None:
         reason = "ragas evaluator is not configured"
-        return RagasEvaluation({"faithfulness": _na("faithfulness", reason), "answer_relevancy": _na("answer_relevancy", reason)}, "na", reason)
+        return RagasEvaluation(
+            {
+                "faithfulness": _na("faithfulness", reason),
+                "answer_relevancy": _na("answer_relevancy", reason),
+            },
+            "na",
+            reason,
+        )
     try:
         raw = evaluator(eligible)
     except Exception as exc:
         reason = f"ragas evaluation failed: {type(exc).__name__}"
-        return RagasEvaluation({"faithfulness": _na("faithfulness", reason), "answer_relevancy": _na("answer_relevancy", reason)}, "error", reason)
+        return RagasEvaluation(
+            {
+                "faithfulness": _na("faithfulness", reason),
+                "answer_relevancy": _na("answer_relevancy", reason),
+            },
+            "error",
+            reason,
+        )
     if not isinstance(raw, Mapping):
         reason = "ragas evaluator returned a non-object"
-        return RagasEvaluation({"faithfulness": _na("faithfulness", reason), "answer_relevancy": _na("answer_relevancy", reason)}, "error", reason)
+        return RagasEvaluation(
+            {
+                "faithfulness": _na("faithfulness", reason),
+                "answer_relevancy": _na("answer_relevancy", reason),
+            },
+            "error",
+            reason,
+        )
     metrics: dict[str, MetricReport] = {}
     for name in ("faithfulness", "answer_relevancy"):
         value = raw.get(name)

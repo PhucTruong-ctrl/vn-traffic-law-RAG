@@ -34,6 +34,9 @@ def test_chat_disclaimer_trace_citations_and_abstention(
         document_number="12/2024",
         article="Điều 1",
         source_url="https://example.test",
+        source_text="Legal text supporting the claim.",
+        page_number=1,
+        bbox={"left": 10, "top": 20, "right": 100, "bottom": 40},
     )
 
     class Graph:
@@ -59,10 +62,22 @@ def test_chat_disclaimer_trace_citations_and_abstention(
     assert payload["status"] == expected
     assert payload["disclaimer"] == chat_api.DISCLAIMER
     assert len(payload["trace_id"]) == 32
-    assert payload["citations"][0]["provision_id"] == "p-1"
     if expected == "ABSTAINED":
+        assert payload["citations"] == []
         assert payload["answer"] is None
         assert payload["abstention"]["reason_code"] == "NO_SUPPORT"
     else:
+        assert payload["citations"] == [
+            {
+                "provision_id": "p-1",
+                "document_id": "d-1",
+                "document_number": "12/2024",
+                "article": "Điều 1",
+                "source_url": "https://example.test",
+                "source_text": "Legal text supporting the claim.",
+                "page_number": 1,
+                "bbox": {"left": 10, "top": 20, "right": 100, "bottom": 40},
+            }
+        ]
         assert payload["answer"] == "answer"
         assert payload["abstention"] is None

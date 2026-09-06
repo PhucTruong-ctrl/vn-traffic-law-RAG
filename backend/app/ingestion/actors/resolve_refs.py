@@ -58,7 +58,8 @@ def _persist_reference(
     existing = session.scalar(
         select(ProvisionReference).where(
             ProvisionReference.source_legal_provision_id == source.id,
-            ProvisionReference.target_legal_provision_id == (target.id if target is not None else None),
+            ProvisionReference.target_legal_provision_id
+            == (target.id if target is not None else None),
             ProvisionReference.relation_type == candidate.relation_type,
         )
     )
@@ -197,9 +198,7 @@ def resolve_refs_actor(job_id: str) -> None:
         relation_text = (
             "\n".join(row.source_text for row in persisted) if persisted else legacy_text
         )
-        manifest_docs = extract_manifest_relations(
-            relation_notes, run.document_id, known_documents
-        )
+        manifest_docs = extract_manifest_relations(relation_notes, run.document_id, known_documents)
         docs = manifest_docs or (
             extract_document_relations(relation_text, run.document_id, known_documents)
             if isinstance(relation_text, str) and not malformed_documents

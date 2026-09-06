@@ -403,6 +403,12 @@ def test_hyde_variant_uses_dense_path_without_exact_or_sparse_retrieval() -> Non
     assert calls[1][2]["limit"] > 0
 
 
+def test_default_verification_does_not_mark_valid_without_l4_l5_l6():
+    graph = build_query_graph(services())
+    state = graph.invoke({"question": "mức phạt", "max_repair_attempts": 0})
+    assert state["verification_result"]["status"] != "VALID"
+
+
 def test_comparison_retrieval_keeps_independent_before_and_after() -> None:
     calls = []
     plan = SimpleNamespace(

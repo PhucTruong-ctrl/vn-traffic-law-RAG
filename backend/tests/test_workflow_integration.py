@@ -16,8 +16,8 @@ def provision(pid: str, *, start: date = date(2020, 1, 1), end: date | None = No
         provision_version=1,
         document_id="doc-1",
         document_version_id="doc-v1",
-        text=f"Rule {pid}",
-        source_text=f"Rule {pid}",
+        text=f"Điều 7 áp dụng. Mức phạt 500 đồng. Rule {pid}",
+        source_text=f"Điều 7 áp dụng. Mức phạt 500 đồng. Rule {pid}",
         parent_context=None,
         document_number="168/2024/NĐ-CP",
         article="7",
@@ -26,6 +26,7 @@ def provision(pid: str, *, start: date = date(2020, 1, 1), end: date | None = No
         effective_from=start,
         effective_to=end,
         page_number=1,
+        bbox=[0.1, 0.1, 0.9, 0.2],
         retrieval_sources=["fixture"],
         fused_score=1.0,
         added_by=None,
@@ -93,6 +94,32 @@ def test_current_workflow_completes_with_valid_citation():
     state = run(plan, [record])
     assert state["final_response"]["status"] == "COMPLETED"
     assert state["verification_result"]["status"] == "VALID"
+
+
+def test_default_verification_requires_numeric_claim_support():
+    record = provision("p-numeric")
+    record["text"] = "Rule p-numeric"
+    record["source_text"] = "Rule p-numeric"
+    plan = SimpleNamespace(
+        normalized_query="question",
+        intent="CURRENT",
+        effective_date=TODAY,
+        missing_query_information=[],
+    )
+    answer = {
+        "answer_summary": "Điều 7 áp dụng.",
+        "claims": [
+            {
+                "claim": "Phạt 500 đồng.",
+                "claim_type": "OTHER",
+                "numbers": [500],
+                "provision_ids": ["p-numeric"],
+            }
+        ],
+    }
+    state = run(plan, [record], answer=answer)
+    assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
+    assert state["verification_result"]["reason_code"] == "L4_NUMERIC_MISMATCH"
 
 
 def test_historical_workflow_serves_resolved_historical_date():

@@ -23,6 +23,7 @@ from app.retrieval.comparison import ComparisonResult
 from app.retrieval.contracts import CandidateSet, RetrievalResult
 from app.retrieval.filters import build_temporal_filter, deduplicate_results
 from app.verification.l2_citation import L2CitationVerifier
+from app.verification.workflow import LegalVerificationBoundary
 
 from .repair import MAX_REPAIR_ATTEMPTS, repair_route
 from .state import QueryState
@@ -548,6 +549,15 @@ def _build_context(state: QueryState, services: GraphServices) -> QueryState:
     return {"context_package": value}
 
 
+def _normalize_answer_numbers(value: Any, key: str | None = None) -> Any:
+    if isinstance(value, dict):
+        return {name: _normalize_answer_numbers(item, name) for name, item in value.items()}
+    if isinstance(value, list):
+        values = [_normalize_answer_numbers(item, key) for item in value]
+        return [str(item) for item in values] if key == "numbers" else values
+    return value
+
+
 def _generate(state: QueryState, services: GraphServices) -> QueryState:
     generator = services.generator or GeminiStructuredGenerator()
     try:
@@ -567,7 +577,18 @@ def _generate(state: QueryState, services: GraphServices) -> QueryState:
                 "error": str(exc),
             },
         }
-    return {"draft_answer": StructuredAnswer.model_validate(answer)}
+    try:
+        normalized = _normalize_answer_numbers(answer)
+        return {"draft_answer": StructuredAnswer.model_validate(normalized)}
+    except Exception as exc:
+        return {
+            "draft_answer": None,
+            "verification_result": {
+                "status": "ABSTAIN",
+                "reason_code": "L1_SCHEMA_INVALID",
+                "error": str(exc),
+            },
+        }
 
 
 def _verify(state: QueryState, services: GraphServices) -> QueryState:
@@ -579,7 +600,7 @@ def _verify(state: QueryState, services: GraphServices) -> QueryState:
             )
         }
     try:
-        answer = StructuredAnswer.model_validate(draft)
+        answer = StructuredAnswer.model_validate(_normalize_answer_numbers(draft))
     except Exception as exc:
         return {
             "verification_result": {
@@ -594,7 +615,6 @@ def _verify(state: QueryState, services: GraphServices) -> QueryState:
         }
 
     context = _items(state.get("expanded_context", state.get("context_package", [])))
-    provisions = state.get("provisions", context)
     if not all(getattr(claim, "provision_ids", None) for claim in answer.claims):
         return {"verification_result": {"status": "ABSTAIN", "reason_code": "L1_SCHEMA_INVALID"}}
     if services.legal_verifier is not None:
@@ -617,21 +637,21 @@ def _verify(state: QueryState, services: GraphServices) -> QueryState:
                 }
             }
     else:
-        l2 = _call(
-            services.verifier or L2CitationVerifier(provisions),
+        legal = LegalVerificationBoundary(
+            citation=services.verifier or L2CitationVerifier()
+        ).verify(
             answer,
             context,
-            service_name="verifier",
-            method_names=("verify",),
-            provisions=provisions,
-            expanded=context,
+            query_date=_plan_date(state),
+            in_scope=str(getattr(state.get("query_understanding"), "intent", "")) != "OUT_OF_SCOPE",
         )
-        if not l2.passed:
+        if not legal.passed:
             return {
                 "verification_result": {
                     "status": "ABSTAIN",
-                    "reason_code": l2.issues[0].code,
-                    "issues": l2.issues,
+                    "reason_code": legal.reason_code or "VERIFICATION_FAILURE",
+                    "issues": list(legal.issues),
+                    "missing": list(legal.missing),
                 }
             }
     cited = [
@@ -675,7 +695,13 @@ def _finalize(state: QueryState) -> QueryState:
 
 
 def _abstain(state: QueryState) -> QueryState:
-    return {"final_response": {"status": "INSUFFICIENT_EVIDENCE", "answer": None}}
+    verification = state.get("verification_result")
+    if not verification or verification.get("status") == "VALID":
+        verification = {"status": "ABSTAIN", "reason_code": "INSUFFICIENT_EVIDENCE"}
+    return {
+        "verification_result": verification,
+        "final_response": {"status": "INSUFFICIENT_EVIDENCE", "answer": None},
+    }
 
 
 def build_query_graph(services: GraphServices | None = None) -> CompiledStateGraph:

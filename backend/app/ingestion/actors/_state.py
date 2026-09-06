@@ -163,6 +163,7 @@ def bootstrap_run(
     for candidate in manifest_path.rglob(f"{document_id}.manifest.json"):
         try:
             import json
+
             manifest = {**json.loads(candidate.read_text(encoding="utf-8")), **manifest}
         except (OSError, ValueError):
             pass

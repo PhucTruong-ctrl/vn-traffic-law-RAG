@@ -22,9 +22,15 @@ STRATEGIES = {
 EXCLUDED_FILES: set[str] = set()
 
 
-def process_pdfs(input_dir, output_dir, manifest=None):
+def process_pdfs(input_dir, output_dir, manifest=None, ocr_dir=None):
     return run_cleaner(
-        input_dir, output_dir, manifest, STRATEGIES, EXCLUDED_FILES, logging.getLogger(__name__)
+        input_dir,
+        output_dir,
+        manifest,
+        STRATEGIES,
+        EXCLUDED_FILES,
+        logging.getLogger(__name__),
+        ocr_dir,
     )
 
 

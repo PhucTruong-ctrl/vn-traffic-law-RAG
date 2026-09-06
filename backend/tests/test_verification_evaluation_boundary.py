@@ -29,7 +29,9 @@ def test_legal_boundary_runs_gates_and_accepts_grounded_answer():
 
 
 def test_ragas_never_scores_unverified_records():
-    result = evaluate_ragas([{"verification_status": "ABSTAIN"}], evaluator=lambda _: {"faithfulness": 1.0})
+    result = evaluate_ragas(
+        [{"verification_status": "ABSTAIN"}], evaluator=lambda _: {"faithfulness": 1.0}
+    )
     assert result.status == "na"
     assert result.metrics["faithfulness"].value is None
 
