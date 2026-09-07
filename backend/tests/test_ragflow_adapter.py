@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 
 from app.evaluation.ragflow_adapter import (
+    MAPPING_VERSION,
     CitationMetadata,
     map_citation,
     map_citations,
@@ -97,6 +98,7 @@ def test_ragflow_metadata_resolution_preserves_provenance_and_fails_closed() -> 
             "canonical_provision_id": "nd-168-2024__dieu-5",
             "mapping_status": "MAPPED",
             "mapping_reason": "PRIMARY_METADATA",
+            "mapping_version": MAPPING_VERSION,
         }
     ]
     assert result.unmappable == 1
@@ -123,6 +125,7 @@ def test_metadata_resolution_uses_hash_text_span_before_page_and_keeps_unmappabl
             "canonical_provision_id": "nd-168-2024__dieu-5",
             "mapping_status": "MAPPED",
             "mapping_reason": "PRIMARY_METADATA",
+            "mapping_version": MAPPING_VERSION,
         },
         {
             "document_id": "nd-168-2024",
@@ -130,6 +133,7 @@ def test_metadata_resolution_uses_hash_text_span_before_page_and_keeps_unmappabl
             "text": "không có",
             "mapping_status": "UNMAPPABLE",
             "mapping_reason": "NO_EXACT_METADATA",
+            "mapping_version": MAPPING_VERSION,
         },
     ]
     assert result.mapped == [result.items[0]]
@@ -148,6 +152,7 @@ def test_page_fallback_ignores_unrelated_metadata_mappings() -> None:
             "canonical_provision_id": "id-12",
             "mapping_status": "MAPPED",
             "mapping_reason": "PAGE_FALLBACK",
+            "mapping_version": MAPPING_VERSION,
         }
     ]
 
@@ -164,5 +169,44 @@ def test_page_fallback_rejects_multiple_requested_page_mappings() -> None:
             "canonical_provision_id": "id-1",
             "mapping_status": "MAPPED",
             "mapping_reason": "PAGE_FALLBACK",
+            "mapping_version": MAPPING_VERSION,
         }
     ]
+
+
+def test_raw_ragflow_chunk_aliases_normalize_without_guessing_provision() -> None:
+    citation = {
+        "docnm_kwd": "nd-168-2024.pdf",
+        "chunk_id": "chunk-7",
+        "content_with_weight": "Điều 5 nội dung",
+        "positions": [[12, 0, 1, 2, 3]],
+    }
+    metadata = CitationMetadata.from_citation(citation)
+    assert metadata == CitationMetadata(
+        "nd-168-2024", 12, "chunk-7", "Điều 5 nội dung", None, None, None
+    )
+    result = resolve_citations([citation], {})
+    assert result.items == [
+        {
+            **citation,
+            "mapping_status": "UNMAPPABLE",
+            "mapping_reason": "NO_EXACT_METADATA",
+            "mapping_version": MAPPING_VERSION,
+        }
+    ]
+
+
+def test_raw_chunk_mapping_uses_explicit_metadata_map() -> None:
+    citation = {
+        "docnm_kwd": "nd-168-2024.pdf",
+        "chunk_id": "chunk-7",
+        "content_with_weight": "Điều 5 nội dung",
+        "positions": [[12, 0, 1, 2, 3]],
+    }
+    key = CitationMetadata(
+        "nd-168-2024", 12, "chunk-7", "Điều 5 nội dung", None, None, None
+    )
+    result = resolve_citations([citation], {key: "nd-168-2024__dieu-5"})
+    assert result.mapped == []
+    assert result.unmappable == 1
+    assert result.items[0]["mapping_reason"] == "NO_EXACT_METADATA"

@@ -12,6 +12,9 @@ _ID = re.compile(r"^(?P<doc>[a-z0-9-]+):(?P<kind>article|clause|point):(?P<num>[
 
 Citation: TypeAlias = Mapping[str, Any]
 
+# Bump when citation field aliases or resolution precedence changes.
+MAPPING_VERSION = "ragflow-canonical-v1"
+
 
 @dataclass(frozen=True, slots=True)
 class CitationMetadata:
@@ -27,15 +30,36 @@ class CitationMetadata:
 
     @classmethod
     def from_citation(cls, citation: Citation) -> CitationMetadata | None:
-        document_id = citation.get("document_id")
+        # Accept canonical fields plus the aliases emitted by RAGFlow's raw
+        # chunk API.  Aliases are transport normalization only; they do not
+        # infer a provision from a document name, chunk id, or page.
+        document_id = citation.get("document_id", citation.get("document"))
+        if not isinstance(document_id, str) or not document_id:
+            document_id = citation.get("doc_id")
+        if not isinstance(document_id, str) or not document_id:
+            document_name = citation.get("docnm_kwd")
+            if isinstance(document_name, str) and document_name:
+                document_id = document_name.removesuffix(".pdf")
         if not isinstance(document_id, str) or not document_id:
             return None
         page = citation.get("page", citation.get("page_number"))
-        if page is not None and not isinstance(page, int):
+        if page is None:
+            positions = citation.get("positions")
+            if isinstance(positions, Sequence) and positions and isinstance(positions[0], Sequence):
+                candidate = positions[0][0]
+                page = candidate if isinstance(candidate, int) else None
+        if page is not None and (not isinstance(page, int) or isinstance(page, bool)):
             return None
         values = {}
-        for field in ("span", "text", "content_hash", "effective_from", "effective_to"):
-            value = citation.get(field)
+        aliases = {
+            "span": ("span", "chunk_id", "row_id"),
+            "text": ("text", "content_with_weight", "content_ltks"),
+            "content_hash": ("content_hash",),
+            "effective_from": ("effective_from",),
+            "effective_to": ("effective_to",),
+        }
+        for field, names in aliases.items():
+            value = next((citation[name] for name in names if citation.get(name) is not None), None)
             if value is not None and not isinstance(value, str):
                 return None
             values[field] = value
@@ -94,6 +118,7 @@ def resolve_citation(
         "canonical_provision_id": provision_id,
         "mapping_status": "MAPPED",
         "mapping_reason": reason,
+        "mapping_version": MAPPING_VERSION,
     }
 
 
@@ -117,6 +142,7 @@ def resolve_citations(
                 **dict(citation),
                 "mapping_status": "UNMAPPABLE",
                 "mapping_reason": reason,
+                "mapping_version": MAPPING_VERSION,
             }
         else:
             mapped.append(resolved)
@@ -155,6 +181,7 @@ def map_citations(citations: Sequence[Citation], canonical_ids: set[str]) -> dic
 
 
 __all__ = [
+    "MAPPING_VERSION",
     "CitationMetadata",
     "CitationResolution",
     "map_citation",
