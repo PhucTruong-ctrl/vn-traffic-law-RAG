@@ -4,7 +4,7 @@ name: vnlaw-ragflow-benchmark
 
 services:
   mysql:
-    image: mysql:8.0
+    image: mysql:8.0.39
     profiles: [ragflow]
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-ragflow-root}
@@ -39,7 +39,7 @@ services:
       start_period: 30s
 
   minio:
-    image: minio/minio:latest
+    image: pgsty/minio:RELEASE.2026-03-25T00-00-00Z
     profiles: [ragflow]
     command: server /data --console-address ":9001"
     environment:
@@ -55,7 +55,7 @@ services:
       start_period: 10s
 
   redis:
-    image: redis:7-alpine
+    image: valkey/valkey:8
     profiles: [ragflow]
     command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-ragflow}"]
     volumes:

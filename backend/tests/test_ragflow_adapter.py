@@ -80,7 +80,7 @@ def test_ragflow_metadata_resolution_preserves_provenance_and_fails_closed() -> 
     }
     key = CitationMetadata(
         document_id="nd-168-2024",
-        page=12,
+        page=None,
         span="s-7",
         text="Điều 5",
         content_hash="abc123",
@@ -88,7 +88,7 @@ def test_ragflow_metadata_resolution_preserves_provenance_and_fails_closed() -> 
         effective_to=None,
     )
     result = resolve_citations(
-        [citation, {**citation, "page_number": 13}, {"text": "Điều 5"}],
+        [citation, {"text": "Điều 5"}],
         {key: "nd-168-2024__dieu-5"},
     )
     assert result.mapped == [
@@ -96,11 +96,11 @@ def test_ragflow_metadata_resolution_preserves_provenance_and_fails_closed() -> 
             **citation,
             "canonical_provision_id": "nd-168-2024__dieu-5",
             "mapping_status": "MAPPED",
-            "mapping_reason": "PAGE_FALLBACK",
+            "mapping_reason": "PRIMARY_METADATA",
         }
     ]
-    assert result.unmappable == 2
-    assert result.mapping_accuracy == 1 / 3
+    assert result.unmappable == 1
+    assert result.mapping_accuracy == 1 / 2
 
 
 def test_metadata_resolution_uses_hash_text_span_before_page_and_keeps_unmappable_items() -> None:
@@ -135,3 +135,17 @@ def test_metadata_resolution_uses_hash_text_span_before_page_and_keeps_unmappabl
     assert result.mapped == [result.items[0]]
     assert result.unmappable == 1
     assert result.mapping_accuracy == 1 / 2
+
+
+def test_page_fallback_requires_unique_page_only_manifest_mapping() -> None:
+    citation = {"document_id": "nd-168-2024", "page_number": 12, "text": "Điều 5"}
+    page_key = CitationMetadata("nd-168-2024", 12, None, None, None, None, None)
+    result = resolve_citations(
+        [citation],
+        {
+            CitationMetadata("nd-168-2024", 12, "other", "x", None, None, None): "id-1",
+            page_key: "id-2",
+        },
+    )
+    assert result.mapped == []
+    assert result.items[0]["mapping_reason"] == "NO_EXACT_METADATA"

@@ -7,9 +7,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, TypeAlias
 
-_ID = re.compile(
-    r"^(?P<doc>[a-z0-9-]+):(?P<kind>article|clause|point):(?P<num>[\w.-]+)$", re.I
-)
+_ID = re.compile(r"^(?P<doc>[a-z0-9-]+):(?P<kind>article|clause|point):(?P<num>[\w.-]+)$", re.I)
 
 
 Citation: TypeAlias = Mapping[str, Any]
@@ -74,13 +72,29 @@ def resolve_citation(
     )
     provision_id = metadata_map.get(primary)
     reason = "PRIMARY_METADATA"
-    if provision_id is None:
-        provision_id = metadata_map.get(metadata)
-        reason = "PAGE_FALLBACK"
+    if provision_id is None and metadata.page is not None:
+        # The page fallback is deliberately page-only: content fields from a
+        # citation cannot identify a provision when the manifest has only page
+        # provenance.  Reject ambiguous page mappings rather than guessing.
+        page_key = CitationMetadata(
+            metadata.document_id, metadata.page, None, None, None, None, None
+        )
+        page_matches = {
+            value
+            for key, value in metadata_map.items()
+            if key == page_key and isinstance(value, str) and value
+        }
+        if len(page_matches) == 1 and len(metadata_map) == 1:
+            provision_id = next(iter(page_matches))
+            reason = "PAGE_FALLBACK"
     if not isinstance(provision_id, str) or not provision_id:
         return None
-    return {**dict(citation), "canonical_provision_id": provision_id,
-            "mapping_status": "MAPPED", "mapping_reason": reason}
+    return {
+        **dict(citation),
+        "canonical_provision_id": provision_id,
+        "mapping_status": "MAPPED",
+        "mapping_reason": reason,
+    }
 
 
 def resolve_citations(
@@ -119,9 +133,7 @@ def resolve_citations(
 def map_citation(citation: Citation, canonical_ids: set[str]) -> str | None:
     """Map only an exact canonical ID; never guess."""
     value = (
-        citation.get("canonical_provision_id")
-        or citation.get("provision_id")
-        or citation.get("id")
+        citation.get("canonical_provision_id") or citation.get("provision_id") or citation.get("id")
     )
     if not isinstance(value, str):
         return None
@@ -132,9 +144,7 @@ def map_citation(citation: Citation, canonical_ids: set[str]) -> str | None:
     return normalized if normalized in canonical_ids else None
 
 
-def map_citations(
-    citations: Sequence[Citation], canonical_ids: set[str]
-) -> dict[str, Any]:
+def map_citations(citations: Sequence[Citation], canonical_ids: set[str]) -> dict[str, Any]:
     mapped = [x for c in citations if (x := map_citation(c, canonical_ids)) is not None]
     unmappable = len(citations) - len(mapped)
     return {
