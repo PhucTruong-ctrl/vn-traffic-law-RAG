@@ -6,7 +6,7 @@ name: vnlaw-rag
 
 services:
   postgres:
-    read_only: true
+    read_only: false
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     tmpfs: [/tmp:rw,noexec,nosuid,size=64m]
@@ -45,7 +45,7 @@ services:
       start_period: 20s
 
   redis:
-    read_only: true
+    read_only: false
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     tmpfs: [/tmp:rw,noexec,nosuid,size=64m]

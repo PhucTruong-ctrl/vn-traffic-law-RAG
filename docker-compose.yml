@@ -17,6 +17,7 @@ x-service-hardening: &service-hardening
 services:
   postgres:
     <<: *service-hardening
+    read_only: false
     container_name: vnlaw-postgres
     image: postgres:18.4
     environment:
@@ -55,6 +56,7 @@ services:
 
   redis:
     <<: *service-hardening
+    read_only: false
     container_name: vnlaw-redis
     image: redis:8.10.0
     ports:
