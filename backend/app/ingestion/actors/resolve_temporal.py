@@ -304,7 +304,10 @@ def resolve_temporal_actor(job_id: str) -> None:
                 existing = session.scalar(
                     select(ReviewItem).where(
                         ReviewItem.ingestion_run_id == run.id,
+                        ReviewItem.document_id == result_document_id,
+                        ReviewItem.document_version_id == result_version_id,
                         ReviewItem.reason_code == "UNKNOWN_EFFECTIVE_DATE",
+                        ReviewItem.status == "PENDING",
                     )
                 )
                 if existing is None:

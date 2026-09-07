@@ -828,10 +828,7 @@ class OutboxEvent(Base):
     """Durable event published after a database transaction commits."""
 
     __tablename__ = "outbox_events"
-    __table_args__ = (
-        UniqueConstraint("event_type", "job_id", name="outbox_events_event_type_job_id_key"),
-        Index("idx_outbox_events_pending", "status", "created_at"),
-    )
+    __table_args__ = (Index("idx_outbox_events_pending", "status", "created_at"),)
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     event_type: Mapped[str] = mapped_column(String, nullable=False)
