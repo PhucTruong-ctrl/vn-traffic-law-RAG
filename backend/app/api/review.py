@@ -8,13 +8,15 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Body, Depends, Query, Request
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.db import get_db
 from app.api.errors import NOT_FOUND, APIError
-from app.persistence.models import LegalProvision, ReviewItem
-from app.persistence.repositories.review_items import ReviewItemRepository
+from app.persistence.models import ReviewItem
+from app.persistence.repositories.review_items import (
+    ReviewItemNotFoundError,
+    ReviewItemRepository,
+)
 
 router = APIRouter(prefix="/api/v1", tags=["review"])
 
@@ -107,40 +109,31 @@ def decide_review_item(
 ) -> ReviewItemResponse:
     """Record an explicit human decision; no decision is inferred or defaulted."""
     repository = ReviewItemRepository(db)
-    row = repository.get(item_id)
-    if row is None:
-        raise APIError(NOT_FOUND, "Review item was not found.", status_code=404)
-    if row.status != "PENDING":
-        if row.status == request.decision and row.reviewer == request.reviewer:
-            return _response(row, http_request.headers.get("X-Trace-ID"))
-        raise APIError(
-            "REVIEW_ALREADY_DECIDED", "Review item is already terminal.", status_code=409
-        )
-    evidence = {**(row.evidence or {}), "review_decision": request.evidence}
+    evidence: dict[str, object] = {"review_decision": request.evidence}
     if request.effective_from is not None:
         evidence["effective_from"] = request.effective_from.isoformat()
         evidence["effective_to"] = (
             request.effective_to.isoformat() if request.effective_to else None
         )
-    row.evidence = evidence
     try:
-        repository.record_decision(item_id, request.decision, request.reviewer)
-        if request.effective_from is not None and row.document_version_id is not None:
-            target = db.scalar(
-                select(LegalProvision).where(
-                    LegalProvision.document_version_id == row.document_version_id,
-                    LegalProvision.provision_id == row.target_id,
-                    LegalProvision.version == row.target_version,
-                )
-            )
-            if target is not None:
-                target.effective_from = request.effective_from
-                target.effective_to = request.effective_to
-                target.review_status = "ACCEPTED"
-        repository.continue_run_after_decision(item_id, request.decision)
+        row = repository.decide(
+            item_id,
+            request.decision,
+            request.reviewer,
+            evidence=evidence,
+            effective_from=request.effective_from,
+            effective_to=request.effective_to,
+        )
         db.commit()
+    except ReviewItemNotFoundError as exc:
+        db.rollback()
+        raise APIError(NOT_FOUND, "Review item was not found.", status_code=404) from exc
     except ValueError as exc:
         db.rollback()
+        if str(exc).startswith("review item ") and "already terminal" in str(exc):
+            raise APIError(
+                "REVIEW_ALREADY_DECIDED", "Review item is already terminal.", status_code=409
+            ) from exc
         raise APIError("REVIEW_CONFLICT", str(exc), status_code=409) from exc
     db.refresh(row)
     return _response(row, http_request.headers.get("X-Trace-ID"))

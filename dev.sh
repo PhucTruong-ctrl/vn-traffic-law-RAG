@@ -66,7 +66,7 @@ done
 if [[ "$api_ready" != true ]]; then echo "API did not become ready on http://127.0.0.1:8000/api/v1/health/live" >&2; exit 1; fi
 (
   cd "$ROOT/backend"
-  exec env PYTHONPATH=. uv run --env-file "$ENV_FILE" python -m dramatiq --processes 1 --threads 1 app.ingestion.actors
+  exec env PYTHONPATH=. uv run --env-file "$ENV_FILE" python -m app.ingestion.worker && exec python -m dramatiq --processes 1 --threads 1 app.ingestion.actors
 ) > >(sed -u 's/^/[worker] /') 2>&1 &
 child_pids+=("$!")
 (

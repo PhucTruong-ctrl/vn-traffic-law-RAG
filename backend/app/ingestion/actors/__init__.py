@@ -12,7 +12,11 @@ from .embed import embed_actor
 from .extract import extract_actor
 from .index import index_actor
 from .normalize import normalize_actor
-from .outbox import outbox_dispatcher_actor, outbox_trigger_actor
+from .outbox import (
+    bootstrap_outbox_relay,
+    outbox_dispatcher_actor,
+    outbox_trigger_actor,
+)
 from .parse import ParseRejectedError, parse_actor
 from .quality_gate import quality_gate_actor
 from .resolve_refs import resolve_refs_actor
@@ -22,6 +26,7 @@ __all__ = [
     "DeadLetterMiddleware",
     "ParseRejectedError",
     "TRANSIENT_ERRORS",
+    "bootstrap_outbox_relay",
     "embed_actor",
     "enqueue_parse",
     "extract_actor",

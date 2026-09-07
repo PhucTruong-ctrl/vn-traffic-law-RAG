@@ -148,7 +148,7 @@ services:
         APP_VERSION: ${APP_VERSION:-dev}
     image: vnlaw-backend:${APP_VERSION:-dev}
     restart: unless-stopped
-    command: ["dramatiq", "--processes", "1", "--threads", "1", "app.ingestion.actors"]
+    command: ["sh", "-c", "python -m app.ingestion.worker && exec dramatiq --processes 1 --threads 1 app.ingestion.actors"]
     env_file:
       - path: .env
         required: false

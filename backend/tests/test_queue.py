@@ -42,6 +42,7 @@ from app.ingestion.actors.embed import embed_actor
 from app.ingestion.actors.extract import _ensure_document_version, extract_actor
 from app.ingestion.actors.index import index_actor
 from app.ingestion.actors.normalize import normalize_actor
+from app.ingestion.actors.outbox import bootstrap_outbox_relay, outbox_trigger_actor
 from app.ingestion.actors.parse import parse_actor
 from app.ingestion.actors.quality_gate import quality_gate_actor
 from app.ingestion.actors.resolve_refs import resolve_refs_actor
@@ -98,6 +99,15 @@ def _stub_broker() -> StubBroker:
     for actor, bound in original_brokers.items():
         actor.broker = bound
     dramatiq.set_broker(original_global)
+
+
+def test_bootstrap_outbox_relay_seeds_trigger(monkeypatch: pytest.MonkeyPatch) -> None:
+    sent = Mock()
+    monkeypatch.setattr(outbox_trigger_actor, "send", sent)
+
+    bootstrap_outbox_relay()
+
+    sent.assert_called_once_with()
 
 
 class _FakeSession:

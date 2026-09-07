@@ -24,6 +24,17 @@ _ACTOR_OPTIONS: dict[str, Any] = {
 _POLL_INTERVAL_MS = 5_000
 
 
+def bootstrap_outbox_relay() -> None:
+    """Seed the durable relay loop once when a worker process starts.
+
+    The trigger schedules its successor, so this single message is enough to
+    recover pending rows after a worker or Redis restart. Duplicate bootstrap
+    calls are harmless: each trigger only dispatches one row and the row lock
+    prevents duplicate delivery.
+    """
+    outbox_trigger_actor.send()
+
+
 @dramatiq.actor(queue_name="outbox-trigger", time_limit=60_000, max_retries=0)
 def outbox_trigger_actor() -> None:
     """Wake the dispatcher periodically so committed events are drained.
@@ -72,4 +83,4 @@ def outbox_dispatcher_actor() -> None:
         session.close()
 
 
-__all__ = ["outbox_dispatcher_actor", "outbox_trigger_actor"]
+__all__ = ["bootstrap_outbox_relay", "outbox_dispatcher_actor", "outbox_trigger_actor"]
