@@ -824,6 +824,29 @@ class EvaluationResult(Base):
     evaluation_run: Mapped[EvaluationRun] = relationship(back_populates="results")
 
 
+class OutboxEvent(Base):
+    """Durable event published after a database transaction commits."""
+
+    __tablename__ = "outbox_events"
+    __table_args__ = (
+        UniqueConstraint("event_type", "job_id", name="outbox_events_event_type_job_id_key"),
+        Index("idx_outbox_events_pending", "status", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    event_type: Mapped[str] = mapped_column(String, nullable=False)
+    job_id: Mapped[str] = mapped_column(String, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    status: Mapped[str] = mapped_column(
+        String, nullable=False, default="PENDING", server_default=text("'PENDING'")
+    )
+    attempts: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
+    created_at: Mapped[datetime] = _created_at()
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class CorpusQaReport(Base):
     """Báo cáo chất lượng corpus theo FR-10 (doc 03 §3.10.5)."""
 

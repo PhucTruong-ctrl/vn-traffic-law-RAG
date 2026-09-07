@@ -16,7 +16,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.persistence.models import IngestionRun, LegalProvision, ReviewItem
+from app.persistence.models import IngestionRun, LegalProvision, OutboxEvent, ReviewItem
 
 Decision = Literal["ACCEPTED", "NEEDS_REVIEW", "REJECTED", "DROPPED"]
 DECISION_TO_STATUS: dict[str, str] = {
@@ -141,6 +141,13 @@ class ReviewItemRepository:
         run.status = "QUALITY_CHECK"
         run.current_stage = "QUALITY_CHECK"
         run.error = None
+        self._session.add(
+            OutboxEvent(
+                event_type="RESUME_EMBED",
+                job_id=run.job_id,
+                payload={"job_id": run.job_id},
+            )
+        )
         self._session.flush()
         return True
 

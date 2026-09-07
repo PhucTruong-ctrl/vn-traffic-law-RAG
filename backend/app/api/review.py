@@ -13,8 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.api.db import get_db
 from app.api.errors import NOT_FOUND, APIError
-from app.ingestion.actors.embed import embed_actor
-from app.persistence.models import IngestionRun, LegalProvision, ReviewItem
+from app.persistence.models import LegalProvision, ReviewItem
 from app.persistence.repositories.review_items import ReviewItemRepository
 
 router = APIRouter(prefix="/api/v1", tags=["review"])
@@ -138,14 +137,10 @@ def decide_review_item(
                 target.effective_from = request.effective_from
                 target.effective_to = request.effective_to
                 target.review_status = "ACCEPTED"
-        continue_run = repository.continue_run_after_decision(item_id, request.decision)
-        run = db.get(IngestionRun, row.ingestion_run_id)
-        resume_job_id = run.job_id if run is not None else None
+        repository.continue_run_after_decision(item_id, request.decision)
         db.commit()
     except ValueError as exc:
         db.rollback()
         raise APIError("REVIEW_CONFLICT", str(exc), status_code=409) from exc
     db.refresh(row)
-    if continue_run and resume_job_id is not None:
-        embed_actor.send(resume_job_id)
     return _response(row, http_request.headers.get("X-Trace-ID"))

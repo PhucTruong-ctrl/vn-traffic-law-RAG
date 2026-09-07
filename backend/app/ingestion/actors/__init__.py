@@ -26,6 +26,7 @@ from .embed import embed_actor
 from .extract import extract_actor
 from .index import index_actor
 from .normalize import normalize_actor
+from .outbox import outbox_dispatcher_actor
 from .parse import ParseRejectedError, parse_actor
 from .quality_gate import quality_gate_actor
 from .resolve_refs import resolve_refs_actor
@@ -42,6 +43,7 @@ __all__ = [
     "index_actor",
     "make_retry_when",
     "normalize_actor",
+    "outbox_dispatcher_actor",
     "parse_actor",
     "quality_gate_actor",
     "resolve_refs_actor",

@@ -28,6 +28,10 @@ class Session:
             current_stage="QUALITY_CHECK",
         )
         self.committed = False
+        self.outbox_events: list[object] = []
+
+    def add(self, event: object) -> None:
+        self.outbox_events.append(event)
 
     def get(self, model: object, key: object) -> object:
         return self.run
@@ -85,8 +89,6 @@ def client(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient, Sessio
     )
     row.created_at = datetime.now(UTC)
     session = Session(row, provision)
-    sent: list[str] = []
-    monkeypatch.setattr("app.api.review.embed_actor.send", sent.append)
     app.dependency_overrides[get_db] = lambda: session
     try:
         yield TestClient(app), session, row
@@ -136,3 +138,4 @@ def test_accept_records_explicit_audit_fields(client: object) -> None:
     assert row.evidence["review_decision"] == {"verified": True}
     assert session.committed
     assert session.run.status == "QUALITY_CHECK"
+    assert len(session.outbox_events) == 1
