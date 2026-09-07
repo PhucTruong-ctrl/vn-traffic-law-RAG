@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.api.db import get_db
 from app.api.errors import NOT_FOUND, APIError
 from app.ingestion.actors.embed import embed_actor
-from app.persistence.models import LegalProvision, ReviewItem
+from app.persistence.models import IngestionRun, LegalProvision, ReviewItem
 from app.persistence.repositories.review_items import ReviewItemRepository
 
 router = APIRouter(prefix="/api/v1", tags=["review"])
@@ -117,16 +117,6 @@ def decide_review_item(
         raise APIError(
             "REVIEW_ALREADY_DECIDED", "Review item is already terminal.", status_code=409
         )
-    if request.decision == "ACCEPTED" and (
-        request.effective_from is None
-        or request.effective_to is not None
-        and request.effective_to <= request.effective_from
-    ):
-        raise APIError(
-            "INVALID_EFFECTIVE_INTERVAL",
-            "Accepted review requires a valid effective interval.",
-            status_code=409,
-        )
     evidence = {**(row.evidence or {}), "review_decision": request.evidence}
     if request.effective_from is not None:
         evidence["effective_from"] = request.effective_from.isoformat()
@@ -149,11 +139,13 @@ def decide_review_item(
                 target.effective_to = request.effective_to
                 target.review_status = "ACCEPTED"
         continue_run = repository.continue_run_after_decision(item_id, request.decision)
+        run = db.get(IngestionRun, row.ingestion_run_id)
+        resume_job_id = run.job_id if run is not None else None
         db.commit()
     except ValueError as exc:
         db.rollback()
         raise APIError("REVIEW_CONFLICT", str(exc), status_code=409) from exc
     db.refresh(row)
-    if continue_run:
-        embed_actor.send(row.ingestion_run.job_id)
+    if continue_run and resume_job_id is not None:
+        embed_actor.send(resume_job_id)
     return _response(row, http_request.headers.get("X-Trace-ID"))
