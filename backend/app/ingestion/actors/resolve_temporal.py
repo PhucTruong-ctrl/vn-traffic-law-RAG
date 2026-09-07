@@ -301,12 +301,17 @@ def resolve_temporal_actor(job_id: str) -> None:
                     row.effective_to = matching_version.effective_to
                     row.review_status = matching_version.review_status
             if result.review_required and result.errors:
+                reason_code = (
+                    "UNKNOWN_EFFECTIVE_DATE"
+                    if any("uncertain effective_from" in error for error in result.errors)
+                    else "TEMPORAL_REVIEW_REQUIRED"
+                )
                 existing = session.scalar(
                     select(ReviewItem).where(
                         ReviewItem.ingestion_run_id == run.id,
                         ReviewItem.document_id == result_document_id,
                         ReviewItem.document_version_id == result_version_id,
-                        ReviewItem.reason_code == "UNKNOWN_EFFECTIVE_DATE",
+                        ReviewItem.reason_code == reason_code,
                         ReviewItem.status == "PENDING",
                     )
                 )
@@ -318,13 +323,7 @@ def resolve_temporal_actor(job_id: str) -> None:
                             target_type="document",
                             target_id=result_document_id,
                             document_version_id=result_version_id,
-                            reason_code=(
-                                "UNKNOWN_EFFECTIVE_DATE"
-                                if any(
-                                    "uncertain effective_from" in error for error in result.errors
-                                )
-                                else "TEMPORAL_REVIEW_REQUIRED"
-                            ),
+                            reason_code=reason_code,
                             description="Temporal resolution requires review",
                             evidence={"errors": list(result.errors)},
                         )

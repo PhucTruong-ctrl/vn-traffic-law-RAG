@@ -82,6 +82,8 @@ class ReviewItemRepository:
     def _apply_temporal_correction(
         self, row: ReviewItem, effective_from: date | None, effective_to: date | None
     ) -> None:
+        if row.reason_code == "TEMPORAL_REVIEW_REQUIRED":
+            raise ValueError("TEMPORAL_REVIEW_REQUIRED requires a typed temporal correction")
         if row.reason_code == "UNKNOWN_EFFECTIVE_DATE":
             if row.target_type.upper() == "PROVISION":
                 target = self._session.scalar(
