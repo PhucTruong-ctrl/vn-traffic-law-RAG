@@ -5,21 +5,6 @@ write methods flush to the injected session but never commit — the caller
 owns the transaction. ``review_items`` records quality-gate review decisions
 (doc 03 §3.9.11, §3.4.2); each row is created ``PENDING`` and a reviewer
 moves it to a terminal state through the review CLI / review API.
-
-Decision -> DB status mapping.  The DB CHECK constraint allows only
-``PENDING`` / ``ACCEPTED`` / ``REJECTED`` / ``DROPPED`` (models.py
-``_REVIEW_STATUS_VALUES``), so the ``NEEDS_REVIEW`` routing decision maps
-back to ``PENDING`` — the row stays in the review queue:
-
-- ACCEPTED      -> ACCEPTED   (indexable)
-- NEEDS_REVIEW  -> PENDING    (still awaiting review; no NEEDS_REVIEW state
-                               exists in the DB)
-- REJECTED      -> REJECTED   (dropped, never indexed)
-- DROPPED       -> DROPPED    (dropped, never indexed)
-
-Indexing boundary: this repository only records the decision.  Enforcement
-that ACCEPTED rows are indexed and everything else is not lives in the
-ingestion pipeline (VNLRAG-44).
 """
 
 from __future__ import annotations
@@ -31,11 +16,9 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.persistence.models import ReviewItem
+from app.persistence.models import DocumentVersion, IngestionRun, LegalProvision, ReviewItem
 
 Decision = Literal["ACCEPTED", "NEEDS_REVIEW", "REJECTED", "DROPPED"]
-
-#: CLI/API decision -> ``review_items.status`` value (see module docstring).
 DECISION_TO_STATUS: dict[str, str] = {
     "ACCEPTED": "ACCEPTED",
     "NEEDS_REVIEW": "PENDING",
@@ -64,7 +47,6 @@ class ReviewItemRepository:
         description: str | None = None,
         evidence: dict[str, Any] | None = None,
     ) -> ReviewItem:
-        """Persist a new review item with status PENDING; returns it."""
         row = ReviewItem(
             ingestion_run_id=ingestion_run_id,
             document_id=document_id,
@@ -79,17 +61,13 @@ class ReviewItemRepository:
         return row
 
     def list(self, status: str | None = None, limit: int = 100) -> list[ReviewItem]:
-        """Review items, oldest first (FIFO review queue), optionally filtered
-        by status; capped at ``limit`` rows."""
         stmt = select(ReviewItem).order_by(ReviewItem.created_at.asc(), ReviewItem.id.asc())
         if status is not None:
             stmt = stmt.where(ReviewItem.status == status)
         return list(self._session.scalars(stmt.limit(limit)))
 
     def get(self, item_id: UUID) -> ReviewItem | None:
-        """Fetch one review item by id, or None."""
-        stmt = select(ReviewItem).where(ReviewItem.id == item_id)
-        return self._session.scalar(stmt)
+        return self._session.scalar(select(ReviewItem).where(ReviewItem.id == item_id))
 
     def record_decision(
         self,
@@ -98,12 +76,6 @@ class ReviewItemRepository:
         reviewer: str,
         reason: str | None = None,
     ) -> ReviewItem:
-        """Record a reviewer decision: status + reviewer + reviewed_at (UTC now).
-
-        ``reason`` is appended to the item's description for audit.  Raises
-        ``ReviewItemNotFoundError`` for unknown items and ``ValueError`` for
-        decisions outside ``DECISION_TO_STATUS``.
-        """
         status = DECISION_TO_STATUS.get(decision)
         if status is None:
             raise ValueError(f"invalid review decision: {decision!r}")
@@ -117,6 +89,51 @@ class ReviewItemRepository:
             row.description = "\n".join(part for part in (row.description, reason) if part)
         self._session.flush()
         return row
+
+    def continue_run_after_decision(self, item_id: UUID, decision: Decision) -> bool:
+        """Resolve the target and return whether the embed actor should resume."""
+        item = self.get(item_id)
+        if item is None:
+            raise ReviewItemNotFoundError(f"review item {item_id} not found")
+        run = self._session.get(IngestionRun, item.ingestion_run_id)
+        if run is None:
+            raise ValueError(f"ingestion run {item.ingestion_run_id} not found")
+
+        if item.target_type.upper() == "PROVISION":
+            target = self._session.scalar(
+                select(LegalProvision)
+                .join(LegalProvision.document_version)
+                .where(
+                    LegalProvision.provision_id == item.target_id,
+                    DocumentVersion.document_id == run.document_id,
+                )
+            )
+            if target is None:
+                raise ValueError(f"provision {item.target_id!r} not found")
+            target.review_status = "ACCEPTED" if decision == "ACCEPTED" else "DROPPED"
+
+        items = list(
+            self._session.scalars(
+                select(ReviewItem).where(ReviewItem.ingestion_run_id == item.ingestion_run_id)
+            )
+        )
+        if decision in {"REJECTED", "DROPPED"}:
+            run.status = "DROPPED"
+            run.current_stage = "QUALITY_CHECK"
+            run.error = {"code": "REVIEW_REJECTED", "review_item_id": str(item.id)}
+            self._session.flush()
+            return False
+        if any(other.status == "PENDING" for other in items):
+            run.status = "PENDING_REVIEW"
+            run.current_stage = "QUALITY_CHECK"
+            self._session.flush()
+            return False
+
+        run.status = "QUALITY_CHECK"
+        run.current_stage = "QUALITY_CHECK"
+        run.error = None
+        self._session.flush()
+        return True
 
 
 __all__ = [

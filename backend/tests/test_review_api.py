@@ -4,24 +4,41 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterator
+from datetime import UTC, date, datetime
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.api.db import get_db
 from app.main import app
-from app.persistence.models import ReviewItem
+from app.persistence.models import IngestionRun, LegalProvision, ReviewItem
 
 
 class Session:
-    def __init__(self, row: ReviewItem) -> None:
+    def __init__(self, row: ReviewItem, provision: LegalProvision) -> None:
         self.row = row
+        self.provision = provision
+        self.run = IngestionRun(
+            id=row.ingestion_run_id,
+            job_id="job-1",
+            document_id=row.document_id,
+            manifest_json={},
+            file_hash="hash",
+            status="PENDING_REVIEW",
+            current_stage="QUALITY_CHECK",
+        )
         self.committed = False
+
+    def get(self, model: object, key: object) -> object:
+        return self.run
 
     def scalars(self, statement: object) -> list[ReviewItem]:
         return [self.row] if self.row.status == "PENDING" else []
 
-    def scalar(self, statement: object) -> ReviewItem | None:
+    def scalar(self, statement: object) -> ReviewItem | LegalProvision | None:
+        entity = statement.column_descriptions[0].get("entity")
+        if entity is LegalProvision:
+            return self.provision
         criterion = statement.whereclause
         requested_id = criterion.right.value
         return self.row if self.row.id == requested_id else None
@@ -37,7 +54,19 @@ class Session:
 
 
 @pytest.fixture()
-def client() -> Iterator[tuple[TestClient, Session, ReviewItem]]:
+def client(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient, Session, ReviewItem]]:
+    provision = LegalProvision(
+        id=uuid.uuid4(),
+        provision_id="p-1",
+        version=1,
+        document_version_id=uuid.uuid4(),
+        source_text="text",
+        retrieval_text="text",
+        status="EFFECTIVE",
+        page_number=1,
+        content_hash="hash",
+        effective_from=date.today(),
+    )
     row = ReviewItem(
         id=uuid.uuid4(),
         ingestion_run_id=uuid.uuid4(),
@@ -49,8 +78,10 @@ def client() -> Iterator[tuple[TestClient, Session, ReviewItem]]:
         evidence={"source": "scan"},
         status="PENDING",
     )
-    row.created_at = __import__("datetime").datetime.now(__import__("datetime").UTC)
-    session = Session(row)
+    row.created_at = datetime.now(UTC)
+    session = Session(row, provision)
+    sent: list[str] = []
+    monkeypatch.setattr("app.api.review.embed_actor.send", sent.append)
     app.dependency_overrides[get_db] = lambda: session
     try:
         yield TestClient(app), session, row
@@ -94,3 +125,4 @@ def test_accept_records_explicit_audit_fields(client: object) -> None:
     assert row.reviewed_at is not None
     assert row.evidence["review_decision"] == {"verified": True}
     assert session.committed
+    assert session.run.status == "QUALITY_CHECK"

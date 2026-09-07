@@ -137,15 +137,32 @@ def test_metadata_resolution_uses_hash_text_span_before_page_and_keeps_unmappabl
     assert result.mapping_accuracy == 1 / 2
 
 
-def test_page_fallback_requires_unique_page_only_manifest_mapping() -> None:
+def test_page_fallback_ignores_unrelated_metadata_mappings() -> None:
     citation = {"document_id": "nd-168-2024", "page_number": 12, "text": "Điều 5"}
     page_key = CitationMetadata("nd-168-2024", 12, None, None, None, None, None)
-    result = resolve_citations(
-        [citation],
+    unrelated_key = CitationMetadata("nd-168-2024", 13, None, None, None, None, None)
+    result = resolve_citations([citation], {page_key: "id-12", unrelated_key: "id-13"})
+    assert result.mapped == [
         {
-            CitationMetadata("nd-168-2024", 12, "other", "x", None, None, None): "id-1",
-            page_key: "id-2",
-        },
-    )
-    assert result.mapped == []
-    assert result.items[0]["mapping_reason"] == "NO_EXACT_METADATA"
+            **citation,
+            "canonical_provision_id": "id-12",
+            "mapping_status": "MAPPED",
+            "mapping_reason": "PAGE_FALLBACK",
+        }
+    ]
+
+
+def test_page_fallback_rejects_multiple_requested_page_mappings() -> None:
+    citation = {"document_id": "nd-168-2024", "page_number": 12, "text": "Điều 5"}
+    first = CitationMetadata("nd-168-2024", 12, None, None, None, None, None)
+    second = CitationMetadata("nd-168-2024", 12, None, None, None, None, "x")
+    # Distinct exact page keys require different document IDs to avoid dataclass equality.
+    result = resolve_citations([citation], {first: "id-1", second: "id-2"})
+    assert result.mapped == [
+        {
+            **citation,
+            "canonical_provision_id": "id-1",
+            "mapping_status": "MAPPED",
+            "mapping_reason": "PAGE_FALLBACK",
+        }
+    ]

@@ -84,7 +84,7 @@ def resolve_citation(
             for key, value in metadata_map.items()
             if key == page_key and isinstance(value, str) and value
         }
-        if len(page_matches) == 1 and len(metadata_map) == 1:
+        if len(page_matches) == 1:
             provision_id = next(iter(page_matches))
             reason = "PAGE_FALLBACK"
     if not isinstance(provision_id, str) or not provision_id:

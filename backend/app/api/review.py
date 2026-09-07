@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.api.db import get_db
 from app.api.errors import NOT_FOUND, APIError
+from app.ingestion.actors.embed import embed_actor
 from app.persistence.models import ReviewItem
 from app.persistence.repositories.review_items import ReviewItemRepository
 
@@ -93,7 +94,12 @@ def decide_review_item(
     if row is None:
         raise APIError(NOT_FOUND, "Review item was not found.", status_code=404)
     row.evidence = {**(row.evidence or {}), "review_decision": request.evidence}
-    ReviewItemRepository(db).record_decision(item_id, request.decision, request.reviewer)
+    repository = ReviewItemRepository(db)
+    repository.record_decision(item_id, request.decision, request.reviewer)
+    continue_run = repository.continue_run_after_decision(item_id, request.decision)
+    job_id = row.ingestion_run_id
     db.commit()
     db.refresh(row)
+    if continue_run:
+        embed_actor.send(job_id.hex)
     return _response(row, http_request.headers.get("X-Trace-ID"))
