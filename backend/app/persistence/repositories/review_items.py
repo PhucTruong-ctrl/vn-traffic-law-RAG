@@ -83,6 +83,20 @@ class ReviewItemRepository:
         self, row: ReviewItem, effective_from: date | None, effective_to: date | None
     ) -> None:
         if row.reason_code == "UNKNOWN_EFFECTIVE_DATE":
+            if row.target_type.upper() == "PROVISION":
+                target = self._session.scalar(
+                    select(LegalProvision)
+                    .where(
+                        LegalProvision.provision_id == row.target_id,
+                        LegalProvision.document_version_id == row.document_version_id,
+                        LegalProvision.version == row.target_version,
+                    )
+                    .with_for_update()
+                )
+                if target is None:
+                    raise ValueError("review provision target not found")
+                target.effective_from, target.effective_to = effective_from, effective_to
+                return
             if effective_from is None or row.document_version_id is None:
                 raise ValueError("effective_from and document version are required")
             version = self._session.scalar(

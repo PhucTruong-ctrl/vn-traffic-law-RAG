@@ -309,6 +309,7 @@ def resolve_temporal_actor(job_id: str) -> None:
                             document_id=run.document_id,
                             target_type="document",
                             target_id=run.document_id,
+                            document_version_id=version.id,
                             reason_code="UNKNOWN_EFFECTIVE_DATE",
                             description="Temporal resolution requires review",
                             evidence={"errors": list(result.errors)},
