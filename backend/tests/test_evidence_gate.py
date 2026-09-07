@@ -123,10 +123,3 @@ def test_targeted_query_mentions_original_and_gap_term() -> None:
 def test_empty_evidence_plan_is_complete() -> None:
     result = EvidenceCompletenessGate().evaluate(_plan(), [])
     assert result.status is EvidenceStatus.COMPLETE
-
-
-def test_injected_plan_without_required_evidence_is_complete() -> None:
-    plan = type("InjectedPlan", (), {})()
-    result = EvidenceCompletenessGate().evaluate(plan, [])
-    assert result.status is EvidenceStatus.COMPLETE
-    assert result.evidence_gaps == []

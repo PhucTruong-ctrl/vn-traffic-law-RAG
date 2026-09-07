@@ -13,12 +13,14 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-ragflow}
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./init.sql:/data/application/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$${MYSQL_ROOT_PASSWORD} --silent"]
       interval: 10s
       timeout: 5s
       retries: 12
       start_period: 30s
+    command: ["--init-file=/data/application/init.sql"]
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.3
