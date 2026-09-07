@@ -2,7 +2,7 @@
 #
 # Mirrors the local pre-PR checks (doc 07 §7.11.1):
 #   backend  : uv sync --locked → ruff check/format → mypy → pytest (unit suite)
-#   frontend : npm ci → tsc --noEmit → next build
+#   frontend : npm ci → eslint → tsc --noEmit → next build
 #   commitlint: PR commit messages (same config/hook used by .husky/commit-msg)
 #
 # Design notes:
@@ -99,7 +99,7 @@ jobs:
         run: uv run pytest tests/ -q --no-cov -m integration
 
   frontend:
-    name: Frontend (npm ci / typecheck / build)
+    name: Frontend (npm ci / lint / typecheck / build)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -115,6 +115,8 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install locked deps
         run: npm ci
+      - name: Lint (eslint)
+        run: npm run lint
       - name: Type check (tsc --noEmit)
         run: npm run typecheck
       - name: Build (next build)

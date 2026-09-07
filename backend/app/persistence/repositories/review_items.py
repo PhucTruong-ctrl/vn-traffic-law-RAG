@@ -16,7 +16,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.persistence.models import DocumentVersion, IngestionRun, LegalProvision, ReviewItem
+from app.persistence.models import IngestionRun, LegalProvision, ReviewItem
 
 Decision = Literal["ACCEPTED", "NEEDS_REVIEW", "REJECTED", "DROPPED"]
 DECISION_TO_STATUS: dict[str, str] = {
@@ -46,12 +46,16 @@ class ReviewItemRepository:
         reason_code: str,
         description: str | None = None,
         evidence: dict[str, Any] | None = None,
+        document_version_id: UUID | None = None,
+        target_version: int | None = None,
     ) -> ReviewItem:
         row = ReviewItem(
             ingestion_run_id=ingestion_run_id,
             document_id=document_id,
             target_type=target_type,
             target_id=target_id,
+            document_version_id=document_version_id,
+            target_version=target_version,
             reason_code=reason_code,
             description=description,
             evidence=evidence,
@@ -82,6 +86,10 @@ class ReviewItemRepository:
         row = self.get(item_id)
         if row is None:
             raise ReviewItemNotFoundError(f"review item {item_id} not found")
+        if row.status != "PENDING":
+            if row.status == status and row.reviewer == reviewer:
+                return row
+            raise ValueError(f"review item {item_id} is already terminal ({row.status})")
         row.status = status
         row.reviewer = reviewer
         row.reviewed_at = datetime.now(UTC)
@@ -95,17 +103,18 @@ class ReviewItemRepository:
         item = self.get(item_id)
         if item is None:
             raise ReviewItemNotFoundError(f"review item {item_id} not found")
-        run = self._session.get(IngestionRun, item.ingestion_run_id)
+        run = self._session.scalar(
+            select(IngestionRun).where(IngestionRun.id == item.ingestion_run_id).with_for_update()
+        )
         if run is None:
             raise ValueError(f"ingestion run {item.ingestion_run_id} not found")
 
         if item.target_type.upper() == "PROVISION":
             target = self._session.scalar(
-                select(LegalProvision)
-                .join(LegalProvision.document_version)
-                .where(
+                select(LegalProvision).where(
                     LegalProvision.provision_id == item.target_id,
-                    DocumentVersion.document_id == run.document_id,
+                    LegalProvision.document_version_id == item.document_version_id,
+                    LegalProvision.version == item.target_version,
                 )
             )
             if target is None:

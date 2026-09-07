@@ -32,13 +32,18 @@ class Session:
     def get(self, model: object, key: object) -> object:
         return self.run
 
+    def scalar_one_or_none(self, statement: object) -> object:
+        return self.run
+
     def scalars(self, statement: object) -> list[ReviewItem]:
         return [self.row] if self.row.status == "PENDING" else []
 
-    def scalar(self, statement: object) -> ReviewItem | LegalProvision | None:
+    def scalar(self, statement: object) -> ReviewItem | LegalProvision | IngestionRun | None:
         entity = statement.column_descriptions[0].get("entity")
         if entity is LegalProvision:
             return self.provision
+        if entity is IngestionRun:
+            return self.run
         criterion = statement.whereclause
         requested_id = criterion.right.value
         return self.row if self.row.id == requested_id else None
@@ -117,7 +122,12 @@ def test_accept_records_explicit_audit_fields(client: object) -> None:
     http, session, row = client
     response = http.post(
         f"/api/v1/review/items/{row.id}/decision",
-        json={"decision": "ACCEPTED", "reviewer": "alice", "evidence": {"verified": True}},
+        json={
+            "decision": "ACCEPTED",
+            "reviewer": "alice",
+            "evidence": {"verified": True},
+            "effective_from": "2025-01-01",
+        },
     )
     assert response.status_code == 200
     assert response.json()["status"] == "ACCEPTED"

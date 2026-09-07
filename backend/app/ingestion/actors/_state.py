@@ -135,7 +135,7 @@ def utcnow() -> datetime:
 
 def load_run(session: Session, job_id: str) -> IngestionRun | None:
     """Fetch the run by its unique ``job_id``, or None."""
-    stmt = select(IngestionRun).where(IngestionRun.job_id == job_id)
+    stmt = select(IngestionRun).where(IngestionRun.job_id == job_id).with_for_update()
     return session.scalar(stmt)
 
 

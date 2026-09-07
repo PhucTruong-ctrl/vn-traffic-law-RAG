@@ -660,8 +660,14 @@ class ReviewItem(Base):
         UUID(as_uuid=True), ForeignKey("ingestion_runs.id"), nullable=False
     )
     document_id: Mapped[str] = mapped_column(String, nullable=False)
+    # Immutable review target binding: a decision must never follow a later
+    # document/provision version merely because it is now the latest row.
+    document_version_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("document_versions.id")
+    )
     target_type: Mapped[str] = mapped_column(String, nullable=False)
     target_id: Mapped[str] = mapped_column(String, nullable=False)
+    target_version: Mapped[int | None] = mapped_column(Integer)
     reason_code: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     evidence: Mapped[dict[str, Any] | None] = mapped_column(JSONB)

@@ -177,6 +177,15 @@ def resolve_temporal_actor(job_id: str) -> None:
                     document_id=run.document_id,
                     target_type="document",
                     target_id=relation.target_document_id,
+                    document_version_id=(
+                        target_version.id
+                        if (
+                            target_version := latest_document_version(
+                                session, relation.target_document_id
+                            )
+                        )
+                        else None
+                    ),
                     reason_code="UNSCOPED_AMENDMENT",
                     description="Document amendment lacks affected provision scope",
                     evidence={"relation_type": relation.relation_type},
@@ -189,6 +198,15 @@ def resolve_temporal_actor(job_id: str) -> None:
                     document_id=run.document_id,
                     target_type="document",
                     target_id=relation.target_document_id,
+                    document_version_id=(
+                        target_version.id
+                        if (
+                            target_version := latest_document_version(
+                                session, relation.target_document_id
+                            )
+                        )
+                        else None
+                    ),
                     reason_code="MISSING_TARGET_CONTENT",
                     description="Temporal relation target has no persisted provision content",
                     evidence={"relation_type": relation.relation_type},
@@ -233,6 +251,10 @@ def resolve_temporal_actor(job_id: str) -> None:
                                 document_id=run.document_id,
                                 target_type="provision",
                                 target_id=resolved.provision_id,
+                                document_version_id=source_row.document_version_id
+                                if source_row
+                                else None,
+                                target_version=resolved.version,
                                 reason_code="MISSING_SUCCESSOR_CONTENT",
                                 description="Temporal successor content is not persisted",
                                 evidence={"version": successor},
@@ -247,7 +269,9 @@ def resolve_temporal_actor(job_id: str) -> None:
                         ProvisionVersion(
                             provision_id=resolved.provision_id,
                             version=resolved.version,
-                            document_version_id=source_row.document_version_id,
+                            document_version_id=source_row.document_version_id
+                            if source_row
+                            else None,
                         )
                     )
                 predecessor.superseded_by_version = successor

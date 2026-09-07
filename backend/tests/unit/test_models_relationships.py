@@ -473,7 +473,7 @@ def test_documented_column_count_is_stable() -> None:
         "document_elements": 14,
         "ingestion_runs": 13,
         "ingestion_artifacts": 8,
-        "review_items": 12,
+        "review_items": 14,
         "query_traces": 18,
         "query_feedback": 6,
         "evaluation_datasets": 8,

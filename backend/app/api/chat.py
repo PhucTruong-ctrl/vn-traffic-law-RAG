@@ -28,6 +28,7 @@ def _optional_db():
     except RuntimeError:
         yield None
 
+
 router = APIRouter(prefix="/api/v1", tags=["chat"])
 _TRACE_STORE = QueryTraceStore()
 DISCLAIMER = "This response is informational and not legal advice."

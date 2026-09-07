@@ -2,9 +2,9 @@
   "name": "vnlaw-frontend",
   "version": "0.1.0",
   "private": true,
-  "description": "VN Traffic Law RAG — frontend (Next.js App Router)",
+  "description": "VN Traffic Law RAG \u2014 frontend (Next.js App Router)",
   "engines": {
-    "node": ">=20.9.0"
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
   },
   "packageManager": "npm@12.0.2",
   "scripts": {

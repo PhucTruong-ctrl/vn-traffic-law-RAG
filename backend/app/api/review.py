@@ -3,17 +3,18 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Body, Depends, Query, Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.db import get_db
 from app.api.errors import NOT_FOUND, APIError
 from app.ingestion.actors.embed import embed_actor
-from app.persistence.models import ReviewItem
+from app.persistence.models import LegalProvision, ReviewItem
 from app.persistence.repositories.review_items import ReviewItemRepository
 
 router = APIRouter(prefix="/api/v1", tags=["review"])
@@ -29,6 +30,8 @@ class ReviewItemResponse(BaseModel):
     reason_code: str
     description: str | None
     evidence: dict[str, object] | None
+    document_version_id: uuid.UUID | None
+    target_version: int | None
     status: str
     reviewer: str | None
     reviewed_at: datetime | None
@@ -42,6 +45,20 @@ class ReviewDecisionRequest(BaseModel):
     decision: Literal["ACCEPTED", "REJECTED"]
     reviewer: str = Field(min_length=1, max_length=256)
     evidence: dict[str, object] = Field(min_length=1)
+    effective_from: date | None = None
+    effective_to: date | None = None
+
+    @model_validator(mode="after")
+    def validate_interval(self) -> ReviewDecisionRequest:
+        if self.decision == "ACCEPTED" and self.effective_from is None:
+            raise ValueError("effective_from is required when accepting a review item")
+        if (
+            self.effective_from is not None
+            and self.effective_to is not None
+            and self.effective_to <= self.effective_from
+        ):
+            raise ValueError("effective_to must be later than effective_from")
+        return self
 
 
 def _response(row: ReviewItem, trace_id: str | None = None) -> ReviewItemResponse:
@@ -90,16 +107,53 @@ def decide_review_item(
     http_request: Request,
 ) -> ReviewItemResponse:
     """Record an explicit human decision; no decision is inferred or defaulted."""
-    row = ReviewItemRepository(db).get(item_id)
+    repository = ReviewItemRepository(db)
+    row = repository.get(item_id)
     if row is None:
         raise APIError(NOT_FOUND, "Review item was not found.", status_code=404)
-    row.evidence = {**(row.evidence or {}), "review_decision": request.evidence}
-    repository = ReviewItemRepository(db)
-    repository.record_decision(item_id, request.decision, request.reviewer)
-    continue_run = repository.continue_run_after_decision(item_id, request.decision)
-    job_id = row.ingestion_run_id
-    db.commit()
+    if row.status != "PENDING":
+        if row.status == request.decision and row.reviewer == request.reviewer:
+            return _response(row, http_request.headers.get("X-Trace-ID"))
+        raise APIError(
+            "REVIEW_ALREADY_DECIDED", "Review item is already terminal.", status_code=409
+        )
+    if request.decision == "ACCEPTED" and (
+        request.effective_from is None
+        or request.effective_to is not None
+        and request.effective_to <= request.effective_from
+    ):
+        raise APIError(
+            "INVALID_EFFECTIVE_INTERVAL",
+            "Accepted review requires a valid effective interval.",
+            status_code=409,
+        )
+    evidence = {**(row.evidence or {}), "review_decision": request.evidence}
+    if request.effective_from is not None:
+        evidence["effective_from"] = request.effective_from.isoformat()
+        evidence["effective_to"] = (
+            request.effective_to.isoformat() if request.effective_to else None
+        )
+    row.evidence = evidence
+    try:
+        repository.record_decision(item_id, request.decision, request.reviewer)
+        if request.effective_from is not None and row.document_version_id is not None:
+            target = db.scalar(
+                select(LegalProvision).where(
+                    LegalProvision.document_version_id == row.document_version_id,
+                    LegalProvision.provision_id == row.target_id,
+                    LegalProvision.version == row.target_version,
+                )
+            )
+            if target is not None:
+                target.effective_from = request.effective_from
+                target.effective_to = request.effective_to
+                target.review_status = "ACCEPTED"
+        continue_run = repository.continue_run_after_decision(item_id, request.decision)
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        raise APIError("REVIEW_CONFLICT", str(exc), status_code=409) from exc
     db.refresh(row)
     if continue_run:
-        embed_actor.send(job_id.hex)
+        embed_actor.send(row.ingestion_run.job_id)
     return _response(row, http_request.headers.get("X-Trace-ID"))

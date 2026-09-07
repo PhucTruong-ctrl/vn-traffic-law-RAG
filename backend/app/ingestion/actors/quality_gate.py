@@ -124,6 +124,8 @@ def quality_gate_actor(job_id: str) -> None:
                     document_id=run.document_id,
                     target_type=TARGET_TYPE_PROVISION,
                     target_id=row.provision_id,
+                    document_version_id=row.document_version_id,
+                    target_version=row.version,
                     reason_code=";".join(decision.reason_codes),
                     description=(
                         f"Quality gate routed {row.provision_id} to review: "
@@ -139,6 +141,8 @@ def quality_gate_actor(job_id: str) -> None:
                     document_id=run.document_id,
                     target_type=TARGET_TYPE_PROVISION,
                     target_id=row.provision_id,
+                    document_version_id=row.document_version_id,
+                    target_version=row.version,
                     reason_code=";".join(decision.reason_codes),
                     description=(
                         f"Quality gate dropped {row.provision_id}: "
