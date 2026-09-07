@@ -15,7 +15,9 @@ source "$ENV_FILE"
 set +a
 # Host-launched processes use Compose's published localhost ports.
 export DATABASE_URL="${DATABASE_URL/@postgres:5432\//@127.0.0.1:5432/}"
-export REDIS_URL="${REDIS_URL/redis:\/\//127.0.0.1:}"
+if [[ "$REDIS_URL" == redis://redis:* ]]; then
+  export REDIS_URL="${REDIS_URL/redis:\/\/redis:/redis:\/\/127.0.0.1:}"
+fi
 export QDRANT_URL="${QDRANT_URL/qdrant/127.0.0.1}"
 export S3_ENDPOINT="${S3_ENDPOINT/minio/127.0.0.1}"
 export MINIO_ENDPOINT="${MINIO_ENDPOINT/minio/127.0.0.1}"

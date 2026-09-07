@@ -153,4 +153,6 @@ def extract_actor(job_id: str) -> None:
     finally:
         session.close()
     resolve_refs_actor.send(job_id)
+
+
 __all__ = ["extract_actor"]

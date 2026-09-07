@@ -83,7 +83,9 @@ class ReviewItemRepository:
         status = DECISION_TO_STATUS.get(decision)
         if status is None:
             raise ValueError(f"invalid review decision: {decision!r}")
-        row = self.get(item_id)
+        row = self._session.scalar(
+            select(ReviewItem).where(ReviewItem.id == item_id).with_for_update()
+        )
         if row is None:
             raise ReviewItemNotFoundError(f"review item {item_id} not found")
         if row.status != "PENDING":
@@ -100,7 +102,9 @@ class ReviewItemRepository:
 
     def continue_run_after_decision(self, item_id: UUID, decision: Decision) -> bool:
         """Resolve the target and return whether the embed actor should resume."""
-        item = self.get(item_id)
+        item = self._session.scalar(
+            select(ReviewItem).where(ReviewItem.id == item_id).with_for_update()
+        )
         if item is None:
             raise ReviewItemNotFoundError(f"review item {item_id} not found")
         run = self._session.scalar(
@@ -138,12 +142,18 @@ class ReviewItemRepository:
             self._session.flush()
             return False
 
-        run.status = "QUALITY_CHECK"
-        run.current_stage = "QUALITY_CHECK"
+        temporal_review = item.reason_code in {
+            "UNKNOWN_EFFECTIVE_DATE",
+            "TEMPORAL_REVIEW",
+            "MISSING_SUCCESSOR_CONTENT",
+        } or item.reason_code.startswith("TEMPORAL_")
+        resume_stage = "RESOLVING_TEMPORAL" if temporal_review else "QUALITY_CHECK"
+        run.status = resume_stage
+        run.current_stage = resume_stage
         run.error = None
         self._session.add(
             OutboxEvent(
-                event_type="RESUME_EMBED",
+                event_type="RESUME_TEMPORAL" if temporal_review else "RESUME_EMBED",
                 job_id=run.job_id,
                 payload={"job_id": run.job_id},
             )

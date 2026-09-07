@@ -1194,6 +1194,7 @@ def test_discover_variant_runs_rejects_root_artifacts_in_phase(tmp_path: Path) -
     with pytest.raises(ValueError, match="no COMPLETED p1/p2/p3 run trio"):
         _discover_variant_runs(base)
 
+
 def test_discover_variant_runs_requires_full_trio(tmp_path: Path) -> None:
     """Discovery refuses an incomplete trio (missing variant)."""
     base = tmp_path / "runs"
@@ -1215,7 +1216,7 @@ def test_discover_variant_runs_does_not_group_byte_different_manifests(tmp_path:
         _write_synthetic_run(base, run_id, parser, doc_ids=docs)
     # Keep JSON semantics identical while changing only insignificant bytes.
     manifest = base / "run-20260809-000001-bbbbbb" / "input-manifest.json"
-    manifest.write_bytes(manifest.read_bytes().replace(b"\"entries\":", b"\"entries\" :"))
+    manifest.write_bytes(manifest.read_bytes().replace(b'"entries":', b'"entries" :'))
 
     with pytest.raises(ValueError, match="no COMPLETED p1/p2/p3 run trio"):
         _discover_variant_runs(base)

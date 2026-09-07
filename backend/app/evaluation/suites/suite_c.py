@@ -133,9 +133,7 @@ def validate_validation_set(
                 ),
             )
         if value.id in seen:
-            raise ValidationSetBlocked(
-                len(records), reason=f"duplicate record id: {value.id}"
-            )
+            raise ValidationSetBlocked(len(records), reason=f"duplicate record id: {value.id}")
         seen.add(value.id)
         parsed.append(value)
     return tuple(parsed)

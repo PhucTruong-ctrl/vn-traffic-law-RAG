@@ -61,9 +61,10 @@ def test_non_approved_validation_record_blocks_before_running() -> None:
     payload["hash"] = GoldRecord.model_validate({**payload, "hash": "0" * 64}).computed_hash()
     records[7] = GoldRecord.model_validate(payload)
 
-    with pytest.raises(ValidationSetBlocked, match=(
-        r"record 7 has review status REVIEWED; Suite C requires APPROVED records"
-    )):
+    with pytest.raises(
+        ValidationSetBlocked,
+        match=(r"record 7 has review status REVIEWED; Suite C requires APPROVED records"),
+    ):
         validate_validation_set(records)
 
 

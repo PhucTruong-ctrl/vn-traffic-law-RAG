@@ -23,10 +23,17 @@ build_query_graph = _production_build_query_graph
 
 def _optional_db():
     """Return a database session when configured; otherwise yield ``None``."""
+    database = get_db()
     try:
-        yield from get_db()
+        session = next(database)
     except RuntimeError:
         yield None
+        return
+    try:
+        yield session
+    finally:
+        with suppress(StopIteration):
+            next(database)
 
 
 router = APIRouter(prefix="/api/v1", tags=["chat"])

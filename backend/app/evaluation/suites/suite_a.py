@@ -1989,12 +1989,15 @@ def _discover_variant_runs(base_dir: Path) -> dict[str, Path]:
                 run_root / "run.json",
                 run_root / "input-manifest.json",
                 run_root / "report.md",
-                *(run_root / phase / artifact for artifact in (
-                    "results.json",
-                    "metrics.json",
-                    "routing-and-gates.json",
-                    "artifacts-manifest.json",
-                )),
+                *(
+                    run_root / phase / artifact
+                    for artifact in (
+                        "results.json",
+                        "metrics.json",
+                        "routing-and-gates.json",
+                        "artifacts-manifest.json",
+                    )
+                ),
             )
         ):
             continue

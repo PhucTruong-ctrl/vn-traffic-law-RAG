@@ -824,9 +824,7 @@ def test_needs_review_creates_review_items_and_halts(
 
         # Resolving the audit row must allow the gate to evaluate again.
         with Session(engine) as session:
-            item = session.scalar(
-                select(ReviewItem).where(ReviewItem.ingestion_run_id == run_id)
-            )
+            item = session.scalar(select(ReviewItem).where(ReviewItem.ingestion_run_id == run_id))
             assert item is not None
             item.status = "REJECTED"
             session.commit()
