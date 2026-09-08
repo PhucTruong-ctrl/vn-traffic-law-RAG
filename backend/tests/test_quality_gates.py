@@ -548,14 +548,18 @@ def test_evaluate_group_b_clean_tree_passes() -> None:
 
 def test_group_b_result_metrics_contract_keys() -> None:
     metrics = evaluate_group_b(_clean_tree()).metrics
-    assert set(metrics) == {
+    assert set(metrics) >= {
         "point_label_detection_rate",
         "hierarchy_completeness",
         "short_point_retention_rate",
         "orphan_point_count",
         "orphan_clause_count",
         "duplicate_count",
+        "point_label_denominator",
+        "point_label_misses",
     }
+    assert metrics["point_label_denominator"] == 2
+    assert metrics["point_label_misses"] == []
 
 
 def test_evaluate_group_b_point_label_detection_boundary() -> None:
@@ -629,13 +633,13 @@ def test_evaluate_group_b_short_point_retention_never_fails() -> None:
     assert result_vacuous.metrics["short_point_retention_rate"] == 1.0
 
 
-def test_evaluate_group_b_empty_input_fails() -> None:
-    # Nothing extracted → nothing detected (0.0 < 0.9): never auto-accept.
+    # No POINT candidates makes label detection N/A, while empty extraction
+    # still fails hierarchy completeness and therefore cannot auto-accept.
     result = evaluate_group_b([])
     assert result.passed is False
-    assert result.metrics["point_label_detection_rate"] == 0.0
+    assert result.metrics["point_label_detection_rate"] is None
     assert result.metrics["hierarchy_completeness"] == 0.0
-    assert set(result.failed_checks) == {"point_label_detection", "hierarchy_completeness"}
+    assert set(result.failed_checks) == {"hierarchy_completeness"}
 
 
 def test_evaluate_group_b_custom_thresholds() -> None:

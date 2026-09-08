@@ -131,7 +131,7 @@ class EmbeddingSettings(BaseSettings):
         populate_by_name=True,
     )
 
-    provider: Literal["gemini", "jina"] = "gemini"
+    provider: Literal["gemini", "jina", "local"] = "gemini"
     model: str = "gemini-embedding-2"
     #: Suite B test dimension (E1/E2: 768, E3 text-small: 1024). Gemini's model
     #: default is 3072; the adapter requests this value via ``outputDimensionality``.
@@ -143,6 +143,7 @@ class EmbeddingSettings(BaseSettings):
         default="",
         validation_alias=AliasChoices("GEMINI_API_KEY", "EMBEDDING_GEMINI_API_KEY"),
     )
+    local_device: Literal["auto", "cpu", "cuda"] = "auto"
     jina_api_key: str = Field(
         default="",
         validation_alias=AliasChoices("JINA_API_KEY", "EMBEDDING_JINA_API_KEY"),

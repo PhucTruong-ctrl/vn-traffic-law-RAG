@@ -124,6 +124,28 @@ def test_manifest_suffix_is_removed_from_legacy_document_id() -> None:
     assert provisions[0].provision_id == "luat-36-2024__dieu-3"
 
 
+def test_bare_article_marker_is_not_emitted_as_boundary() -> None:
+    provisions = LegalStructureExtractor().extract(
+        _document(
+            [
+                ("Điều 16. Trước đó", "paragraph"),
+                ("1. Nội dung", "paragraph"),
+                ("Điều 17", "paragraph"),
+                ("a) Tiếp tục nội dung", "paragraph"),
+                ("Điều 17. Tiêu đề thật", "paragraph"),
+            ],
+            document_id="nd-44-2024",
+        )
+    )
+    assert [provision.provision_id for provision in provisions] == [
+        "nd-44-2024__dieu-16",
+        "nd-44-2024__dieu-16__khoan-1",
+        "nd-44-2024__dieu-16__khoan-1__diem-a",
+        "nd-44-2024__dieu-17",
+    ]
+    assert provisions[-1].source_text == "Điều 17. Tiêu đề thật"
+
+
 def test_d_and_dd_ids_are_distinct_and_source_text_is_unchanged() -> None:
     document = _document(
         [
@@ -283,3 +305,15 @@ def test_section_clears_previous_appendix_context() -> None:
         )
     )
     assert [provision.provision_id for provision in provisions] == ["nd-168-2024__phu-luc-1"]
+
+
+def test_duplicate_article_marker_does_not_drop_following_content() -> None:
+    provisions = LegalStructureExtractor().extract(_document([
+        ("Điều 2. Thật", "heading"),
+        ("Điều 2. “Sửa đổi khoản 1 Điều 2”,", "paragraph"),
+        ("1. Nội dung tiếp", "paragraph"),
+    ]))
+    assert [p.provision_id for p in provisions] == [
+        "nd-168-2024__dieu-2", "nd-168-2024__dieu-2__khoan-1"
+    ]
+    assert provisions[-1].source_text == "1. Nội dung tiếp"

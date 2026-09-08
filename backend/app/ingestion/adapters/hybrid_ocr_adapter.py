@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 
 os.environ.setdefault("FLAGS_use_mkldnn", "0")
 os.environ.setdefault("OMP_NUM_THREADS", "1")
@@ -24,7 +25,50 @@ PARSER_VERSION = "paddleocr-3.3.0"
 VIETOCR_PARSER_NAME = "PADDLEOCR_VIETOCR"
 VIETOCR_PARSER_VERSION = "paddleocr-3.3.0+vietocr-0.3.13"
 OCR_MIN_RECOGNITION_CONFIDENCE = 0.80
+OCR_LINE_MERGE_MAX_GAP = 0.03
+OCR_LINE_MERGE_MIN_OVERLAP = 0.5
 
+
+def _deduplicate_ocr_lines(lines: list[OCRLine]) -> list[OCRLine]:
+    """Drop identical detections only when their boxes overlap on one page."""
+    kept: list[OCRLine] = []
+    for line in lines:
+        duplicate = False
+        for previous in kept:
+            if line.text.strip() != previous.text.strip():
+                continue
+            overlap_width = max(0.0, min(line.bbox[2], previous.bbox[2]) - max(line.bbox[0], previous.bbox[0]))
+            overlap_height = max(0.0, min(line.bbox[3], previous.bbox[3]) - max(line.bbox[1], previous.bbox[1]))
+            area = max(0.0, line.bbox[2] - line.bbox[0]) * max(0.0, line.bbox[3] - line.bbox[1])
+            previous_area = max(0.0, previous.bbox[2] - previous.bbox[0]) * max(0.0, previous.bbox[3] - previous.bbox[1])
+            if area and previous_area and overlap_width * overlap_height / min(area, previous_area) >= 0.8:
+                duplicate = True
+                break
+        if not duplicate:
+            kept.append(line)
+    return kept
+_ARTICLE_HEADING = re.compile(
+    r"(?<!\S)(?:Điều|Dièu|Dieu|Ðiều)(?=\s+\d+[A-Za-z]?\s*[.:-]?(?:\s|$))", re.IGNORECASE
+)
+_ARTICLE_ONLY = re.compile(r"^(?:Điều|Dièu|Dieu|Ðiều)\s+\d+[A-Za-z]?\s*[.:-]$", re.IGNORECASE)
+_TERMINAL_CUE = re.compile(
+    r"(?:[.;:!?]$|\b(?:Điều|Dièu|Dieu|Ðiều|Khoản|Điểm|Mục|Chương|Phần)\s*$)", re.IGNORECASE
+)
+def _cuda_available() -> bool:
+    try:
+        import paddle
+        return bool(paddle.is_compiled_with_cuda() and paddle.device.cuda.device_count() > 0)
+    except (ImportError, AttributeError, RuntimeError):
+        return False
+
+
+def resolve_ocr_device(requested: str | None = None) -> str:
+    if requested:
+        return requested
+    if _cuda_available():
+        return "gpu:0"
+    print("OCR CUDA unavailable; using CPU (set OCR_DEVICE to override)", flush=True)
+    return "cpu"
 
 @dataclass(frozen=True)
 class OCRLine:
@@ -33,6 +77,7 @@ class OCRLine:
     detection_confidence: float | None
     recognition_confidence: float | None
     index: int
+    merged_indices: tuple[int, ...] = ()
 
 
 def _scalar(value: Any) -> Any:
@@ -87,6 +132,84 @@ def _result_lines(result: _OCRResult, width: int, height: int) -> list[OCRLine]:
     return sorted(lines, key=lambda line: (line.bbox[1], line.bbox[0]))
 
 
+def _merge_ocr_lines(lines: list[OCRLine]) -> list[OCRLine]:
+    merged: list[OCRLine] = []
+    for line in lines:
+        if not merged:
+            merged.append(line)
+            continue
+        previous = merged[-1]
+        gap = line.bbox[1] - previous.bbox[3]
+        overlap = max(
+            0.0, min(previous.bbox[2], line.bbox[2]) - max(previous.bbox[0], line.bbox[0])
+        )
+        span = min(previous.bbox[2] - previous.bbox[0], line.bbox[2] - line.bbox[0])
+        adequate_overlap = span > 0 and overlap / span >= OCR_LINE_MERGE_MIN_OVERLAP
+        article_heading = bool(_ARTICLE_ONLY.fullmatch(previous.text.strip()))
+        can_merge = 0 <= gap <= OCR_LINE_MERGE_MAX_GAP and (
+            article_heading
+            or (adequate_overlap and not _TERMINAL_CUE.search(previous.text.strip()))
+        )
+        if not can_merge:
+            merged.append(line)
+            continue
+        merged[-1] = OCRLine(
+            text=f"{previous.text.strip()} {line.text.strip()}",
+            bbox=(
+                min(previous.bbox[0], line.bbox[0]),
+                min(previous.bbox[1], line.bbox[1]),
+                max(previous.bbox[2], line.bbox[2]),
+                max(previous.bbox[3], line.bbox[3]),
+            ),
+            detection_confidence=min(
+                (
+                    v
+                    for v in (previous.detection_confidence, line.detection_confidence)
+                    if v is not None
+                ),
+                default=None,
+            ),
+            recognition_confidence=min(
+                (
+                    v
+                    for v in (previous.recognition_confidence, line.recognition_confidence)
+                    if v is not None
+                ),
+                default=None,
+            ),
+            index=previous.index,
+            merged_indices=previous.merged_indices + (line.index,),
+        )
+    return merged
+
+
+def _normalize_article_heading(text: str) -> str:
+    """Canonicalize OCR article keywords only when followed by an article number."""
+    return _ARTICLE_HEADING.sub("Điều", text)
+
+
+def _split_article_heading(element: DocumentElement) -> list[DocumentElement]:
+    match = _ARTICLE_HEADING.search(element.text)
+    if match is None or match.start() == 0:
+        element.text = _normalize_article_heading(element.text)
+        return [element]
+    prefix = element.text[: match.start()].strip()
+    suffix = _normalize_article_heading(element.text[match.start() :].strip())
+    if not prefix or not suffix:
+        element.text = _normalize_article_heading(element.text)
+        return [element]
+    first = element.model_copy(update={"text": prefix})
+    second = element.model_copy(
+        update={
+            "element_id": f"{element.element_id}-article",
+            "text": suffix,
+            "reading_order": element.reading_order + 1,
+            "raw_reference": {**element.raw_reference, "split_from_element_id": element.element_id},
+        }
+    )
+    return [first, second]
+
+
 def _recognize(predictor: Any, image: Image.Image) -> tuple[str, float | None]:
     result = cast(_OCRPredictor, predictor).predict(image)
     if isinstance(result, str):
@@ -100,19 +223,71 @@ def _recognize(predictor: Any, image: Image.Image) -> tuple[str, float | None]:
     ) if confidence is not None else None
 
 
+def _merge_elements(elements: list[DocumentElement]) -> list[DocumentElement]:
+    merged: list[DocumentElement] = []
+    for element in elements:
+        if not merged or element.bbox is None or merged[-1].bbox is None:
+            merged.append(element)
+            continue
+        previous = merged[-1]
+        a, b = previous.bbox, element.bbox
+        gap = b.top - a.bottom
+        overlap = max(0.0, min(a.right, b.right) - max(a.left, b.left))
+        span = min(a.right - a.left, b.right - b.left)
+        article = bool(_ARTICLE_ONLY.fullmatch(previous.text.strip()))
+        if not (
+            0 <= gap <= OCR_LINE_MERGE_MAX_GAP
+            and (
+                article
+                or (
+                    span > 0
+                    and overlap / span >= OCR_LINE_MERGE_MIN_OVERLAP
+                    and not _TERMINAL_CUE.search(previous.text.strip())
+                )
+            )
+        ):
+            merged.append(element)
+            continue
+        ids = previous.raw_reference.get("merged_element_ids", [previous.element_id]) + [
+            element.element_id
+        ]
+        refs = previous.raw_reference.get(
+            "merged_line_indices", [previous.raw_reference.get("detector_index")]
+        ) + [element.raw_reference.get("detector_index")]
+        previous.text = f"{previous.text.strip()} {element.text.strip()}"
+        previous.bbox = BoundingBox(
+            left=min(a.left, b.left),
+            top=min(a.top, b.top),
+            right=max(a.right, b.right),
+            bottom=max(a.bottom, b.bottom),
+            page_width=a.page_width,
+            page_height=a.page_height,
+        )
+        previous.parser_confidence = min(
+            (v for v in (previous.parser_confidence, element.parser_confidence) if v is not None),
+            default=None,
+        )
+        previous.raw_reference = {
+            **previous.raw_reference,
+            "merged_element_ids": ids,
+            "merged_line_indices": refs,
+        }
+    return merged
+
+
 class HybridOCRAdapter:
     """Run PaddleOCR detection and VietOCR recognition once per detected line."""
 
     def __init__(
         self,
         *,
-        device: str = "cpu",
+        device: str | None = None,
         recognition_mode: str = "paddle",
         vietocr_config: str = "vgg_seq2seq",
     ) -> None:
         if recognition_mode not in {"paddle", "vietocr"}:
             raise ValueError("recognition_mode must be 'paddle' or 'vietocr'")
-        self.device = device
+        self.device = resolve_ocr_device(device)
         self.recognition_mode = recognition_mode
         self.vietocr_config = vietocr_config
         self._detector: Any = None
@@ -162,7 +337,7 @@ class HybridOCRAdapter:
             image = opened.convert("RGB")
         width, height = image.size
         result = _predict(self._detector, image_path)
-        lines = _result_lines(result, width, height)
+        lines = _deduplicate_ocr_lines(_result_lines(result, width, height))
         elements: list[DocumentElement] = []
         for reading_order, line in enumerate(lines):
             text = line.text
@@ -218,6 +393,8 @@ class HybridOCRAdapter:
                     },
                 )
             )
+        elements = [split for element in elements for split in _split_article_heading(element)]
+        elements = _merge_elements(elements)
         return ParsedPage(
             page_number=page_number,
             width=width,

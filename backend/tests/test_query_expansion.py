@@ -134,3 +134,12 @@ def test_query_expander_rejects_malformed_rewrite_output() -> None:
 
     with pytest.raises(ValidationError):
         QueryExpander(rewrite_provider=rewrite).expand(plan("q"))  # type: ignore[arg-type]
+
+
+def test_red_light_colloquialism_gets_statutory_retrieval_variant() -> None:
+    variants = QueryExpander().expand(plan("Mức phạt khi vượt đèn đỏ là bao nhiêu?"))
+    assert [variant.text for variant in variants] == [
+        "Mức phạt khi vượt đèn đỏ là bao nhiêu?",
+        "Mức phạt khi không chấp hành hiệu lệnh của đèn tín hiệu giao thông là bao nhiêu?",
+    ]
+    assert variants[1].source == "rewrite"

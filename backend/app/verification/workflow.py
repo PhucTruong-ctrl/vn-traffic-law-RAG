@@ -54,8 +54,6 @@ class LegalVerificationBoundary:
     ) -> VerificationBoundaryResult:
         if not in_scope:
             return VerificationBoundaryResult.rejected(AbstentionReason.OUT_OF_SCOPE.value)
-        if query_date is None:
-            return VerificationBoundaryResult.rejected(AbstentionReason.MISSING_DATE.value)
         records = tuple(
             item for item in context if getattr(item, "review_status", "ACCEPTED") == "ACCEPTED"
         )

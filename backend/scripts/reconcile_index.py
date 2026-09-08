@@ -61,6 +61,7 @@ if str(_BACKEND_DIR) not in sys.path:
 
 from app.config import get_qdrant_settings  # noqa: E402  (sys.path bootstrap above)
 from app.retrieval import reconcile  # noqa: E402
+from app.retrieval.sparse import SparseEncoder  # noqa: E402
 
 if TYPE_CHECKING:  # pragma: no cover  (annotations only)
     from qdrant_client import QdrantClient

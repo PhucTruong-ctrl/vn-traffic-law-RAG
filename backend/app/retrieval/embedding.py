@@ -48,6 +48,7 @@ __all__ = [
     "EmbeddingProviderError",
     "GeminiEmbeddingAdapter",
     "JinaEmbeddingAdapter",
+    "LocalE5EmbeddingAdapter",
     "VersionedEmbeddingCache",
     "embedding_cache_key",
     "get_embedding_provider",
@@ -453,6 +454,62 @@ class JinaEmbeddingAdapter(_HttpEmbeddingAdapter):
         return self._verified(vectors, len(texts))
 
 
+class LocalE5EmbeddingAdapter(EmbeddingProvider):
+    """Local SentenceTransformer E5 encoder with GPU-first CPU fallback.
+
+    E5 models require ``query: `` for searches and ``passage: `` for indexed
+    documents.  ``sentence-transformers`` is imported lazily so Gemini/Jina
+    deployments do not require the optional local runtime.
+    """
+
+    def __init__(
+        self,
+        settings: EmbeddingSettings,
+        *,
+        cache: VersionedEmbeddingCache | None = None,
+        encoder_version: str | None = None,
+    ) -> None:
+        self.name = settings.model
+        self.dims = settings.dimensions
+        self.batch_size = settings.batch_size
+        self._cache = cache
+        self._encoder_version = encoder_version
+        self.total_tokens = 0
+        self.requests = 0
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError as exc:
+            raise ConfigError("local E5 provider requires sentence-transformers") from exc
+        try:
+            import torch
+            device = ("cuda" if torch.cuda.is_available() else "cpu") if settings.local_device == "auto" else settings.local_device
+        except ImportError:
+            device = "cpu"
+        self.device = device
+        self._model = SentenceTransformer(self.name, device=device)
+
+    def _encode(self, texts: list[str], prefix: str) -> list[list[float]]:
+        if not texts:
+            return []
+        prepared = [text if text.startswith(prefix) else prefix + text for text in texts]
+        vectors = self._model.encode(
+            prepared, batch_size=self.batch_size, convert_to_numpy=True, normalize_embeddings=True
+        )
+        out = [vector.tolist() if hasattr(vector, "tolist") else list(vector) for vector in vectors]
+        if any(len(vector) != self.dims for vector in out):
+            raise EmbeddingDimensionError(
+                f"{self.name} returned a dimension different from {self.dims}"
+            )
+        self.requests += 1
+        return out
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        return self._encode(texts, "query: ")
+
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        return self._encode(texts, "passage: ")
+
+
 def embedding_cache_key(model: str, encoder_version: str, text: str) -> str:
     """Deterministic cache key: sha256 of model + encoder version + text.
 
@@ -525,4 +582,6 @@ def get_embedding_provider(
         return GeminiEmbeddingAdapter(config, cache=cache, encoder_version=encoder_version)
     if config.provider == "jina":
         return JinaEmbeddingAdapter(config, cache=cache, encoder_version=encoder_version)
+    if config.provider == "local":
+        return LocalE5EmbeddingAdapter(config, cache=cache, encoder_version=encoder_version)
     raise ConfigError(f"unsupported embedding provider: {config.provider!r}")

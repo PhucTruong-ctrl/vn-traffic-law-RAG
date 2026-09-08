@@ -23,11 +23,13 @@ class RetrievalResult(BaseModel):
     parent_context: str | None
     document_number: str
     document_type: str
-    article: str
+    article: str | None
     clause: str | None
     point: str | None
     effective_from: date
     effective_to: date | None
+    # Retrieval channels query the accepted-only index and authoritative temporal store.
+    review_status: str = "ACCEPTED"
     page_number: int = Field(ge=1)
     retrieval_sources: list[str]
     fused_score: float | None
@@ -95,6 +97,7 @@ def result_from_payload(
         "added_by": payload.get("added_by"),
         "source_id": payload.get("source_id"),
         "depth": payload.get("depth", 0),
+        "review_status": "ACCEPTED",
     }
     return RetrievalResult.model_validate(values)
 

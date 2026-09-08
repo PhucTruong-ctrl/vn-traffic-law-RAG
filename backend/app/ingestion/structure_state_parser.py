@@ -82,6 +82,7 @@ _CHAPTER_RE = re.compile(r"^Chương\s+([IVXLCDM]+|\d+)\s*[.:-]?\s*(.*)$", re.IG
 _SECTION_RE = re.compile(r"^Mục\s+([IVXLCDM]+|\d+)\s*[.:-]?\s*(.*)$", re.IGNORECASE)
 _ARTICLE_RE = re.compile(r"^Điều\s+(\d+[A-Za-z]?)\s*[.:-]?\s*(.*)$", re.IGNORECASE)
 _CLAUSE_RE = re.compile(r"^(\d+)\s*[.]\s*(.*)$")
+_BARE_ARTICLE_MARKER_RE = re.compile(r"^Điều\s+\d+[A-Za-z]?\s*$", re.IGNORECASE)
 _VIETNAMESE_POINT_LABELS = "aăâbcdđeêghiklmnoôơpqrstuưvxy"
 _POINT_RE = re.compile(rf"^([{_VIETNAMESE_POINT_LABELS}])\s*[)]\s*(.*)$", re.IGNORECASE)
 _POINT_FALLBACK_LABELS = "abcdđeghiklmnoôơpqrstuưvxy"
@@ -229,8 +230,17 @@ class LegalStructureStateParser:
                 label=_nonempty(match.group(2)),
             )
         match = _ARTICLE_RE.match(text)
-        if match:
+        if (
+            match
+            and not _BARE_ARTICLE_MARKER_RE.match(text)
+            and not re.match(
+                r"^Điều\s+\d+[A-Za-z]?\s*[.:]\s*[“\"]?Sửa\s+đổi\b",
+                text,
+                re.IGNORECASE,
+            )
+        ):
             number = match.group(1)
+            needs_review = not number.isdigit()
             needs_review = not number.isdigit()
             return _node(
                 StructureKind.ARTICLE,

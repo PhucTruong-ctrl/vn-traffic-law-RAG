@@ -23,7 +23,7 @@ except ImportError:  # package mode: tests/__init__.py makes it importable
 
 pytestmark = pytest.mark.integration
 
-# The 20 tables of doc 03 §3.10.2, in FK-safe creation order.
+# The schema tables of doc 03 §3.10.2, in FK-safe creation order.
 EXPECTED_TABLES = frozenset(
     {
         "legal_sources",
@@ -46,10 +46,12 @@ EXPECTED_TABLES = frozenset(
         "evaluation_runs",
         "evaluation_results",
         "corpus_qa_reports",
+        "outbox_events",
     }
 )
 
-# CREATE INDEX statements documented in doc 03 §3.10.3, plus the inline
+# CREATE INDEX statements documented in doc 03 §3.10.3, plus the outbox
+# polling index, the inline
 # index of §3.10.2 (idx_provision_provenances_version) and the partial
 # unique index for unresolved references.
 DOCUMENTED_INDEXES = frozenset(
@@ -74,6 +76,7 @@ DOCUMENTED_INDEXES = frozenset(
         "idx_evaluation_results_run",
         "idx_provision_provenances_version",
         "provision_references_unresolved_pk",
+        "idx_outbox_events_pending",
     }
 )
 
@@ -161,6 +164,8 @@ DOCUMENTED_CONSTRAINTS = frozenset(
         "review_items_ingestion_run_id_fkey",
         "query_feedback_query_trace_id_fkey",
         "evaluation_results_evaluation_run_id_fkey",
+        # outbox_events only has its primary key after revision 0006
+        "outbox_events_pkey",
     }
 )
 
@@ -176,8 +181,8 @@ def _public_tables(engine: Engine) -> set[str]:
         )
 
 
-def test_upgrade_creates_all_twenty_tables(upgraded_engine: Engine) -> None:
-    """``alembic upgrade head`` from an empty database creates all 20 tables."""
+def test_upgrade_creates_complete_schema(upgraded_engine: Engine) -> None:
+    """``alembic upgrade head`` from an empty database creates the complete schema."""
     tables = _public_tables(upgraded_engine)
     assert tables >= EXPECTED_TABLES
     # plus the alembic version table, and nothing unexpected
@@ -230,7 +235,7 @@ def test_alembic_version_at_head(upgraded_engine: Engine) -> None:
     """The session scratch database sits exactly at the current head revision."""
     with upgraded_engine.connect() as conn:
         version = conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-    assert version == "0003"
+    assert version == "0006"
 
 
 def test_upgrade_downgrade_roundtrip(cycle_db_url: str) -> None:
@@ -265,7 +270,7 @@ def test_upgrade_downgrade_roundtrip(cycle_db_url: str) -> None:
 
         command.downgrade(cfg, "base")
         # Alembic (1.19) does not drop its version table on downgrade to
-        # base; the 20 schema tables must be gone and the version table
+        # base; all schema tables must be gone and the version table
         # empty.
         assert _public_tables(engine) == {"alembic_version"}
         with engine.connect() as conn:

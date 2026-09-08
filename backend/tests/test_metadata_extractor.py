@@ -259,12 +259,44 @@ def test_empty_document_returns_empty_metadata() -> None:
     assert metadata == ExtractedDocumentMetadata()
 
 
+def test_manifest_dates_reject_referenced_dates() -> None:
+    document = _document(
+        [("Số: 166/2024/NĐ-CP", "paragraph"),
+         ("Hà Nội, ngày 26 tháng 12 năm 2024", "paragraph"),
+         ("Nghị định này có hiệu lực từ ngày 01/01/2025", "paragraph"),
+         ("Nghị định 100/2019/NĐ-CP có hiệu lực từ ngày 01/01/2020", "paragraph")]
+    )
+    metadata = extract_document_metadata(
+        document,
+        manifest_number="166/2024/NĐ-CP",
+        manifest_issued_date="2024-12-26",
+        manifest_effective_from="2025-01-01",
+    )
+    assert metadata.issued_date == date(2024, 12, 26)
+    assert metadata.effective_from == date(2025, 1, 1)
+
+
 def test_iso_date_form_is_supported() -> None:
     document = _document([("NGHỊ ĐỊNH 168/2024/NĐ-CP", "title"), ("2024-12-26", "paragraph")])
     assert extract_document_metadata(document).issued_date == date(2024, 12, 26)
 
 
 # ─────────────────────────── manifest validation ───────────────────────────
+
+
+def test_ocr_equivalent_document_numbers_are_accepted() -> None:
+    metadata = ExtractedDocumentMetadata(document_number="44/2024/ND-CP")
+    manifest = _load_manifest("nd-168-2024")
+    manifest["document_number"] = "44/2024/NĐ-CP"
+    assert validate_against_manifest(metadata, manifest) == []
+
+
+def test_document_number_normalization_does_not_hide_identity_mismatch() -> None:
+    metadata = ExtractedDocumentMetadata(document_number="45/2024/NDCP")
+    manifest = _load_manifest("nd-168-2024")
+    manifest["document_number"] = "44/2024/NĐ-CP"
+    issues = validate_against_manifest(metadata, manifest)
+    assert any("document_number mismatch" in issue for issue in issues)
 
 
 def test_document_number_mismatch_flags_review() -> None:
@@ -332,3 +364,26 @@ def test_manifest_accepts_pending_review_without_review_fields() -> None:
     manifest.pop("reviewed_at", None)
     metadata = extract_document_metadata(_nd_document())
     assert validate_against_manifest(metadata, manifest) == []
+
+
+def test_spaced_header_number_precedes_referenced_numbers() -> None:
+    metadata = extract_document_metadata(
+        _document(
+            [("Số: 16 /2024/TT-BGTVT", "paragraph"),
+             ("THÔNG TƯ số 12/2020/TT-BGTVT", "title")],
+            document_id="tt-16-2024",
+        )
+    )
+    assert metadata.document_number == "16/2024/TT-BGTVT"
+
+
+def test_manifest_number_requires_ocr_evidence() -> None:
+    document = _document([("sá05", "paragraph"), ("/2024/TT-BGTVT", "paragraph")], document_id="tt-05-2024")
+    metadata = extract_document_metadata(document, manifest_number="05/2024/TT-BGTVT")
+    assert metadata.document_number is None
+
+
+def test_manifest_number_accepts_whitespace_ocr_evidence() -> None:
+    document = _document([("05 / 2024 / TT-BGTVT", "paragraph")], document_id="tt-05-2024")
+    metadata = extract_document_metadata(document, manifest_number="05/2024/TT-BGTVT")
+    assert metadata.document_number == "05/2024/TT-BGTVT"

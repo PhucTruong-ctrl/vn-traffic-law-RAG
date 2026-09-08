@@ -61,13 +61,16 @@ def _resolve_base_url() -> str:
 
 
 def _require_postgres(url: str) -> str:
-    """Reject non-PostgreSQL URLs: SQLite is disallowed for integration tests."""
-    if make_url(url).get_backend_name() != "postgresql":
+    """Validate PostgreSQL URL and normalize Compose hostname for host tests."""
+    parsed = make_url(url)
+    if parsed.get_backend_name() != "postgresql":
         raise RuntimeError(
             "PostgreSQL integration tests require a postgresql+psycopg:// "
             "DATABASE_URL (SQLite is disallowed, doc 04 §4.12.3 / doc 06 §6.2.2)"
         )
-    return url
+    if parsed.host in {"postgres", "localhost"}:
+        parsed = parsed.set(host="127.0.0.1")
+    return parsed.render_as_string(hide_password=False)
 
 
 def _with_database(url: str, database: str) -> str:

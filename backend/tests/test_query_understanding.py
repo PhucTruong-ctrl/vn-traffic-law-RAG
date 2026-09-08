@@ -210,6 +210,50 @@ def test_penalty_with_points_and_suspension_requires_all_evidence() -> None:
     ]
 
 
+def test_unrelated_provisions_cannot_jointly_satisfy_evidence_plan() -> None:
+    from app.query.evidence_gate import EvidenceCompletenessGate, EvidenceStatus
+
+    plan = QueryAnalyzer().analyze(
+        "phạt bao nhiêu và bị trừ bao nhiêu điểm?", current_date=TODAY
+    )
+    base = dict(
+        rank=1,
+        provision_version=1,
+        document_id="doc",
+        document_version_id="v1",
+        source_text="",
+        parent_context=None,
+        document_number="x",
+        document_type="NĐ",
+        article="1",
+        clause=None,
+        point=None,
+        effective_from=TODAY,
+        effective_to=None,
+        review_status="ACCEPTED",
+        page_number=1,
+        retrieval_sources=["test"],
+        fused_score=None,
+        added_by=None,
+        source_id=None,
+        depth=0,
+    )
+    first = type(
+        "R",
+        (),
+        {**base, "provision_id": "p-definition", "text": "Hành vi vi phạm bị phạt theo quy định."},
+    )()
+    second = type(
+        "R",
+        (),
+        {**base, "provision_id": "p-penalty", "text": "Mức phạt 1.000 đồng."},
+    )()
+    assert (
+        EvidenceCompletenessGate().evaluate(plan, [first, second]).status
+        is EvidenceStatus.INCOMPLETE
+    )
+
+
 def _fallback_payload() -> dict[str, object]:
     return {
         "intent": QueryIntent.CURRENT,

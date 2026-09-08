@@ -203,9 +203,7 @@ def test_raw_chunk_mapping_uses_explicit_metadata_map() -> None:
         "content_with_weight": "Điều 5 nội dung",
         "positions": [[12, 0, 1, 2, 3]],
     }
-    key = CitationMetadata(
-        "nd-168-2024", 12, "chunk-7", "Điều 5 nội dung", None, None, None
-    )
+    key = CitationMetadata("nd-168-2024", 12, "chunk-7", "Điều 5 nội dung", None, None, None)
     result = resolve_citations([citation], {key: "nd-168-2024__dieu-5"})
     assert result.mapped == []
     assert result.unmappable == 1

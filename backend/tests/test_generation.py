@@ -31,6 +31,10 @@ def test_adapter():
     answer = GeminiStructuredGenerator(client).generate("q", "e")
     assert answer.claims[0].provision_ids == ["p"]
     assert calls[0]["model"] == "gemini-3.7-flash"
+    assert calls[0]["config"].response_json_schema == StructuredAnswer.model_json_schema()
+    assert calls[0]["config"].response_schema is None
+    assert "exact provision_id from the evidence" in calls[0]["contents"]
+    assert "without the @vN version suffix" in calls[0]["contents"]
 
 
 def test_failure():
