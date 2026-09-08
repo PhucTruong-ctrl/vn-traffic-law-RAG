@@ -164,8 +164,16 @@ def _citations(result: dict[str, Any], final: dict[str, Any]) -> list[dict[str, 
     citations: list[dict[str, Any]] = []
     seen: set[str] = set()
     claims = final.get("claims", [])
+    if not isinstance(claims, list):
+        return []
     for claim in claims:
+        if not isinstance(claim, dict):
+            return []
         provision_ids = claim.get("provision_ids", [])
+        if not isinstance(provision_ids, list) or any(
+            not isinstance(provision_id, str) or not provision_id for provision_id in provision_ids
+        ):
+            return []
         if len(set(provision_ids)) != len(provision_ids):
             return []
         for provision_id in provision_ids:

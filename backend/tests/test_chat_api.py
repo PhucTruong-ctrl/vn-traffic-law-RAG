@@ -21,7 +21,8 @@ def test_chat_accepts_only_question() -> None:
     client = TestClient(app)
     assert client.post("/api/v1/chat", json={"question": "   "}).status_code == 422
     assert client.post("/api/v1/chat", json={"question": "x", "extra": 1}).status_code == 422
-
+    assert client.post("/api/v1/chat", json={"question": 1}).status_code == 422
+    assert client.post("/api/v1/chat", json={"question": None}).status_code == 422
 
 @pytest.mark.parametrize(
     "verification, expected",
