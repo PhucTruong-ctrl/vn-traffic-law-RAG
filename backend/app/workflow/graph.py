@@ -17,8 +17,8 @@ from app.persistence.repositories.provisions import ProvisionRepository
 from app.persistence.repositories.relations import RelationRepository
 from app.persistence.repositories.temporal import TemporalRepository
 from app.query.evidence_gate import EvidenceCompletenessGate, EvidenceStatus, targeted_query_for_gap
-from app.query.query_understanding import QueryAnalyzer
 from app.query.expansion import QueryExpander
+from app.query.query_understanding import QueryAnalyzer
 from app.query.temporal_verifier import verify_temporal
 from app.retrieval.comparison import ComparisonResult
 from app.retrieval.context_expansion import LegalContextExpander

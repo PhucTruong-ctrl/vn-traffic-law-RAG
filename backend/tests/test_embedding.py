@@ -385,7 +385,11 @@ def test_local_e5_prefixes_query_and_passage(monkeypatch: pytest.MonkeyPatch) ->
                 return [[0.0] * DIMS]
             assert texts == ["passage: p"]
             return [[1.0] * DIMS]
-    monkeypatch.setitem(__import__("sys").modules, "sentence_transformers", type("M", (), {"SentenceTransformer": FakeModel}))
+    monkeypatch.setitem(
+        __import__("sys").modules,
+        "sentence_transformers",
+        type("M", (), {"SentenceTransformer": FakeModel}),
+    )
     settings = _settings(provider="local", model="intfloat/e5-small", local_device="cpu")
     adapter = LocalE5EmbeddingAdapter(settings)
     assert adapter.embed(["q"])[0] == [0.0] * DIMS

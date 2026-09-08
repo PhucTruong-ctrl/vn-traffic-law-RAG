@@ -482,7 +482,9 @@ class LocalE5EmbeddingAdapter(EmbeddingProvider):
             raise ConfigError("local E5 provider requires sentence-transformers") from exc
         try:
             import torch
-            device = ("cuda" if torch.cuda.is_available() else "cpu") if settings.local_device == "auto" else settings.local_device
+            device = (
+                "cuda" if torch.cuda.is_available() else "cpu"
+            ) if settings.local_device == "auto" else settings.local_device
         except ImportError:
             device = "cpu"
         self.device = device
