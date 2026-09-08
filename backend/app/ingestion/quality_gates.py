@@ -77,6 +77,7 @@ from pydantic import BaseModel
 from app.ingestion.document_ir import DocumentElement, ParsedDocument
 from app.ingestion.hierarchy_validation import validate_hierarchy
 from app.ingestion.structure_extractor import ExtractedLegalProvision
+
 GateStatus = Literal["passed", "failed", "na"]
 
 #: Defaults mirror ``docs/parser_router.yaml`` → ``parser_router.quality_gates``.
@@ -450,9 +451,9 @@ def evaluate_group_b(
     hierarchy = validate_hierarchy(provisions)
     detection_metric = hierarchy.metrics["point_label_detection_rate"]
     detection_rate = float(detection_metric) if detection_metric is not None else None
-    orphan_point_count = int(hierarchy.metrics["orphan_point_count"])
-    orphan_clause_count = int(hierarchy.metrics["orphan_clause_count"])
-    duplicate_count = int(hierarchy.metrics["duplicate_count"])
+    orphan_point_count = int(hierarchy.metrics["orphan_point_count"] or 0)
+    orphan_clause_count = int(hierarchy.metrics["orphan_clause_count"] or 0)
+    duplicate_count = int(hierarchy.metrics["duplicate_count"] or 0)
 
     # Short-point retention (rulespec §5): no token-length threshold — every
     # flagged short point is retained, so the rate is 1.0 and contributes no

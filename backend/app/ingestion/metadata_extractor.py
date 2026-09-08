@@ -30,17 +30,21 @@ _DOCUMENT_NUMBER_RE = re.compile(
 )
 
 # Issued date in the official Vietnamese form: "Hà Nội, ngày 26 tháng 12 năm 2024".
-_ISSUED_DATE_RE = re.compile(r"ngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+n(?:ăm|am|ǎm)\s+(\d{4})", re.I)
+_ISSUED_DATE_RE = re.compile(
+    r"ngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+n(?:ăm|am|ǎm)\s+(\d{4})", re.I
+)
 _ISO_DATE_RE = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})\b")
 
-# Effective-start clauses: "Nghị định này c(?:ó|o|ó) h(?:iệu|ieu) l(?:ực|uc) thi hành t(?:ừ|ir|u) ng(?:ày|ay) ...".
-# Effective-start clauses: "Nghị định này c(?:ó|o|ó) h(?:iệu|ieu) l(?:ực|uc) thi hành t(?:ừ|ir|u) ng(?:ày|ay) ...",
-# "c(?:ó|o|ó) h(?:iệu|ieu) l(?:ực|uc) thi hành kể t(?:ừ|ir|u) ng(?:ày|ay) ..." (official TT 24/2023 wording).
+# Effective-start clauses support official Vietnamese and ASCII spellings.
+# The second form covers TT 24/2023 wording with “kể từ”.
 _EFFECTIVE_FROM_RE = re.compile(
-    r"(?:c(?:ó|o|ó) h(?:iệu|ieu) l(?:ực|uc)|k(?:ể|e) từ)\s+(?:thi hành\s+)?(?:k(?:ể|e)\s+)?t(?:ừ|ir|u) ng(?:ày|ay)\s+"
+    r"(?:c(?:ó|o|ó) h(?:iệu|ieu) l(?:ực|uc)|k(?:ể|e) từ)\s+"
+    r"(?:thi hành\s+)?(?:k(?:ể|e)\s+)?t(?:ừ|ir|u) ng(?:ày|ay)\s+"
+    r"(?:"
     r"(\d{1,2})\s+tháng\s+(\d{1,2})\s+n(?:ăm|am|ǎm)\s+(\d{4})"
-    r"|(?:c(?:ó|o|ó) h(?:iệu|ieu) l(?:ực|uc)|k(?:ể|e) từ)\s+(?:thi hành\s+)?(?:k(?:ể|e)\s+)?t(?:ừ|ir|u) ng(?:ày|ay)\s+"
-    r"(\d{1,2})/(\d{1,2})/(\d{4})",
+    r"|"
+    r"(\d{1,2})/(\d{1,2})/(\d{4})"
+    r")",
     re.I,
 )
 _OWN_EFFECTIVE_FROM_RE = _EFFECTIVE_FROM_RE
@@ -198,21 +202,37 @@ def _header_elements(document: ParsedDocument) -> list[DocumentElement]:
 
 def _header_text(document: ParsedDocument) -> str:
     """Join only the first-page header band, avoiding body citations."""
-    tokens = [element for element in _header_elements(document) if element.bbox is None or element.bbox.top <= 0.31]
+    tokens = [
+        element
+        for element in _header_elements(document)
+        if element.bbox is None or element.bbox.top <= 0.31
+    ]
     return " ".join(element.text.strip() for element in tokens)
 
 
 # Header identity is authoritative for issued dates: the date must be in the
 # first-page header band and spatially near the document's own Số: token.
 def _header_date(document: ParsedDocument) -> date | None:
-    elements = [element for element in _header_elements(document) if element.bbox is None or element.bbox.top <= 0.31]
-    number_indexes = [index for index, element in enumerate(elements) if re.search(r"\bsố\s*:", element.text, re.IGNORECASE)]
+    elements = [
+        element
+        for element in _header_elements(document)
+        if element.bbox is None or element.bbox.top <= 0.31
+    ]
+    number_indexes = [
+        index
+        for index, element in enumerate(elements)
+        if re.search(r"\bsố\s*:", element.text, re.IGNORECASE)
+    ]
     for index, element in enumerate(elements):
         if not (_ISSUED_DATE_RE.search(element.text) or _ISO_DATE_RE.search(element.text)):
             continue
-        if not number_indexes or min(abs(index - number_index) for number_index in number_indexes) <= 2:
+        if (
+            not number_indexes
+            or min(abs(index - number_index) for number_index in number_indexes) <= 2
+        ):
             return _match_issued_date(element.text)
     return None
+
 
 def _parse_date_value(value: str) -> date | None:
     """Parse an ISO ``YYYY-MM-DD`` (possibly date-time) manifest value."""
@@ -220,6 +240,7 @@ def _parse_date_value(value: str) -> date | None:
         return date.fromisoformat(value[:10])
     except ValueError:
         return None
+
 
 def _match_effective_from(text: str, *, own_document: bool = False) -> date | None:
     matcher = _OWN_EFFECTIVE_FROM_RE if own_document else _EFFECTIVE_FROM_RE
@@ -253,8 +274,11 @@ def _manifest_identity_evidence(document: ParsedDocument, manifest_number: str) 
 
 
 def extract_document_metadata(
-    document: ParsedDocument, *, manifest_number: str | None = None,
-    manifest_issued_date: str | None = None, manifest_effective_from: str | None = None,
+    document: ParsedDocument,
+    *,
+    manifest_number: str | None = None,
+    manifest_issued_date: str | None = None,
+    manifest_effective_from: str | None = None,
 ) -> ExtractedDocumentMetadata:
     """Extract LegalDocument metadata fields from one canonical IR document."""
     if not document.pages:
@@ -267,12 +291,14 @@ def extract_document_metadata(
     first_elements = _header_elements(document)
     own_number = re.search(
         r"(?:số\s*:?\s*)?(\d{1,4})\s*/\s*(\d{4})\s*/\s*([A-ZĐ][A-ZĐ0-9-]*)",
-        header_text, re.IGNORECASE
+        header_text,
+        re.IGNORECASE,
     )
     if manifest_number:
         number_parts = re.fullmatch(
             r"(\d{1,4})/(\d{4})/([A-ZĐ][A-ZĐ0-9-]*)",
-            manifest_number.replace(" ", ""), re.IGNORECASE
+            manifest_number.replace(" ", ""),
+            re.IGNORECASE,
         )
         if number_parts:
             expected = _canonical_document_number(manifest_number)
@@ -286,42 +312,53 @@ def extract_document_metadata(
     if own_number is None and manifest_number:
         number_parts = re.fullmatch(
             r"(\d{1,4})/(\d{4})/([A-ZĐ][A-ZĐ0-9-]*)",
-            manifest_number.replace(" ", ""), re.IGNORECASE
+            manifest_number.replace(" ", ""),
+            re.IGNORECASE,
         )
         if number_parts:
             expected = _canonical_document_number(manifest_number)
             for index in range(len(first_elements)):
-                candidate = " ".join(item.text for item in first_elements[index:index + 3])
+                candidate = " ".join(item.text for item in first_elements[index : index + 3])
                 if expected in _canonical_document_number(candidate):
                     own_number = number_parts
                     break
     document_number = own_number or _DOCUMENT_NUMBER_RE.search(identity_text)
     if manifest_number and not _manifest_identity_evidence(document, manifest_number):
         document_number = None
-    issued_date = _header_date(document)
-    effective_from = _match_effective_from(full_text, own_document=True)
+    issued_date: date | None = _header_date(document)
+    effective_from: date | None = _match_effective_from(full_text, own_document=True)
     # Manifest identity is authoritative: do not promote a referenced date.
     if manifest_issued_date is not None:
-        expected = _parse_date_value(manifest_issued_date)
-        if expected is not None and issued_date != expected:
+        expected_issued_date = _parse_date_value(manifest_issued_date)
+        if expected_issued_date is not None and issued_date != expected_issued_date:
             issued_date = None
     if manifest_effective_from is not None:
-        expected = _parse_date_value(manifest_effective_from)
-        if expected is not None and effective_from != expected:
+        expected_effective_from = _parse_date_value(manifest_effective_from)
+        if expected_effective_from is not None and effective_from != expected_effective_from:
             effective_from = None
     return ExtractedDocumentMetadata(
         document_title=title,
         document_number=(
             f"{document_number.group(1)}/{document_number.group(2)}/"
-            f"{document_number.group(3).upper()}" if document_number else None
+            f"{document_number.group(3).upper()}"
+            if document_number
+            else None
         ),
-        document_type=_match_document_type(identity_text) or (
-            "DECREE" if re.search(r"NGHI\s+DINH|NGHỊ\s+ĐỊNH", identity_text, re.I) else
-            "CIRCULAR" if re.search(r"THONG\s+TU|THÔNG\s+TƯ", identity_text, re.I) else None
+        document_type=_match_document_type(identity_text)
+        or (
+            "DECREE"
+            if re.search(r"NGHI\s+DINH|NGHỊ\s+ĐỊNH", identity_text, re.I)
+            else "CIRCULAR"
+            if re.search(r"THONG\s+TU|THÔNG\s+TƯ", identity_text, re.I)
+            else None
         ),
-        issuer=_match_issuer(first_page_text) or (
-            "Bộ Giao thông vận tải" if re.search(r"GIAO\s+THONG\s+VAN\s+TAI", first_page_text, re.I) else
-            "Chính phủ" if re.search(r"CHINH\s+PHU|CHÍNH\s+PHỦ", first_page_text, re.I) else None
+        issuer=_match_issuer(first_page_text)
+        or (
+            "Bộ Giao thông vận tải"
+            if re.search(r"GIAO\s+THONG\s+VAN\s+TAI", first_page_text, re.I)
+            else "Chính phủ"
+            if re.search(r"CHINH\s+PHU|CHÍNH\s+PHỦ", first_page_text, re.I)
+            else None
         ),
         issued_date=issued_date,
         effective_from=effective_from,

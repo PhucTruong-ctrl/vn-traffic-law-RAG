@@ -37,16 +37,28 @@ def _deduplicate_ocr_lines(lines: list[OCRLine]) -> list[OCRLine]:
         for previous in kept:
             if line.text.strip() != previous.text.strip():
                 continue
-            overlap_width = max(0.0, min(line.bbox[2], previous.bbox[2]) - max(line.bbox[0], previous.bbox[0]))
-            overlap_height = max(0.0, min(line.bbox[3], previous.bbox[3]) - max(line.bbox[1], previous.bbox[1]))
+            overlap_width = max(
+                0.0, min(line.bbox[2], previous.bbox[2]) - max(line.bbox[0], previous.bbox[0])
+            )
+            overlap_height = max(
+                0.0, min(line.bbox[3], previous.bbox[3]) - max(line.bbox[1], previous.bbox[1])
+            )
             area = max(0.0, line.bbox[2] - line.bbox[0]) * max(0.0, line.bbox[3] - line.bbox[1])
-            previous_area = max(0.0, previous.bbox[2] - previous.bbox[0]) * max(0.0, previous.bbox[3] - previous.bbox[1])
-            if area and previous_area and overlap_width * overlap_height / min(area, previous_area) >= 0.8:
+            previous_area = max(0.0, previous.bbox[2] - previous.bbox[0]) * max(
+                0.0, previous.bbox[3] - previous.bbox[1]
+            )
+            if (
+                area
+                and previous_area
+                and overlap_width * overlap_height / min(area, previous_area) >= 0.8
+            ):
                 duplicate = True
                 break
         if not duplicate:
             kept.append(line)
     return kept
+
+
 _ARTICLE_HEADING = re.compile(
     r"(?<!\S)(?:Điều|Dièu|Dieu|Ðiều)(?=\s+\d+[A-Za-z]?\s*[.:-]?(?:\s|$))", re.IGNORECASE
 )
@@ -54,9 +66,12 @@ _ARTICLE_ONLY = re.compile(r"^(?:Điều|Dièu|Dieu|Ðiều)\s+\d+[A-Za-z]?\s*[.
 _TERMINAL_CUE = re.compile(
     r"(?:[.;:!?]$|\b(?:Điều|Dièu|Dieu|Ðiều|Khoản|Điểm|Mục|Chương|Phần)\s*$)", re.IGNORECASE
 )
+
+
 def _cuda_available() -> bool:
     try:
         import paddle
+
         return bool(paddle.is_compiled_with_cuda() and paddle.device.cuda.device_count() > 0)
     except (ImportError, AttributeError, RuntimeError):
         return False
@@ -69,6 +84,7 @@ def resolve_ocr_device(requested: str | None = None) -> str:
         return "gpu:0"
     print("OCR CUDA unavailable; using CPU (set OCR_DEVICE to override)", flush=True)
     return "cpu"
+
 
 @dataclass(frozen=True)
 class OCRLine:
@@ -231,6 +247,7 @@ def _merge_elements(elements: list[DocumentElement]) -> list[DocumentElement]:
             continue
         previous = merged[-1]
         a, b = previous.bbox, element.bbox
+        assert a is not None and b is not None
         gap = b.top - a.bottom
         overlap = max(0.0, min(a.right, b.right) - max(a.left, b.left))
         span = min(a.right - a.left, b.right - b.left)

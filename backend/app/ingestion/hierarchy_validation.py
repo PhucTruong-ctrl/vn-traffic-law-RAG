@@ -33,6 +33,7 @@ import re
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
+
 from app.ingestion.metadata_normalizer import VIETNAMESE_POINT_ALPHABET, canonical_point_label
 from app.ingestion.structure_extractor import ExtractedLegalProvision
 from app.ingestion.structure_state_parser import StructureKind
@@ -283,7 +284,7 @@ def validate_hierarchy(
         for point in group:
             label = _label_source(point)
             canonical = canonical_point_label(label) if label is not None else None
-            if canonical is not None and not _is_d_label(label):
+            if canonical is not None and label is not None and not _is_d_label(label):
                 if canonical[0] in _POINT_RUN_ALPHABET:
                     valid_point_count += 1
                     continue

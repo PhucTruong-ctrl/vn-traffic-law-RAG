@@ -261,10 +261,12 @@ def test_empty_document_returns_empty_metadata() -> None:
 
 def test_manifest_dates_reject_referenced_dates() -> None:
     document = _document(
-        [("Số: 166/2024/NĐ-CP", "paragraph"),
-         ("Hà Nội, ngày 26 tháng 12 năm 2024", "paragraph"),
-         ("Nghị định này có hiệu lực từ ngày 01/01/2025", "paragraph"),
-         ("Nghị định 100/2019/NĐ-CP có hiệu lực từ ngày 01/01/2020", "paragraph")]
+        [
+            ("Số: 166/2024/NĐ-CP", "paragraph"),
+            ("Hà Nội, ngày 26 tháng 12 năm 2024", "paragraph"),
+            ("Nghị định này có hiệu lực từ ngày 01/01/2025", "paragraph"),
+            ("Nghị định 100/2019/NĐ-CP có hiệu lực từ ngày 01/01/2020", "paragraph"),
+        ]
     )
     metadata = extract_document_metadata(
         document,
@@ -369,8 +371,7 @@ def test_manifest_accepts_pending_review_without_review_fields() -> None:
 def test_spaced_header_number_precedes_referenced_numbers() -> None:
     metadata = extract_document_metadata(
         _document(
-            [("Số: 16 /2024/TT-BGTVT", "paragraph"),
-             ("THÔNG TƯ số 12/2020/TT-BGTVT", "title")],
+            [("Số: 16 /2024/TT-BGTVT", "paragraph"), ("THÔNG TƯ số 12/2020/TT-BGTVT", "title")],
             document_id="tt-16-2024",
         )
     )
@@ -378,7 +379,9 @@ def test_spaced_header_number_precedes_referenced_numbers() -> None:
 
 
 def test_manifest_number_requires_ocr_evidence() -> None:
-    document = _document([("sá05", "paragraph"), ("/2024/TT-BGTVT", "paragraph")], document_id="tt-05-2024")
+    document = _document(
+        [("sá05", "paragraph"), ("/2024/TT-BGTVT", "paragraph")], document_id="tt-05-2024"
+    )
     metadata = extract_document_metadata(document, manifest_number="05/2024/TT-BGTVT")
     assert metadata.document_number is None
 

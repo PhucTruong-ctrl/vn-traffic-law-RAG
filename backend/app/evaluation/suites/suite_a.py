@@ -130,7 +130,9 @@ _FRACTION_METRICS = frozenset(
 #: Vietnamese point-label alphabet (a..y incl. đ) used to detect point labels
 #: in OCR text — đ is kept distinct from d (docs/03 §3.8.5; point_label_d_dd.json).
 _POINT_LABEL_ALPHABET = "aăâbcdđeêghiklmnoôơpqrstuưvxy"
-_POINT_LABEL_RE = re.compile(rf"(?<![A-Za-zÀ-ỹ])(?:Điểm\s+)?([{_POINT_LABEL_ALPHABET}])\s*[)）.]", re.IGNORECASE)
+_POINT_LABEL_RE = re.compile(
+    rf"(?<![A-Za-zÀ-ỹ])(?:Điểm\s+)?([{_POINT_LABEL_ALPHABET}])\s*[)）.]", re.IGNORECASE
+)
 
 
 # ────────────────────────────────────────────────────────────────────────────
