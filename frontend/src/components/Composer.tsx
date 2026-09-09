@@ -22,12 +22,16 @@ export default function Composer({
 }: ComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const resizeTextarea = (textarea: HTMLTextAreaElement) => {
+    const transition = textarea.style.transition;
+    textarea.style.transition = "none";
     textarea.style.height = "0px";
     const lineHeight = Number.parseFloat(getComputedStyle(textarea).lineHeight) || 23;
     const maxHeight = hero ? Number.POSITIVE_INFINITY : lineHeight * 8 + 24;
     const nextHeight = Math.max(lineHeight + 24, Math.min(textarea.scrollHeight, maxHeight));
     textarea.style.height = `${nextHeight}px`;
     textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+    void textarea.offsetHeight;
+    textarea.style.transition = transition;
   };
   useEffect(() => {
     if (textareaRef.current) resizeTextarea(textareaRef.current);
