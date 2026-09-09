@@ -2,6 +2,20 @@
 
 Canonical agent instructions for this repository (agents.md spec). Keep `CLAUDE.md` / `.cursorrules` thin and pointing here instead of duplicating rules.
 
+## Agent skills
+
+### Issue tracker
+
+Issues live as local Markdown files under `.scratch/<feature-slug>/`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout: root `CONTEXT.md` and `docs/adr/`. See `docs/agents/domain.md`.
+
 ## 1. Non-negotiable rules
 
 Rules use a three-tier boundary model:
