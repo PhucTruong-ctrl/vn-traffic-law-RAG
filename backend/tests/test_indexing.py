@@ -79,6 +79,8 @@ PAYLOAD_KEYS = frozenset(
         "parser",
         "parser_version",
         "legal_parser_version",
+        "source_url",
+        "bbox",
         "sparse_encoder_version",
         "text",
         "parent_context",
@@ -328,7 +330,6 @@ def test_build_point_payload_contains_exactly_the_contract_keys() -> None:
     assert set(point.payload) == PAYLOAD_KEYS
     assert set(point.payload) >= DOC_03_311_KEYS
     assert point.vector == {}
-
 
 def test_build_point_maps_unit_fields_and_metadata() -> None:
     unit = _unit()

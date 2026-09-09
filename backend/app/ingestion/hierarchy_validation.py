@@ -285,7 +285,7 @@ def validate_hierarchy(
             label = _label_source(point)
             canonical = canonical_point_label(label) if label is not None else None
             if canonical is not None and label is not None and not _is_d_label(label):
-                if canonical[0] in _POINT_RUN_ALPHABET:
+                if canonical[0] in _POINT_RUN_ALPHABET and canonical != 'x)':
                     valid_point_count += 1
                     continue
             elif label is not None and _is_d_label(label):
@@ -311,7 +311,7 @@ def validate_hierarchy(
         "orphan_point_count": orphan_point_count,
         "orphan_clause_count": orphan_clause_count,
         "duplicate_count": len(duplicated),
-        "point_label_detection_rate": (valid_point_count / point_count if point_count else None),
+        "point_label_detection_rate": (valid_point_count / point_count if point_count else 0.0),
     }
     return HierarchyValidationResult(violations=violations, metrics=metrics)
 
