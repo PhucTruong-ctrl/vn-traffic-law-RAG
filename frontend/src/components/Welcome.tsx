@@ -21,6 +21,7 @@ export default function Welcome({ question, suggestions, onQuestion, onSubmit }:
       <div className="prompt-chips welcome-enter__item" aria-label="Gợi ý">
         {suggestions.map((item, index) => (
           <button
+            key={item}
             style={{ "--chip-delay": `${index * 55}ms` } as CSSProperties}
             type="button"
             onClick={() => onQuestion(item)}
