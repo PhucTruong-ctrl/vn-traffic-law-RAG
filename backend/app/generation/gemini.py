@@ -8,7 +8,7 @@ import app.config as config
 
 from .schemas import StructuredAnswer
 
-MODEL_VERSION = "gemini-3.7-flash"
+MODEL_VERSION = "gemini-3.1-flash-lite"
 PROMPT_NAME = "legal-generator-v1"
 PROMPT_VERSION = "1"
 

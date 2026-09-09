@@ -75,7 +75,7 @@ class GenerationSettings(BaseSettings):
     )
 
     model: str = Field(
-        default="gemini-3.7-flash",
+        default="gemini-3.1-flash-lite",
         validation_alias=AliasChoices("GENERATION_MODEL", "LLM_MODEL"),
     )
     gemini_api_key: str = Field(
