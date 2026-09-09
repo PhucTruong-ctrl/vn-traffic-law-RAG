@@ -59,6 +59,23 @@ function responseFromMessage(message: Record<string, unknown>): ChatResponse | n
     return null;
   }
 }
+function responseFromPersistedMessage(message: Record<string, unknown>): ChatResponse | null {
+  const candidate = message.response ?? message.payload;
+  if (candidate) {
+    try {
+      return validateChatResponse(candidate);
+    } catch {
+      return null;
+    }
+  }
+  if (typeof message.content !== "string") return null;
+  try {
+    return validateChatResponse(JSON.parse(message.content));
+  } catch {
+    return null;
+  }
+}
+
 function turnsFromConversation(value: unknown): ConversationTurn[] {
   if (!value || typeof value !== "object") return [];
   const raw = value as Record<string, unknown>;
@@ -68,15 +85,12 @@ function turnsFromConversation(value: unknown): ConversationTurn[] {
       ? raw.turns
       : [];
   const turns: ConversationTurn[] = [];
-  for (const item of messages) {
+  for (let index = 0; index < messages.length; index += 1) {
+    const item = messages[index];
     if (!item || typeof item !== "object") continue;
     const message = item as Record<string, unknown>;
-    if (
-      typeof message.question === "string" &&
-      message.response &&
-      typeof message.response === "object"
-    ) {
-      const response = responseFromMessage(message);
+    if (typeof message.question === "string" && message.response) {
+      const response = responseFromPersistedMessage(message);
       if (response) turns.push({ question: message.question, response });
       continue;
     }
@@ -84,9 +98,9 @@ function turnsFromConversation(value: unknown): ConversationTurn[] {
       (message.role === "user" || message.type === "user") &&
       typeof message.content === "string"
     ) {
-      const next = messages[turns.length + 1];
+      const next = messages[index + 1];
       if (next && typeof next === "object") {
-        const response = responseFromMessage(next as Record<string, unknown>);
+        const response = responseFromPersistedMessage(next as Record<string, unknown>);
         if (response) turns.push({ question: message.content, response });
       }
     }
@@ -106,11 +120,26 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [progressEvents, setProgressEvents] = useState<ProgressEvent[]>([]);
   const [activeId, setActiveId] = useState(conversationId);
+  const [conversationActivity, setConversationActivity] = useState<{
+    id: string;
+    nonce: number;
+  } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   useEffect(() => {
     const controller = new AbortController();
-    if (!conversationId) return () => controller.abort();
+    stopSubmission();
+    setActiveId(conversationId);
+    setLoading(Boolean(conversationId));
+    setError("");
+    setProgressEvents([]);
+    if (!conversationId) {
+      setTurns([]);
+      setQuestion("");
+      setSubmittedQuestion("");
+      setLoading(false);
+      return () => controller.abort();
+    }
     fetch(`/api/v1/conversations/${encodeURIComponent(conversationId)}`, {
       signal: controller.signal,
     })
@@ -119,17 +148,16 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
         return result.json();
       })
       .then((payload) => {
-        setActiveId(conversationId);
         setTurns(turnsFromConversation(payload));
-        setQuestion("");
-        setSubmittedQuestion("");
-        setError("");
+        setLoading(false);
       })
       .catch((loadError) => {
-        if (loadError.name !== "AbortError")
+        if (loadError.name !== "AbortError") {
           setError(
             loadError instanceof Error ? loadError.message : "Không thể tải cuộc trò chuyện.",
           );
+          setLoading(false);
+        }
       });
     return () => controller.abort();
   }, [conversationId]);
@@ -146,11 +174,18 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
     event.preventDefault();
     const submitted = question.trim();
     if (!submitted || loading) return;
+    if (activeId) {
+      setConversationActivity((previous) => ({
+        id: activeId,
+        nonce: (previous?.nonce ?? 0) + 1,
+      }));
+    }
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
     setProgressEvents([]);
     setLoading(true);
     setError("");
+    setQuestion("");
     setSubmittedQuestion(submitted);
     const query = new URLSearchParams({ question: submitted });
     if (activeId) query.set("conversation_id", activeId);
@@ -234,7 +269,7 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
       }
       const nextResponse = validateChatResponse(payload);
       setTurns((previous) => [...previous, { question: submitted, response: nextResponse }]);
-      setQuestion("");
+      setSubmittedQuestion(submitted);
       const returnedId =
         payload &&
         typeof payload === "object" &&
@@ -242,6 +277,10 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
           ? (payload as Record<string, string>).conversation_id
           : activeId;
       if (returnedId && returnedId !== activeId) {
+        setConversationActivity((previous) => ({
+          id: returnedId,
+          nonce: (previous?.nonce ?? 0) + 1,
+        }));
         setActiveId(returnedId);
         navigateTo(returnedId);
       }
@@ -285,16 +324,16 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
         onNewChat={resetConversation}
         onSelectConversation={(id) => navigateTo(id)}
         onCollapsedChange={setSidebarCollapsed}
+        onConversationActivity={conversationActivity}
       />
       <section className="main-panel" aria-label="Khu vực tra cứu">
-        <AppHeader />
         <div
           className={
             turns.length || loading || error ? "conversation has-messages" : "conversation"
           }
           aria-busy={loading}
         >
-          {!turns.length && !loading && !error ? (
+          {!activeId && !turns.length && !loading && !error ? (
             <Welcome
               question={question}
               suggestions={suggestions}
@@ -303,6 +342,7 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
             />
           ) : (
             <ChatThread
+              scrollOnTurnChange={!loading}
               turns={turns}
               question={submittedQuestion}
               loading={loading}
@@ -311,7 +351,7 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
               onOpenSource={setDrawerCitation}
             />
           )}
-          {(turns.length > 0 || loading || error) && (
+          {(activeId || turns.length > 0 || loading || error) && (
             <div className="sticky-composer">
               <Composer
                 id="question"

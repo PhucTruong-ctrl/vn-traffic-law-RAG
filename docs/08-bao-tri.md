@@ -1,6 +1,6 @@
-> **MVP rebaseline — 06/09/2026**: The defense release scope is reduced to a fixed 5–10-document reviewed corpus, 30–50 evaluation questions, current and as-of-date retrieval, structure-aware citations, evidence gating, abstention, and a working chat UI. RAGFlow comparison, feedback, large-scale background ingestion, advanced observability/security, and production backup automation are deferred.
+> **MVP đã phê duyệt — 10/09/2026**: Hệ thống single-user localhost/mạng riêng, không auth/admin/reviewer role/API/UI. Corpus cố định **14 PDF local**, deduplicate theo document/hash, allowlist chính xác `datafiles.chinhphu.vn`; ingestion background hoặc CLI, snapshot/hash bất biến, tự động quality/provenance/temporal gates, query-time chỉ phục vụ corpus và không gọi web. Gold set 200 câu/17 nhóm rủi ro chạy toàn bộ trước release. Feedback chỉ LIKE/DISLIKE tối thiểu, là tín hiệu vận hành không gating.
 >
-> **Model policy**: Gemini 3.7 Flash is the primary structured-answer generator. Gemini 3.5 Flash Lite is the independent semantic judge. OpenAI/GPT-5.4 is not used. Earlier scope/model statements in this document are superseded by this rebaseline.
+> **Model/benchmark policy**: Không giả định tên model hoặc ngưỡng chưa đo. Embedding local benchmark nhỏ, cache candidate; chỉ rebuild index sau khi chọn candidate.
 # 08. Bảo Trì (Maintenance)
 
 > **Giai đoạn SDLC**: 7 - Bảo trì
@@ -30,33 +30,25 @@ Tài liệu này định nghĩa kế hoạch bảo trì (maintenance) của VNLR
 
 ## 8.1. Mục tiêu bảo trì và nguyên tắc
 
-Kế hoạch bảo trì phải bảo đảm hệ thống tiếp tục:
+Mọi bảo trì phải giữ:
 
-1. Trả lời từ corpus đã được kiểm chứng (review_status = ACCEPTED).
-2. Dùng đúng phiên bản văn bản tại ngày được hỏi theo khoảng [effective_from, effective_to).
-3. Không làm mất lịch sử khi có văn bản mới; văn bản bị thay thế vẫn phục vụ câu hỏi lịch sử.
-4. Không index dữ liệu chưa review; `needs_review` và `dropped` không bao giờ vào Qdrant.
-5. Có thể tái tạo PostgreSQL (nguồn chân lý), Qdrant (index dẫn xuất), object storage (MinIO hiện tại) và evaluation artifacts.
-6. Phát hiện retrieval hoặc citation regression qua bộ regression subset cố định.
-7. Kiểm soát mọi thay đổi model, prompt, parser, embedding, reranker qua gate và regression.
-8. Giữ report, code và dữ liệu đồng bộ; số liệu trong báo cáo phải có raw evidence.
-9. Có audit trail cho mọi thay đổi corpus, ghi rõ người thực hiện dưới vai trò nào.
-10. Không biến hệ thống thành crawler tự động không kiểm soát; phát hiện văn bản mới không đồng nghĩa với kích hoạt.
+1. corpus đúng 14 PDF, deduplicate theo document/hash và exact source allowlist;
+2. snapshot/hash bất biến, index cũ phục vụ tới khi index mới pass gates;
+3. citation, provenance, temporal và evidence gates; verified-or-abstain;
+4. rollback được về snapshot/index trước đó;
+5. full 200 gold questions/17 risk-weighted categories chạy trước release.
 
-Nguyên tắc trung tâm:
-
-> Văn bản mới không được append mù vào corpus. Mọi thay đổi phải đi qua detection, parsing, normalization, relation analysis, temporal resolution, quality gates, review, versioning, indexing, regression và activation. Kết quả thực nghiệm chỉ được ghi sau khi chạy evaluation (doc 00 mục 11.4).
+Ingestion chỉ chạy background hoặc manual CLI. Không có human approval, admin/reviewer flow, auth role, web fallback hay query-time web access. Feedback chỉ LIKE/DISLIKE tối thiểu, được theo dõi như operational signal và không chặn release; không lưu comment, raw prompt/answer hoặc PII.
 
 ### 8.1.1. Lịch bảo trì
 
 | Tần suất | Hoạt động |
 |---|---|
-| Mỗi ngày khi phát triển | CI, unit test, review log, backup code (git commit) |
-| Hàng tuần | Kiểm tra nguồn văn bản mới, pending review, index consistency, queue depth, disk, backup age |
+| Hàng tuần | Kiểm tra nguồn văn bản mới, candidate không phục vụ, index consistency, queue depth, disk, backup age |
 | Hàng tháng | Chạy regression subset, kiểm tra corpus QA drift, cost review |
-| Hàng quý | Review model, prompt, parser, dependency, security, corpus coverage; restore drill nhẹ |
+| Hàng quý | Đo lại model, prompt, parser, dependency, security, corpus coverage; restore drill nhẹ |
 | Khi có văn bản mới | Corpus update lifecycle (mục 8.3) |
-| Khi có văn bản sửa đổi/thay thế | Relation review, temporal update, LegalEffectEvent |
+| Khi có văn bản sửa đổi/thay thế | Automatic relation and temporal gates |
 | Khi đổi embedding model | Full re-embedding và collection migration (mục 8.5) |
 | Khi nâng parser | Parser version migration với golden fixtures (mục 8.4) |
 | Khi đổi generator/prompt | Prompt change gate và generation regression (mục 8.7) |
@@ -84,10 +76,8 @@ Nguyên tắc trung tâm:
 | Deployment | Docker images, backup, restore, release manifest |
 | Documentation | README, ADR, report, diagram, changelog |
 
-### 8.1.3. Ngoài phạm vi bảo trì P0
-
-- tự động quyết định quan hệ pháp lý không có review;
-- tự động crawl và activate văn bản;
+- tự động quyết định quan hệ pháp lý khi chưa đủ evidence/provenance/temporal consistency;
+- tự động crawl và đưa văn bản chưa qua gates vào serving corpus;
 - tự động chuyển model production;
 - tự động sửa gold set từ model output;
 - tự động đổi embedding model mà không re-index toàn bộ collection;
@@ -97,22 +87,9 @@ Nguyên tắc trung tâm:
 
 ---
 
-## 8.2. Vai trò bảo trì (roles)
+## 8.2. Bảo trì và trách nhiệm vận hành
 
-| Vai trò | Trách nhiệm |
-|---|---|
-| Maintainer | Điều phối release, dependency, backup, restore drill và incident |
-| Corpus Reviewer | Kiểm tra nguồn, metadata, hierarchy, relation, provenance và hiệu lực; quyết định accept/reject |
-| Developer | Sửa code, Alembic migration, index, tests, regression; quản lý prompt version |
-| Evaluation Owner | Quản lý gold set, run config, report; đóng băng và version hóa gold set |
-| System Operator | Theo dõi health, resource, queue và provider; chạy restore drill |
-| Feedback Triage Owner (mới) | Rà soát feedback định kỳ, phân loại, đề xuất ứng viên gold set sau review độc lập |
-
-Quy tắc chung:
-
-- Trong phạm vi khóa luận, một người có thể kiêm nhiều vai trò, nhưng audit record vẫn phải ghi rõ hành động được thực hiện dưới vai trò nào (NFR-09, UC-08).
-- Mọi quyết định review phải có reviewer identity và timestamp.
-- Feedback Triage Owner chịu trách nhiệm vòng đời feedback từ thu thập tới triage và đề xuất gold-candidate (mục 8.9.5, doc 06 mục 6.9.3); không tự động thêm feedback vào gold set.
+Không có reviewer role, reviewer identity hoặc reviewer timestamp. Maintainer, Developer, Evaluation Owner và System Operator chỉ thực hiện các thao tác kỹ thuật đã mô tả; không có quyền phê duyệt thủ công.
 
 ---
 
@@ -120,7 +97,6 @@ Quy tắc chung:
 
 ### 8.3.1. Workflow chuẩn
 
-```text
 Discover
 -> Download
 -> Hash (SHA-256)
@@ -129,78 +105,46 @@ Discover
 -> Extract (Legal Structure Extractor)
 -> Reference resolve (Legal Reference Resolver)
 -> Temporal resolve (Temporal and Amendment Resolver)
--> Quality gates
--> Review (Human Review)
--> Version (document/provision version mới)
--> Update legal relations (persist relations/events atomically, close affected provision-version intervals, rebind by version, route unresolved scope to review)
--> Index (embed + upsert Qdrant)
--> Regress (retrieval/citation/temporal regression)
--> Activate (alias/version phục vụ query)
+-> Automatic quality/provenance/temporal gates
+-> Immutable snapshot/hash
+-> Version and legal relations
+-> Index candidate
+-> Full regression/evaluation
+-> ACCEPTED -> activate and serve
+-> REJECTED or non-serving candidate -> retain for audit, never serve
 -> Backup
--> Audit
 ```
 
-Bước `Update legal relations` cập nhật toàn bộ quan hệ và hiệu lực pháp lý, không chỉ temporal:
+Mỗi bước idempotent; trạng thái job nằm trong PostgreSQL. Candidate chỉ được chuyển sang `ACCEPTED` khi tự động quality, provenance, temporal và full evaluation gates đều đạt. Candidate không đạt là `REJECTED`; candidate chưa hoàn tất hoặc còn thiếu evidence/provenance/temporal consistency là non-serving candidate. Không có bước human approval.
 
-- persist `DocumentRelation` (SUPERSEDES/REPEALS/AMENDS/CORRECTS/GUIDES/RELATED_TO) và `LegalEffectEvent` (SUPERSEDED/REPEALED/PARTIAL_AMENDED/CORRECTED/EXPIRED) một cách nguyên tử (atomic) cùng với việc tạo version mới;
-- đóng interval của các provision version bị ảnh hưởng trong `legal_provisions` (`effective_to` của từng provision version, không chỉ `effective_to` cấp văn bản), vì temporal retrieval lọc theo interval cấp provision;
-- rebind hoặc đánh dấu `ProvisionReference` theo version nguồn/đích (`source_provision_version_id`, `target_provision_version_id`) khi version nguồn hoặc đích thay đổi;
-- route các phạm vi ảnh hưởng chưa xác định được (unresolved scope) sang review trước khi index; không index provision hoặc relation mới khi còn scope chưa review.
+Bước cập nhật quan hệ và hiệu lực phải persist `DocumentRelation` và `LegalEffectEvent` nguyên tử cùng version mới, đóng interval provision bị ảnh hưởng, rebind `ProvisionReference` theo version, và giữ unresolved scope ở trạng thái non-serving cho tới khi automatic gates có đủ evidence. Index cũ tiếp tục phục vụ nếu candidate fail; alias chỉ switch sau khi candidate `ACCEPTED`.
 
-Pipeline worker tương ứng (doc 03 mục 3.2.1, 3.13): `parse -> normalize -> legal extract -> reference resolve -> temporal resolve -> quality gates -> review -> embed -> index`. Mỗi bước là một actor Dramatiq ngắn, rời rạc, idempotent; trạng thái job nằm trong PostgreSQL (`ingestion_runs`), Redis chỉ là đường truyền message.
-
-Chỉ kết quả phân loại `accepted` mới đi tiếp tới `PostgreSQL -> embed -> index`. Kết quả `needs_review` phải qua Human Review; `dropped` chỉ được ghi thành audit record và không bao giờ được index (FR-09).
-
-### 8.3.2. Phát hiện không đồng nghĩa kích hoạt
-
-```text
-Nguồn báo có văn bản mới
-    -> tạo candidate
-    -> tải PDF và metadata
-    -> tính SHA-256
-    -> kiểm tra duplicate theo file_hash
-    -> chưa xuất hiện trong retrieval
-```
-
-Candidate manifest:
-
-```json
-{
-  "candidate_id": "cand-2026-001",
-  "source_url": "https://...",
-  "detected_at": "2026-10-01T09:00:00+07:00",
-  "downloaded_at": "2026-10-01T09:05:00+07:00",
-  "file_hash": "...",
-  "document_number": "...",
-  "document_type": "DECREE",
-  "suspected_relations": [],
-  "status": "DISCOVERED"
-}
-```
-
-Candidate status:
+### 8.3.2. Candidate status
 
 ```text
 DISCOVERED
 DOWNLOADED
 DUPLICATE
 EXTRACTION_PENDING
-NEEDS_REVIEW
+NON_SERVING_CANDIDATE
 ACCEPTED
 REJECTED
 ACTIVATED
 FAILED
 ```
 
-Candidate chỉ được activate sau khi hoàn tất quality gates và review. Duplicate theo `file_hash` được liên kết với version hiện có thay vì tạo candidate mới.
+Duplicate theo `file_hash` được liên kết với version hiện có thay vì tạo candidate mới. `ACTIVATED` chỉ là kết quả triển khai tự động sau `ACCEPTED`, không phải quyết định của con người.
+
+---
+
 
 ### 8.3.3. Storage append-only và retrieval visibility
 
 Lịch sử luôn được giữ, nhưng không phải mọi version đều hợp lệ cho mọi query:
 
 - **Storage append-only**: giữ version và audit lịch sử trong PostgreSQL.
-- **Retrieval visibility**: phụ thuộc effective interval và review_status.
-- **Active index (Qdrant)**: chứa mọi provision version có `review_status = ACCEPTED`, kể cả các version đã hết hiệu lực (expired historical versions); query-time temporal filter quyết định version nào được phục vụ cho ngày được hỏi.
+- **Retrieval visibility**: phụ thuộc effective interval và candidate status; chỉ `ACCEPTED` được phục vụ.
+- **Active index (Qdrant)**: chứa mọi provision version `ACCEPTED`, kể cả version hết hiệu lực để phục vụ câu hỏi lịch sử; query-time temporal filter quyết định version phù hợp.
 - **Current retrieval**: temporal filter loại version cũ không còn hiệu lực tại ngày hỏi.
 - **Historical retrieval**: vẫn dùng version cũ hợp lệ tại mốc hỏi (FR-19).
 - Không dùng append-only retrieval logic: tài liệu mới không được append mù vào corpus mà không đóng interval cũ khi cần.
@@ -218,12 +162,12 @@ new SUPERSEDES old
 old.effective_to = new.effective_from
 ```
 
-Chỉ thực hiện sau review. Ngoài document-level relation, phải:
+Automatic relation and temporal gates chỉ chạy candidate; ngoài document-level relation, phải:
 
 - tạo/ghi `DocumentRelation` SUPERSEDES và `LegalEffectEvent` SUPERSEDED với `affected_provision_versions`;
 - đóng `effective_to` của từng provision version của văn bản cũ tại `new.effective_from` (temporal retrieval lọc theo interval cấp provision, không phải cấp văn bản);
 - rebind hoặc đánh dấu các `ProvisionReference` trỏ vào văn bản cũ theo version;
-- route mọi phạm vi thay thế chưa rõ sang review trước khi index.
+- giữ mọi phạm vi thay thế chưa rõ ở trạng thái non-serving cho tới khi automatic gates đủ evidence.
 
 Văn bản cũ không bị xóa khỏi corpus và vẫn hợp lệ cho câu hỏi lịch sử (doc 03 mục 3.15.4).
 
@@ -393,7 +337,7 @@ Nguyên tắc:
 - Assertion bắt buộc khi nâng version:
   - mọi loại quan hệ được trích đúng theo gold;
   - version binding đúng (`source_provision_version_id`, `target_provision_version_id` không trộn version);
-  - unresolved reference ghi `UNRESOLVED`/`PENDING_REVIEW` và định tuyến review, không suy đoán;
+  - unresolved reference ghi `UNRESOLVED` và giữ candidate non-serving, không suy đoán;
   - context expansion không mở rộng qua reference unresolved.
 - `unresolved cross-reference count` trong corpus QA được theo dõi sau mỗi nâng version resolver; tăng bất thường cần khảo sát.
 
@@ -424,7 +368,7 @@ Quy tắc bắt buộc:
 - corpus version/hash của embedding run được ghi vào run metadata và release manifest;
 - queries trong thời gian migration vẫn dùng collection cũ cho tới khi alias switch hoàn tất;
 - dimension mới phải khớp cấu hình (ví dụ Gemini Embedding 2 768 dims, Jina text-nano 768 dims, Jina text-small 1024 dims - doc 03 mục 3.11.1);
-- approval gate: Recall@k không giảm ngoài delta chấp nhận (delta khóa sau baseline, không đặt trước); historical category không giảm; exact reference query không giảm; vector dimension đúng; cost nằm trong budget.
+- regression gate: Recall@k không giảm ngoài delta chấp nhận (delta khóa sau baseline, không đặt trước); historical category không giảm; exact reference query không giảm; vector dimension đúng; cost nằm trong budget.
 
 ### 8.5.2. Embedding cache
 
@@ -538,7 +482,7 @@ ALTER TABLE legal_provisions
     WHERE (review_status = 'ACCEPTED');
 ```
 
-- Xung đột hiệu lực thực sự (hai văn bản cùng tuyên bố hiệu lực cho cùng ngày) phải được mô hình unresolved/PENDING_REVIEW và ghi `LegalEffectEvent` + review item; không giữ hai row ACCEPTED chồng lấn.
+- Xung đột hiệu lực thực sự (hai văn bản cùng tuyên bố hiệu lực cho cùng ngày) phải giữ candidate non-serving cho tới khi automatic temporal gates đủ evidence; không giữ hai row ACCEPTED chồng lấn.
 - Script kiểm tra temporal integrity:
 
 ```bash
@@ -803,15 +747,14 @@ Sau baseline, khóa threshold cụ thể (mean Recall@10 delta, MRR@10 delta, Te
 Nếu phát hiện gold sai (label thật sai, không phải do hệ thống):
 
 1. Tạo issue.
-2. Ghi evidence (nguồn chính thức).
-3. Reviewer độc lập xác nhận.
-4. Tạo errata và version mới của gold set; không bao giờ sửa âm thầm file gold đã đóng băng.
-5. Không xóa kết quả cũ.
-6. Chạy lại và ghi cả kết quả trước và sau errata, ghi rõ gold version từng run (doc 06 mục 6.3.9).
+2. Ghi evidence (nguồn chính thức) và chạy automatic gold-integrity gate.
+3. Tạo errata và version mới của gold set; không bao giờ sửa âm thầm file gold đã đóng băng.
+4. Không xóa kết quả cũ.
+5. Chạy lại và ghi cả kết quả trước và sau errata, ghi rõ gold version từng run (doc 06 mục 6.3.9).
 
-Không cập nhật expected answer theo model output; expected answer chỉ thay khi nguồn chính thức chứng minh gold sai, pháp lý/temporal metadata được correction, hoặc review guideline thay đổi có version.
+Không cập nhật expected answer theo model output; expected answer chỉ thay khi nguồn chính thức chứng minh gold sai, pháp lý/temporal metadata được correction, hoặc tiêu chí đánh giá thay đổi có version.
 
-Gold-set health theo dõi: expected IDs còn tồn tại; query date hợp lệ; document version; category balance; duplicate question; review status; coverage current/historical/comparison (doc 06 mục 6.10.4).
+Gold-set health theo dõi: expected IDs còn tồn tại; query date hợp lệ; document version; category balance; duplicate question; coverage current/historical/comparison (doc 06 mục 6.10.4).
 
 ### 8.9.4. Evaluation drift
 
@@ -820,35 +763,12 @@ Gold-set health theo dõi: expected IDs còn tồn tại; query date hợp lệ;
 - Phát hiện drift: model/prompt/parser version trong run metadata khác baseline -> cảnh báo; kết quả cũ và mới đều được giữ, không ghi đè.
 - Theo dõi: Recall@10 delta, MRR delta, Temporal Accuracy delta, Citation F1 delta, Abstention F1 delta, latency delta, cost delta. Không chỉ theo dõi một overall score (doc 06 mục 6.6.9).
 
-### 8.9.5. Feedback triage
+### 8.9.5. Feedback telemetry
 
-- End-user feedback: Useful / Not Useful, danh mục báo cáo: `wrong_citation`, `missing_information`, `wrong_effective_date`, `wrong_penalty`, `incomplete_answer`, `other` (FR-27, doc 03 mục 3.26).
-- Feedback lưu trong PostgreSQL (`query_feedback` gắn `query_trace_id`) và gửi điểm số về Langfuse (non-blocking).
-- Feedback Triage Owner rà soát feedback định kỳ; phân tích pattern (ví dụ `wrong_penalty` tăng -> khảo sát L4/L5 hoặc parser accuracy).
-- Feedback sau khi được reviewer độc lập đánh giá có thể trở thành ứng viên bổ sung cho gold set; không tự động thêm (doc 06 mục 6.9.3). Câu hỏi gốc phải có nguồn trong corpus đã review; expected IDs xác định lại theo quy trình tạo gold (doc 06 mục 6.3.8), không dùng ID hệ thống đã trả.
-- Feedback không chứa PII; comment phải qua PII detection trước khi persist (NFR-05, doc 06 mục 6.9.1).
-- Retention tách riêng ba lớp: (1) query trace theo `QUERY_TRACE_RETENTION_DAYS` (khởi điểm 30 ngày, doc 07 mục 7.3.3); (2) conversation history chỉ khi bật FR-29 (P1) giữ mặc định 30 ngày (NFR-05); (3) feedback record (`query_feedback`) giữ lâu dài cho triage và audit, không gắn với retention của trace.
-- Khi trace payload bị xóa theo retention, feedback row vẫn giữ `query_trace_id` để bảo toàn liên kết audit với bản ghi query đã ghi; không xóa feedback chỉ vì trace bị xóa.
-- Delete job có test (NFR-05); mọi thao tác xóa có audit.
-
----
-
-## 8.10. Backup và restore
-
-### 8.10.1. Backup schedule
-
-| Dữ liệu | Tần suất |
-|---|---|
-| PostgreSQL | Trước release và sau corpus update (pg_dump --format=custom) |
-| Qdrant snapshot | Trước alias switch và release; copy sang nơi lưu trữ độc lập |
-| Object storage artifacts (MinIO/S3-compatible) | `mc mirror` sang nơi lưu trữ độc lập; source PDF + artifact archive sau ingestion accepted |
-| Gold set | Mỗi version/run |
-| Evaluation results | Mỗi run (append-only) |
-| Git repository | Mỗi commit/push |
-| Release bundle | Mỗi release candidate (v1.0.0-rc2) |
-| Checksums | SHA256SUMS trong backup bundle |
-
-Backup scope bắt buộc (NFR-03, doc 07 mục 7.10.1):
+- Chỉ nhận `LIKE`/`DISLIKE` tối thiểu; lưu aggregate operational signal, non-gating.
+- Không lưu comment, raw prompt/answer, identity hoặc PII; lỗi telemetry không ảnh hưởng query hay release.
+- Không promote feedback tự động vào gold set; feedback chỉ là operational signal, không có approval flow trong MVP.
+### 8.10. Backup và restore
 
 ```text
 1. PostgreSQL dump        pg_dump --format=custom
@@ -1045,7 +965,7 @@ Không bao giờ edit trực tiếp row `legal_provisions` đã ACCEPTED. Correc
 open correction
     -> attach evidence (nguồn chính thức)
     -> create new revision/version (provision_id giữ nguyên, version tăng)
-    -> review
+    -> automatic quality/provenance/temporal gates
     -> run regression
     -> activate
     -> preserve old record
@@ -1069,11 +989,11 @@ Correction sai ngày hiệu lực (wrong effective date) đi theo cùng quy trì
 1. mở correction kèm evidence (nguồn chính thức hoặc manifest);
 2. tạo version mới với interval đúng;
 3. đóng interval cũ;
-4. review và regression temporal (boundary test);
-5. activate;
+4. automatic temporal gates và regression boundary test;
+5. automatic ACCEPTED -> activate; nếu fail thì REJECTED/non-serving;
 6. kiểm tra exclusion constraint không có hai version ACCEPTED chồng lấn.
 
-Hiệu lực không chắc chắn được ghi `UNKNOWN`/`PENDING_REVIEW`, tạo ReviewItem, không index cho tới khi reviewer quyết định (doc 03 mục 3.15.6). Không suy đoán ngày hiệu lực từ nội dung PDF khi manifest chính thức không cung cấp.
+Hiệu lực không chắc chắn được ghi `UNKNOWN`, giữ candidate non-serving và không index cho tới khi automatic temporal gates đủ evidence. Không suy đoán ngày hiệu lực từ nội dung PDF khi manifest chính thức không cung cấp.
 
 ---
 
@@ -1191,7 +1111,7 @@ Bảng này chỉ ghi nhận lịch sử chuyển đổi từ bảo trì v1 sang
 | UDEF RuleSpec versioning (traffic-law-v1.0.0, PATCH/MINOR/MAJOR) | Legal parser version (Legal Structure Extractor) + relation extraction version (Legal Reference Resolver) + Document IR schema version (mục 8.4.5, 8.4.6, 8.4.7) |
 | UDEF golden fixtures (expected CDM, expected LegalDocument, expected LegalProvision IDs, expected hierarchy, expected provenance) | Parser golden fixtures theo loại văn bản và dạng tài liệu (expected IR summary, expected LegalProvision IDs, expected hierarchy, expected provenance) + relation gold fixtures (mục 8.4.3, doc 06 mục 6.13.4, 6.13.5) |
 | UDEF plugin/projector/validator/commit version tracking trong ingestion run | pipeline revisions (extraction_revision, chunking_revision, embedding_revision, index_schema_version) + parser versions tách riêng trong run metadata (mục 8.6.3, doc 06 mục 6.6.4) |
-| UDEF review routing | Parser Router + quality gates (nhóm A parser-level, nhóm B structural) + review routing theo FR-09 (mục 8.3.5, doc 03 mục 3.7) |
+| UDEF review routing | Parser Router + automatic quality gates (nhóm A parser-level, nhóm B structural) |
 | UDEF ingestion tests | Suite A parser benchmark (P1 Docling, P2 MinerU, P3 Parser Router) + parser QA gold fixtures (doc 06 mục 6.4.1) |
 
 Thay thế bổ sung khác trong phạm vi bảo trì: ChromaDB/SQLite-as-primary/rank-bm25 pickle (thiết kế v1) được thay bằng Qdrant + PostgreSQL (ADR-005, doc 07 mục 7.18); DuckDuckGo/SerpAPI fallback và query-time HITL không còn tồn tại trong bảo trì v2 (ADR-015). Các thành phần này không xuất hiện trong bất kỳ quy trình bảo trì đang vận hành.
@@ -1213,13 +1133,13 @@ Discover
 -> Extract
 -> Reference resolve
 -> Temporal resolve
--> Quality gates
--> Review
+-> Automatic quality/provenance/temporal gates
 -> Version
 -> Update legal relations
--> Index
--> Regress
--> Activate
+-> Index candidate
+-> Full regression/evaluation
+-> ACCEPTED -> Activate
+-> REJECTED/non-serving candidate -> retain, never serve
 -> Backup
 -> Audit
 ```

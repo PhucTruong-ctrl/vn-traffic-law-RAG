@@ -67,7 +67,11 @@ export default function Sidebar({
   }
   const [animatingConversationId, setAnimatingConversationId] = useState<string | null>(null);
   const animationTimerRef = useRef<number | null>(null);
-
+  const initialAnimationIdsRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (initialAnimationIdsRef.current !== null || !conversations.length) return;
+    initialAnimationIdsRef.current = new Set(conversations.map((item) => item.id));
+  }, [conversations]);
   useEffect(() => {
     const activity = onConversationActivity;
     if (!activity) return;
@@ -345,10 +349,16 @@ export default function Sidebar({
           {conversations.map((item, index) => (
             <div
               key={item.id}
-              className={`chat-list__item sidebar-enter__item${item.id === activeConversationId ? " active" : ""}${
+              className={`chat-list__item${
+                initialAnimationIdsRef.current?.has(item.id) ? " sidebar-enter__item" : ""
+              }${item.id === activeConversationId ? " active" : ""}${
                 item.id === animatingConversationId ? " is-reordered" : ""
               }`}
-              style={{ "--sidebar-delay": `${Math.min(index, 11) * 45}ms` } as React.CSSProperties}
+              style={
+                initialAnimationIdsRef.current?.has(item.id)
+                  ? ({ "--sidebar-delay": `${Math.min(index, 11) * 45}ms` } as React.CSSProperties)
+                  : undefined
+              }
             >
               <button
                 type="button"

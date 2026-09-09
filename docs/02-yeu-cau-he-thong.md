@@ -1,6 +1,6 @@
-> **MVP rebaseline — 06/09/2026**: The defense release scope is reduced to a fixed 5–10-document reviewed corpus, 30–50 evaluation questions, current and as-of-date retrieval, structure-aware citations, evidence gating, abstention, and a working chat UI. RAGFlow comparison, feedback, large-scale background ingestion, advanced observability/security, and production backup automation are deferred.
+> **MVP đã phê duyệt — 10/09/2026**: Release dùng đúng **14 PDF đã khử trùng lặp theo document/hash**, chỉ từ allowlist chính xác `datafiles.chinhphu.vn`. Đây là hệ thống single-user localhost/private network, không auth, không admin/reviewer role/API/UI. Ingestion chỉ chạy manual CLI; quality/provenance/temporal gates tự động, snapshot/hash bất biến, không human approval. Query-time chỉ tìm trong corpus đã phục vụ, không web. Gold gate chạy toàn bộ 200 câu risk-weighted thuộc 17 category; feedback chỉ LIKE/DISLIKE ẩn danh tối thiểu, không comments/raw prompt-answer/PII và không phải release gate.
 >
-> **Model policy**: Gemini 3.7 Flash is the primary structured-answer generator. Gemini 3.5 Flash Lite is the independent semantic judge. OpenAI/GPT-5.4 is not used. Earlier scope/model statements in this document are superseded by this rebaseline.
+> **Chính sách embedding**: benchmark nhỏ các ứng viên local đã cài/cache, sau đó mới rebuild index; không invent model name hoặc numeric threshold khi chưa có evidence.
 # 02. Phân Tích và Đặc Tả Yêu Cầu
 
 > **Giai đoạn SDLC**: 2 - Phân tích và đặc tả yêu cầu  
@@ -19,25 +19,19 @@
 
 ### Mục tiêu hệ thống
 
-Xây dựng hệ thống RAG nhận biết cấu trúc, nhận biết quan hệ tham chiếu và nhận biết thời gian hiệu lực cho tra cứu pháp luật giao thông đường bộ Việt Nam, với các đặc tính:
+- định tuyến parser qua **Parser Router** với quality gate;
+- biểu diễn parser-neutral qua **Canonical Document IR**;
+- trích xuất cấu trúc pháp lý và provenance đến trang/bounding box;
+- mô hình hóa quan hệ tham chiếu và khoảng hiệu lực `[effective_from, effective_to)`;
+- retrieval exact/dense/sparse chỉ trên corpus MVP đã index;
+- evidence planning, Evidence Completeness Gate, verification sáu tầng và verified-or-abstain;
+- ingestion thủ công qua CLI cho đúng 14 PDF trong allowlist, khử trùng lặp theo document/hash, snapshot/hash bất biến;
+- quality/provenance/temporal gates tự động; index cũ được giữ tới khi rebuild mới đạt gates;
+- embedding local benchmark nhỏ giữa các ứng viên đã cài/cache trước khi rebuild;
+- feedback chỉ LIKE/DISLIKE ẩn danh tối thiểu;
+- gold gate chạy toàn bộ 200 câu risk-weighted thuộc 17 category.
 
-- định tuyến parser qua **Parser Router**: Docling là parser chính, MinerU là parser phụ và fallback/challenger, quyết định dựa trên đặc tính tài liệu và quality gate;
-- biểu diễn tài liệu parser-neutral qua **Canonical Document IR** (`ParsedDocument`, `ParsedPage`, `DocumentElement`), cô lập phân tích pháp lý khỏi định dạng đầu ra của Docling/MinerU;
-- trích xuất cấu trúc pháp lý qua **Legal Structure Extractor** của riêng VNLRAG: Chương, Mục, Điều, Khoản, Điểm, Phụ lục, bảng pháp lý, điều khoản chuyển tiếp, hỗ trợ nhãn Điểm tiếng Việt a) b) c) d) đ) e) và short-Point retention;
-- mô hình hóa quan hệ tham chiếu chéo cấp provision (`PARENT_OF`, `REFERS_TO`, `SIBLING_OF`, `PENALTY_COMPANION`) và cấp văn bản (`AMENDS`, `REPEALS`, `SUPERSEDES`, `CORRECTS`, `GUIDES`, `RELATED_TO`) trong bảng PostgreSQL;
-- mô hình hóa khoảng hiệu lực `[effective_from, effective_to)` và áp dụng đúng phiên bản văn bản tại thời điểm được hỏi;
-- retrieval đa tầng: exact legal lookup, dense, sparse BM25, RRF fusion, reranking, mở rộng ngữ cảnh pháp lý theo quan hệ;
-- evidence planning và **Evidence Completeness Gate** trước khi sinh câu trả lời, không trả lời nửa vời cho câu hỏi đa bằng chứng;
-- sinh câu trả lời có cấu trúc theo schema cấp claim, gắn từng claim với `provision_id` và giá trị số chuẩn hóa;
-- verification xác định sáu tầng (schema, citation ID, temporal, numeric grounding, claim support, evidence completeness) với bất biến API **Returned Invalid Citation Rate = 0**;
-- verified-or-abstain với failure-aware repair có giới hạn; từ chối trả lời khi thiếu căn cứ;
-- background ingestion qua Redis + Dramatiq và lưu trữ đối tượng qua MinIO;
-- observability qua Langfuse Cloud (trace, prompt management, experiment), không nằm trên đường tới hạn tính đúng đắn;
-- feedback người dùng cuối Useful / Not Useful lưu PostgreSQL và gửi về Langfuse;
-- evaluation tái lập được với bốn suite A-D và gold set 200 câu;
-- RAGFlow chỉ làm baseline so sánh bên ngoài trong môi trường benchmark riêng.
-
-Hệ thống không tự tìm kiếm Internet để tạo câu trả lời pháp lý. Tài liệu mới chỉ được sử dụng sau khi hoàn tất ingestion, quality gate và review.
+Hệ thống không tự tìm kiếm Internet để tạo câu trả lời pháp lý. Query-time không dùng tài liệu ngoài corpus. Tài liệu không vượt qua gate không được publish; không có reviewer hoặc human approval.
 
 > **Ghi chú lịch sử**: thiết kế v1 dựa trên UDEF và traffic-law domain pack (pipeline `PDF -> UDEF -> Docling -> CDM`). Phiên bản v2 loại bỏ hoàn toàn UDEF khỏi mọi pipeline và thay thế bằng Parser Router (Docling/MinerU), Canonical Document IR và Legal Structure Extractor do dự án sở hữu. Mọi yêu cầu trong tài liệu này được viết theo thiết kế v2; chi tiết lý do loại bỏ tại [00-scope-and-decisions.md](00-scope-and-decisions.md).
 
@@ -55,164 +49,58 @@ Hệ thống không tự tìm kiếm Internet để tạo câu trả lời pháp
 
 **Trong phạm vi:**
 
-- pháp luật giao thông đường bộ Việt Nam;
-- 20 đến 30 văn bản chính thống, có ít nhất 5 chuỗi sửa đổi, thay thế hoặc bãi bỏ;
-- current, historical và comparison query;
-- Parser Router (Docling chính, MinerU phụ/fallback) với quality gate và parser comparison cho bảng phức tạp;
-- Canonical Document IR parser-neutral;
-- trích xuất cấu trúc pháp lý và mô hình quan hệ tham chiếu chéo;
-- mô hình thời gian hiệu lực và sửa đổi từng phần;
-- PostgreSQL 18 làm nguồn chân lý và Qdrant v1.19 làm index retrieval;
-- Redis + Dramatiq cho background ingestion;
-- MinIO cho object storage;
-- LangGraph controlled workflow (không phải autonomous agent);
-- verification sáu tầng và verified-or-abstain;
-- evaluation bốn suite A-D với gold set 200 câu;
-- giao diện web phục vụ demo;
-- Langfuse Cloud cho observability;
-- RAGFlow làm baseline so sánh bên ngoài trong môi trường benchmark riêng.
+- pháp luật giao thông đường bộ Việt Nam trong đúng 14 PDF MVP;
+- single-user localhost/private network, không auth và không role admin/reviewer;
+- manual CLI ingestion, immutable snapshot/hash, tự động quality/provenance/temporal gates;
+- current, historical và comparison query trên corpus đã index;
+- `CORPUS_NOT_COVERED` cho câu hỏi thuộc miền nhưng không có bằng chứng trong corpus;
+- vehicle taxonomy mở rộng; loại xe không chỉ rõ thì chỉ liệt kê các nhóm có bằng chứng;
+- date policy: hiện tại dùng ngày hiện tại; year-only dùng `01/07` nếu không có biến cố hiệu lực trong năm, nếu có thì yêu cầu ngày cụ thể hoặc `MISSING_QUERY_DATE`;
+- chat UI tối thiểu cho verified answer, citation/passage, applied date, disclaimer và LIKE/DISLIKE;
+- toàn bộ 200 gold questions risk-weighted thuộc 17 category chạy trước release.
 
 **Ngoài phạm vi:**
 
-- tư vấn pháp lý cá nhân hóa có tính kết luận;
-- open web search để sinh câu trả lời;
-- toàn bộ hệ thống pháp luật Việt Nam; phạm vi đã xác thực là pháp luật giao thông đường bộ Việt Nam trong corpus 20-30 văn bản đã review;
-- multi-agent hoặc autonomous agent;
-- Neo4j hoặc knowledge graph;
-- mobile app;
-- voice;
-- fine-tuning LLM;
-- local LLM;
-- microservices và Kubernetes;
-- RAGFlow làm nền tảng chính (chỉ là external baseline);
-- tóm tắt mọi loại tài liệu.
-
----
-
-## 2.2. Sơ đồ ngữ cảnh (Context Diagram)
-
-Sơ đồ ngữ cảnh xác định ranh giới giữa hệ thống, người dùng, reviewer, nguồn dữ liệu, hạ tầng nội bộ và provider bên ngoài.
+- corpus với quy mô khác ngoài đúng 14 PDF MVP;
+- open web search/crawl, nguồn ngoài allowlist hoặc web fallback;
+- upload endpoint/UI, background ingestion, reviewer/admin role, approval workflow và human review;
+- feedback comments, categories, triage, raw prompt/answer hoặc PII;
+- tư vấn pháp lý cá nhân hóa có tính kết luận, toàn bộ pháp luật Việt Nam, mobile, voice, autonomous/multi-agent.
 
 ```mermaid
 graph TB
-    subgraph SYS["HỆ THỐNG RAG PHÁP LUẬT GIAO THÔNG (VNLRAG v2)"]
-        VLAW["Structure-Aware and Temporal RAG"]
-    end
-
-    USER["Người dùng cuối"]
-    REVIEWER["Corpus Reviewer"]
-    DEV["Nhà phát triển"]
-    OFFICIAL["Nguồn văn bản pháp luật chính thống"]
-    GEN["LLM Provider"]
-    EMB["Embedding Provider"]
-    JUDGE["Judge LLM (chỉ trong evaluation)"]
-    LANG["Langfuse Cloud"]
-    MINIO["MinIO (Object Storage)"]
-    REDIS["Redis + Dramatiq Worker"]
-
-    subgraph BENCH["Môi trường benchmark riêng"]
-        RAGF["RAGFlow (baseline so sánh)"]
-    end
-
-    USER -->|"Câu hỏi, ngày áp dụng, loại phương tiện"| VLAW
-    VLAW -->|"Verified answer hoặc abstention, citation, passage nguồn"| USER
-
-    REVIEWER -->|"Upload PDF + manifest, accept/reject, sửa metadata"| VLAW
-    VLAW -->|"Review item và corpus QA report"| REVIEWER
-
-    DEV -->|"Ingest, evaluation, cấu hình, bảo trì"| VLAW
-    VLAW -->|"Metrics, logs, experiment report"| DEV
-
-    OFFICIAL -->|"PDF và metadata được tải offline"| VLAW
-    VLAW -->|"Structured generation request"| GEN
-    GEN -->|"Structured answer"| VLAW
-    VLAW -->|"Text embedding request"| EMB
-    EMB -->|"Dense vectors"| VLAW
-    VLAW -->|"Evaluation judge request (chỉ khi chạy evaluation)"| JUDGE
-    JUDGE -->|"Judgement thứ cấp"| VLAW
-
-    VLAW -->|"Trace bất đồng bộ, ngoài đường tới hạn"| LANG
-    VLAW -->|"Đọc/ghi PDF nguồn, parser output, artifact"| MINIO
-    VLAW -->|"Enqueue job; theo dõi job status"| REDIS
-
-    RAGF -->|"Cùng corpus và eval queries, chỉ số baseline"| DEV
+    USER["Single user"]
+    SYS["VNLRAG MVP\nlocalhost/private network"]
+    CLI["Manual CLI ingestion"]
+    OFFICIAL["Allowlist: datafiles.chinhphu.vn"]
+    GEN["LLM provider"]
+    EMB["Local embedding candidates"]
+    USER -->|"Question"| SYS
+    SYS -->|"Verified answer / abstention / citation"| USER
+    CLI -->|"14 PDFs + immutable manifest"| SYS
+    OFFICIAL -->|"Offline source"| CLI
+    SYS -->|"Context only"| GEN
+    SYS -->|"Benchmark/cache candidates"| EMB
 ```
 
-### Giải thích sơ đồ
+Query-time không gọi nguồn web. Ingestion fail gate không thay thế corpus/index đang phục vụ.
 
-- **Người dùng cuối** chỉ tương tác với corpus đã được chấp nhận; có thể gửi feedback cho câu trả lời.
-- **Corpus Reviewer** tham gia review trong ingestion pipeline (accept, reject, sửa metadata), không duyệt từng câu trả lời trong online query.
-- **Nhà phát triển** quản lý corpus, evaluation, deployment, regression test và baseline RAGFlow.
-- **Nguồn chính thống** cung cấp PDF và metadata cho offline ingestion.
-- **LLM Provider** chỉ sinh structured answer từ context được cung cấp.
-- **Embedding Provider** tạo dense vector; không chịu trách nhiệm về nội dung pháp lý.
-- **Judge LLM** chỉ được gọi trong evaluation cho các metric thứ cấp, không nằm trong online query path.
-- **Langfuse Cloud** nhận trace bất đồng bộ; nếu không khả dụng, query vẫn hoạt động.
-- **MinIO** lưu PDF nguồn, đầu ra parser, ảnh trang và artifact; PostgreSQL lưu object key.
-- **Redis + Dramatiq Worker** thực hiện ingestion phía sau hàng đợi; không parse PDF đồng bộ trong request handler.
-- **RAGFlow** chạy trong môi trường benchmark riêng, dùng cùng corpus và cùng bộ câu hỏi evaluation để so sánh baseline; không nằm trong compose production.
-- Không có web search actor trong online query path.
-
----
-
-## 2.3. Xác định Actor (Use Case Analysis)
+## 2.3. Xác định Actor
 
 | ID | Actor | Loại | Mục tiêu |
 |---|---|---|---|
-| A1 | Người dùng cuối | Primary | Hỏi luật hiện hành, luật lịch sử, so sánh quy định, tìm provision, xem citation và gửi feedback |
-| A2 | Corpus Reviewer | Primary | Kiểm tra metadata, hierarchy, provenance, quan hệ, hiệu lực và quyết định index |
-| A3 | Nhà phát triển | Secondary | Vận hành ingestion, evaluation, deployment, bảo trì và baseline RAGFlow |
-| A4 | Nguồn văn bản pháp luật chính thống | External | Cung cấp PDF, metadata và trạng thái văn bản |
-| A5 | LLM Provider | External dependency | Sinh structured answer từ retrieved context |
-| A6 | Embedding Provider | External dependency | Sinh dense embedding cho document và query |
-| A7 | PostgreSQL | Internal infrastructure | Nguồn chân lý metadata, version, relation, review, audit và feedback |
-| A8 | Qdrant | Internal infrastructure | Lưu dense/sparse vector, payload filter và thực hiện RRF retrieval |
-| A9 | Redis + Dramatiq Worker | Internal infrastructure | Broker và worker cho background ingestion |
-| A10 | MinIO | Internal infrastructure | Object storage cho PDF nguồn, parser output, ảnh trang và artifact |
-| A11 | Langfuse Cloud | External dependency | Observability, prompt management, trace, feedback (ngoài đường tới hạn) |
-| A12 | RAGFlow | External baseline | Môi trường benchmark riêng để so sánh baseline |
+| A1 | Single user | Primary | Hỏi luật, xem citation/passage, gửi LIKE/DISLIKE |
+| A2 | Manual CLI operator | Operational | Chạy sync, gate, benchmark và rebuild |
+| A3 | Allowlisted official source | External | Cung cấp đúng PDF được phép |
+| A4 | LLM/embedding provider | External dependency | Sinh answer từ context hoặc vector benchmark |
+
+Không có auth, admin/reviewer role, upload API/UI hoặc human approval trong MVP.
 
 ### Phân quyền
 
-| Chức năng | Người dùng | Reviewer | Developer |
-|---|---|---:|---:|---:|
-| Hỏi đáp và tìm kiếm | Có | Có | Có |
-| Xem citation và passage nguồn | Có | Có | Có |
-| Gửi feedback cho câu trả lời | Có | Có | Không bắt buộc |
-| Upload tài liệu | Không | Có | Có |
-| Accept hoặc reject ingestion | Không | Có | Có |
-| Xem corpus QA report | Không | Có | Có |
-| Chạy evaluation (Suite A-D, baseline RAGFlow) | Không | Không | Có |
-| Thay model hoặc retrieval config | Không | Không | Có |
-| Quản lý prompt version (Langfuse) | Không | Không | Có |
-| Xem trace và feedback | Không | Không | Có |
-| Xem audit log kỹ thuật | Không | Có giới hạn | Có |
-
----
+MVP không triển khai authentication hoặc role-based access control. Single user trong localhost/private network có quyền hỏi đáp và gửi LIKE/DISLIKE; manual CLI operator chạy ingestion/evaluation/rebuild. Không có quyền reviewer/admin riêng.
 
 ## 2.4. Yêu cầu chức năng (Functional Requirements)
-
-> Mỗi yêu cầu phải có input, output và tiêu chí kiểm chứng.  
-> P0 là phạm vi bắt buộc. P1 chỉ được triển khai sau khi P0 ổn định.  
-> Tên model cụ thể không được hardcode trong yêu cầu chức năng; model ID nằm trong cấu hình.
-
-### FR-01: Parser Router (Docling | MinerU)
-
-| Thuộc tính | Mô tả |
-|---|---|
-| Mô tả | Quyết định parser cho từng tài liệu dựa trên đặc tính tài liệu và quality gate: PDF searchable có text layer và layout chuẩn dùng Docling trước; tài liệu scan hoặc layout lỗi dùng Docling trước, nếu quality gate không đạt thì chuyển MinerU; bảng phức tạp so sánh đầu ra hai parser khi cần |
-| Input | PDF, manifest, đặc tính tài liệu (text layer, layout, born-digital hay scan) |
-| Output | Quyết định routing, đầu ra parser kèm `source_parser`, `parser_version`, kết quả quality gate |
-| Tiêu chí kiểm chứng | Quy tắc routing chạy đúng trên ma trận fixture với quyết định mong đợi: `PDF searchable -> Docling`; `PDF scan -> Docling -> quality gate fail -> MinerU`; `bảng phức tạp -> so sánh đầu ra hai parser`; quality gate kích hoạt fallback parser khi cần; không khẳng định parser nào vượt trội tuyệt đối; quyết định và parser version được ghi vào Document IR |
-| Use Case | UC-07, UC-11 |
-| Priority | P0 |
-### FR-02: Canonical Document IR parser-neutral
-
-| Thuộc tính | Mô tả |
-|---|---|
-| Mô tả | Chuyển đầu ra Docling/MinerU sang biểu diễn trung gian do dự án sở hữu: `ParsedDocument` chứa `ParsedPage[]`, mỗi trang chứa `DocumentElement[]`; cô lập việc phân tích pháp lý khỏi định dạng đầu ra của từng parser |
-| Input | Đầu ra parser (DoclingDocument hoặc output MinerU) |
-| Output | `ParsedDocument` với `DocumentElement` đầy đủ field |
 | Tiêu chí kiểm chứng | Legal Structure Extractor chỉ đọc IR, không đọc định dạng parser; thêm adapter cho parser mới không làm thay đổi extractor; mọi element có `element_id`, `element_type`, `text`, `page_number`, `bbox`, `reading_order`, `parent_element_id`, `table_html` (khi có), `source_parser`, `parser_version`, `parser_confidence`, `raw_reference` |
 | Use Case | UC-07, UC-11 |
 | Priority | P0 |
@@ -252,49 +140,28 @@ graph TB
 |---|---|
 | Mô tả | Xác định khoảng hiệu lực `[effective_from, effective_to)` cho văn bản và provision từ manifest, `LegalEffectEvent` và review; hỗ trợ biên sửa đổi, sửa đổi từng phần, thay thế, bãi bỏ; trường hợp hiệu lực không chắc chắn định tuyến sang review |
 | Input | Manifest, `LegalEffectEvent`, quyết định reviewer |
-| Output | `effective_from`, `effective_to`, trạng thái hiệu lực, review item khi không chắc chắn |
-| Tiêu chí kiểm chứng | Provision hợp lệ cho ngày `d` khi: `effective_from <= d` VÀ (`effective_to IS NULL` HOẶC `d < effective_to`) VÀ `review_status = ACCEPTED`; `DocumentVersion.effective_from` nullable và non-null bắt buộc chỉ khi `review_status = ACCEPTED`, nhất quán với `LegalProvision` (doc 03); hiệu lực văn bản không chắc chắn định tuyến review trước khi accept; không có hai phiên bản active chồng lấn ngoài trường hợp được ghi rõ |
-| Use Case | UC-01, UC-02, UC-03, UC-07, UC-08 |
-| Priority | P0 |
-### FR-07: Background ingestion qua hàng đợi
+| Tiêu chí kiểm chứng | Provision hợp lệ cho ngày `d` khi: `effective_from <= d` VÀ (`effective_to IS NULL` HOẶC `d < effective_to`); temporal gate fail closed nếu thiếu/chồng lấn hiệu lực; không dùng human approval |
+### FR-08: Embedding benchmark và rebuild an toàn
 
 | Thuộc tính | Mô tả |
 |---|---|
-| Mô tả | Ingest tài liệu qua Redis + Dramatiq; `POST /documents` trả `202 Accepted` kèm `ingestion_job_id`; worker chạy pipeline `parse -> normalize -> legal extract -> reference resolve -> temporal resolve -> quality gates -> review -> embed -> index`; không parse PDF đồng bộ trong request handler |
-| Input | PDF, manifest |
-| Output | `ingestion_job_id`, trạng thái job, `IngestionRun`, `IngestionArtifact` |
-| Tiêu chí kiểm chứng | Upload trả 202 ngay; job status truy vấn được; actor idempotent và chạy lại an toàn khi worker fail; `MAX_INGESTION_WORKERS = 1` |
-| Use Case | UC-07 |
+| Mô tả | Benchmark nhỏ các ứng viên embedding local đã cài/cache; chọn ứng viên theo evidence rồi rebuild index |
+| Tiêu chí kiểm chứng | Không hardcode model name/threshold chưa được đo; rebuild không làm mất index cũ khi thất bại |
 | Priority | P0 |
-### FR-08: Object storage qua MinIO
+
+### FR-09: Query corpus-only và CORPUS_NOT_COVERED
 
 | Thuộc tính | Mô tả |
 |---|---|
-| Mô tả | Lưu PDF nguồn, đầu ra parser, ảnh trang, artifact ingestion/review/evaluation trong MinIO (S3-compatible); PostgreSQL lưu object key và metadata |
-| Input | File và artifact cần lưu |
-| Output | Object key trong bucket tương ứng |
-| Tiêu chí kiểm chứng | Bucket riêng theo loại artifact; round-trip put/get hoạt động; backup bằng replication hoặc `mc mirror`/`mc cp` sang nơi lưu trữ độc lập |
-| Use Case | UC-07, UC-08 |
-| Priority | P0 |
-### FR-09: Review routing trước khi index
-
-| Thuộc tính | Mô tả |
-|---|---|
-| Mô tả | Phân loại kết quả ingestion thành `accepted`, `needs_review` hoặc `dropped` dựa trên quality gate; chỉ `accepted` được index tự động |
-| Input | Quality gate result, extraction report |
-| Output | Review item hoặc quyết định index |
-| Tiêu chí kiểm chứng | Chỉ `accepted` được index; `needs_review` cần quyết định reviewer; `dropped` không bao giờ được index; mọi quyết định có reviewer identity và timestamp |
-| Use Case | UC-08 |
+| Mô tả | Query-time chỉ retrieval từ corpus đã publish; câu hỏi thuộc miền nhưng thiếu căn cứ trả `CORPUS_NOT_COVERED`, không web fallback |
+| Tiêu chí kiểm chứng | Không gọi web; không fabricate; phân biệt với `OUT_OF_SCOPE` |
 | Priority | P0 |
 ### FR-10: Corpus QA
 
 | Thuộc tính | Mô tả |
 |---|---|
-| Mô tả | Báo cáo/dashboard chất lượng corpus với các chỉ số: document count, article count, clause count, point count, Point coverage, short-Point retention, tỷ lệ phát hiện nhãn đ), orphan Point count, orphan Clause count, duplicate provision count, parent-context coverage, provenance coverage, table coverage, unresolved cross-reference count, unknown effective date count, temporal conflict count; structural QA có mục tiêu cho văn bản quan trọng (ví dụ Nghị định 168) |
-| Input | Dữ liệu pháp lý trong PostgreSQL, parsed documents |
-| Output | Corpus quality report |
-| Tiêu chí kiểm chứng | Báo cáo có đủ các chỉ số nêu trên; số liệu là kế hoạch đo lường trong evaluation, không phải kết quả thực nghiệm đã đạt |
-| Use Case | UC-12 |
+| Mô tả | Báo cáo tự động về hierarchy, short-Point, nhãn đ), provenance, parent context, bảng, cross-reference, duplicate, effective date và temporal conflict |
+| Tiêu chí kiểm chứng | Gate report đầy đủ; fail closed khi thiếu provenance/temporal evidence |
 | Priority | P0 |
 ### FR-11: Query Understanding và evidence planning
 
@@ -322,36 +189,31 @@ Các loại bằng chứng (evidence types) ví dụ:
 ```text
 violation_definition
 monetary_penalty
-license_points
-license_suspension
-exception
-procedure
-legal_condition
-```
-
-Chính sách xử lý ngày lịch sử (canonical date):
-
-- câu hỏi chỉ có năm và không có sự kiện pháp lý nào làm thay đổi hiệu lực trong năm đó: hệ thống có thể áp dụng một ngày chuẩn được ghi rõ trong tài liệu (ví dụ `01/07` của năm đó) và BẮT BUỘC hiển thị ngày đã áp dụng trong response;
-- nếu có sự kiện thay đổi hiệu lực xảy ra trong năm: yêu cầu ngày cụ thể hoặc trả ABSTAIN với lý do `MISSING_QUERY_DATE`;
-- hệ thống không dùng văn bản hiện hành làm mặc định cho câu hỏi lịch sử.
-
-### FR-12: Query Expansion
+### FR-07: Manual CLI ingestion và immutable snapshots
 
 | Thuộc tính | Mô tả |
 |---|---|
-| Mô tả | Mở rộng query cho retrieval: luôn giữ câu hỏi gốc của người dùng; tạo normalized query, multi-query rewrite và conditional HyDE (HyDE chỉ bật khi câu ngắn, khẩu ngữ, ngữ nghĩa yếu hoặc bằng chứng chưa đủ, không bật luôn) |
-| Input | Câu hỏi gốc, `QueryUnderstanding` |
-| Output | Tập query variants có đánh dấu nguồn (original, normalized, rewrite, hyde) |
-| Tiêu chí kiểm chứng | Câu hỏi gốc luôn được retain trong tập query; HyDE chỉ bật có điều kiện; số lượt rewrite có giới hạn, không có vòng lặp vô hạn |
-| Use Case | UC-01, UC-02, UC-03, UC-04 |
+| Mô tả | Đồng bộ thủ công đúng 14 PDF từ allowlist `datafiles.chinhphu.vn`; khử trùng lặp theo document/hash; lưu snapshot và hash bất biến; chạy parser, extraction, temporal và tự động quality/provenance gates |
+| Input | Allowlisted PDF và manifest |
+| Output | Snapshot, gate report, corpus version/hash và trạng thái publish |
+| Tiêu chí kiểm chứng | Không có upload endpoint hoặc background queue; gate fail không publish; index cũ giữ nguyên đến khi rebuild mới đạt gate |
 | Priority | P0 |
-### FR-13: Exact legal lookup
+
+### FR-08: Embedding benchmark và rebuild an toàn
 
 | Thuộc tính | Mô tả |
 |---|---|
-| Mô tả | Tra cứu chính xác theo định danh pháp lý: số hiệu văn bản (`168/2024/NĐ-CP`), `Điều 7`, `Khoản 4`, `Điểm a`. Dense và sparse được hợp nhất bằng RRF; candidate exact lookup được giữ nguyên và kết hợp với tập đã fusion theo chính sách candidate sau fusion rõ ràng (ví dụ exact match được ưu tiên giữ lại, loại trùng lặp theo `provision_id`) |
-| Input | `QueryUnderstanding` có document number, article/clause/point refs |
-| Output | Candidate provisions khớp định danh |
+| Mô tả | Benchmark nhỏ các ứng viên embedding local đã cài/cache; chọn ứng viên theo evidence rồi rebuild index |
+| Tiêu chí kiểm chứng | Không hardcode model name/threshold chưa được đo; rebuild không làm mất index cũ khi thất bại |
+| Priority | P0 |
+
+### FR-09: Query corpus-only và CORPUS_NOT_COVERED
+
+| Thuộc tính | Mô tả |
+|---|---|
+| Mô tả | Query-time chỉ retrieval từ corpus đã publish; câu hỏi thuộc miền nhưng thiếu căn cứ trả `CORPUS_NOT_COVERED`, không web fallback |
+| Tiêu chí kiểm chứng | Không gọi web; không fabricate; phân biệt với `OUT_OF_SCOPE` |
+| Priority | P0 |
 | Tiêu chí kiểm chứng | Định danh chính xác trả đúng provision tương ứng số văn bản, Điều, Khoản, Điểm; candidate exact được bảo toàn sau fusion và loại trùng lặp theo `provision_id` |
 | Use Case | UC-01, UC-02, UC-03, UC-04 |
 | Priority | P0 |
@@ -532,15 +394,14 @@ CORPUS_NOT_COVERED
 | Tiêu chí kiểm chứng | Trace ghi lại được cho query thử nghiệm; Langfuse không nằm trên đường tới hạn tính đúng đắn - nếu không khả dụng, query vẫn hoạt động; bật/tắt qua config |
 | Use Case | UC-01, UC-02, UC-03, UC-04, UC-07, UC-09 |
 | Priority | P0 |
-### FR-27: Feedback người dùng cuối
+### FR-27: Feedback tối thiểu
 
 | Thuộc tính | Mô tả |
 |---|---|
-| Mô tả | Cho phép người dùng đánh giá câu trả lời Useful / Not Useful kèm danh mục báo cáo: sai trích dẫn, thiếu thông tin, sai ngày hiệu lực, sai mức phạt, câu trả lời không đầy đủ, khác; lưu trong PostgreSQL và gửi điểm số về Langfuse; feedback sau review có thể trở thành ứng viên bổ sung cho gold set |
-| Input | Phản hồi của người dùng trên một answer cụ thể |
-| Output | Bản ghi `QueryFeedback` gắn với `QueryTrace` |
-| Tiêu chí kiểm chứng | Round-trip create/read hoạt động; feedback gắn đúng trace_id; danh mục báo cáo đầy đủ |
-| Use Case | UC-10 |
+| Mô tả | Cho phép người dùng gửi LIKE hoặc DISLIKE ẩn danh cho answer |
+| Input | `feedback = LIKE | DISLIKE` |
+| Output | Tín hiệu feedback tối thiểu |
+| Tiêu chí kiểm chứng | Không comment/category/triage; không raw prompt/answer hoặc PII; không phải release gate |
 | Priority | P0 |
 ### FR-28: Đánh giá và ablation (evaluation)
 
@@ -599,27 +460,23 @@ hash
 | Tiêu chí kiểm chứng | Round-trip create/read hoạt động; retention job xóa record hết hạn |
 | Use Case | UC-01, UC-02, UC-03, UC-05 |
 | Priority | P1 |
-### FR-30: Admin review UI
+### FR-30: Không có admin/reviewer UI
+
+Admin/reviewer UI, upload API và approval workflow không thuộc MVP. CLI JSON report là cơ chế vận hành duy nhất.
+
+### FR-31: Chạy evaluation và release gate
 
 | Thuộc tính | Mô tả |
 |---|---|
-| Mô tả | Giao diện xem extraction report, provenance, corpus QA và accept/reject |
-| Input | Review item, extraction report và provenance |
-| Output | Quyết định accept/reject kèm audit |
-| Tiêu chí kiểm chứng | Thao tác accept/reject trong UI ghi đúng audit; chỉ sau accept provision mới được index |
-| Use Case | UC-08 |
-| Priority | P1 |
-| Fallback P0 | Reviewer dùng CLI và JSON report |
-
-### FR-31: Chạy benchmark đối chiếu RAGFlow
+| Mô tả | Chạy toàn bộ 200 gold questions risk-weighted thuộc 17 category trước release |
+| Tiêu chí kiểm chứng | 200 câu đều chạy; ghi corpus/gold/config hashes bất biến; chỉ công bố metric có evidence chạy thực tế |
+| Priority | P0 |
+### FR-32: Hiển thị answer và citation từ metadata
 
 | Thuộc tính | Mô tả |
 |---|---|
-| Mô tả | Chạy benchmark so sánh với RAGFlow làm baseline bên ngoài trong môi trường benchmark riêng; bốn variant bắt buộc: RAGFlow default, RAGFlow + Docling, RAGFlow + MinerU và pipeline VNLRAG custom legal-aware, trên cùng một corpus và cùng bộ câu hỏi evaluation |
-| Input | Corpus đã chốt, bộ câu hỏi evaluation, cấu hình variant baseline |
-| Output | Bảng so sánh chỉ số giữa các variant baseline và pipeline VNLRAG |
-| Tiêu chí kiểm chứng | Cả bốn variant chạy trên cùng corpus và cùng bộ câu hỏi evaluation; chỉ số so sánh tối thiểu gồm Recall@10, citation correctness, temporal leakage và evidence completeness; RAGFlow chạy trong môi trường benchmark riêng, không nằm trong compose production; không ghi kết quả baseline như kết quả thực nghiệm của VNLRAG |
-| Use Case | UC-09 |
+| Mô tả | Hiển thị verified answer, citation/passage, applied date và disclaimer; LIKE/DISLIKE tối thiểu |
+| Tiêu chí kiểm chứng | Citation từ metadata; không render draft chưa verify |
 | Priority | P0 |
 
 ### FR-32: Hiển thị answer và citation từ metadata
@@ -671,28 +528,17 @@ Các ngưỡng là mục tiêu kỹ thuật trong môi trường test được m
 |---|---|
 | Local deployment | Toàn bộ hạ tầng dữ liệu (backend, worker, PostgreSQL, Qdrant, Redis, MinIO) chạy bằng Docker Compose |
 | Defense mode | Không phụ thuộc VPS |
-| Health checks | Backend, PostgreSQL, Qdrant, Redis, MinIO và worker có health endpoint |
-| External model failure | Trả lỗi hoặc abstention rõ ràng, không âm thầm đổi model làm thay đổi kết quả ngoài kiểm soát |
-| Langfuse unavailable | Query vẫn hoạt động vì Langfuse không nằm trên đường tới hạn |
-| Backup demo | Có corpus cache, database backup, Qdrant snapshot, MinIO backup, evaluation report và video backup |
+### FR-30: Không có admin/reviewer UI
 
-### NFR-04: Bảo mật
+Admin/reviewer UI, upload API và approval workflow không thuộc MVP. CLI JSON report là cơ chế vận hành duy nhất.
 
-| Tiêu chí | Yêu cầu |
+### FR-31: Chạy evaluation và release gate
+
+| Thuộc tính | Mô tả |
 |---|---|
-| Secret storage | `.env` hoặc secret store, không commit |
-| Admin endpoint | Bearer token |
-| Input validation | Pydantic cho request và response |
-| Upload | MIME, extension, size, filename và hash validation |
-| Path traversal | Bị chặn |
-| Log | Không ghi API key hoặc nội dung nhạy cảm |
-| HTTPS | Bắt buộc khi public deployment |
-| Rate limiting | Cấu hình theo deployment, không hardcode theo free-tier quota |
-| Prompt injection defense | Nội dung pháp lý được retrieve/upload được xử lý là dữ liệu, không phải instruction; tách biệt khỏi system instructions; output bị giới hạn bởi structured output schema |
-| Prompt injection regression | PDF hoặc nội dung chứa chỉ dẫn kiểu "ignore previous instructions" không được làm thay đổi hành vi; verifier từ chối claim không được hỗ trợ |
-
-### NFR-05: Quyền riêng tư
-
+| Mô tả | Chạy toàn bộ 200 gold questions risk-weighted thuộc 17 category trước release |
+| Tiêu chí kiểm chứng | 200 câu đều chạy; ghi corpus/gold/config hashes bất biến; chỉ công bố metric có evidence chạy thực tế |
+| Priority | P0 |
 | Tiêu chí | Yêu cầu |
 |---|---|
 | PII | Không yêu cầu người dùng cung cấp PII |
@@ -700,8 +546,7 @@ Các ngưỡng là mục tiêu kỹ thuật trong môi trường test được m
 | Delete job | Có test |
 | Provider policy | Ghi rõ dữ liệu nào được gửi đến provider |
 | Evaluation data | Không chứa thông tin cá nhân thực |
-| Feedback | Không yêu cầu PII trong phản hồi |
-
+| Feedback | Chỉ LIKE/DISLIKE ẩn danh; không comment/category/raw prompt-answer/PII; không phải release gate |
 Hệ thống không tuyên bố "tuân thủ hoàn toàn" một quy định pháp luật nếu chưa có legal compliance review. Tài liệu chỉ mô tả các biện pháp giảm thiểu dữ liệu cá nhân.
 
 ### NFR-06: Khả bảo trì
@@ -760,24 +605,27 @@ raw_results_path
 
 Quy tắc:
 
-- run bất biến: raw output được giữ, không chỉnh sửa sau khi chạy;
-- final test set đóng băng, không dùng để tuning;
-- không chỉnh sửa gold set sau khi xem final test result; thay đổi phải tạo version mới;
-- các trường hợp fail vẫn nằm trong error analysis;
-- kết quả metric chỉ được ghi nhận sau khi chạy thực nghiệm, không ghi kết quả giả định.
-
-### NFR-09: Chất lượng dữ liệu và provenance
+### NFR-04: Bảo mật và private boundary
 
 | Tiêu chí | Yêu cầu |
 |---|---|
-| Indexed provision | Phải thuộc document accepted |
-| Provenance | Có page; bounding box khi parser cung cấp; `source_element_ids` truy vết về Document IR; provision do văn bản sửa đổi tạo ra phải ghi multi-source provenance qua `ProvisionProvenance` (doc 03): `BASE_TEXT` từ văn bản gốc, `AMENDMENT_TEXT` từ văn bản sửa đổi, `EFFECT_SOURCE` cho nguồn của ngày hiệu lực |
-| File identity | Có SHA-256 |
-| Manifest | Bắt buộc cho từng tài liệu |
-| Parser source | Mỗi element ghi `source_parser` và `parser_version` |
-| Effective interval | `effective_from` nullable ở cả `LegalProvision` và `DocumentVersion`, non-null bắt buộc khi `review_status = ACCEPTED`; không bỏ trống khi văn bản được dùng cho temporal query; hiệu lực không chắc chắn định tuyến review trước khi accept |
-| Review audit | Có reviewer, timestamp và decision |
-| Duplicate | Dựa trên stable ID và content hash |
+| Boundary | Single-user localhost/private network; không public deployment trong MVP |
+| Authentication | Không triển khai auth; không admin endpoint hoặc reviewer role |
+| Input validation | Validate CLI manifest, PDF MIME/extension/hash; chặn path traversal |
+| Secret/log | Không commit secret, không log API key hoặc PII |
+| Prompt injection | PDF/content là data, không instruction; output bị giới hạn bằng structured schema và verifier |
+
+### NFR-05: Quyền riêng tư
+
+| Tiêu chí | Yêu cầu |
+|---|---|
+| PII | Không yêu cầu hoặc lưu PII |
+| Feedback | Chỉ LIKE/DISLIKE ẩn danh tối thiểu |
+| Query history | Không lưu raw prompt/answer trong feedback; history không thuộc MVP release gate |
+
+Hệ thống không tuyên bố "tuân thủ hoàn toàn" một quy định pháp luật nếu chưa có legal compliance review.
+| Effective interval | `effective_from`/`effective_to` được kiểm tra bởi temporal gate; gate fail thì không publish, không có review approval |
+| Duplicate | Dựa trên document identity và file hash; giữ một bản trong 14-PDF snapshot |
 
 ### NFR-10: Khả sử dụng
 
@@ -956,42 +804,31 @@ Citation được dựng từ database metadata, không phải chuỗi LLM. Pass
 
 Không có nút tìm kiếm web trong giao diện. Mọi abstention có lý do chuẩn (xem FR-24).
 
-### UC-07: Ingest tài liệu
+### UC-07: Manual CLI sync tài liệu
 
 | Thuộc tính | Mô tả |
 |---|---|
-| Mã UC | UC-07 |
-| Actor chính | Reviewer hoặc Developer |
-| Input | PDF và manifest |
-| Output | Extraction artifacts, job status và review status |
-| Auth | Bắt buộc |
+| Actor chính | Manual CLI operator |
+| Input | Allowlisted PDF, manifest |
+| Output | Immutable snapshot, gate report, corpus version/hash |
 
 **Luồng chính:**
 
-1. Validate file và manifest (MIME, extension, size, filename, hash).
-2. Tính SHA-256 và kiểm tra duplicate.
-3. `POST /documents` trả `202 Accepted` kèm `ingestion_job_id`; không parse đồng bộ.
-4. Worker Dramatiq: Parser Router chọn parser theo đặc tính tài liệu (Docling trước; MinerU nếu quality gate không đạt).
-5. Chuyển đầu ra parser sang Canonical Document IR.
-6. Legal Structure Extractor nhận diện Chương, Mục, Điều, Khoản, Điểm (bao gồm nhãn đ) và short-Point retention).
-7. Legal Context Enricher bổ sung parent context vào `retrieval_text`.
-8. Legal Reference Resolver trích `ProvisionReference` và `DocumentRelation`.
-9. Temporal and Amendment Resolver xác định khoảng hiệu lực.
-10. Quality gates; route `accepted`, `needs_review` hoặc `dropped`.
-11. Embed và index provision được chấp nhận vào Qdrant.
-12. Job status theo dõi được qua API.
-
-### UC-08: Review ingestion
+1. CLI kiểm tra source URL thuộc allowlist `datafiles.chinhphu.vn`.
+2. Tính document identity và SHA-256; loại duplicate.
+3. Chạy parser/extraction/reference/temporal pipeline.
+4. Chạy tự động quality, provenance và temporal gates.
+5. Gate fail thì không publish và giữ corpus/index cũ.
+6. Gate pass thì tạo snapshot; rebuild index độc lập, chỉ chuyển sang index mới sau khi rebuild pass.
+### UC-08: Corpus gate report
 
 | Thuộc tính | Mô tả |
 |---|---|
-| Mã UC | UC-08 |
-| Actor chính | Corpus Reviewer hoặc Developer |
-| Input | Review item, PDF, extracted values, quality gate result và provenance |
-| Output | Accept, reject hoặc request correction |
+| Actor chính | Manual CLI operator |
+| Input | Snapshot artifacts và gate outputs |
+| Output | Pass/fail report |
 
-Mọi quyết định phải có reviewer identity và timestamp. Chỉ sau khi accept, provision mới được index.
-
+Không có reviewer identity, accept/reject hoặc approval UI/API. Gate fail giữ nguyên corpus/index cũ.
 ### UC-09: Chạy evaluation
 
 | Thuộc tính | Mô tả |
@@ -1009,93 +846,30 @@ Evaluation không thay đổi production corpus và không ghi đè gold set. M�
 | Thuộc tính | Mô tả |
 |---|---|
 | Mã UC | UC-10 |
-| Actor chính | Người dùng |
-| Input | Đánh giá Useful / Not Useful và danh mục báo cáo |
-| Output | Bản ghi `QueryFeedback` |
-| Auth | Không bắt buộc |
+| Actor chính | Single user |
+| Input | LIKE hoặc DISLIKE |
+| Output | Tín hiệu anonymous tối thiểu |
+| Auth | Không áp dụng trong private boundary |
 
-**Luồng chính:**
+Không có comment/category/triage; không lưu raw prompt/answer hoặc PII; không phải release gate.
 
-1. User chọn Useful hoặc Not Useful trên một answer.
-2. Nếu Not Useful, user chọn danh mục: sai trích dẫn, thiếu thông tin, sai ngày hiệu lực, sai mức phạt, câu trả lời không đầy đủ, khác.
-3. Hệ thống lưu `QueryFeedback` trong PostgreSQL, gắn với `trace_id`.
-4. Hệ thống gửi điểm số feedback về Langfuse.
-5. Feedback sau review có thể trở thành ứng viên bổ sung cho gold set.
 
-### UC-11: Chạy parser benchmark (Suite A)
+### UC-07: Manual CLI sync tài liệu
 
 | Thuộc tính | Mô tả |
 |---|---|
-| Mã UC | UC-11 |
-| Actor chính | Developer |
-| Input | Fixture tài liệu theo loại văn bản (Luật, Nghị định, Thông tư) và cấu trúc gold annotation |
-| Output | Chỉ số Article/Clause/Point P/R/F1, Short Point Recall, Vietnamese đ) Recall, Parent Context Completeness, Table Preservation, Header/Footer Leakage, Provenance Coverage |
+| Actor chính | Manual CLI operator |
+| Input | Allowlisted PDF, manifest |
+| Output | Immutable snapshot, gate report, corpus version/hash |
 
 **Luồng chính:**
 
-1. Chạy P1 (Docling) trên fixture.
-2. Chạy P2 (MinerU) trên cùng fixture.
-3. Chạy P3 (Parser Router) trên cùng fixture.
-4. Tính chỉ số so sánh theo gold annotation.
-5. Ghi kết quả vào evaluation report; quyết định routing dựa trên bằng chứng, không khẳng định parser nào vượt trội tuyệt đối trước thực nghiệm.
-
-### UC-12: Corpus QA review
-
-| Thuộc tính | Mô tả |
-|---|---|
-| Mã UC | UC-12 |
-| Actor chính | Corpus Reviewer hoặc Developer |
-| Input | Corpus quality report (16 chỉ số, FR-10) |
-| Output | Quyết định sửa metadata, gửi review hoặc chấp nhận |
-
-**Luồng chính:**
-
-1. Tạo/xem corpus QA report từ dữ liệu PostgreSQL.
-2. Rà soát các chỉ số: orphan Point/Clause, duplicate provision, unresolved cross-reference, unknown effective date, temporal conflict.
-3. Với văn bản quan trọng (ví dụ Nghị định 168), thực hiện structural QA có mục tiêu.
-4. Các bất thường được sửa hoặc chuyển thành review item.
-5. Số liệu là kế hoạch đo lường, không phải kết quả thực nghiệm đã đạt.
-
----
-
-## 2.8. Kịch bản (Scenario) chi tiết
-
-### Kịch bản 1: Câu hỏi hiện hành có đủ dữ liệu
-
-> **Câu hỏi**: "Hiện nay xe máy vượt đèn đỏ bị xử lý như thế nào?"
-
-**Kỳ vọng:**
-
-1. Intent là CURRENT; ngày áp dụng là ngày request.
-2. Vehicle type được xác định là xe máy.
-3. Evidence plan liệt kê đủ loại bằng chứng cần thiết.
-4. Temporal filter chỉ giữ provision hợp lệ tại ngày áp dụng.
-5. Hệ thống retrieve provision đúng theo gold set qua exact lookup, dense, sparse và RRF.
-6. Evidence Completeness Gate pass trước khi generate.
-7. Generator trả claims có `provision_id` và `numbers`.
-8. Verification L1-L6 pass; citation dựng từ metadata.
-9. UI hiển thị answer, citation, hiệu lực và source passage.
-10. Không có thông tin ngoài retrieved context.
-
-### Kịch bản 2: Câu hỏi lịch sử
-
-> **Câu hỏi**: "Năm 2023 xe máy vượt đèn đỏ bị xử lý như thế nào?"
-
-**Kỳ vọng:**
-
-1. Intent là HISTORICAL. Nếu không có sự kiện thay đổi hiệu lực trong năm 2023, hệ thống áp dụng canonical date (ví dụ 01/07/2023) và hiển thị rõ ngày đã áp dụng; nếu có sự kiện thay đổi trong năm, yêu cầu ngày cụ thể hoặc trả ABSTAIN với lý do `MISSING_QUERY_DATE`.
-2. Không sử dụng văn bản chỉ có hiệu lực sau mốc hỏi.
-3. Văn bản bị thay thế vẫn được dùng nếu hợp lệ tại mốc hỏi (quan hệ `SUPERSEDES` không xóa provision khỏi temporal view).
-4. Verification L3 kiểm tra mọi citation tại ngày hỏi.
-5. Response hiển thị ngày áp dụng.
-6. Nếu có sự thay đổi pháp luật xảy ra giữa năm, hệ thống yêu cầu ngày cụ thể hoặc trả ABSTAIN với lý do `MISSING_QUERY_DATE`; nếu không có sự thay đổi, áp dụng canonical date và hiển thị rõ trong response.
-
-### Kịch bản 3: So sánh hai giai đoạn
-
-> **Câu hỏi**: "Quy định về hành vi này trước và sau ngày 01/01/2025 khác nhau thế nào?"
-
-**Kỳ vọng:**
-
+1. CLI kiểm tra source URL thuộc allowlist `datafiles.chinhphu.vn`.
+2. Tính document identity và SHA-256; loại duplicate.
+3. Chạy parser/extraction/reference/temporal pipeline.
+4. Chạy tự động quality, provenance và temporal gates.
+5. Gate fail thì không publish và giữ corpus/index cũ.
+6. Gate pass thì tạo snapshot; rebuild index độc lập, chỉ chuyển sang index mới sau khi rebuild pass.
 1. Intent là COMPARISON.
 2. Tạo hai temporal contexts độc lập trước mốc và từ mốc trở đi.
 3. Mỗi phần có citation riêng theo đúng khoảng hiệu lực.
@@ -1105,41 +879,15 @@ Evaluation không thay đổi production corpus và không ghi đè gold set. M�
 ### Kịch bản 4: Câu hỏi ngoài corpus
 
 > **Câu hỏi**: "Luật giao thông của Nhật Bản quy định vấn đề này thế nào?"
+### UC-08: Corpus gate report
 
-**Kỳ vọng:**
+| Thuộc tính | Mô tả |
+|---|---|
+| Actor chính | Manual CLI operator |
+| Input | Snapshot artifacts và gate outputs |
+| Output | Pass/fail report |
 
-1. Intent là OUT_OF_SCOPE.
-2. Không gọi web search.
-3. Không tạo answer pháp lý.
-4. Trả abstention với phạm vi corpus là pháp luật giao thông đường bộ Việt Nam.
-
-### Kịch bản 5: Citation do model tạo không hợp lệ
-
-**Điều kiện giả lập:** generator trả một `provision_id` không nằm trong retrieved context.
-
-**Kỳ vọng:**
-
-1. Verifier L2 đánh dấu `CITATION_NOT_IN_CONTEXT`.
-2. Draft không được trả ra UI.
-3. Repair: regenerate với whitelist context rõ hơn.
-4. Nếu vẫn lỗi, trả `CITATION_VERIFICATION_FAILED`.
-5. Invalid citation rate ở API output bằng 0.
-
-### Kịch bản 6: Câu hỏi đa bằng chứng vượt qua Evidence Completeness Gate
-
-> **Câu hỏi**: "Xe máy vượt đèn đỏ bị phạt bao nhiêu và bị trừ bao nhiêu điểm giấy phép?"
-
-**Điều kiện giả lập:** retrieval đầu tiên chỉ tìm thấy provision về mức phạt tiền.
-
-**Kỳ vọng:**
-
-1. Evidence plan yêu cầu cả `monetary_penalty` và `license_points`.
-2. Evidence Completeness Gate đánh dấu `INCOMPLETE`, không gọi generator.
-3. Targeted retrieval hoặc mở rộng theo quan hệ (`PENALTY_COMPANION`) lấy provision về điểm trừ.
-4. Gate kiểm tra lại: `COMPLETE`.
-5. Generate answer bao phủ cả hai loại bằng chứng.
-6. Verification pass; hệ thống không bao giờ trả lời chỉ một nửa dễ của câu hỏi.
-
+Không có reviewer identity, accept/reject hoặc approval UI/API. Gate fail giữ nguyên corpus/index cũ.
 ### Kịch bản 7: Numeric grounding fail bị chặn
 
 **Điều kiện giả lập:** generator sinh số tiền phạt không khớp giá trị trong bằng chứng.
@@ -1162,107 +910,55 @@ Evaluation không thay đổi production corpus và không ghi đè gold set. M�
 2. Quality gate phát hiện: mất cấu trúc, OCR kém hoặc provenance thiếu.
 3. Router chuyển MinerU pipeline backend.
 4. Chạy lại pipeline; quality gate đạt.
-5. Kết quả vẫn được route qua review (`needs_review`) nếu còn chưa chắc chắn.
+5. Nếu gate vẫn fail, snapshot bị từ chối; không có route `needs_review`.
 6. `source_parser` và `parser_version` được ghi vào Document IR.
 7. Suite A ghi nhận kết quả so sánh hai parser; không khẳng định parser nào vượt trội tuyệt đối.
 
 ### Kịch bản 9: Feedback flow
 
 1. User nhận verified answer.
-2. User chọn Not Useful và danh mục "sai mức phạt".
-3. Hệ thống lưu `QueryFeedback` trong PostgreSQL, gắn `trace_id`.
-4. Điểm số feedback được gửi về Langfuse.
-5. Sau review, feedback có thể trở thành ứng viên bổ sung cho gold set.
+2. User chọn LIKE hoặc DISLIKE.
+3. Hệ thống lưu tín hiệu ẩn danh tối thiểu.
+4. Không có comment, category, triage, raw prompt/answer hoặc PII; feedback không ảnh hưởng release gate.
 
 ---
 
 ## 2.9. Bảng yêu cầu tổng hợp
 
-### P0 - Bắt buộc trong khóa luận
+### P0 - MVP bắt buộc
 
-| ID | Yêu cầu | Use Case | Tiêu chí kiểm chứng chính |
-|---|---|---|---|
-| FR-01 | Parser Router (Docling/MinerU) | UC-07, UC-11 | Routing theo đặc tính tài liệu; quality gate kích hoạt fallback |
-| FR-02 | Canonical Document IR | UC-07, UC-11 | Legal extractor chỉ đọc IR; parser-neutral |
-| FR-03 | Legal Structure Extractor | UC-07, UC-11, UC-12 | Hierarchy đúng; nhãn đ) d); short-Point retention |
-| FR-04 | Parent-context enrichment | UC-07, UC-11 | `source_text` không đổi; citation trỏ đúng Điểm |
-| FR-05 | Legal Reference Resolver | UC-07, UC-12 | Quan hệ provision + văn bản trong PostgreSQL |
-| FR-06 | Temporal and Amendment Resolver | UC-01, UC-02, UC-03, UC-07, UC-08 | Điều kiện hiệu lực đúng; không chắc chắn thì review |
-| FR-07 | Background ingestion | UC-07 | 202 + `ingestion_job_id`; không parse đồng bộ |
-| FR-08 | Object storage (MinIO) | UC-07, UC-08 | Bucket riêng theo loại artifact; backup độc lập |
-| FR-09 | Review routing | UC-08 | Chỉ `accepted` được index |
-| FR-10 | Corpus QA | UC-12 | Đủ 16 chỉ số; structural QA cho văn bản quan trọng |
-| FR-11 | Query Understanding và evidence planning | UC-01, UC-02, UC-03, UC-04, UC-06 | Route intent đúng; evidence plan đúng loại bằng chứng |
-| FR-12 | Query Expansion | UC-01, UC-02, UC-03, UC-04 | Giữ câu gốc; HyDE có điều kiện; rewrite có giới hạn |
-| FR-13 | Exact legal lookup | UC-01, UC-02, UC-03, UC-04 | Định danh chính xác trả đúng provision |
-| FR-14 | Dense + sparse + RRF | UC-01, UC-02, UC-03, UC-04 | Các variant tái lập được |
-| FR-15 | Reranking | UC-01, UC-02, UC-03, UC-04 | Stage chuẩn; chưa khẳng định cải thiện trước benchmark |
-| FR-16 | Legal context expansion | UC-01, UC-02, UC-03 | `added_by`, depth có giới hạn |
-| FR-17 | Evidence Completeness Gate | UC-01, UC-02, UC-03, UC-06 | `INCOMPLETE` chặn generate, chạy targeted retrieval |
-| FR-18 | Current law QA | UC-01 | Chỉ dùng provision đang hiệu lực |
-| FR-19 | Historical law QA | UC-02 | Chỉ dùng provision hợp lệ tại ngày hỏi |
-| FR-20 | Comparison QA | UC-03 | Citation riêng theo từng thời điểm |
-| FR-21 | Provision search | UC-04 | Top-k có hierarchy và provenance |
-| FR-22 | Structured generation | UC-01, UC-02, UC-03 | Output đúng schema cấp claim |
-| FR-23 | Verification sáu tầng | UC-01, UC-02, UC-03, UC-06, UC-09 | Returned Invalid Citation Rate = 0 |
-| FR-24 | Failure-aware repair + abstention | UC-01, UC-02, UC-03, UC-06 | Bounded repair qua `MAX_REPAIR_ATTEMPTS`; không vòng lặp vô hạn |
-| FR-25 | Disclaimer | UC-01, UC-02, UC-03, UC-06 | Có trong mọi response |
-| FR-26 | Observability (Langfuse) | UC-01, UC-02, UC-03, UC-04, UC-07, UC-09 | Trace đầy đủ; query vẫn chạy khi Langfuse không khả dụng |
-| FR-27 | Feedback | UC-10 | Lưu PostgreSQL; gửi về Langfuse |
-| FR-28 | Evaluation (Suite A-D + gold set) | UC-09, UC-11 | Gold set 200 câu, danh mục và bản ghi đầy đủ; run metadata; run bất biến; replay condition |
-| FR-31 | Benchmark đối chiếu RAGFlow | UC-09 | Bốn variant baseline trên cùng corpus và eval queries; Recall@10, citation correctness, temporal leakage, evidence completeness |
-| FR-32 | Hiển thị answer và citation từ metadata | UC-01, UC-02, UC-03, UC-05 | Citation dựng từ metadata; không stream draft chưa verify |
-
-### P1 - Chỉ làm khi P0 ổn định
-
-| ID | Yêu cầu | Điều kiện |
+| ID | Yêu cầu | Tiêu chí kiểm chứng chính |
 |---|---|---|
-| FR-29 | Conversation history | P0 workflow ổn định |
-| FR-30 | Admin review UI | CLI review đã hoạt động |
+| FR-01–06 | Parser, IR, structure, reference, temporal | Provenance/temporal gates pass hoặc fail closed |
+| FR-07 | Manual CLI sync 14 PDFs | Allowlist, dedupe, immutable snapshot/hash |
+| FR-08 | Embedding benchmark/rebuild | Candidates local/cache; old index retained until pass |
+| FR-09 | Corpus-only query | No web; `CORPUS_NOT_COVERED` distinct |
+| FR-10–25 | Retrieval, evidence, verification, abstention, disclaimer | Invalid/unsupported claims blocked |
+| FR-26 | Observability | Không thay đổi correctness |
+| FR-27 | Minimal feedback | LIKE/DISLIKE only; not release gate |
+| FR-28/31 | 200-question gold gate | All 200 risk-weighted questions, 17 categories |
+| FR-32 | Chat answer/citation UI | Metadata citation, applied date, disclaimer |
 
 ### Ngoài phạm vi
 
-| Yêu cầu | Lý do |
-|---|---|
-| Web fallback cho câu trả lời | Không kiểm soát nguồn và hiệu lực |
-| Autonomous agent hoặc multi-agent | LangGraph là controlled workflow, không cần agent |
-| Knowledge graph hoặc Neo4j | Quan hệ được lưu bằng bảng PostgreSQL |
-| RAGFlow làm nền tảng chính | Chỉ là baseline so sánh bên ngoài |
-| Tóm tắt mọi loại tài liệu | Làm loãng domain |
-| Toàn bộ pháp luật Việt Nam | Phạm vi xác thực là pháp luật giao thông đường bộ Việt Nam, giới hạn trong corpus 20-30 văn bản đã review |
-| Fine-tuning | Chi phí và dữ liệu không phù hợp |
-| Local LLM | Phần cứng không phù hợp |
-| Mobile và voice | Không liên quan đóng góp chính |
-| Microservices và Kubernetes | Không cần thiết cho quy mô khóa luận |
+Upload API/UI, background ingestion, admin/reviewer role, human approval, feedback comments/triage, open web, corpus ngoài 14 PDF, và UI ngoài chat/citation/feedback tối thiểu.
 
 ---
 
 ## 2.10. Acceptance Criteria cấp hệ thống
 
-Hệ thống P0 được xem là hoàn thành khi:
+MVP được xem là hoàn thành khi:
 
-1. Docker Compose khởi động backend, worker, PostgreSQL, Qdrant, Redis và MinIO.
-2. Có ít nhất một bộ corpus đã review chứa văn bản hiện hành và lịch sử, có manifest và file hash.
-3. Parser Router ingest PDF (Docling hoặc MinerU) tạo Canonical Document IR và `LegalProvision` có provenance; ma trận fixture (FR-01) cho quyết định mong đợi: searchable PDF -> Docling, scan -> Docling -> quality gate fail -> MinerU, bảng phức tạp -> so sánh hai parser; fixture stable-ID (FR-03) phân biệt `diem-d` và `diem-đ` không va chạm.
-4. Background ingestion hoạt động: `POST /documents` trả `202 Accepted` kèm `ingestion_job_id`, worker hoàn tất pipeline và job status theo dõi được.
-5. Current query chạy end-to-end.
-6. Historical query chạy end-to-end.
-7. Comparison query chạy end-to-end.
-8. Search API trả provision trực tiếp kèm hierarchy và provenance.
-9. Invalid citation không thể đi qua response contract (Returned Invalid Citation Rate = 0).
-10. Evidence Completeness Gate chặn câu trả lời nửa vời cho câu hỏi đa bằng chứng.
-11. Numeric grounding (L4) chặn claim có số liệu sai so với bằng chứng.
-12. Out-of-scope và insufficient-evidence query trả abstention kèm lý do.
-13. Gold set 200 câu (40 development / 40 validation / 120 final test) và bốn suite A-D chạy bằng config và sinh report.
-14. Mỗi evaluation run lưu đầy đủ run metadata và bất biến (NFR-08).
-15. Corpus QA report có đủ các chỉ số trong FR-10.
-16. Langfuse ghi trace cho pipeline; query vẫn hoạt động khi Langfuse không khả dụng.
-17. Feedback Useful / Not Useful lưu được trong PostgreSQL và gửi về Langfuse.
-18. Benchmark RAGFlow (FR-31): cả bốn variant baseline (RAGFlow default, RAGFlow + Docling, RAGFlow + MinerU, VNLRAG custom legal-aware) chạy trên cùng corpus và cùng bộ câu hỏi evaluation trong môi trường benchmark riêng; so sánh Recall@10, citation correctness, temporal leakage và evidence completeness.
-19. Local defense mode hoạt động không cần VPS; health check cho toàn bộ hạ tầng.
-20. Không có kết quả metric giả định được ghi như kết quả thực nghiệm.
-21. FR-32 hoạt động: citation dựng từ metadata, passage viewer mở đúng trang, applied date hiển thị rõ, không stream draft chưa verify.
-22. Chính sách canonical date (FR-11, UC-02): câu hỏi chỉ có năm áp dụng canonical date và hiển thị ngày đã áp dụng, hoặc trả ABSTAIN `MISSING_QUERY_DATE` khi có sự kiện thay đổi hiệu lực trong năm.
+1. Corpus snapshot chứa đúng 14 PDF, allowlist đúng `datafiles.chinhphu.vn`, dedupe theo document/hash và hash bất biến.
+2. Manual CLI sync chạy parser/extraction và tự động quality/provenance/temporal gates; gate fail không thay corpus/index cũ.
+3. Embedding benchmark nhỏ trên ứng viên local đã cài/cache hoàn tất trước rebuild; index mới chỉ được phục vụ sau khi rebuild pass.
+4. Current, historical và comparison query chạy end-to-end trên corpus-only retrieval; không gọi web.
+5. `CORPUS_NOT_COVERED` tách biệt với `OUT_OF_SCOPE`; không fabricate khi thiếu bằng chứng.
+6. Vehicle taxonomy mở rộng; câu hỏi thiếu loại xe chỉ trả nhóm có bằng chứng trực tiếp.
+7. Year-only query áp dụng `01/07` khi không có biến cố hiệu lực trong năm và hiển thị ngày; nếu có biến cố thì `MISSING_QUERY_DATE`.
+8. Invalid citation, unsupported claim, numeric mismatch và thiếu evidence bị chặn hoặc abstain; mọi response có disclaimer.
+9. UI chỉ gồm chat, citation/passage, applied date, disclaimer và LIKE/DISLIKE tối thiểu.
+10. Toàn bộ 200 gold questions risk-weighted thuộc 17 category chạy trước release; feedback không phải release gate.
 
 ---
 
