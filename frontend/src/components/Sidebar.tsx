@@ -28,6 +28,7 @@ export default function Sidebar({
   const [cursor, setCursor] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
+  const [actionMenu, setActionMenu] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const mobileToggleRef = useRef<HTMLButtonElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
@@ -247,8 +248,21 @@ export default function Sidebar({
                 </form>
               ) : (
                 <span className="chat-list__actions">
-                  <button type="button" aria-label={`Đổi tên ${item.title}`} onClick={() => { setEditing(item.id); setTitle(item.title); }}>Sửa</button>
-                  <button type="button" aria-label={`Xóa ${item.title}`} onClick={() => void remove(item.id)}>Xóa</button>
+                  <button
+                    type="button"
+                    className="chat-list__menu-trigger"
+                    aria-label={`Tùy chọn ${item.title}`}
+                    aria-expanded={actionMenu === item.id}
+                    onClick={() => setActionMenu(actionMenu === item.id ? null : item.id)}
+                  >
+                    <span aria-hidden="true">•••</span>
+                  </button>
+                  {actionMenu === item.id && (
+                    <span className="chat-list__menu" role="menu">
+                      <button type="button" role="menuitem" onClick={() => { setEditing(item.id); setTitle(item.title); setActionMenu(null); }}>Đổi tên</button>
+                      <button type="button" role="menuitem" onClick={() => { void remove(item.id); setActionMenu(null); }}>Xóa</button>
+                    </span>
+                  )}
                 </span>
               )}
             </div>
