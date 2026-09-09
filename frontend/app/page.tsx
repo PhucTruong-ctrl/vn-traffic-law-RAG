@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState, useSyncExternalStore } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import AbstentionResult from "../src/components/AbstentionResult";
 import CitationCard, { Citation } from "../src/components/CitationCard";
 import FeedbackWidget from "../src/components/FeedbackWidget";
@@ -29,7 +29,6 @@ export default function Home() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [theme, setTheme] = useState<"auto" | "light" | "dark">("auto");
-  const hydrated = useSyncExternalStore(() => () => {}, () => true, () => false);
   useEffect(() => {
     const stored = window.localStorage.getItem("vnlaw-theme");
     const next = stored === "light" || stored === "dark" ? stored : "auto";
@@ -90,7 +89,7 @@ export default function Home() {
           <div className="conversation" aria-busy={loading}>
             {!response && !loading && <div className="empty-state"><div className="empty-index" aria-hidden="true">01</div><h2>Bạn cần tra cứu điều gì?</h2><p>Đặt câu hỏi về luật giao thông để nhận câu trả lời rõ ràng, có kiểm chứng.</p><div className="suggestions" aria-label="Gợi ý tra cứu">{suggestions.map((item, index) => <button key={item} type="button" onClick={() => setQuestion(item)}><span className="suggestion-index">0{index + 1}</span><span>{item}</span><span className="suggestion-arrow" aria-hidden="true">→</span></button>)}</div></div>}
             {loading && <div className="loading-state" role="status" aria-live="polite"><div className="query-bubble" aria-label="Câu hỏi đã gửi">{submittedQuestion}</div><span className="loading-bar" aria-hidden="true" /><strong>Đang chuẩn bị tra cứu</strong><span>Đang đối chiếu nguồn và chuẩn bị câu trả lời...</span></div>}
-            <form onSubmit={submit} className="query-form"><label htmlFor="question">Câu hỏi</label><div className="query-input-row"><textarea id="question" required value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ví dụ: Mức phạt khi vượt đèn đỏ là bao nhiêu?" rows={2} /><button type="submit" disabled={!hydrated || loading || !question.trim()}>{loading ? "Đang tra cứu..." : "Gửi câu hỏi"}<span aria-hidden="true">↑</span></button></div><span className="form-hint">Nhấn Gửi câu hỏi để bắt đầu tra cứu</span></form>
+            <form onSubmit={submit} className="query-form"><label htmlFor="question">Câu hỏi</label><div className="query-input-row"><textarea id="question" required value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ví dụ: Mức phạt khi vượt đèn đỏ là bao nhiêu?" rows={2} /><button type="submit" disabled={loading || !question.trim()}>{loading ? "Đang tra cứu..." : "Gửi câu hỏi"}<span aria-hidden="true">↑</span></button></div><span className="form-hint">Nhấn Gửi câu hỏi để bắt đầu tra cứu</span></form>
             {error && <p role="alert" aria-label="Lỗi truy vấn" className="error-message">{error}</p>}
             {response && <section className={abstained ? "response abstained" : "response"} aria-live="polite">{abstained ? <AbstentionResult reason={response.abstention?.reason} reasonCode={response.abstention?.reason_code} disclaimer={response.disclaimer} /> : <><div className="response-heading motion-stage"><div><span className="eyebrow">KẾT QUẢ NGHIÊN CỨU</span><h2>Trả lời có căn cứ pháp lý</h2></div><b>ĐÃ KIỂM CHỨNG</b></div><div className="answer-body motion-stage">{response.answer}</div><ProgressEvents events={response.progress_events} /><div className="citations motion-stage">{response.citations?.map((citation, index) => <CitationCard key={citation.provision_id ?? index} citation={{ ...citation, document_title: citation.document_title || citation.document_number, document_number: undefined }} onOpenSource={(citation) => setDrawerCitation(citation)} />)}</div>{response.trace_id && <FeedbackWidget traceId={response.trace_id} />}</>}</section>}
           </div>
