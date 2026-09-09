@@ -59,8 +59,7 @@
   --radius-pill: 999px;
 
   /* Shadow */
-  --shadow-sm:
-    0 1px 2px rgba(17, 24, 39, 0.04), 0 2px 8px rgba(17, 24, 39, 0.04);
+  --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.04), 0 2px 8px rgba(17, 24, 39, 0.04);
 
   --shadow-md: 0 8px 30px rgba(17, 24, 39, 0.08);
 
@@ -363,15 +362,55 @@ input:focus-visible {
   font-size: 10px;
   font-weight: 700;
 }
-.search-overlay {
+.modal-backdrop {
   position: fixed;
   inset: 0;
   z-index: 40;
   display: grid;
   place-items: start center;
-  padding-top: 8px;
+  padding: 8px 11px;
   background: rgba(0, 0, 0, 0.45);
 }
+.modal {
+  position: relative;
+  width: min(720px, 100%);
+  max-height: calc(100vh - 16px);
+  overflow: auto;
+  border: 1px solid #353535;
+  border-radius: 16px;
+  color: #f0f0f0;
+  background: #242424;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.45);
+}
+.modal__close {
+  position: absolute;
+  top: 15px;
+  right: 18px;
+  z-index: 1;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  color: #eee;
+  background: transparent;
+  font-size: 25px;
+  line-height: 1;
+}
+.modal__close:hover {
+  background: #363636;
+}
+.modal.source-drawer {
+  width: min(680px, 100%);
+  max-height: calc(100vh - 16px);
+  color: var(--navy-950);
+  background: var(--surface-primary);
+}
+.search-dialog {
+  overflow: hidden;
+}
+/* Search uses shared .modal; keep legacy selector for compatibility. */
 .search-dialog {
   width: min(720px, calc(100vw - 22px));
   max-height: min(470px, calc(100vh - 22px));
@@ -918,12 +957,7 @@ input:focus-visible {
 .loading-skeleton span {
   height: 10px;
   border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    var(--surface-muted),
-    var(--line),
-    var(--surface-muted)
-  );
+  background: linear-gradient(90deg, var(--surface-muted), var(--line), var(--surface-muted));
   background-size: 200% 100%;
   animation: progress-shimmer 1.5s ease-in-out infinite;
 }

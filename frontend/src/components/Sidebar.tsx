@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { BookIcon, PanelIcon, PlusIcon, SearchIcon } from "./Icons";
 import LegalMark from "./LegalMark";
+import Modal from "./Modal";
 import type { Conversation } from "./chat-types";
 
 type SidebarProps = {
@@ -71,9 +72,11 @@ export default function Sidebar({
       if (event.key === "Escape") setMobileOpen(false);
     };
     document.addEventListener("keydown", close);
-    sidebar?.querySelector<HTMLElement>(
-      'a[href], button:not([disabled]), input, [tabindex]:not([tabindex="-1"])',
-    )?.focus();
+    sidebar
+      ?.querySelector<HTMLElement>(
+        'a[href], button:not([disabled]), input, [tabindex]:not([tabindex="-1"])',
+      )
+      ?.focus();
     return () => document.removeEventListener("keydown", close);
   }, [mobileOpen]);
 
@@ -129,42 +132,40 @@ export default function Sidebar({
           onClick={closeMobile}
         />
       )}
-      {searchOpen && (
-        <div className="search-overlay" role="dialog" aria-label="Tìm kiếm cuộc trò chuyện">
-          <div className="search-dialog">
-            <div className="search-dialog__input">
-              <SearchIcon />
-              <input
-                autoFocus
-                aria-label="Tìm kiếm"
-                placeholder="Tìm kiếm..."
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-              <button type="button" aria-label="Đóng tìm kiếm" onClick={() => setSearchOpen(false)}>
-                ×
-              </button>
-            </div>
-            <p className="search-dialog__heading">Cuộc trò chuyện gần đây</p>
-            <div className="search-dialog__results">
-              {visibleConversations.map((item) => (
-                <button
-                  type="button"
-                  key={item.id}
-                  onClick={() => {
-                    onSelectConversation(item.id);
-                    setSearchOpen(false);
-                  }}
-                >
-                  <span className="search-dialog__bubble" aria-hidden="true" />
-                  <span>{item.title}</span>
-                </button>
-              ))}
-              {!visibleConversations.length && <p>Không tìm thấy cuộc trò chuyện.</p>}
-            </div>
-          </div>
+      <Modal
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        label="Tìm kiếm cuộc trò chuyện"
+        className="search-dialog"
+      >
+        <div className="search-dialog__input">
+          <SearchIcon />
+          <input
+            autoFocus
+            aria-label="Tìm kiếm"
+            placeholder="Tìm kiếm..."
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
         </div>
-      )}
+        <p className="search-dialog__heading">Cuộc trò chuyện gần đây</p>
+        <div className="search-dialog__results">
+          {visibleConversations.map((item) => (
+            <button
+              type="button"
+              key={item.id}
+              onClick={() => {
+                onSelectConversation(item.id);
+                setSearchOpen(false);
+              }}
+            >
+              <span className="search-dialog__bubble" aria-hidden="true" />
+              <span>{item.title}</span>
+            </button>
+          ))}
+          {!visibleConversations.length && <p>Không tìm thấy cuộc trò chuyện.</p>}
+        </div>
+      </Modal>
       <aside
         ref={sidebarRef}
         id="conversation-sidebar"
@@ -231,7 +232,10 @@ export default function Sidebar({
         <div className="chat-list">
           <p>Gần đây</p>
           {conversations.map((item) => (
-            <div key={item.id} className={`chat-list__item${item.id === activeConversationId ? " active" : ""}`}>
+            <div
+              key={item.id}
+              className={`chat-list__item${item.id === activeConversationId ? " active" : ""}`}
+            >
               <button
                 type="button"
                 className={item.id === activeConversationId ? "active" : ""}
@@ -243,8 +247,18 @@ export default function Sidebar({
                 {item.title || activeQuestion || "Cuộc trò chuyện"}
               </button>
               {editing === item.id ? (
-                <form onSubmit={(event) => { event.preventDefault(); void rename(item.id); }}>
-                  <input aria-label="Tên cuộc trò chuyện" value={title} onChange={(event) => setTitle(event.target.value)} autoFocus />
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void rename(item.id);
+                  }}
+                >
+                  <input
+                    aria-label="Tên cuộc trò chuyện"
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    autoFocus
+                  />
                 </form>
               ) : (
                 <span className="chat-list__actions">
@@ -259,20 +273,50 @@ export default function Sidebar({
                   </button>
                   {actionMenu === item.id && (
                     <span className="chat-list__menu" role="menu">
-                      <button type="button" role="menuitem" onClick={() => { setEditing(item.id); setTitle(item.title); setActionMenu(null); }}>Đổi tên</button>
-                      <button type="button" role="menuitem" onClick={() => { void remove(item.id); setActionMenu(null); }}>Xóa</button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setEditing(item.id);
+                          setTitle(item.title);
+                          setActionMenu(null);
+                        }}
+                      >
+                        Đổi tên
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          void remove(item.id);
+                          setActionMenu(null);
+                        }}
+                      >
+                        Xóa
+                      </button>
                     </span>
                   )}
                 </span>
               )}
             </div>
           ))}
-          {cursor && <button type="button" onClick={() => void fetchConversations(cursor)}>Tải thêm</button>}
+          {cursor && (
+            <button type="button" onClick={() => void fetchConversations(cursor)}>
+              Tải thêm
+            </button>
+          )}
         </div>
         <div className="sidebar-user">
-          <span className="user-avatar" aria-hidden="true">ND</span>
-          <span><b>Người dùng</b><small>Trợ lý pháp luật</small></span>
-          <span className="sidebar-user__menu" aria-hidden="true">•••</span>
+          <span className="user-avatar" aria-hidden="true">
+            ND
+          </span>
+          <span>
+            <b>Người dùng</b>
+            <small>Trợ lý pháp luật</small>
+          </span>
+          <span className="sidebar-user__menu" aria-hidden="true">
+            •••
+          </span>
         </div>
       </aside>
     </>
