@@ -79,7 +79,7 @@ def _summary(row: Conversation) -> dict[str, object]:
 
 
 def _message(row: Message) -> dict[str, object]:
-    return {
+    payload: dict[str, object] = {
         "id": row.id,
         "role": row.role,
         "status": row.status,
@@ -87,6 +87,27 @@ def _message(row: Message) -> dict[str, object]:
         "created_at": row.created_at,
         "query_trace_id": row.query_trace_id,
     }
+    if row.role == "assistant" and row.query_trace is not None:
+        trace = row.query_trace
+        payload["response"] = {
+            "status": "VERIFIED"
+            if trace.response_status == "VALID" and trace.citations
+            else "ABSTAINED",
+            "answer": row.content if trace.response_status == "VALID" and trace.citations else None,
+            "claims": (trace.verification_summary or {}).get("claims", []),
+            "citations": trace.citations or [],
+            "metadata": {},
+            "abstention": None
+            if trace.response_status == "VALID" and trace.citations
+            else {
+                "reason_code": (trace.verification_summary or {}).get(
+                    "reason_code", "INSUFFICIENT_EVIDENCE"
+                )
+            },
+            "disclaimer": "This response is informational and not legal advice.",
+            "trace_id": trace.trace_id,
+        }
+    return payload
 
 
 @router.get("/conversations")

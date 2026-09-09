@@ -102,7 +102,7 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
   const [turns, setTurns] = useState<ConversationTurn[]>([]);
   const [submittedQuestion, setSubmittedQuestion] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(Boolean(conversationId));
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [progressEvents, setProgressEvents] = useState<ProgressEvent[]>([]);
   const [activeId, setActiveId] = useState(conversationId);
@@ -110,7 +110,11 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
   const eventSourceRef = useRef<EventSource | null>(null);
   useEffect(() => {
     const controller = new AbortController();
-    if (!conversationId) return () => controller.abort();
+    if (!conversationId) {
+      setLoading(false);
+      return () => controller.abort();
+    }
+    setLoading(true);
     fetch(`/api/v1/conversations/${encodeURIComponent(conversationId)}`, {
       signal: controller.signal,
     })
@@ -124,12 +128,15 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
         setQuestion("");
         setSubmittedQuestion("");
         setError("");
+        setLoading(false);
       })
       .catch((loadError) => {
-        if (loadError.name !== "AbortError")
+        if (loadError.name !== "AbortError") {
           setError(
             loadError instanceof Error ? loadError.message : "Không thể tải cuộc trò chuyện.",
           );
+          setLoading(false);
+        }
       });
     return () => controller.abort();
   }, [conversationId]);
@@ -152,86 +159,18 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
     setLoading(true);
     setError("");
     setSubmittedQuestion(submitted);
-    const query = new URLSearchParams({ question: submitted });
-    if (activeId) query.set("conversation_id", activeId);
     try {
-      let payload: unknown = null;
-      if (typeof EventSource !== "undefined") {
-        try {
-          payload = await new Promise<unknown>((resolve, reject) => {
-            const source = new EventSource(`${API_PATH}/events?${query.toString()}`);
-            eventSourceRef.current = source;
-            const timeout = window.setTimeout(() => {
-              source.close();
-              eventSourceRef.current = null;
-              reject(new Error("SSE timeout"));
-            }, 30000);
-            const handleEvent = (event: Event) => {
-              try {
-                setProgressEvents((previous) => [
-                  ...previous,
-                  JSON.parse((event as MessageEvent).data) as ProgressEvent,
-                ]);
-              } catch {
-                /* ignore malformed progress */
-              }
-            };
-            source.addEventListener("progress", handleEvent);
-            source.addEventListener("message", handleEvent);
-            source.addEventListener("result", (event) => {
-              window.clearTimeout(timeout);
-              source.close();
-              eventSourceRef.current = null;
-              try {
-                resolve(JSON.parse((event as MessageEvent).data));
-              } catch {
-                reject(new Error("Phản hồi từ máy chủ không hợp lệ. Vui lòng thử lại."));
-              }
-            });
-            source.onerror = () => {
-              window.clearTimeout(timeout);
-              source.close();
-              eventSourceRef.current = null;
-              reject(new Error("SSE unavailable"));
-            };
-            abortController.signal.addEventListener(
-              "abort",
-              () => {
-                window.clearTimeout(timeout);
-                source.close();
-                eventSourceRef.current = null;
-                reject(new DOMException("Aborted", "AbortError"));
-              },
-              { once: true },
-            );
-          });
-        } catch (sseError) {
-          if (abortController.signal.aborted) throw sseError;
-          const result = await fetch(API_PATH, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              question: submitted,
-              ...(activeId ? { conversation_id: activeId } : {}),
-            }),
-            signal: abortController.signal,
-          });
-          payload = await result.json().catch(() => null);
-          if (!result.ok) throw new Error("Không thể xử lý câu hỏi.");
-        }
-      } else {
-        const result = await fetch(API_PATH, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            question: submitted,
-            ...(activeId ? { conversation_id: activeId } : {}),
-          }),
-          signal: abortController.signal,
-        });
-        payload = await result.json().catch(() => null);
-        if (!result.ok) throw new Error("Không thể xử lý câu hỏi.");
-      }
+      const result = await fetch(API_PATH, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: submitted,
+          ...(activeId ? { conversation_id: activeId } : {}),
+        }),
+        signal: abortController.signal,
+      });
+      const payload = await result.json().catch(() => null);
+      if (!result.ok) throw new Error("Không thể xử lý câu hỏi.");
       const nextResponse = validateChatResponse(payload);
       setTurns((previous) => [...previous, { question: submitted, response: nextResponse }]);
       setQuestion("");
@@ -294,7 +233,7 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
           }
           aria-busy={loading}
         >
-          {!turns.length && !loading && !error ? (
+          {!conversationId && !turns.length && !loading && !error ? (
             <Welcome
               question={question}
               suggestions={suggestions}
@@ -311,7 +250,7 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
               onOpenSource={setDrawerCitation}
             />
           )}
-          {(turns.length > 0 || loading || error) && (
+          {(conversationId || turns.length > 0 || loading || error) && (
             <div className="sticky-composer">
               <Composer
                 id="question"

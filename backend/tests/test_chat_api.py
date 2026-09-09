@@ -25,6 +25,29 @@ def test_chat_accepts_only_question() -> None:
     assert client.post("/api/v1/chat", json={"question": None}).status_code == 422
 
 
+def test_chat_events_returns_sse_result(monkeypatch: pytest.MonkeyPatch) -> None:
+    class Graph:
+        async def astream(self, state: dict[str, object], stream_mode: str):
+            assert state["question"] == "hello"
+            assert stream_mode == "updates"
+            yield {
+                "final_response": {"answer_summary": "answer", "claims": []},
+                "verification_result": {"status": "INVALID", "reason_code": "NO_SUPPORT"},
+            }
+
+    monkeypatch.setattr(chat_api, "build_query_graph", lambda _services: Graph())
+    app.dependency_overrides[chat_api._optional_db] = lambda: None
+    try:
+        response = TestClient(app).get("/api/v1/chat/events?question=hello")
+    finally:
+        app.dependency_overrides.pop(chat_api._optional_db, None)
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    assert "event: result" in response.text
+    assert '"status": "ABSTAINED"' in response.text
+
+
 @pytest.mark.parametrize(
     "verification, expected",
     [

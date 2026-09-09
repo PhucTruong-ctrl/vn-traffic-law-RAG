@@ -1,6 +1,6 @@
-> **MVP rebaseline — 06/09/2026**: The defense release scope is reduced to a fixed 5–10-document reviewed corpus, 30–50 evaluation questions, current and as-of-date retrieval, structure-aware citations, evidence gating, abstention, and a working chat UI. RAGFlow comparison, feedback, large-scale background ingestion, advanced observability/security, and production backup automation are deferred.
+> **MVP rebaseline — 10/09/2026**: Hệ thống là dịch vụ single-user chạy localhost hoặc private network. Corpus MVP gồm 14 PDF cục bộ, deduplicate theo document/hash; nguồn được allowlist chính xác trên `datafiles.chinhphu.vn`. Ingestion chỉ chạy thủ công bằng CLI và xử lý nền; snapshot/hash bất biến, quality/provenance/temporal gates tự động, không có human approval. Query chỉ phục vụ corpus đã accepted và không gọi web.
 >
-> **Model policy**: Gemini 3.7 Flash is the primary structured-answer generator. Gemini 3.5 Flash Lite is the independent semantic judge. OpenAI/GPT-5.4 is not used. Earlier scope/model statements in this document are superseded by this rebaseline.
+> **Model policy**: Embedding được chọn sau benchmark nhỏ trên các ứng viên đã cài/cache; mọi lựa chọn đều ghi version và yêu cầu rebuild index. Không nêu tên model hoặc ngưỡng số học khi chưa có kết quả đo.
 # 03. Thiết Kế Hệ Thống
 
 > **Giai đoạn SDLC**: 3 - Thiết kế hệ thống
@@ -30,7 +30,7 @@ Hệ thống được thiết kế theo các nguyên tắc bắt buộc sau, có
    Tài liệu sau khi parse được chuyển sang Canonical Document IR do dự án sở hữu. Không module nào khác đọc trực tiếp định dạng đầu ra của Docling hoặc MinerU. Thay đổi parser chỉ yêu cầu một adapter mới, không viết lại Legal Structure Extractor (NFR-06).
 
 2. **PostgreSQL là nguồn chân lý**
-   PostgreSQL quản lý toàn bộ metadata, phiên bản, quan hệ, review, audit, query trace và feedback. Mọi dữ liệu pháp lý phải được xác nhận trong PostgreSQL trước khi phục vụ query.
+   PostgreSQL quản lý metadata, phiên bản, quan hệ, snapshot/hash bất biến, audit kỹ thuật, query trace và feedback tối thiểu. Mọi dữ liệu pháp lý phải qua các cổng tự động trước khi phục vụ query.
 
 3. **Qdrant là index dẫn xuất**
    Qdrant chỉ là index retrieval có thể dựng lại hoàn toàn từ PostgreSQL. Nếu dữ liệu hai nơi lệch nhau, PostgreSQL thắng.
@@ -90,52 +90,37 @@ Hệ thống được thiết kế theo các nguyên tắc bắt buộc sau, có
 
 ## 3.2. Kiến trúc tổng quan
 
-Hệ thống gồm hai pipeline chính tách biệt: offline ingestion và online query. Observability chạy xuyên suốt nhưng không nằm trên đường tới hạn.
+Hệ thống gồm hai pipeline chính tách biệt: offline ingestion và online query. Offline ingestion chỉ được kích hoạt bằng manual CLI và chạy nền; online query không gọi web và search chỉ phục vụ serving corpus. Observability chạy xuyên suốt nhưng không nằm trên đường tới hạn.
 
 ### 3.2.1. Offline ingestion pipeline
 
 ```mermaid
 flowchart TB
-    SRC["Nguồn văn bản chính thống"]
-    REG["Source Registry và Corpus Manifest"]
-    Q["Ingestion Queue (Redis + Dramatiq)"]
+    SRC["14 PDF cục bộ / allowlist datafiles.chinhphu.vn"]
+    SNAP["Corpus snapshot + SHA-256 bất biến"]
+    CLI["Manual CLI sync"]
+    Q["Background worker"]
     PR["Parser Router (Docling | MinerU)"]
     IR["Canonical Document IR"]
     LSE["Legal Structure Extractor"]
     ENR["Legal Context Enricher"]
     REF["Legal Reference Resolver"]
     TR["Temporal and Amendment Resolver"]
-    QG["Quality Gates"]
-    HR["Human Review"]
+    QG["Automatic quality/provenance/temporal gates"]
     PG["PostgreSQL (nguồn chân lý)"]
     IDX["Embedding and Sparse Indexing"]
     QD["Qdrant (index dẫn xuất)"]
-    DROP["Dropped: audit/terminal record"]
+    REJ["REJECTED: immutable audit record"]
 
-    SRC --> REG
-    REG --> Q
-    Q --> PR
-    PR --> IR
-    IR --> LSE
-    LSE --> ENR
-    ENR --> REF
-    REF --> TR
-    TR --> QG
-
-    QG -->|accepted| PG
-    QG -->|needs_review| HR
-    QG -->|dropped| DROP
-
-    HR -->|accept| PG
-    HR -->|reject / drop| DROP
-
-    PG --> IDX
-    IDX --> QD
-
-    DROP -. "ghi audit chỉ, không index" .-> PG
+    SRC --> SNAP --> CLI --> Q
+    Q --> PR --> IR --> LSE --> ENR --> REF --> TR --> QG
+    QG -->|ACCEPTED| PG
+    QG -->|REJECTED| REJ
+    REJ -. "ghi audit, không index" .-> PG
+    PG --> IDX --> QD
 ```
 
-Pipeline worker: `parse -> normalize -> legal extract -> reference resolve -> temporal resolve -> quality gates -> review -> embed -> index`. Mỗi bước là một actor Dramatiq ngắn, rời rạc và idempotent (FR-07). Chỉ kết quả được phân loại `accepted` (tự động hoặc sau reviewer accept) mới đi tiếp tới `PostgreSQL -> embed -> index`. Kết quả `needs_review` phải qua Human Review trước khi tới PostgreSQL; kết quả `dropped` chỉ được ghi thành audit/terminal record (ghi lý do vào PostgreSQL) và **không bao giờ được index** (FR-09). Qdrant chỉ nhận dữ liệu có `review_status = ACCEPTED` đọc từ PostgreSQL.
+Pipeline worker: `snapshot -> parse -> normalize -> legal extract -> reference resolve -> temporal resolve -> automatic gates -> accepted/rejected -> embed -> index`. Không có bước human approval/reviewer. Snapshot, file hash, parser output và gate report là bất biến; kết quả chỉ được phân loại `ACCEPTED` khi toàn bộ gate đạt, nếu không là `REJECTED` và không index. Qdrant chỉ nhận dữ liệu `ACCEPTED` đọc từ PostgreSQL.
 
 ### 3.2.2. Online query pipeline
 
@@ -225,18 +210,8 @@ Sửa lỗi có ý thức (failure-aware repair), không chỉ regenerate (FR-24
 
 Sau số lần repair có giới hạn: **ABSTAIN**. Cơ chế đếm bước nằm trong state (`repair_attempts`) kết hợp conditional edge để dừng. LangGraph checkpoint được dùng cho retry/resume idempotent khi cần, không bắt buộc cho single-request P0.
 
-### 3.2.4. Phân chia online và offline
-
-| Pipeline | Thành phần | Tần suất | Yêu cầu |
-|---|---|---|---|
-| Offline ingestion | Parser Router, Canonical Document IR, Legal Structure Extractor, Reference/Temporal Resolver, quality gates, review, embed, index | Khi thêm hoặc cập nhật văn bản | Có thể chậm, ưu tiên độ đúng; chạy qua hàng đợi |
-| Online query | Query Understanding, temporal, expansion, retrieval, fusion, rerank, context expansion, evidence gate, generate, verify | Mỗi câu hỏi | Latency thấp; không chạy parser |
-| Evaluation | Suite A-D, RAGFlow baseline, metric, report | Theo experiment | Tái lập được |
-| Maintenance | Re-index, Qdrant rebuild, relation update, backup, regression | Theo lịch hoặc sự kiện | Không làm mất version lịch sử |
-
 ### 3.2.5. Deployment topology
-
-Compose MVP gồm frontend, backend, PostgreSQL và Qdrant. Redis/Dramatiq, MinIO, Langfuse và các provider phụ trợ chỉ là tùy chọn, không nằm trên đường tới hạn của bản bảo vệ. Gemini API là provider LLM duy nhất.
+Compose MVP gồm frontend, backend, PostgreSQL, Qdrant và worker/queue/object storage tùy cấu hình triển khai; tất cả chạy trong boundary single-user localhost/private network. Ingestion chỉ được kích hoạt bằng CLI thủ công và thực hiện nền. Provider/model cụ thể chỉ được chọn từ manifest đã đo và ghi version; query không gọi web và search chỉ đọc corpus đang phục vụ. PostgreSQL là nguồn chân lý; Qdrant là index dẫn xuất.
 
 ```mermaid
 graph LR
@@ -249,10 +224,8 @@ graph LR
     RD["Redis :6379"]
     MO["MinIO :9000"]
     LF["Langfuse Cloud"]
-    LLM["Gemini 3.5 Flash API"]
-    J["Jina API"]
-    G["Gemini 3.7 Flash API (generator)"]
-    J["Gemini 3.5 Flash Lite API (L5 judge)"]
+    LLM["Generator provider/model from measured manifest"]
+    J["Embedding/reranker provider/model from measured manifest"]
     B --> FE
     FE --> API
     API --> PG
@@ -272,7 +245,7 @@ graph LR
     API -. "trace async" .-> LF
 ```
 
-Ghi chú về L5 judge: Gemini 3.5 Flash Lite chỉ xử lý semantic claim support khi deterministic rules chưa kết luận được; lỗi provider hoặc timeout phải fail-closed sang repair giới hạn hoặc ABSTAIN.
+Ghi chú về L5 judge: chỉ dùng provider/model đã được ghi trong manifest benchmark; chỉ xử lý semantic claim support khi deterministic rules chưa kết luận được; lỗi provider hoặc timeout phải fail-closed sang repair giới hạn hoặc ABSTAIN.
 
 Cấu hình ràng buộc cục bộ:
 
@@ -304,7 +277,7 @@ vnlaw-rag/
 │   ├── app/
 │   │   ├── main.py
 │   │   ├── config.py
-│   │   ├── api/                # chat, search, documents, jobs, reviews, feedback, health, evaluation, corpus-qa
+│   │   ├── api/                # chat, search, documents, jobs, feedback, health, evaluation, corpus-qa
 │   │   ├── domain/             # models + enums, không phụ thuộc framework
 │   │   ├── ingestion/
 │   │   │   ├── parser_router.py
@@ -320,7 +293,7 @@ vnlaw-rag/
 │   │   ├── retrieval/          # embedding, sparse, qdrant_store, hybrid, reranker, filters
 │   │   ├── query/              # query_understanding, expansion, hyde, evidence_plan
 │   │   ├── workflow/           # graph.py, state.py, nodes/*
-│   │   ├── generation/         # provider, gemini, prompts, schemas
+│   │   ├── generation/         # provider, prompts, schemas
 │   │   ├── verification/       # l1_schema, l2_citation, l3_temporal, l4_numeric, l5_claim, l6_evidence
 │   │   ├── persistence/        # database, repositories, models
 │   │   ├── evaluation/         # runner, suites, deterministic_metrics, ragas_metrics, cost, report
@@ -328,7 +301,7 @@ vnlaw-rag/
 │   │   └── observability/      # logging, tracing (Langfuse), metrics
 │   ├── alembic/
 │   ├── tests/                  # unit, integration, regression, e2e, fixtures
-│   └── scripts/                # ingest_document, review_item, rebuild_index, run_evaluation, reconcile_index
+│   └── scripts/                # ingest_document, rebuild_index, run_evaluation, reconcile_index
 ├── frontend/                   # Next.js + TypeScript + shadcn/ui
 ├── data/                       # manifests, pdfs, artifacts, gold-sets, evaluation
 ├── docs/
@@ -352,67 +325,36 @@ Domain models không import FastAPI, SQLAlchemy, Qdrant client, Google SDK, Open
 
 ## 3.3. Sequence diagrams
 
-### 3.3.1. Ingestion: upload, queue và xử lý nền
+### 3.3.1. Ingestion: manual CLI, immutable snapshot và xử lý nền
 
 ```mermaid
-sequenceDiagram
-    actor Reviewer
-    participant API as FastAPI
+    actor Operator
+    participant CLI as Manual CLI
     participant PG as PostgreSQL
     participant RD as Redis Queue
     participant WK as Dramatiq Worker
     participant PR as Parser Router
     participant IR as Canonical IR
-    participant LSE as Legal Structure Extractor
-    participant REF as Reference/Temporal Resolver
-    participant QGA as Quality Gate A (parser-level)
-    participant QGB as Quality Gate B (structural)
+    participant QGA as Automatic Quality/Provenance/Temporal Gates
     participant MO as MinIO
     participant EMB as Embedding Provider
     participant QD as Qdrant
 
-    Reviewer->>API: POST /api/v1/documents (PDF + manifest)
-    API->>API: validate MIME, size, magic bytes, filename
-    API->>API: SHA-256, kiểm tra duplicate
-    API->>PG: tạo IngestionRun (QUEUED)
-    API->>MO: lưu source PDF
-    API->>RD: enqueue parse_actor
-    API-->>Reviewer: 202 Accepted + ingestion_job_id
-
-    RD->>WK: parse_actor
-    WK->>PR: chọn parser theo đặc tính tài liệu
-    PR->>WK: Docling (hoặc MinerU nếu quality gate fail)
-    WK->>IR: chuyển output parser -> ParsedDocument
-    WK->>QGA: gate A (provenance, text extraction, table, layout)
-    alt Gate A fail trên parser hiện tại (Docling)
-        WK->>PR: chuyển MinerU, chạy lại từ đầu parse
-        PR->>WK: MinerU output
-        WK->>IR: chuyển sang IR mới (supersede artifact cũ)
-        WK->>QGA: gate A lại trên kết quả MinerU
-    end
-    WK->>LSE: trích LegalProvision[] (Legal Structure Extractor)
-    WK->>QGB: gate B (point label, hierarchy, short-point)
-    alt Gate B fail trên parser hiện tại
-        WK->>PR: hủy kết quả structural cũ, chạy lại toàn bộ từ parser khác
-        PR->>WK: output parser thay thế
-        WK->>IR: IR mới (artifact structural cũ bị đánh dấu invalid)
-        WK->>LSE: extract lại
-        WK->>QGB: gate B lại
-    end
-    WK->>REF: resolve references + temporal
-    alt accepted (auto-accept hợp lệ hoặc reviewer accept)
-        WK->>PG: lưu provisions (ACCEPTED) + commit
-        WK->>EMB: embed accepted provisions
-        WK->>QD: upsert dense + sparse + payload
-        WK->>PG: đánh dấu INDEXED
-    else needs_review
-        WK->>PG: tạo ReviewItem (PENDING_REVIEW)
-    else dropped
-        WK->>PG: ghi lý do DROPPED
+    Operator->>CLI: sync 14 local PDFs
+    CLI->>CLI: validate exact host + SHA-256 + snapshot
+    CLI->>PG: create immutable IngestionRun (QUEUED)
+    CLI->>RD: enqueue run_id
+    RD->>WK: background stages
+    WK->>PG: persist artifacts + automatic gate result
+    alt ACCEPTED
+        WK->>PG: commit accepted provisions
+        WK->>QD: upsert after commit
+    else REJECTED
+        WK->>PG: record immutable reason/hash
     end
 ```
 
-Upload trả `202 Accepted` ngay. Không parse PDF đồng bộ trong request handler (FR-07).
+CLI sync trả `run_id`; worker xử lý nền. Không có upload/reviewer API và không parse PDF đồng bộ trong request handler.
 
 ### 3.3.2. Current query end-to-end
 
@@ -427,7 +369,7 @@ sequenceDiagram
     participant PG as PostgreSQL
     participant QD as Qdrant
     participant RK as Reranker
-    participant GEN as Gemini 3.5 Flash
+    participant GEN as Generator (manifest-selected model)
     participant VER as Verifier L1-L6
     participant LF as Langfuse
 
@@ -600,23 +542,18 @@ Mọi trạng thái trung gian không được trả ra UI. Draft chưa verify k
 ```mermaid
 stateDiagram-v2
     [*] --> QUEUED
-    QUEUED --> PARSING: worker nhận job
+    QUEUED --> PARSING: CLI enqueue
     PARSING --> NORMALIZING: parse xong
     NORMALIZING --> EXTRACTING
     EXTRACTING --> RESOLVING_REFS
     RESOLVING_REFS --> RESOLVING_TEMPORAL
     RESOLVING_TEMPORAL --> QUALITY_CHECK
-    QUALITY_CHECK --> ACCEPTED: tất cả accepted
-    QUALITY_CHECK --> PENDING_REVIEW: có needs_review
-    QUALITY_CHECK --> DROPPED: fatal
-    PENDING_REVIEW --> ACCEPTED: reviewer accept
-    PENDING_REVIEW --> REJECTED: reviewer reject
-    PENDING_REVIEW --> DROPPED: reviewer drop
+    QUALITY_CHECK --> ACCEPTED: tất cả automatic gates đạt
+    QUALITY_CHECK --> REJECTED: gate fail
     ACCEPTED --> EMBEDDING
     EMBEDDING --> INDEXING
     INDEXING --> INDEXED
     INDEXED --> [*]
-    DROPPED --> [*]
     REJECTED --> [*]
     FAILED --> [*]
     QUEUED --> FAILED: retry cạn
@@ -631,49 +568,35 @@ stateDiagram-v2
     INDEXING --> FAILED: retry cạn
 ```
 
-| State | Ý nghĩa | Ghi chú |
-|---|---|---|
-| QUEUED | Job được tạo, đang chờ worker | Ghi ngay khi nhận upload |
-| PARSING | Parser Router đang parse (Docling hoặc MinerU) | Fallback parser diễn ra trong state này; routing ghi vào `parser_routing` |
-| NORMALIZING | Chuẩn hóa IR (unicode, whitespace, dấu câu) | Không sửa nội dung pháp lý |
-| EXTRACTING | Legal Structure Extractor sinh LegalProvision[] | Nhãn Điểm tiếng Việt, short-Point retention |
-| RESOLVING_REFS | Legal Reference Resolver trích ProvisionReference/DocumentRelation | Unresolved được ghi nhận |
-| RESOLVING_TEMPORAL | Temporal and Amendment Resolver tính [effective_from, effective_to) | Không chắc chắn -> review |
-| QUALITY_CHECK | Quality gates chạy trên toàn bộ kết quả | Phân loại accepted/needs_review/dropped |
-| PENDING_REVIEW | Chờ reviewer quyết định | Không index gì trong state này |
-| ACCEPTED | Toàn bộ provision được accept (tự động từ QUALITY_CHECK hoặc sau reviewer accept) | Chuyển EMBEDDING; khác với `ReviewStatus.ACCEPTED` (trạng thái review cấp row) |
-| REJECTED | Reviewer từ chối, không index | Có thể sửa và chạy lại |
-| DROPPED | Không thể cứu vãn, ghi lý do | Không bao giờ được index (FR-09) |
-| EMBEDDING | Embed accepted provisions | Idempotent, retry transient |
-| INDEXING | Upsert dense + sparse + payload vào Qdrant | Xảy ra sau PostgreSQL commit |
-| INDEXED | Hoàn tất, có thể phục vụ query | State terminal thành công |
-| FAILED | Lỗi không hồi phục sau retry | Lưu error và stack |
+| State | Ý nghĩa |
+|---|---|
+| QUEUED | CLI đã tạo job, chờ worker |
+| PARSING | Parser Router đang parse; fallback ghi trong run |
+| NORMALIZING | Chuẩn hóa IR, không sửa nội dung pháp lý |
+| EXTRACTING | Sinh LegalProvision, giữ nhãn Điểm và short-Point |
+| RESOLVING_REFS | Trích reference/relation; unresolved được ghi nhận |
+| RESOLVING_TEMPORAL | Tính khoảng hiệu lực; thiếu chắc chắn thì reject |
+| QUALITY_CHECK | Chạy tự động quality, provenance và temporal gates |
+| ACCEPTED | Toàn bộ gate đạt; được embed/index |
+| REJECTED | Gate fail; giữ snapshot/hash và lý do, không index |
+| EMBEDDING | Embed accepted provisions; idempotent |
+| INDEXING | Upsert vector và payload sau PostgreSQL commit |
+| INDEXED | Hoàn tất, có thể phục vụ query |
+| FAILED | Lỗi không hồi phục sau retry |
 
-Quy tắc chuyển trạng thái:
+Mỗi actor cập nhật PostgreSQL cùng transaction; Qdrant upsert chỉ sau PostgreSQL commit. Actor idempotent và có thể reconcile bằng CLI. `MAX_INGESTION_WORKERS = 1` trong scope khóa luận.
 
-- Mỗi actor chỉ chuyển job sang state tiếp theo sau khi hoàn thành công việc và cập nhật PostgreSQL trong cùng transaction.
-- Qdrant upsert xảy ra sau PostgreSQL commit. Nếu Qdrant fail, job giữ `INDEXING` và được retry bởi background/CLI reconcile, không rollback dữ liệu PostgreSQL.
-- Actor idempotent: chạy lại an toàn khi worker fail. Việc chạy lại dùng checkpoint dựa trên trạng thái job hiện tại (nếu state đã qua bước đó, bỏ qua).
-- `MAX_INGESTION_WORKERS = 1` trong scope khóa luận.
+### 3.4.2. Trạng thái kiểm định tài liệu
 
-### 3.4.2. Trạng thái review tài liệu
+Chỉ dùng hai trạng thái nội dung: `ACCEPTED` và `REJECTED`. `ACCEPTED` nghĩa là mọi automatic quality/provenance/temporal gate đạt; `REJECTED` nghĩa là bất kỳ gate bắt buộc nào thất bại. Không có `PENDING_REVIEW`, `NEEDS_REVIEW`, reviewer identity, hay thao tác approve/reject thủ công. Cả snapshot accepted và rejected đều giữ hash, version, gate report và lý do bất biến.
 
-| Status | Ý nghĩa | Điều kiện vào |
-|---|---|---|
-| PENDING | Chưa được duyệt | Job tạo document/provision/relation mới |
-| ACCEPTED | Được phép index và phục vụ query | Quality gate đạt hoặc reviewer accept; bắt buộc cho điều kiện hiệu lực |
-| REJECTED | Bị từ chối, không index | Reviewer reject |
-| DROPPED | Loại bỏ, không index và không sửa chữa | Quality gate fatal hoặc reviewer drop |
-
-`review_status` là cổng chặn trong điều kiện hiệu lực:
+`accepted` là cổng chặn trong điều kiện hiệu lực:
 
 ```text
 effective_from <= d
 AND (effective_to IS NULL OR d < effective_to)
-AND review_status = 'ACCEPTED'
+AND ingestion_status = 'ACCEPTED'
 ```
-
-Mọi quyết định review phải ghi reviewer identity và timestamp (NFR-09, UC-08).
 
 ---
 
@@ -974,7 +897,7 @@ Quality gate chia thành **hai nhóm, đặt ở hai thời điểm khác nhau**
 
 - Nhóm A fail trên parser hiện tại (Docling): Router chuyển MinerU và chạy lại từ đầu pipeline (parse mới);
 - Nhóm B fail sau khi extractor đã chạy: dữ liệu structural hiện tại (LegalProvision[]) bị **hủy bỏ (supersede)**, Router chạy lại toàn bộ pipeline từ parser thay thế (MinerU), và các artifact parser/IR/structural cũ của tài liệu được đánh dấu invalid trong `ingestion_artifacts` (không trộn kết quả hai parser);
-- Nếu cả hai parser đều fail: kết quả được định tuyến `needs_review` hoặc `dropped` tùy mức độ (không tự ý index kết quả structural một phần).
+Nếu cả hai parser đều fail: kết quả `REJECTED` với lý do gate; không tự ý index kết quả structural một phần.
 
 ### 3.7.4. Cấu hình ví dụ
 
@@ -1002,24 +925,16 @@ Mọi quyết định routing và kết quả quality gate được ghi vào `in
 
 ### 3.7.5. Chính sách auto-accept (không dùng confidence để quyết định sự thật pháp lý)
 
-Quality gate và review routing phân loại kết quả thành `accepted`, `needs_review` hoặc `dropped`. Một số kết quả được **auto-accept** (index tự động), số khác **bắt buộc review**. Nguyên tắc cốt lõi: **confidence score không bao giờ được dùng để quyết định một sự thật pháp lý** (ngày hiệu lực, quan hệ sửa đổi/thay thế/bãi bỏ). Quyết định pháp lý chỉ dựa trên nguồn xác định (manifest chính thức, pattern deterministic khớp tuyệt đối, quyết định reviewer).
+Quality gate phân loại kết quả thành `accepted` hoặc `rejected`. Không có review routing. Confidence score không quyết định sự thật pháp lý; provenance, manifest chính thức và pattern deterministic là căn cứ.
 
 | Loại kết quả | Auto-accept? | Điều kiện |
-|---|---|---|
-| Cấu trúc parser deterministic (Chương/Mục/Điều/Khoản/Điểm, nhãn đ), short-Point) | Có thể auto-accept | Quality gate nhóm A + B đạt, không ambiguity cờ; vẫn phải ACCEPTED trước khi index |
-| Metadata manifest chính thức (document_number, issued_date, effective_from, effective_to từ nguồn chính thức) | Có thể auto-accept | Manifest khớp nguồn chính thức; nếu manifest mâu thuẫn nguồn -> review |
-| Giải quyết `REFERS_TO` chính xác (pattern tường minh trỏ target tồn tại) | Có thể nếu deterministic | Target tồn tại, pattern khớp tuyệt đối, không mơ hồ |
-| Suy luận `PENALTY_COMPANION` (inferred, không tường minh) | Review | Luôn định tuyến review, không auto |
-| Sửa đổi từng phần inferred (partial amendment không tường minh trong manifest) | Review | Luôn review |
-| Ngày hiệu lực không chắc chắn (không có nguồn tin cậy) | Review | `UNKNOWN`/`PENDING_REVIEW` tới khi reviewer quyết định |
-| Quan hệ pháp lý dựa thuần trên confidence score | **Không bao giờ** | Không dùng confidence để quyết định sự thật pháp lý; phải có nguồn hoặc review |
-| Tài liệu/provision có provenance thiếu (page/bbox) | Review | Ngoại trừ element không cần provenance |
+| Cấu trúc parser deterministic (Chương/Mục/Điều/Khoản/Điểm, nhãn đ), short-Point | `ACCEPTED` nếu gate đạt; ngược lại `REJECTED` |
+| Metadata manifest chính thức khớp nguồn | `ACCEPTED`; mâu thuẫn -> `REJECTED` |
+| Reference deterministic trỏ target tồn tại | `ACCEPTED` |
+| Quan hệ/ngày hiệu lực suy luận hoặc không chắc chắn | `REJECTED`, ghi lý do |
+| Provenance thiếu | `REJECTED`, ghi lý do |
 
-Hệ quả triển khai:
-
-- `review_status = ACCEPTED` chỉ được gán khi auto-accept hợp lệ (bảng trên) HOẶC sau quyết định reviewer có ghi identity + timestamp;
-- Mọi quan hệ pháp lý (`DocumentRelation` AMENDS/REPEALS/SUPERSEDES/CORRECTS, `LegalEffectEvent`) đều yêu cầu nguồn tường minh (`source` = MANIFEST/OFFICIAL/REVIEW); không có đường "chấp nhận vì confidence cao";
-- Quyết định auto-accept phải được ghi trong `ingestion_runs.parser_routing` hoặc review item để audit.
+`ingestion_status = ACCEPTED` chỉ được gán khi mọi gate bắt buộc đạt. Confidence không quyết định sự thật pháp lý; snapshot/hash và gate report là căn cứ audit bất biến.
 
 ---
 
@@ -1064,7 +979,7 @@ Một Điểm pháp lý ngắn nhưng hợp lệ vẫn là provision hợp lệ,
 - Số La Mã bị lẫn (Chương I, II, III...);
 - Header/footer lặp không phải nội dung pháp lý (loại bỏ theo quy tắc và ghi leakage vào corpus QA).
 
-Mọi trường hợp không chắc chắn được gắn cờ `needs_review`, không suy đoán tự động.
+Mọi trường hợp không chắc chắn được gắn `REJECTED` kèm gate reason; không suy đoán tự động.
 
 ### 3.8.5. Quy tắc tạo provision_id
 
@@ -1072,7 +987,7 @@ Mọi trường hợp không chắc chắn được gắn cờ `needs_review`, k
 {loai-van-ban}-{so}-{nam}__dieu-{n}__khoan-{n}__diem-{chu-cai}
 ```
 
-Ví dụ:
+Mọi trường hợp không chắc chắn được gắn `REJECTED` kèm gate reason; không suy đoán tự động.
 
 ```text
 nd-168-2024__dieu-7
@@ -1175,21 +1090,16 @@ class DocumentStatus(StrEnum):
     UNKNOWN = "UNKNOWN"
 
 
-class ReviewStatus(StrEnum):
-    PENDING = "PENDING"
+class IngestionStatus(StrEnum):
     ACCEPTED = "ACCEPTED"
     REJECTED = "REJECTED"
-    DROPPED = "DROPPED"
-```
-
 ### 3.9.2. LegalSource
+
+`LegalSource` chỉ cho phép nguồn trong allowlist exact host `datafiles.chinhphu.vn`; không có loại nguồn chung chung hoặc fallback host.
 
 ```python
 class SourceType(StrEnum):
-    OFFICIAL_DB = "OFFICIAL_DB"          # Cơ sở dữ liệu quốc gia về văn bản pháp luật
-    GOV_PORTAL = "GOV_PORTAL"            # Cổng văn bản Chính phủ
-    ISSUER_WEBSITE = "ISSUER_WEBSITE"    # Website cơ quan ban hành
-    OTHER = "OTHER"
+    DATAFILES_CHINHPHU_GOV_VN = "DATAFILES_CHINHPHU_GOV_VN"
 
 
 class LegalSource(BaseModel):
@@ -1198,12 +1108,13 @@ class LegalSource(BaseModel):
     source_id: str
     source_name: str
     source_type: SourceType
-    base_url: str | None = None
-    priority: int = 100          # ưu tiên đối chiếu, nhỏ hơn = ưu tiên hơn
+    base_url: str = "https://datafiles.chinhphu.vn"
+    priority: int = 100
     enabled: bool = True
     notes: str | None = None
     created_at: datetime
 ```
+
 
 ### 3.9.3. LegalDocument và DocumentVersion
 
@@ -1234,9 +1145,9 @@ class DocumentVersion(BaseModel):
     version: int
     manifest_json: dict            # manifest gốc, bất biến
     content_hash: str
-    effective_from: date | None = None   # nullable khi hiệu lực chưa xác định/chưa review (xem 3.15.6)
+    effective_from: date | None = None   # chỉ NULL khi gate chưa ACCEPTED
     effective_to: date | None = None
-    review_status: ReviewStatus
+    ingestion_status: IngestionStatus
     created_at: datetime
 ```
 
@@ -1272,7 +1183,7 @@ class LegalProvision(BaseModel):
     retrieval_text: str
     parent_context: str | None = None
 
-    effective_from: date | None = None    # nullable khi review_status != ACCEPTED (xem 3.15.6, 3.10.4)
+    effective_from: date | None = None    # chỉ NULL khi gate chưa ACCEPTED
     effective_to: date | None = None
     status: DocumentStatus
 
@@ -1282,18 +1193,17 @@ class LegalProvision(BaseModel):
 
     content_hash: str
     version: int
-    review_status: ReviewStatus
+    ingestion_status: IngestionStatus
 ```
 
-- `node_kind` phân biệt ARTICLE/CLAUSE/POINT/APPENDIX/TABLE/TRANSITIONAL/HEADING/OTHER (mở rộng từ mô hình phân cấp cơ bản ở 3.8.1). `article` trở thành nullable khi node_kind là APPENDIX/TABLE/HEADING/TRANSITIONAL/OTHER (không thuộc cây Điều thường).
-- `TRANSITIONAL` được định nghĩa là một loại node riêng (không phải subtype của ARTICLE): Điều khoản chuyển tiếp thường có tiêu đề riêng ("Điều khoản chuyển tiếp") và có thể không có số Điều; khi có số Điều (ví dụ "Điều 8. Điều khoản chuyển tiếp"), nó vẫn mang node_kind = ARTICLE và được gắn cờ qua `heading`.
-- `effective_from` nullable cho các row chưa review/không chắc chắn (xem 3.15.6): chỉ row `review_status = ACCEPTED` bắt buộc có `effective_from`.
+- `node_kind` phân biệt ARTICLE/CLAUSE/POINT/APPENDIX/TABLE/TRANSITIONAL/HEADING/OTHER; `article` nullable với node ngoài cây Điều thường.
+- `effective_from` có thể NULL khi ingestion bị `REJECTED`; chỉ bản ghi `ACCEPTED` mới đủ điều kiện phục vụ.
 
 Đúng 20 field gốc theo FR-03 cộng thêm `node_kind`; `source_text` bất biến sau enrichment; `retrieval_text` phục vụ retrieval; trích dẫn trỏ tới provision thực tế.
 
 ### 3.9.5. ProvisionVersion (version registry, không phải nguồn nội dung)
 
-**Nguyên tắc một nguồn version bất biến**: `legal_provisions` LÀ bảng version có thẩm quyền (mỗi row = một provision version với đầy đủ nội dung, interval và `review_status`; UNIQUE(provision_id, version)). `provision_versions` là **version registry/lineage** phụ trợ, không lưu trùng nội dung, dùng để truy vết thứ tự và thay thế:
+**Nguyên tắc một nguồn version bất biến**: `legal_provisions` là bảng version có thẩm quyền (mỗi row = một provision version với đầy đủ nội dung và interval; UNIQUE(provision_id, version)). `provision_versions` chỉ là registry/lineage phụ trợ, không lưu trùng nội dung:
 
 ```python
 class ProvisionVersion(BaseModel):
@@ -1311,8 +1221,8 @@ class ProvisionVersion(BaseModel):
 ```
 
 - `provision_versions` có `FOREIGN KEY (provision_id, version) REFERENCES legal_provisions(provision_id, version)` để bảo đảm mọi registry entry khớp một row nội dung thật;
-- Temporal Resolver chọn version áp dụng tại ngày `d` bằng cách đọc `legal_provisions` (row `review_status = ACCEPTED` có `effective_from <= d < effective_to`); `provision_versions` chỉ cung cấp thứ tự lineage và `superseded_by_version`;
-- **Nguồn rebuild Qdrant**: `SELECT * FROM legal_provisions WHERE review_status = 'ACCEPTED'` (theo từng version), không đọc từ `provision_versions` và không đọc ngược từ Qdrant.
+- Temporal Resolver chọn version áp dụng tại ngày `d` bằng cách đọc `legal_provisions` (row `ingestion_status = ACCEPTED` có `effective_from <= d < effective_to`); `provision_versions` chỉ cung cấp thứ tự lineage và `superseded_by_version`;
+- **Nguồn rebuild Qdrant**: `SELECT * FROM legal_provisions WHERE ingestion_status = 'ACCEPTED'` (theo từng version), không đọc từ `provision_versions` và không đọc ngược từ Qdrant.
 
 ### 3.9.6. ProvisionReference
 
@@ -1327,15 +1237,13 @@ class ProvisionRelationType(StrEnum):
 class ResolutionStatus(StrEnum):
     RESOLVED = "RESOLVED"
     UNRESOLVED = "UNRESOLVED"
-    PENDING_REVIEW = "PENDING_REVIEW"
-
 
 class ProvisionReference(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
     # FK vật lý tới đúng row version trong legal_provisions (khóa (provision_id, version))
-    source_legal_provision_id: uuid               # REFERENCES legal_provisions(id)
+    UNRESOLVED = "UNRESOLVED"
     target_legal_provision_id: uuid | None = None # REFERENCES legal_provisions(id); None khi UNRESOLVED
     # Các cột logical để query/debug, không phải FK
     source_provision_id: str
@@ -1344,14 +1252,13 @@ class ProvisionReference(BaseModel):
     target_provision_version_id: str | None       # version đích nếu xác định được; None = chưa giải quyết/không chắc
     relation_type: ProvisionRelationType
     confidence: float | None = None
-    extraction_method: str                        # "TEXT_PATTERN" | "PENALTY_INFERENCE" | "REVIEW"
+    extraction_method: str                        # "TEXT_PATTERN" | "PENALTY_INFERENCE"
     source_text: str                              # đoạn chứa tham chiếu
     resolution_status: ResolutionStatus
-    review_status: ReviewStatus
+    ingestion_status: IngestionStatus
     created_at: datetime
 ```
 
-Quan hệ **version-bound**: khi một provision bị sửa đổi từng phần, nội dung tham chiếu có thể thay đổi theo version, nên quan hệ được gắn chặt vào row version cụ thể qua FK vật lý `source_legal_provision_id`/`target_legal_provision_id` (trỏ `legal_provisions.id`). `source_provision_id`/`target_provision_id` và các cột version là cột logical phục vụ query/debug. Legal Context Expansion (3.20) khi mở rộng phải áp dụng **temporal filter + review filter theo ngày query**: chỉ mở rộng sang target có `review_status = ACCEPTED` và khoảng hiệu lực chứa ngày query; quan hệ PENDING_REVIEW/UNRESOLVED không được dùng để mở rộng tự động.
 
 `PENALTY_COMPANION` gắn quy định xử phạt với quy định đi kèm (trừ điểm giấy phép, tước quyền sử dụng giấy phép lái xe).
 
@@ -1377,13 +1284,10 @@ class DocumentRelation(BaseModel):
     effective_from: date | None = None       # khi sự kiện có mốc hiệu lực
     source_note: str | None = None
     confidence: float | None = None
-    source: str                              # "MANIFEST" | "OFFICIAL" | "EXTRACTED" | "REVIEW"
+    source: str                              # "MANIFEST" | "OFFICIAL" | "EXTRACTED"
     resolution_status: ResolutionStatus
-    review_status: ReviewStatus
+    ingestion_status: IngestionStatus
     created_at: datetime
-    reviewed_by: str | None = None
-    reviewed_at: datetime | None = None
-```
 
 ### 3.9.8. LegalEffectEvent
 
@@ -1410,8 +1314,9 @@ class LegalEffectEvent(BaseModel):
     source_reference: str | None = None      # điều khoản trong văn bản gây sự kiện
     affected_provision_versions: list[str] = []  # các (provision_id, version) chịu ảnh hưởng, structured
     confidence: float | None = None
-    review_status: ReviewStatus
+    ingestion_status: IngestionStatus
     created_at: datetime
+
 ```
 
 `affected_provision_versions` liệt kê structured các provision/version bị ảnh hưởng bởi sự kiện (thay cho `source_reference` free-text duy nhất); `source_reference` giữ trích đoạn gốc để đối chiếu, không phải nguồn chính để resolver duyệt.
@@ -1433,7 +1338,6 @@ class IngestionJobState(StrEnum):
     RESOLVING_REFS = "RESOLVING_REFS"
     RESOLVING_TEMPORAL = "RESOLVING_TEMPORAL"
     QUALITY_CHECK = "QUALITY_CHECK"
-    PENDING_REVIEW = "PENDING_REVIEW"
     ACCEPTED = "ACCEPTED"
     REJECTED = "REJECTED"
     DROPPED = "DROPPED"
@@ -1442,11 +1346,6 @@ class IngestionJobState(StrEnum):
     INDEXED = "INDEXED"
     FAILED = "FAILED"
 
-
-class IngestionRun(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    id: str
     job_id: str                      # ingestion_job_id trả về cho client
     document_id: str
     manifest_json: dict
@@ -1474,83 +1373,28 @@ class IngestionArtifact(BaseModel):
     created_at: datetime
 ```
 
-### 3.9.11. ReviewItem
+### 3.9.11. IngestionGateFailure
+
 
 ```python
-class ReviewItem(BaseModel):
+class IngestionGateFailure(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
-    ingestion_run_id: str
-    document_id: str
-    target_type: str                 # DOCUMENT | PROVISION | RELATION | TEMPORAL
-    target_id: str
-    reason_code: str                 # ví dụ UNRESOLVED_REFERENCE, UNCERTAIN_EFFECTIVITY, LOW_OCR_COVERAGE, POINT_LABEL_AMBIGUOUS
+    run_id: str
+    reason_code: str
     description: str
-    evidence: dict                   # trích đoạn, provenance, quality gate result
-    status: ReviewStatus             # PENDING | ACCEPTED | REJECTED | DROPPED
-    reviewer: str | None
-    reviewed_at: datetime | None
+    evidence: dict
     created_at: datetime
 ```
-
 ### 3.9.12. QueryTrace và QueryFeedback
-
 ```python
-class QueryIntent(StrEnum):
-    CURRENT = "CURRENT"
-    HISTORICAL = "HISTORICAL"
-    COMPARISON = "COMPARISON"
-    SOURCE_SEARCH = "SOURCE_SEARCH"
-    OUT_OF_SCOPE = "OUT_OF_SCOPE"
-
-
-class ResponseStatus(StrEnum):
-    VERIFIED = "VERIFIED"
-    ABSTAINED = "ABSTAINED"
-    ERROR = "ERROR"
-
-
-class QueryTrace(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    id: str
-    trace_id: str
-    question: str
-    intent: QueryIntent
-    query_date: date | None
-    comparison_from: date | None
-    comparison_to: date | None
-    vehicle_type: str | None
-    response_status: ResponseStatus
-    answer_type: str | None          # "answer" | "abstention"
-    latency_ms: int
-    estimated_cost: float
-    token_usage: dict
-    citations: list[dict]            # citation đã verify, JSON
-    verification_summary: dict       # kết quả L1-L6, issues
-    langfuse_trace_id: str | None
-    config_snapshot: dict
-    created_at: datetime
-
-
-class FeedbackCategory(StrEnum):
-    WRONG_CITATION = "wrong_citation"
-    MISSING_INFORMATION = "missing_information"
-    WRONG_EFFECTIVE_DATE = "wrong_effective_date"
-    WRONG_PENALTY = "wrong_penalty"
-    INCOMPLETE_ANSWER = "incomplete_answer"
-    OTHER = "other"
-
-
 class QueryFeedback(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
-    query_trace_id: str              # gắn trace_id
+    query_trace_id: str
     useful: bool
-    category: FeedbackCategory | None
-    comment: str | None = None
     created_at: datetime
 ```
 
@@ -1562,8 +1406,8 @@ class Split(StrEnum):
     VALIDATION = "VALIDATION"
     FINAL_TEST = "FINAL_TEST"
 
-
-class EvaluationDataset(BaseModel):
+    useful: bool
+    created_at: datetime
     model_config = ConfigDict(extra="forbid")
 
     id: str
@@ -1610,10 +1454,7 @@ class EvaluationResult(BaseModel):
     retrieval: dict
     output: dict
     metrics: dict
-    raw_results_path: str | None
-```
-
-`EvaluationDataset` tham chiếu gold set mục tiêu **200 câu đã review**, chia **40 development / 40 validation / 120 final test** (FR-28). Mỗi câu gold gồm: id, question, category, query_date, expected_provision_ids, acceptable_provision_ids, required_evidence, must_include_facts, must_not_include_facts, temporal_metadata, review_status, reviewed_by, gold_version, hash. Gold set được version hóa và đóng băng trước final evaluation; không chỉnh sửa sau khi xem final test result (NFR-08).
+`EvaluationDataset` tham chiếu gold set mục tiêu **200 câu**, chia **40 development / 40 validation / 120 final test** (FR-28). Mỗi câu gold gồm: id, question, category, query_date, expected_provision_ids, acceptable_provision_ids, required_evidence, must_include_facts, must_not_include_facts, temporal_metadata, gold_version, hash. Gold set được version hóa và đóng băng trước final evaluation; không chỉnh sửa sau khi xem final test result.
 
 **GoldCategory enum (17 danh mục bắt buộc, canonical spec mục 32)**:
 
@@ -1651,10 +1492,9 @@ Mọi gold record phải dùng đúng danh mục trong enum trên; field `catego
 Suite A metrics: Article P/R/F1, Clause P/R/F1, Point P/R/F1, Short Point Recall, Vietnamese đ) Recall, Parent Context Completeness, Table Preservation, Header/Footer Leakage, Provenance Coverage.
 
 | Suite B - Embedding | Model |
-|---|---|
-| E1 | Gemini Embedding 2 (768 dims) |
-| E2 | Jina Embeddings v5 text-nano (768 dims) |
-| E3 | Jina Embeddings v5 text-small (1024 dims) |
+| E1 | Provider/model candidate A from measured local manifest |
+| E2 | Provider/model candidate B from measured local manifest |
+| E3 | Provider/model candidate C from measured local manifest |
 
 Suite B metrics: Recall@10, MRR@10, nDCG@10 trên câu hỏi pháp luật tiếng Việt, latency, cost.
 
@@ -1749,22 +1589,16 @@ parsed_documents     -> ParsedDocument     (Table)
 document_elements    -> DocumentElement    (Table)
 ingestion_runs       -> IngestionRun       (Table)
 ingestion_artifacts  -> IngestionArtifact  (Table)
-review_items         -> ReviewItem         (Table)
 query_traces         -> QueryTrace         (Table)
 query_feedback       -> QueryFeedback      (Table)
-evaluation_datasets  -> EvaluationDataset  (Table)
-evaluation_runs      -> EvaluationRun      (Table)
-evaluation_results   -> EvaluationResult   (Table)
-corpus_qa_reports    -> CorpusQaReport     (Table)
-```
 
 Mối quan hệ quan trọng:
 
 - `LegalProvision.document_version_id` -> `DocumentVersion.id`;
-- `legal_provisions` LÀ bảng version có thẩm quyền (UNIQUE(provision_id, version), đầy đủ nội dung + `review_status`); `provision_versions` là registry có `FOREIGN KEY (provision_id, version) REFERENCES legal_provisions(provision_id, version)`;
+- `legal_provisions` là bảng version có thẩm quyền (UNIQUE(provision_id, version), đầy đủ nội dung + `ingestion_status`); `provision_versions` là registry có `FOREIGN KEY (provision_id, version) REFERENCES legal_provisions(provision_id, version)`;
 - `ProvisionProvenance.provision_version_row_id` -> `legal_provisions(id)` (FK tới đúng row version), mỗi version có nhiều provenance row theo role;
 - `ProvisionReference` gắn FK vật lý `source_legal_provision_id`/`target_legal_provision_id` trỏ `legal_provisions(id)` (đúng row version); `source_provision_id`/`target_provision_id` là cột logical; `DocumentRelation` trỏ theo logical `document_id`;
-- Không dùng Neo4j; duyệt quan hệ bằng application logic + SQL (JOIN hoặc truy vấn đệ quy có giới hạn độ sâu).
+- `legal_provisions` là bảng version có thẩm quyền (UNIQUE(provision_id, version), đầy đủ nội dung + `ingestion_status`); `provision_versions` là registry có `FOREIGN KEY (provision_id, version) REFERENCES legal_provisions(provision_id, version)`;
 
 ---
 
@@ -1786,10 +1620,8 @@ erDiagram
     LEGAL_DOCUMENTS ||--o{ PARSED_DOCUMENTS : parsed_as
     PARSED_DOCUMENTS ||--o{ DOCUMENT_ELEMENTS : contains
     INGESTION_RUNS ||--o{ INGESTION_ARTIFACTS : produces
-    INGESTION_RUNS ||--o{ REVIEW_ITEMS : creates
     QUERY_TRACES ||--o{ QUERY_FEEDBACK : receives
     EVALUATION_DATASETS ||--o{ EVALUATION_RUNS : uses
-    EVALUATION_RUNS ||--o{ EVALUATION_RESULTS : contains
 
     LEGAL_SOURCES {
         uuid id PK
@@ -1825,9 +1657,7 @@ erDiagram
         varchar content_hash
         date effective_from
         date effective_to
-        varchar review_status
-        timestamptz created_at
-    }
+        varchar ingestion_status
     LEGAL_PROVISIONS {
         uuid id PK
         varchar provision_id
@@ -1845,19 +1675,10 @@ erDiagram
         date effective_from
         date effective_to
         varchar status
+        varchar ingestion_status
         int page_number
         jsonb bbox
         jsonb source_element_ids
-        varchar content_hash
-        int version
-        varchar review_status
-    }
-    PROVISION_VERSIONS {
-        uuid id PK
-        varchar provision_id
-        int version
-        uuid document_version_id FK
-        int superseded_by_version
         timestamptz created_at
         varchar created_by
     }
@@ -1874,14 +1695,11 @@ erDiagram
         varchar extraction_method
         text source_text
         varchar resolution_status
-        varchar review_status
-        timestamptz created_at
-    }
+        varchar ingestion_status
     PROVISION_PROVENANCES {
         uuid id PK
         uuid provision_version_row_id FK
         uuid source_document_version_id FK
-        varchar source_element_id
         int page_number
         jsonb bbox
         varchar role
@@ -1897,23 +1715,18 @@ erDiagram
         float confidence
         varchar source
         varchar resolution_status
-        varchar review_status
-        timestamptz created_at
-        varchar reviewed_by
-        timestamptz reviewed_at
+        varchar ingestion_status
     }
     LEGAL_EFFECT_EVENTS {
         uuid id PK
         varchar document_id
         varchar event_type
-        date event_date
         varchar source_document_id
         text description
         text source_reference
         jsonb affected_provision_versions
         float confidence
-        varchar review_status
-        timestamptz created_at
+        varchar ingestion_status
     }
     PARSED_DOCUMENTS {
         uuid id PK
@@ -1966,20 +1779,6 @@ erDiagram
         varchar object_key
         varchar file_hash
         bigint size
-        timestamptz created_at
-    }
-    REVIEW_ITEMS {
-        uuid id PK
-        uuid ingestion_run_id FK
-        varchar document_id FK
-        varchar target_type
-        varchar target_id
-        varchar reason_code
-        text description
-        jsonb evidence
-        varchar status
-        varchar reviewer
-        timestamptz reviewed_at
         timestamptz created_at
     }
     QUERY_TRACES {
@@ -2080,7 +1879,8 @@ CREATE TABLE legal_sources (
 
 -- legal_documents
 CREATE TABLE legal_documents (
-    id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    ingestion_status varchar NOT NULL
+                     CHECK (ingestion_status IN ('ACCEPTED', 'REJECTED')),
     document_id   varchar NOT NULL UNIQUE,
     document_number varchar NOT NULL,
     document_title  text NOT NULL,
@@ -2104,34 +1904,30 @@ CREATE TABLE document_versions (
     manifest_json  jsonb NOT NULL,
     content_hash   varchar NOT NULL,
     effective_from date,
-    effective_to   date,
-    review_status  varchar NOT NULL DEFAULT 'PENDING'
-                   CHECK (review_status IN ('PENDING', 'ACCEPTED', 'REJECTED', 'DROPPED')),
+    ingestion_status varchar NOT NULL
+                     CHECK (ingestion_status IN ('ACCEPTED', 'REJECTED')),
     created_at     timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT document_versions_pk UNIQUE (document_id, version),
     CONSTRAINT document_versions_interval_check
         CHECK (effective_to IS NULL OR effective_to > effective_from),
-    -- effective_from bắt buộc khi đã ACCEPTED (xem 3.15.6)
-    CONSTRAINT document_versions_effective_from_accepted_check
-        CHECK (review_status <> 'ACCEPTED' OR effective_from IS NOT NULL)
-);
+    ingestion_status  varchar NOT NULL
+                      CHECK (ingestion_status IN ('ACCEPTED', 'REJECTED')),
+    created_at     timestamptz NOT NULL DEFAULT now(),
 
 -- legal_provisions
 CREATE TABLE legal_provisions (
     id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     provision_id        varchar NOT NULL,
     document_version_id uuid NOT NULL REFERENCES document_versions(id),
-    node_kind           varchar NOT NULL DEFAULT 'ARTICLE'
-                        CHECK (node_kind IN ('ARTICLE', 'CLAUSE', 'POINT', 'APPENDIX', 'TABLE', 'TRANSITIONAL', 'HEADING', 'OTHER')),
-    chapter             varchar,
-    section             varchar,
+    ingestion_status varchar NOT NULL
+                     CHECK (ingestion_status IN ('ACCEPTED', 'REJECTED')),
     article             varchar,
     clause              varchar,
     point               varchar,
     heading             varchar,
     source_text         text NOT NULL,
-    retrieval_text      text NOT NULL,
-    parent_context      text,
+    ingestion_status  varchar NOT NULL
+                      CHECK (ingestion_status IN ('ACCEPTED', 'REJECTED')),
     effective_from      date,
     effective_to        date,
     status              varchar NOT NULL,
@@ -2139,19 +1935,18 @@ CREATE TABLE legal_provisions (
     bbox                jsonb,
     source_element_ids  jsonb NOT NULL DEFAULT '[]',
     content_hash        varchar NOT NULL,
-    version             int NOT NULL,
-    review_status       varchar NOT NULL DEFAULT 'PENDING'
-                        CHECK (review_status IN ('PENDING', 'ACCEPTED', 'REJECTED', 'DROPPED')),
+    ingestion_status varchar NOT NULL
+                     CHECK (ingestion_status IN ('ACCEPTED', 'REJECTED')),
     created_at          timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT legal_provisions_pk UNIQUE (provision_id, version),
     CONSTRAINT legal_provisions_interval_check
         CHECK (effective_to IS NULL OR effective_to > effective_from),
-    -- Article bắt buộc trừ các node ngoài cây Điều thường (Appendix/Table/Heading/Transitional/Other)
+    ingestion_status    varchar NOT NULL
+                        CHECK (ingestion_status IN ('ACCEPTED', 'REJECTED')),
+    created_at          timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT legal_provisions_pk UNIQUE (provision_id, version),
     CONSTRAINT legal_provisions_article_required
-        CHECK (article IS NOT NULL OR node_kind IN ('APPENDIX', 'TABLE', 'HEADING', 'TRANSITIONAL', 'OTHER')),
-    -- effective_from bắt buộc khi đã ACCEPTED (ràng buộc thời gian, xem 3.15.6)
-    CONSTRAINT legal_provisions_effective_from_accepted_check
-        CHECK (review_status <> 'ACCEPTED' OR effective_from IS NOT NULL)
+        CHECK (article IS NOT NULL OR node_kind IN ('APPENDIX', 'TABLE', 'HEADING', 'TRANSITIONAL', 'OTHER'))
 );
 
 -- provision_versions (version registry; nội dung thật nằm ở legal_provisions)
@@ -2159,8 +1954,8 @@ CREATE TABLE provision_versions (
     id                     uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     provision_id           varchar NOT NULL,
     version                int NOT NULL,
-    document_version_id    uuid NOT NULL REFERENCES document_versions(id),
-    superseded_by_version  int,
+    ingestion_status  varchar NOT NULL
+                      CHECK (ingestion_status IN ('ACCEPTED', 'REJECTED')),
     created_at             timestamptz NOT NULL DEFAULT now(),
     created_by             varchar,
     CONSTRAINT provision_versions_pk UNIQUE (provision_id, version),
@@ -2186,17 +1981,17 @@ CREATE TABLE provision_references (
     extraction_method           varchar NOT NULL,
     source_text                 text NOT NULL,
     resolution_status           varchar NOT NULL DEFAULT 'UNRESOLVED'
-                                CHECK (resolution_status IN ('RESOLVED', 'UNRESOLVED', 'PENDING_REVIEW')),
-    review_status               varchar NOT NULL DEFAULT 'PENDING'
-                                CHECK (review_status IN ('PENDING', 'ACCEPTED', 'REJECTED', 'DROPPED')),
+                                CHECK (resolution_status IN ('RESOLVED', 'UNRESOLVED')),
+    ingestion_status            varchar NOT NULL
+                                CHECK (ingestion_status IN ('ACCEPTED', 'REJECTED')),
     created_at                  timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT provision_references_resolved_pk UNIQUE (source_legal_provision_id, target_legal_provision_id, relation_type)
 );
 
--- partial unique index cho unresolved (target NULL): dùng FK nguồn + loại + văn bản tham chiếu chuẩn hóa
--- normalize_ref_text() là hàm dự án (lowercase, NFKC, chuẩn hóa khoảng trắng/dấu câu) khai báo trong migration
-CREATE UNIQUE INDEX provision_references_unresolved_pk
-    ON provision_references (source_legal_provision_id, relation_type, md5(normalize_ref_text(source_text)))
+    resolution_status           varchar NOT NULL DEFAULT 'UNRESOLVED'
+                                CHECK (resolution_status IN ('RESOLVED', 'UNRESOLVED')),
+    ingestion_status            varchar NOT NULL
+                                CHECK (ingestion_status IN ('ACCEPTED', 'REJECTED')),
     WHERE (resolution_status = 'UNRESOLVED' AND target_legal_provision_id IS NULL);
 
 -- document_relations
@@ -2204,44 +1999,29 @@ CREATE TABLE document_relations (
     id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     source_document_id  varchar NOT NULL,
     target_document_id  varchar NOT NULL,
-    relation_type       varchar NOT NULL
-                        CHECK (relation_type IN ('AMENDS', 'REPEALS', 'SUPERSEDES', 'CORRECTS', 'GUIDES', 'RELATED_TO')),
-    effective_from      date,
-    source_note         text,
+    resolution_status           varchar NOT NULL DEFAULT 'UNRESOLVED'
+                                CHECK (resolution_status IN ('RESOLVED', 'UNRESOLVED')),
+    ingestion_status            varchar NOT NULL
+                                CHECK (ingestion_status IN ('ACCEPTED', 'REJECTED')),
     confidence          real,
     source              varchar NOT NULL,
     resolution_status   varchar NOT NULL DEFAULT 'RESOLVED'
-                        CHECK (resolution_status IN ('RESOLVED', 'UNRESOLVED', 'PENDING_REVIEW')),
-    review_status       varchar NOT NULL DEFAULT 'PENDING'
-                        CHECK (review_status IN ('PENDING', 'ACCEPTED', 'REJECTED', 'DROPPED')),
+                        CHECK (resolution_status IN ('RESOLVED', 'UNRESOLVED')),
+    ingestion_status    varchar NOT NULL
+                        CHECK (ingestion_status IN ('ACCEPTED', 'REJECTED')),
     created_at          timestamptz NOT NULL DEFAULT now(),
-    reviewed_by         varchar,
-    reviewed_at         timestamptz,
     CONSTRAINT document_relations_pk UNIQUE (source_document_id, target_document_id, relation_type)
 );
-
--- legal_effect_events
-CREATE TABLE legal_effect_events (
-    id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    document_id        varchar NOT NULL,
-    event_type         varchar NOT NULL
                        CHECK (event_type IN ('EFFECTIVE', 'AMENDED', 'SUPERSEDED', 'REPEALED', 'CORRECTED', 'EXPIRED', 'PARTIAL_AMENDED')),
     event_date         date NOT NULL,
     source_document_id varchar,
     description        text,
     source_reference   text,
-    affected_provision_versions jsonb NOT NULL DEFAULT '[]',  -- danh sách [{"provision_id","version"}]
-    confidence         real,
-    review_status      varchar NOT NULL DEFAULT 'PENDING'
-                       CHECK (review_status IN ('PENDING', 'ACCEPTED', 'REJECTED', 'DROPPED')),
-    created_at         timestamptz NOT NULL DEFAULT now()
-);
-
--- parsed_documents
-CREATE TABLE parsed_documents (
-    id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    document_id        varchar NOT NULL REFERENCES legal_documents(document_id),
-    parser             varchar NOT NULL,
+    resolution_status   varchar NOT NULL DEFAULT 'RESOLVED'
+                        CHECK (resolution_status IN ('RESOLVED', 'UNRESOLVED')),
+    ingestion_status    varchar NOT NULL
+                        CHECK (ingestion_status IN ('ACCEPTED', 'REJECTED')),
+    created_at          timestamptz NOT NULL DEFAULT now()
     parser_version     varchar NOT NULL,
     ir_schema_version  varchar NOT NULL,
     source_object_key  varchar NOT NULL,
@@ -2314,35 +2094,6 @@ CREATE TABLE ingestion_artifacts (
     created_at        timestamptz NOT NULL DEFAULT now()
 );
 
--- review_items
-CREATE TABLE review_items (
-    id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    ingestion_run_id  uuid NOT NULL REFERENCES ingestion_runs(id),
-    document_id       varchar NOT NULL,
-    target_type       varchar NOT NULL,
-    target_id         varchar NOT NULL,
-    reason_code       varchar NOT NULL,
-    description       text,
-    evidence          jsonb,
-    status            varchar NOT NULL DEFAULT 'PENDING'
-                      CHECK (status IN ('PENDING', 'ACCEPTED', 'REJECTED', 'DROPPED')),
-    reviewer          varchar,
-    reviewed_at       timestamptz,
-    created_at        timestamptz NOT NULL DEFAULT now()
-);
-
--- query_traces
-CREATE TABLE query_traces (
-    id                   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    trace_id             varchar NOT NULL UNIQUE,
-    question             text NOT NULL,
-    intent               varchar NOT NULL,
-    query_date           date,
-    comparison_from      date,
-    comparison_to        date,
-    vehicle_type         varchar,
-    response_status      varchar NOT NULL,
-    answer_type          varchar,
     latency_ms           int,
     estimated_cost       numeric(12, 4),
     token_usage          jsonb,
@@ -2353,24 +2104,6 @@ CREATE TABLE query_traces (
     created_at           timestamptz NOT NULL DEFAULT now()
 );
 
--- query_feedback
-CREATE TABLE query_feedback (
-    id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    query_trace_id uuid NOT NULL REFERENCES query_traces(id),
-    useful         boolean NOT NULL,
-    category       varchar
-                   CHECK (category IN ('wrong_citation', 'missing_information', 'wrong_effective_date',
-                                       'wrong_penalty', 'incomplete_answer', 'other')),
-    comment        text,
-    created_at     timestamptz NOT NULL DEFAULT now()
-);
-
--- evaluation_datasets
-CREATE TABLE evaluation_datasets (
-    id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    dataset_id     varchar NOT NULL UNIQUE,
-    name           varchar NOT NULL,
-    split          varchar NOT NULL CHECK (split IN ('DEVELOPMENT', 'VALIDATION', 'FINAL_TEST')),
     version        varchar NOT NULL,
     hash           varchar NOT NULL,
     questions_path text NOT NULL,
@@ -2440,8 +2173,8 @@ CREATE INDEX idx_legal_provisions_hierarchy
 CREATE INDEX idx_legal_provisions_interval
     ON legal_provisions (effective_from, effective_to);
 
-CREATE INDEX idx_legal_provisions_review_status
-    ON legal_provisions (review_status) WHERE review_status = 'ACCEPTED';
+CREATE INDEX idx_legal_provisions_ingestion_status
+    ON legal_provisions (ingestion_status) WHERE ingestion_status = 'ACCEPTED';
 
 CREATE INDEX idx_provision_versions_provision
     ON provision_versions (provision_id, version);
@@ -2458,8 +2191,6 @@ CREATE INDEX idx_provision_references_type
 CREATE INDEX idx_document_relations_source
     ON document_relations (source_document_id);
 
-CREATE INDEX idx_document_relations_target
-    ON document_relations (target_document_id);
 
 CREATE INDEX idx_legal_effect_events_document
     ON legal_effect_events (document_id, event_date);
@@ -2470,8 +2201,6 @@ CREATE INDEX idx_document_elements_parsed
 CREATE INDEX idx_ingestion_runs_status
     ON ingestion_runs (status);
 
-CREATE INDEX idx_review_items_status
-    ON review_items (status);
 
 CREATE INDEX idx_query_traces_created_at
     ON query_traces (created_at);
@@ -2483,14 +2212,12 @@ CREATE INDEX idx_evaluation_results_run
     ON evaluation_results (evaluation_run_id);
 ```
 
-### 3.10.4. Ràng buộc thời gian và review
+### 3.10.4. Ràng buộc thời gian và ingestion
 
 - **Khoảng hiệu lực** dùng dạng `[effective_from, effective_to)` với exclusive upper bound:
   - tránh hai version cùng active tại đúng ngày chuyển đổi;
   - dễ biểu diễn version mới bắt đầu vào ngày version cũ kết thúc.
-- CHECK interval: `effective_to IS NULL OR effective_to > effective_from`.
-- CHECK review-required: `review_status <> 'ACCEPTED' OR effective_from IS NOT NULL` (không có row ACCEPTED thiếu ngày bắt đầu; xem 3.15.6).
-- `review_status` CHECK chỉ nhận `PENDING, ACCEPTED, REJECTED, DROPPED` ở mọi bảng có trường này.
+- `ingestion_status` chỉ nhận `ACCEPTED` hoặc `REJECTED`; chỉ `ACCEPTED` được serving/index.
 - **Không có hai version `ACCEPTED` chồng lấn trong cùng provision** - ràng buộc bằng **PostgreSQL exclusion constraint**. Exclusion constraint so sánh bằng trên cột `provision_id` (varchar) trong GiST cần extension `btree_gist`; phải bật extension **trong migration bootstrap, trước khi định nghĩa constraint**:
 
 ```sql
@@ -2498,18 +2225,15 @@ CREATE INDEX idx_evaluation_results_run
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
 ALTER TABLE legal_provisions
-    ADD CONSTRAINT legal_provisions_no_overlap_accepted
     EXCLUDE USING gist (
         provision_id WITH =,
         daterange(effective_from, effective_to, '[)') WITH &&
     )
-    WHERE (review_status = 'ACCEPTED');
-```
+    WHERE (ingestion_status = 'ACCEPTED');
 
 Lưu ý bootstrap: `CREATE EXTENSION IF NOT EXISTS btree_gist;` phải chạy trong migration khởi tạo schema (trước mọi lệnh CREATE/ALTER dùng `EXCLUDE USING gist` trên cột varchar), ghi rõ trong quy trình migration (3.10, tài liệu vận hành); extension cần quyền superuser hoặc được cấp phép trong database (thường được Docker image PostgreSQL cấp mặc định cho user khởi tạo).
-
-- Nếu một xung đột hiệu lực thực sự xảy ra (ví dụ hai văn bản cùng tuyên bố hiệu lực cho cùng ngày), dữ liệu đó phải được mô hình là **unresolved/PENDING_REVIEW**: review_status không phải ACCEPTED (hoặc ghi `LegalEffectEvent` + review item), tạm loại khỏi query serving cho tới khi có cách diễn giải có thẩm quyền được reviewer chấp nhận; không được giữ hai row ACCEPTED chồng lấn.
-- `review_status = ACCEPTED` là điều kiện để row được phục vụ query và được đưa vào Qdrant (3.11, 3.15.2).
+- Nếu xung đột hiệu lực xảy ra, automatic temporal/provenance gates gán `REJECTED` và ghi gate outcome; dữ liệu bị loại khỏi serving/index.
+- `ingestion_status = ACCEPTED` là điều kiện để row được phục vụ query và đưa vào Qdrant.
 
 ### 3.10.5. Corpus QA report
 
@@ -2518,9 +2242,6 @@ Lưu ý bootstrap: `CREATE EXTENSION IF NOT EXISTS btree_gist;` phải chạy tr
 ```text
 document count
 article count
-clause count
-point count
-Point coverage
 short-Point retention
 Vietnamese đ) detection rate
 orphan Point count
@@ -2533,13 +2254,6 @@ unresolved cross-reference count
 unknown effective date count
 temporal conflict count
 ```
-
-Các chỉ số này là kế hoạch đo lường, không phải kết quả thực nghiệm đã đạt. Với văn bản quan trọng (ví dụ Nghị định 168), thực hiện structural QA có mục tiêu riêng (FR-10, UC-12).
-
----
-
-## 3.11. Qdrant Schema
-
 Qdrant là retrieval engine theo canonical spec mục 27. Qdrant là index dẫn xuất; PostgreSQL thắng nếu dữ liệu lệch nhau. Mọi thay đổi schema được thực hiện bằng rebuild + alias switch.
 
 ### 3.11.1. Collection design
@@ -2548,42 +2262,16 @@ Qdrant là retrieval engine theo canonical spec mục 27. Qdrant là index dẫn
 |---|---|
 | Collection name | `legal_provisions_v{n}` |
 | Alias hoạt động | `legal_provisions_active` |
-| Dense vector | `dense`, dimension theo embedding đã chọn (mặc định 768), Cosine |
+| Dense vector | `dense`, dimension đọc từ measured provider/model manifest, Cosine |
 | Sparse vector | `sparse`, BM25 (Qdrant tokenizer-based) |
 | Point ID | UUID deterministic từ `namespace + provision_id + provision_version + document_version` |
-| Mỗi point | một row `legal_provisions` (provision version) có `review_status = ACCEPTED` |
+| Mỗi point | một row `legal_provisions` có `ingestion_status = ACCEPTED` |
 
-Lưu ý dimension: Gemini Embedding 2 recommended 768, Jina Embeddings v5 text-nano là 768 dims, Jina Embeddings v5 text-small là 1024 dims. Nếu embedding production là text-small, tạo collection mới với dims 1024 và alias switch (xem ADR-013).
-
-### 3.11.2. Named vectors
-
-```json
-{
-  "vectors": {
-    "dense": {
-      "size": 768,
-      "distance": "Cosine"
-    }
-  },
-  "sparse_vectors": {
-    "sparse": {
-      "index": {
-        "on_disk": false
-      },
-      "modifier": "idf"
-    }
-  }
-}
-```
-
-- `vectors` chỉ chứa named dense vector `dense` (kích thước theo embedding production, mặc định 768, Cosine).
+Lưu ý dimension: đọc từ measured provider/model manifest; không ghi tên model hoặc kích thước chưa benchmark.
 - Sparse/BM25 được khai báo riêng trong `sparse_vectors` (bản đồ sparse vector). Mỗi point mang bản đồ `{"token_id": weight}` do encoder sparse tạo ra, không khai báo kích thước cố định.
 - **Sparse encoder được version hóa**: id của encoder (`sparse_encoder_id`, ví dụ `qdrant-bm25-v1` hoặc encoder tiếng Việt nếu cần) được lưu trong payload (`sparse_encoder_version`) và ghi vào config; thay encoder = rebuild collection + alias switch, không trộn hai không gian sparse.
 - Lưu ý tokenizer BM25 mặc định của Qdrant: tiếng Việt chủ yếu tách theo khoảng trắng nhưng có token khác biệt; cần verify tokenizer hoặc dùng sparse model tiếng Việt phù hợp trong Suite C.
 
-### 3.11.3. Payload
-
-```json
 {
   "provision_id": "nd-168-2024__dieu-7__khoan-4__diem-b",
   "provision_version": 1,
@@ -2594,34 +2282,25 @@ Lưu ý dimension: Gemini Embedding 2 recommended 768, Jina Embeddings v5 text-n
   "document_title": "...",
   "article": "7",
   "clause": "4",
-  "point": "b",
+  "ingestion_status": "ACCEPTED",
   "chapter": null,
   "section": null,
   "vehicle_types": ["MOTORCYCLE", "CAR"],
-  "effective_from": "2025-01-01",
-  "effective_to": null,
-  "document_status": "EFFECTIVE",
-  "review_status": "ACCEPTED",
-  "page_number": 12,
   "content_hash": "...",
   "parser": "DOCLING",
   "parser_version": "docling-2.1.0",
   "legal_parser_version": "vnlrag-legal-parser-v1",
   "sparse_encoder_version": "qdrant-bm25-v1",
   "text": "...",
-  "parent_context": "...",
   "relations": [
     {
       "relation_type": "PENALTY_COMPANION",
       "target_provision_id": "nd-168-2024__dieu-9__khoan-2__diem-a"
-    }
+Relation metadata trong payload bị **giới hạn**: chỉ chứa các quan hệ trực tiếp `REFERS_TO` / `PENALTY_COMPANION` đã `RESOLVED` và `ingestion_status = ACCEPTED`, dạng `[{relation_type, target_provision_id}]`, phục vụ nhanh cho expansion query. Trường hợp relations rỗng hoặc muốn mở rộng theo depth > 0 thì Legal Context Expansion (3.20) truy vấn từ PostgreSQL (nguồn chân lý quan hệ, có temporal + ingestion filter); payload Qdrant không phải nguồn qua...
   ]
 }
-```
+Payload đáp ứng canonical spec mục 27: legal provision ID, provision version, document version, hierarchy fields, effective interval, vehicle types, `ingestion_status`, parser/content version, relation metadata khi cần.
 
-Payload đáp ứng canonical spec mục 27: legal provision ID, provision version, document version, hierarchy fields, effective interval, vehicle types, review status, parser/content version, relation metadata khi cần.
-
-Relation metadata trong payload bị **giới hạn**: chỉ chứa các quan hệ trực tiếp `REFERS_TO` / `PENALTY_COMPANION` đã `RESOLVED` và `review_status = ACCEPTED`, dạng `[{relation_type, target_provision_id}]`, phục vụ nhanh cho expansion query. Trường hợp relations rỗng hoặc muốn mở rộng theo depth > 0 thì Legal Context Expansion (3.20) truy vấn từ **PostgreSQL** (nguồn chân lý quan hệ, có temporal + review filter); payload Qdrant không phải nguồn quan hệ có thẩm quyền.
 
 ### 3.11.4. Payload indexes
 
@@ -2630,44 +2309,40 @@ Tạo payload index cho:
 ```text
 document_id
 document_number
-document_type
-article
+ingestion_status
+  "ingestion_status": "ACCEPTED",
 clause
 point
 vehicle_types
 effective_from
 effective_to
-review_status
-content_hash
+    MatchValue(key="ingestion_status", value="ACCEPTED"),
 ```
 
 ### 3.11.5. Temporal filter
 
 ```python
 must = [
-    MatchValue(key="review_status", value="ACCEPTED"),
-    Range(key="effective_from", lte=query_date),
+    MatchValue(key="ingestion_status", value="ACCEPTED"),
 ]
 
 should = [
     IsNull(key="effective_to"),
-    Range(key="effective_to", gt=query_date),
 ]
 ```
 
-Nếu Qdrant filter không biểu diễn OR/null theo cách mong muốn trong một query, backend có thể:
+Relation metadata trong payload bị **giới hạn**: chỉ chứa các quan hệ trực tiếp `REFERS_TO` / `PENALTY_COMPANION` đã `RESOLVED` và `ingestion_status = ACCEPTED`, dạng `[{relation_type, target_provision_id}]`, phục vụ nhanh cho expansion query. Trường hợp relations rỗng hoặc muốn mở rộng theo depth > 0 thì Legal Context Expansion (3.20) truy vấn từ PostgreSQL (nguồn chân lý quan hệ, có temporal + ingestion filter); payload Qdrant không phải nguồn qua...
 
 1. retrieve candidate với `effective_from <= query_date`;
-2. post-filter `effective_to` trong backend;
+2. kiểm tra `ingestion_status = ACCEPTED`;
 3. lấy dư candidate trước fusion.
 
-Thiết kế ưu tiên filter tại database, nhưng correctness quan trọng hơn tối ưu hóa sớm.
 
 ### 3.11.6. RRF fusion config
 
 ```yaml
 retrieval:
-  dense_prefetch: 30
+ingestion_status
   sparse_prefetch: 30
   rrf:
     k: 60
@@ -2675,21 +2350,19 @@ retrieval:
       dense: 1.0
       sparse: 1.0
   fusion_limit: 20
-  final_top_k: 8
+    MatchValue(key="ingestion_status", value="ACCEPTED"),
 ```
 
 Các con số là khởi điểm, được chốt sau ablation Suite C, không ghi là kết quả mặc định trước evaluation.
-
 ### 3.11.7. Alias management và rebuild
 
-```text
-legal_provisions_active -> legal_provisions_v1
+2. Đọc toàn bộ provision ACCEPTED từ PostgreSQL: `SELECT ... FROM legal_provisions WHERE ingestion_status = 'ACCEPTED'` (mỗi row là một provision version; không đọc ngược từ Qdrant, không đọc từ `provision_versions`);
 ```
 
 Khi đổi embedding model, vector dimension, sparse encoding, payload schema hoặc chunking production:
 
 1. Tạo collection mới `legal_provisions_v{n+1}`;
-2. Đọc toàn bộ provision ACCEPTED từ PostgreSQL: `SELECT ... FROM legal_provisions WHERE review_status = 'ACCEPTED'` (mỗi row là một provision version; không đọc ngược từ Qdrant, không đọc từ `provision_versions`);
+2. Đọc toàn bộ provision `ACCEPTED` từ PostgreSQL: `SELECT ... FROM legal_provisions WHERE ingestion_status = 'ACCEPTED'`;
 3. Embed + upsert vào collection mới;
 4. Chạy regression (retrieval test trên dev set);
 5. Switch alias `legal_provisions_active` sang collection mới;
@@ -2699,13 +2372,8 @@ Không trộn vector từ hai embedding space trong cùng collection.
 
 ### 3.11.8. Snapshot / restore / retention
 
-- **Trước mỗi release/rebuild**: resolve alias `legal_provisions_active` về collection thực (`legal_provisions_v{n}`), snapshot collection đó (`snapshots` API), copy snapshot sang nơi lưu trữ độc lập (MinIO backup bucket hoặc storage riêng);
-- **Restore**: tải snapshot về, tạo collection từ snapshot; sau đó kiểm chứng bằng cách so sánh số point và payload với PostgreSQL (`SELECT count(*) FROM legal_provisions WHERE review_status='ACCEPTED'`); nếu snapshot lỗi/thiếu, dựng lại hoàn toàn từ PostgreSQL (3.11.7);
-- **Retention**: giữ snapshot của collection đang active và một phiên bản liền trước; xóa snapshot cũ theo chính sách ghi rõ trong tài liệu vận hành; snapshot không phải nguồn chân lý (PostgreSQL thắng khi dữ liệu lệch).
-
----
-
-## 3.12. MinIO Layout
+- **Trước mỗi release/rebuild**: resolve alias `legal_provisions_active` về collection thực (`legal_provisions_v{n}`), snapshot collection đó và copy snapshot sang nơi lưu trữ độc lập;
+- **Restore**: tải snapshot về, tạo collection từ snapshot; kiểm chứng số point/payload với PostgreSQL; nếu snapshot lỗi/thiếu, dựng lại từ các row `ingestion_status='ACCEPTED'`.
 
 MinIO là object storage S3-compatible (FR-08). PostgreSQL lưu object key và metadata; nội dung file nằm trong MinIO.
 
@@ -2713,14 +2381,11 @@ MinIO là object storage S3-compatible (FR-08). PostgreSQL lưu object key và m
 
 Tên bucket không chứa ký tự `/` (bắt buộc theo quy ước S3/MinIO); dấu gạch dưới dùng để phân tách:
 
-| Bucket | Nội dung | Ví dụ object key (trong bucket) |
-|---|---|---|
-| `source-pdfs` | PDF nguồn đã validate | `documents/nd-168-2024/source/<sha256>.pdf` |
-| `parser-outputs` | Đầu ra parser gốc (Docling JSON, MinerU JSON/Markdown) | `documents/nd-168-2024/docling-2.1.0/parsed.json` |
-| `page-images` | Ảnh trang phục vụ review và passage viewer | `documents/nd-168-2024/page-012.png` |
-| `ingestion-artifacts` | IR JSON, report quality gate | `documents/nd-168-2024/ir-document-ir-v1.json` |
-| `review-artifacts` | Bằng chứng review, screenshot, provenance | `review-{id}/evidence.json` |
-| `evaluation-artifacts` | Raw output và artifact từ evaluation | `run-{run_id}/question-{qid}.jsonl` |
+1. Tạo collection mới `legal_provisions_v{n+1}`;
+2. Đọc toàn bộ provision `ACCEPTED` từ PostgreSQL: `SELECT ... FROM legal_provisions WHERE ingestion_status = 'ACCEPTED'`;
+3. Embed + upsert vào collection mới;
+4. Chạy regression (retrieval test trên dev set);
+5. Switch alias `legal_provisions_active` sang collection mới;
 
 ### 3.12.2. Quy ước object key
 
@@ -2737,7 +2402,6 @@ s3://parser-outputs/documents/nd-168-2024/docling-2.1.0/parsed.json
 ```
 
 - Filename nội bộ do hệ thống sinh, không dùng path từ người dùng (chặn path traversal);
-- Metadata (file_hash, size, parser version, uploaded_at) nằm trong PostgreSQL (`ingestion_artifacts`), không dùng MinIO tag làm nguồn chính.
 
 ### 3.12.3. Backup và retention
 
@@ -2781,8 +2445,8 @@ Lưu ý: `Results` được đăng ký làm **middleware trên broker** (không 
 | `extract_actor` | Legal Structure Extractor sinh LegalProvision[] | EXTRACTING |
 | `resolve_refs_actor` | Legal Reference Resolver trích quan hệ | RESOLVING_REFS |
 | `resolve_temporal_actor` | Temporal and Amendment Resolver | RESOLVING_TEMPORAL |
-| `quality_gate_actor` | Quality gates, phân loại accepted/needs_review/dropped | QUALITY_CHECK |
-| `embed_actor` | Embed provision ACCEPTED (chỉ sau review) | EMBEDDING |
+| `quality_gate_actor` | Quality gates, phân loại `ACCEPTED`/`REJECTED` và ghi gate outcome | QUALITY_CHECK |
+| `embed_actor` | Embed provision `ACCEPTED` | EMBEDDING |
 | `index_actor` | Upsert dense + sparse + payload vào Qdrant | INDEXING |
 
 ### 3.13.3. Pipeline / chaining
@@ -2803,13 +2467,7 @@ def parse_actor(run_id: str):
 
 Thứ tự actor: `parse_actor -> normalize_actor -> extract_actor -> resolve_refs_actor -> resolve_temporal_actor -> quality_gate_actor`. Sau `quality_gate_actor`:
 
-- nếu có provision `needs_review`: job sang `PENDING_REVIEW`, không chạy embed/index;
-- nếu tất cả accepted: tiếp tục `embed_actor -> index_actor`;
-- nếu dropped fatal: dừng.
-
-Sau khi reviewer accept, một message `embed_actor` được gửi lại cho các provision vừa accept.
-
-### 3.13.4. Retry policy
+- Nếu mọi gate đạt: job `ACCEPTED`, tiếp tục `embed_actor -> index_actor`; nếu bất kỳ gate bắt buộc nào fail: job `REJECTED`, ghi immutable gate outcome và không embed/index.
 
 | Cấu hình | Giá trị khởi điểm |
 |---|---|
@@ -2821,11 +2479,6 @@ Sau khi reviewer accept, một message `embed_actor` được gửi lại cho c�
 
 Idempotency key cấp tài liệu:
 
-```text
-SHA-256(file bytes) + parser version + legal parser version + IR schema version
-```
-
-Nếu cùng file và cùng pipeline version đã thành công, không chạy lại mặc định; chỉ chạy lại khi `force=true`.
 
 ### 3.13.5. Time limit
 
@@ -2838,19 +2491,11 @@ ingestion:
     normalize_actor: 300
     extract_actor: 600
     resolve_refs_actor: 300
-    resolve_temporal_actor: 300
-    quality_gate_actor: 300
-    embed_actor: 600
     index_actor: 300
 ```
-
-Cấu hình thực tế phải khớp với broker timeout; nếu vượt, tách bước dài thành nhiều actor thay vì kéo dài vô hạn.
-
-### 3.13.6. Dead-letter và giám sát
-
-- Dramatiq đưa message fail sau retry vào dead-letter queue (~7 ngày retention mặc định).
-- Worker health: Dramatiq cung cấp CLI `dramatiq --check`; job status theo dõi qua API `GET /api/v1/jobs/{job_id}`.
-- Script `reconcile_index.py` so sánh PostgreSQL và Qdrant, đánh dấu index pending và re-run `index_actor`.
+- nếu mọi gate đạt: job `ACCEPTED`, tiếp tục `embed_actor -> index_actor`;
+- nếu bất kỳ gate bắt buộc nào fail: job `REJECTED`, ghi immutable gate outcome và không embed/index.
+- Script `reconcile_index.py` so sánh PostgreSQL và Qdrant, rồi re-run `index_actor` cho bản ghi `ACCEPTED` chưa có trong index.
 
 ### 3.13.7. Upload flow
 
@@ -2862,11 +2507,6 @@ POST /api/v1/documents (multipart: file, manifest_json, force)
     -> lưu PDF nguồn lên MinIO
     -> enqueue parse_actor
     -> 202 Accepted + ingestion_job_id
-```
-
-Request handler không chạy parser, extractor hay embed.
-
----
 
 ## 3.14. Legal Reference Resolver
 
@@ -2902,18 +2542,18 @@ Ví dụ suy luận `PENALTY_COMPANION`:
 - **nguồn chính thức** (Cơ sở dữ liệu quốc gia, Cổng văn bản Chính phủ) khi manifest thiếu;
 - **trích xuất tự động** (pattern "thay thế Nghị định X", "sửa đổi, bổ sung ...") với độ tin cậy thấp hơn và phải qua review nếu không chắc.
 
-Không suy đoán quan hệ khi không có nguồn. Reference không giải quyết được ghi `UNRESOLVED` và định tuyến review (FR-05).
+Không suy đoán quan hệ khi không có nguồn. Reference không giải quyết được ghi `UNRESOLVED` và nhận `REJECTED` từ automatic gates (FR-05); không có review routing.
 
-### 3.14.3. Confidence và review routing
+### 3.14.3. Gate outcome
 
 | Tình huống | Hành động |
 |---|---|
-| Pattern khớp chính xác, target tồn tại, xác định được version | Lưu `RESOLVED`, `ACCEPTED` nếu confidence cao, kèm `source_provision_version_id`/`target_provision_version_id` |
-| Pattern khớp nhưng target chưa có trong corpus hoặc không xác định được version | `UNRESOLVED`, định tuyến review |
-| Suy luận `PENALTY_COMPANION` không chắc | `PENDING_REVIEW` |
-| `DocumentRelation` từ trích xuất tự động | `PENDING_REVIEW` |
+| Pattern khớp chính xác, target tồn tại, xác định được version | Lưu `RESOLVED`, `ACCEPTED` nếu mọi gate đạt |
+| Pattern khớp nhưng target chưa có trong corpus hoặc không xác định được version | `UNRESOLVED`, `REJECTED` |
+| Suy luận `PENALTY_COMPANION` không đủ provenance | `REJECTED` |
+| `DocumentRelation` thiếu provenance hoặc temporal consistency | `REJECTED` |
 
-Quan hệ được gắn version nguồn/đích (3.9.6); khi provision bị sửa đổi từng phần, quan hệ cũ không tự áp dụng cho version mới mà phải được re-resolve hoặc review.
+Quan hệ được gắn version nguồn/đích; quan hệ `REJECTED` hoặc `UNRESOLVED` không được dùng để expansion/serving.
 
 ### 3.14.4. Bounded expansion depth
 
@@ -2931,44 +2571,27 @@ Temporal and Amendment Resolver xác định khoảng hiệu lực cho văn bả
 
 ### 3.15.1. Nguồn thông tin
 
-- **Manifest**: `effective_from`, `effective_to`, `status`, `relation_notes` (ưu tiên);
-- **LegalEffectEvent**: sự kiện EFFECTIVE, AMENDED, SUPERSEDED, REPEALED, CORRECTED, PARTIAL_AMENDED;
-- **DocumentRelation**: AMENDS/REPEALS/SUPERSEDES/CORRECTS/GUIDES;
-- **Review**: quyết định của reviewer cho trường hợp không chắc chắn.
+- **Automatic gates**: provenance và temporal consistency của manifest/pattern.
 
 ### 3.15.2. Tính khoảng hiệu lực
 
 ```text
-[effective_from, effective_to)
-```
-
-- `effective_from`: ngày văn bản/provision có hiệu lực;
-- `effective_to`: ngày bắt đầu không còn hiệu lực (exclusive), NULL nếu chưa hết hiệu lực.
-
-Điều kiện hợp lệ tại ngày `d`:
-
-```text
 effective_from <= d
 AND (effective_to IS NULL OR d < effective_to)
-AND review_status = 'ACCEPTED'
+AND ingestion_status = 'ACCEPTED'
 ```
 
 ### 3.15.3. Sửa đổi từng phần (partial amendment)
 
 - Khi văn bản sửa đổi chỉ thay đổi một số Điều/Khoản/Điểm, các provision không bị ảnh hưởng giữ nguyên khoảng hiệu lực;
-- Provision bị sửa: tạo row mới trong `legal_provisions` với `provision_id` giữ nguyên, version tăng, khoảng [effective_from, effective_to) mới, `review_status` mới; đồng thời ghi `provision_versions` (registry) với `superseded_by_version` trỏ version mới;
-- **Ghi provenance từng version**: với row version mới, Resolver ghi `provision_provenances`:
-  - `BASE_TEXT` trỏ element gốc (từ văn bản nền) cho phần nội dung giữ nguyên;
-  - `AMENDMENT_TEXT` trỏ element của văn bản sửa đổi cho phần nội dung bị thay (hoặc `CORRECTION_TEXT` cho văn bản đính chính);
-  - `EFFECT_SOURCE` trỏ nguồn xác định hiệu lực (manifest/nguồn chính thức);
-  - `page_number`/`bbox`/`source_element_ids` trên `LegalProvision` chỉ là projection hợp nhất (xem 3.9.14);
-- Temporal Resolver chọn version áp dụng tại ngày `d` bằng cách chọn row `legal_provisions` có `review_status = ACCEPTED` và `effective_from <= d < effective_to`;
-- `LegalEffectEvent` (event_type AMENDED/PARTIAL_AMENDED) ghi `affected_provision_versions` để trace nhanh các provision bị ảnh hưởng.
+- Provision bị sửa: tạo row mới trong `legal_provisions` với `provision_id` giữ nguyên, version tăng, khoảng [effective_from, effective_to) mới, `ingestion_status` mới; đồng thời ghi `provision_versions` (registry) với `superseded_by_version` trỏ version mới;
+- **Ghi provenance từng version**: với row version mới, Resolver ghi `provision_provenances`;
+- Temporal Resolver chọn version áp dụng tại ngày `d` bằng cách chọn row `legal_provisions` có `ingestion_status = ACCEPTED` và `effective_from <= d < effective_to`;
+- `LegalEffectEvent` ghi `affected_provision_versions` để trace nhanh các provision bị ảnh hưởng.
 
 ### 3.15.4. Superseded provisions
 
-- Văn bản bị `SUPERSEDES` không bị xóa khỏi corpus;
-- Với câu hỏi lịch sử, provision của văn bản cũ vẫn được dùng nếu hợp lệ tại mốc hỏi (UC-02);
+- Với câu hỏi lịch sử, provision của văn bản cũ vẫn được dùng nếu `ingestion_status = ACCEPTED` và hợp lệ tại mốc hỏi (UC-02);
 - Với câu hỏi hiện hành, chỉ provision còn hiệu lực được dùng.
 
 ### 3.15.5. LegalEffectEvent semantics
@@ -2983,11 +2606,9 @@ AND review_status = 'ACCEPTED'
 | CORRECTED | Đính chính | Sinh ProvisionVersion đính chính |
 | EXPIRED | Hết hiệu lực theo quy định | effective_to = ngày hết hiệu lực |
 
-### 3.15.6. Hiệu lực không chắc chắn
+Trường hợp không xác định được hiệu lực từ nguồn tin cậy: ghi `UNKNOWN`, giữ `effective_from`/`effective_to` NULL và nhận `REJECTED`; không index provision đó vào Qdrant và không dùng cho temporal query. Không suy đoán ngày hiệu lực từ nội dung PDF khi manifest chính thức không cung cấp.
 
-Trường hợp không xác định được hiệu lực từ nguồn tin cậy: ghi `UNKNOWN`/`PENDING_REVIEW`, tạo ReviewItem, cho phép `effective_from`/`effective_to` NULL (hằng số row chưa review), không index provision đó vào Qdrant và không dùng cho temporal query cho tới khi reviewer quyết định. Ràng buộc database bảo đảm: row chỉ có `review_status = ACCEPTED` thì `effective_from` bắt buộc khác NULL (xem 3.10.4). Không suy đoán ngày hiệu lực từ nội dung PDF khi manifest chính thức không cung cấp.
-
-**Hiệu lực văn bản chưa xác định (DocumentVersion)**: `document_versions.effective_from` cũng nullable và có CHECK `review_status <> 'ACCEPTED' OR effective_from IS NOT NULL`. Khi một văn bản có hiệu lực không xác định, `DocumentVersion` phải giữ `PENDING`/`PENDING_REVIEW` và đi qua review trước khi được chuyển sang `ACCEPTED`; văn bản chưa xác định hiệu lực không được phục vụ temporal query và không được làm nguồn cho provision ACCEPTED.
+**Hiệu lực văn bản chưa xác định (DocumentVersion)**: `document_versions.effective_from` cũng nullable; bản ghi không vượt qua automatic gates nhận `REJECTED`, không phục vụ temporal query và không làm nguồn cho provision `ACCEPTED`.
 
 ### 3.15.7. Current / Historical / Comparison
 
@@ -3171,14 +2792,11 @@ Exact legal lookup xử lý định danh như `168/2024/NĐ-CP`, `Điều 7`, `K
 ```text
 normalize query
     ↓
-build payload filter (review_status, temporal interval, vehicle_type)
+build payload filter (ingestion_status=ACCEPTED, temporal interval, vehicle_type)
     ↓
 exact lookup (payload filter)     dense prefetch top 30     sparse prefetch top 30
     ↓                                        ↓                     ↓
-        RRF fusion (k=60)
-            ↓
-post-filter temporal invariant (nếu chưa lọc ở Qdrant)
-            ↓
+build payload filter (ingestion_status=ACCEPTED, temporal interval, vehicle_type)
 deduplicate theo provision_id
             ↓
 exact-match promotion (FR-13)
@@ -3196,16 +2814,14 @@ Fusion bằng Qdrant Query API với `prefetch` + `fusion=rrf`. Config khởi đ
 retrieval:
   exact_lookup:
     enabled: true
-    filter_fields: [document_number, article, clause, point]
   dense_prefetch: 30
   sparse_prefetch: 30
   rrf:
     k: 60
     weights: {dense: 1.0, sparse: 1.0}
   fusion_limit: 20
-  final_top_k: 8
+  dense_prefetch: 30
   temporal_filter: true
-  dedup_key: provision_id
 ```
 
 ### 3.18.4. Candidate dedup
@@ -3230,9 +2846,7 @@ class RetrievalResult(BaseModel):
     provision_id: str
     text: str                     # retrieval_text
     parent_context: str | None
-    document_number: str
-    article: str
-    clause: str | None
+build payload filter (ingestion_status=ACCEPTED, temporal interval, vehicle_type)
     point: str | None
     effective_from: date
     effective_to: date | None
@@ -3247,40 +2861,6 @@ class RetrievalResult(BaseModel):
 
 Reranking là stage chuẩn của pipeline, không phải việc tương lai (FR-15). Không khẳng định reranker cải thiện chất lượng trước khi có kết quả benchmark (Suite C, R6).
 
-### 3.19.1. Ứng viên chính: Jina Reranker v3
-
-Model ID: `jina-reranker-v3`. API shape (đã xác minh):
-
-```http
-POST https://api.jina.ai/v1/rerank
-Content-Type: application/json
-Authorization: Bearer <token>
-```
-
-```json
-{
-  "model": "jina-reranker-v3",
-  "query": "xe máy vượt đèn đỏ bị phạt bao nhiêu và trừ bao nhiêu điểm",
-  "documents": [
-    "Điều 7. ... Khoản 4 ...",
-    "Điều 9. ... trừ điểm giấy phép lái xe ..."
-  ],
-  "top_n": 8,
-  "return_documents": true
-}
-```
-
-Đặc điểm model, context window, giá và free tier là các **giả định cấu hình deployment**; giá trị chính xác (bao gồm context window, giá/token, free tier, rate limit, ngày GA) được duy trì trong tài liệu nghiên cứu tech-stack (doc 04) và cấu hình deployment, không hardcode trong logic domain. Rate limit phải cấu hình theo deployment, không hardcode theo free-tier quota (NFR-04).
-
-### 3.19.2. Ứng viên thí nghiệm
-
-Late-interaction/ColBERT-style reranking chỉ là ứng viên thí nghiệm, không phải production candidate trong scope khóa luận.
-
-### 3.19.3. Caching và chi phí
-
-- Cache kết quả rerank theo `SHA-256(query + sorted provision_ids)` với TTL ngắn (khớp query trace);
-- Chỉ rerank sau fusion_limit candidates (không rerank toàn bộ dense+sparse);
-- `top_n` giới hạn theo final_top_k + buffer;
 - Token usage và cost được ghi vào QueryTrace.
 
 ```yaml
@@ -3318,26 +2898,14 @@ Mỗi provision mở rộng ghi metadata:
 
 `source_id` là provision/candidate đã dẫn tới provision này; `depth` là khoảng cách từ seed.
 
-Mở rộng theo quan hệ áp dụng **temporal + review filter**: khi truy vấn `ProvisionReference`/`DocumentRelation`, chỉ mở rộng sang target có `review_status = ACCEPTED` và khoảng hiệu lực của target chứa ngày query; quan hệ phải được gắn version phù hợp với version nguồn đang được dùng (xem 3.9.6). Quan hệ UNRESOLVED/PENDING_REVIEW không được dùng để mở rộng tự động (FR-16).
+Mở rộng theo quan hệ áp dụng **temporal + ingestion filter**: chỉ mở rộng sang target có `ingestion_status = ACCEPTED` và khoảng hiệu lực của target chứa ngày query; quan hệ `UNRESOLVED`/`REJECTED` không được dùng để mở rộng tự động (FR-16).
 
 ### 3.20.3. Giới hạn
 
-```yaml
+Mở rộng theo quan hệ áp dụng **temporal + ingestion filter**: chỉ mở rộng sang target có `ingestion_status = ACCEPTED`; quan hệ `UNRESOLVED`/`REJECTED` không được dùng tự động.
 context_expansion:
   seed_min_rank_threshold: 3       # chỉ mở rộng quanh seed đứng top
-  max_depth: 2
-  max_breadth: 5
   max_added_provisions: 10
-```
-
-Tránh mở rộng đồ thị không giới hạn. Chỉ mở rộng quanh seed mạnh (rank tốt, evidence plan còn thiếu loại bằng chứng cụ thể).
-
----
-
-## 3.21. Evidence Completeness Gate
-
-### 3.21.1. Đầu vào
-
 - Evidence plan (`required_evidence`) từ QueryPlan;
 - Tập context đã expand.
 
@@ -3352,7 +2920,7 @@ Tránh mở rộng đồ thị không giới hạn. Chỉ mở rộng quanh seed
 
 | Evidence type | Khi nào coi là có | Heuristic khởi điểm |
 |---|---|---|
-| violation_definition | Provision mô tả hành vi vi phạm | Match hành vi + "bị phạt"/"bị xử lý" |
+Mở rộng theo quan hệ áp dụng **temporal + ingestion filter**: chỉ mở rộng sang target có `ingestion_status = ACCEPTED` và khoảng hiệu lực chứa ngày query; quan hệ `UNRESOLVED`/`REJECTED` không được dùng tự động.
 | monetary_penalty | Provision chứa mức phạt tiền | Nhận diện đơn vị "đồng"/"triệu đồng" + số |
 | license_points | Provision chứa số điểm trừ | "trừ ... điểm giấy phép lái xe" |
 | license_suspension | Provision chứa tước GPLX | "tước quyền sử dụng giấy phép lái xe" |
@@ -3378,7 +2946,7 @@ Câu hỏi: "Xe máy vượt đèn đỏ bị phạt bao nhiêu và bị trừ b
 - Lần recall đầu tìm được `violation_definition` và `monetary_penalty`, nhưng **chưa có** `license_points` -> `INCOMPLETE`, không gọi generator;
 - Targeted retrieval + `PENALTY_COMPANION` lấy provision điểm trừ (license_points);
 - Gate kiểm tra lại: cả ba loại trong plan đều có -> `COMPLETE`;
-- Generator trả answer bao phủ cả hai thành phần chính (mức phạt và điểm trừ), được xác minh qua claims.
+Mở rộng theo quan hệ áp dụng **temporal + ingestion filter**: khi truy vấn `ProvisionReference`/`DocumentRelation`, chỉ mở rộng sang target có `ingestion_status = ACCEPTED` và khoảng hiệu lực của target chứa ngày query; quan hệ `UNRESOLVED`/`REJECTED` không được dùng để mở rộng tự động (FR-16).
 
 Không bao giờ trả lời chỉ một nửa dễ của câu hỏi (FR-17).
 
@@ -3449,14 +3017,8 @@ Con số điều chỉnh sau benchmark, không phải kết quả đã đo.
 
 ### 3.23.1. Generator
 
-- Model chính: **Gemini 3.5 Flash**, model ID `gemini-3.5-flash` (model ID nằm trong config, không hardcode);
-- Hỗ trợ structured output (`response_format` `json_schema`, tương thích Pydantic);
-- Vietnamese supported; context đủ lớn cho context budget 12.000 token;
-- Ngày GA, context window và giá/token là giả định cấu hình deployment, duy trì trong doc 04 và config, không phải hằng số trong tài liệu này;
-- Không đổi model trong cùng query (không provider fallback mù, NFR-03). Fallback chỉ khi bật config tường minh trong deployment và trace ghi model thực tế; final evaluation tắt fallback.
-
-### 3.23.2. Output schema (Pydantic)
-
+- Model/provider: đọc từ measured provider/model manifest; không chốt tên model, context window hoặc giá/token trước benchmark.
+- Hỗ trợ structured output (`response_format` `json_schema`, tương thích Pydantic).
 ```python
 from enum import StrEnum
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -3508,15 +3070,7 @@ class StructuredAnswer(BaseModel):
 ```
 
 - `extra="forbid"`: mọi field không khai báo đều bị Pydantic reject, hỗ trợ tiêu chí L1 "no unknown field";
-- `ClaimType` là enum đóng, `claim_type` không chấp nhận chuỗi tùy ý;
-- `claims` bắt buộc `min_length=1` và mỗi `provision_ids` bắt buộc `min_length=1` khi `should_abstain=false` (ràng buộc được kiểm tra tại L1); khi `should_abstain=true`, claims có thể rỗng.
-
-JSON schema tương đương (canonical spec mục 18):
-
-```json
-{
-  "answer_summary": "string",
-  "claims": [
+- Model/provider: đọc từ measured provider/model manifest; không chốt tên model, context window hoặc giá/token trước benchmark.
     {
       "claim": "string",
       "claim_type": "MONETARY_PENALTY",
@@ -3620,7 +3174,7 @@ class LayerResult(BaseModel):
 
 - `provision_id` tồn tại trong database;
 - được retrieve hoặc được mở rộng hợp lệ (nằm trong context whitelist hoặc có `added_by` hợp lệ);
-- `review_status = ACCEPTED`;
+ingestion_status = ACCEPTED
 - metadata citation có thẩm quyền (khớp document, article, clause, point từ database).
 
 **L3 Temporal verifier**:
@@ -3630,20 +3184,18 @@ def is_effective(effective_from, effective_to, query_date) -> bool:
     return (
         effective_from <= query_date
         and (effective_to is None or query_date < effective_to)
+        and ingestion_status == "ACCEPTED"
     )
-```
 
-**L4 Numeric grounding verifier**: mức phạt, số điểm trừ, ngày, tuổi, thời hạn, số lượng trong claim phải khớp giá trị bằng chứng đã chuẩn hóa (chuẩn hóa dấu chấm nghìn, đơn vị tiền tệ, điểm).
 
 **L5 Claim support verifier**:
 
 - Tầng 1 deterministic: keyword overlap đã chuẩn hóa; amount/number consistency; provision chứa entity pháp lý cần thiết; không mâu thuẫn ngày; exact phrase support khi claim chứa mức phạt hoặc số điểm;
-- Tầng 2 LLM judge độc lập (Gemini 3.5 Flash Lite) chỉ dùng cho claim support semantic; không quyết định citation ID, temporal validity hoặc numeric grounding.
+- Tầng 2 LLM judge độc lập chỉ dùng cho claim support semantic theo provider/model trong measured manifest; không quyết định citation ID, temporal validity hoặc numeric grounding.
   - Hành vi lỗi/latency của judge online: judge timeout (config, khởi điểm 10s) hoặc judge provider error -> claim đó được đánh giá `L5_JUDGE_UNAVAILABLE` và được xử lý qua repair path có giới hạn; nếu không xác minh được, claim bị loại hoặc dẫn tới ABSTAIN, không bao giờ được giữ với trạng thái "chưa kiểm chứng";
   - Nếu judge online bị tắt bằng config (ví dụ khi không đủ budget hoặc ở final evaluation), mọi claim mà deterministic không kết luận được sẽ bị đánh giá fail theo chính sách fail-closed (`L5_CLAIM_NOT_SUPPORTED`), không đổi hành vi verified-or-abstain.
 
 **L6 Evidence completeness verifier**: mọi loại bằng chứng trong evidence plan được bao phủ bởi claims cuối cùng.
-
 ### 3.24.3. VerificationResult
 
 ```python
@@ -3682,7 +3234,6 @@ L6_EVIDENCE_INCOMPLETE
 ```
 
 ### 3.24.4. Bất biến API
-
 **Returned Invalid Citation Rate = 0**. Citation chỉ được dựng từ database metadata đã verify (L2-L3 pass); UI không hiển thị citation chưa verify (NFR-01, NFR-10). LLM judge chỉ nằm trong L5, không bao giờ quyết định citation ID hay temporal validity.
 
 ---
@@ -3692,7 +3243,6 @@ L6_EVIDENCE_INCOMPLETE
 Repair xử lý lỗi theo loại cụ thể, không chỉ regenerate (FR-24, canonical spec mục 20).
 
 ### 3.25.1. Bốn đường sửa
-
 | Loại lỗi | Issue code tiêu biểu | Đường sửa |
 |---|---|---|
 | Thiếu bằng chứng | `L6_EVIDENCE_INCOMPLETE`, `INSUFFICIENT_EVIDENCE` | Targeted retrieval -> dựng lại context -> regenerate |
@@ -3701,7 +3251,7 @@ Repair xử lý lỗi theo loại cụ thể, không chỉ regenerate (FR-24, ca
 | Xung đột thời gian | `L3_TEMPORAL_INVALID`, `L3_TEMPORAL_CONFLICT` | Truy xuất phiên bản thời gian đúng (temporal retry) |
 
 ### 3.25.2. Giới hạn
-
+- Tầng 2 LLM judge độc lập chỉ dùng cho claim support semantic theo provider/model trong measured manifest; không quyết định citation ID, temporal validity hoặc numeric grounding.
 Mọi nhánh repair cùng tính vào `MAX_REPAIR_ATTEMPTS`, là hằng số cấu hình hữu hạn:
 
 ```yaml
@@ -3747,42 +3297,30 @@ Không hiển thị confidence giả kiểu "độ tin cậy 87%" nếu chưa đ
 
 ## 3.26. Feedback
 
+Feedback chỉ là tín hiệu anonymous tối thiểu, không phải release gate.
+
 ### 3.26.1. Schema
 
 ```python
-class FeedbackCategory(StrEnum):
-    WRONG_CITATION = "wrong_citation"
-    MISSING_INFORMATION = "missing_information"
-    WRONG_EFFECTIVE_DATE = "wrong_effective_date"
-    WRONG_PENALTY = "wrong_penalty"
-    INCOMPLETE_ANSWER = "incomplete_answer"
-    OTHER = "other"
-
-
 class QueryFeedback(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
     query_trace_id: str
     useful: bool
-    category: FeedbackCategory | None = None
-    comment: str | None = None
     created_at: datetime
 ```
 
 ### 3.26.2. Luồng xử lý
 
-1. User chọn Useful hoặc Not Useful trên một answer;
-2. Nếu Not Useful, user chọn danh mục (sai trích dẫn, thiếu thông tin, sai ngày hiệu lực, sai mức phạt, câu trả lời không đầy đủ, khác);
-3. Hệ thống lưu `QueryFeedback` trong PostgreSQL, gắn với `trace_id` (FR-27, UC-10);
-4. Hệ thống gửi điểm số feedback về Langfuse (ngoài đường tới hạn, không chặn nếu fail);
-5. Feedback sau khi được review có thể trở thành ứng viên bổ sung cho gold set (quy trình review riêng, không tự động thêm).
+1. Người dùng chọn LIKE hoặc DISLIKE trên một answer.
+2. Hệ thống lưu tín hiệu cùng `query_trace_id`; không thu thập comment, category, raw prompt/answer hoặc PII.
+3. Feedback không chặn query, ingestion, evaluation hay release; chỉ dùng thống kê tổng hợp.
 
 ### 3.26.3. Lưu trữ
 
 - PostgreSQL: bảng `query_feedback`, FK tới `query_traces`;
-- Langfuse: feedback/annotation trên trace tương ứng;
-- Không yêu cầu PII trong phản hồi (NFR-05).
+- Không gửi raw prompt/answer hoặc định danh người dùng sang hệ thống ngoài.
 
 ---
 
@@ -3804,7 +3342,6 @@ legal_query (trace)
 ├── dense_retrieval
 ├── sparse_retrieval
 ├── rrf_fusion
-├── reranker
 ├── reference_expansion
 ├── evidence_check
 ├── generate
@@ -3868,193 +3405,33 @@ Không retry chặn, không ghi lỗi vào response pháp lý. Bật/tắt bằn
 
 ## 3.28. API Contracts
 
-Base path: `/api/v1`. Mọi response nghiệp vụ chứa `trace_id` (upload, jobs, reviews, evaluations, corpus-qa, feedback, chat, search). Ngoại lệ tường minh: các endpoint probe vận hành `GET /api/v1/health/live` và `GET /api/v1/health/ready` không bắt buộc `trace_id` vì chúng được gọi bởi orchestrator/monitor, không phải luồng nghiệp vụ. Lỗi kỹ thuật dùng 4xx/5xx; abstention dùng HTTP 200 vì request hợp lệ nhưng hệ thống chọn không trả lời.
+Base path: `/api/v1`. Boundary là single-user localhost/private network; không có authentication, admin, reviewer role hoặc public multi-tenant contract. Mọi response nghiệp vụ có `trace_id`; lỗi kỹ thuật dùng 4xx/5xx; abstention dùng HTTP 200.
 
 ### 3.28.1. Chat
 
 ```http
 POST /api/v1/chat
-Content-Type: application/json
 ```
 
-Request:
-
-```json
-{
-  "question": "Năm 2023 xe máy vượt đèn đỏ bị xử lý thế nào?",
-  "query_date": "2023-06-01",
-  "vehicle_type": "MOTORCYCLE"
-}
-```
-
-Verified response:
-
-```json
-{
-  "status": "VERIFIED",
-  "answer": "...",
-  "applied_date": "2023-06-01",
-  "citations": [
-    {
-      "provision_id": "nd-vd-2020-01__dieu-7__khoan-4__diem-b",
-      "document_number": "VÍ DỤ/2020/NĐ-CP",
-      "document_title": "...",
-      "article": "7",
-      "clause": "4",
-      "point": "b",
-      "effective_from": "2020-01-01",
-      "effective_to": "2025-01-01",
-      "page_number": 10,
-      "snippet": "..."
-    }
-  ],
-  "disclaimer": "Thông tin mang tính tham khảo, không thay thế tư vấn pháp lý.",
-  "trace_id": "tr_..."
-}
-```
-
-Contract ghi chú: `answer` trong response được **dựng từ `verified_claims` và metadata**, không trả trực tiếp `answer_summary` của LLM; mọi claim hiển thị trong answer phải có citation tương ứng trong `citations` (L1-L6 đã pass). Đây là triển khai bất biến citation-by-ID ở tầng API (FR-22, FR-32).
-
-> Ví dụ citation trên dùng **identifiers và dữ liệu pháp lý giả lập hoàn toàn** (`VÍ DỤ/2020/NĐ-CP`, `nd-vd-2020-01`) chỉ để minh họa cấu trúc response và tính nhất quán thời gian (văn bản hiệu lực 2020-2025 áp dụng cho câu hỏi năm 2023). Không phải khẳng định về bất kỳ văn bản thực tế nào.
-
-Abstention response (HTTP 200):
-
-```json
-{
-  "status": "ABSTAINED",
-  "reason_code": "MISSING_QUERY_DATE",
-  "message": "Cần ngày cụ thể để xác định phiên bản pháp luật áp dụng.",
-  "missing_information": ["query_date"],
-  "corpus_scope": "Pháp luật giao thông đường bộ Việt Nam trong corpus đã kiểm chứng.",
-  "applied_date": null,
-  "disclaimer": "Thông tin mang tính tham khảo, không thay thế tư vấn pháp lý.",
-  "trace_id": "tr_..."
-}
-```
+Chat response luôn là verified hoặc abstained; citation được dựng từ metadata đã kiểm chứng. Query không gọi web.
 
 ### 3.28.2. Search
 
 ```http
 POST /api/v1/search
-Content-Type: application/json
 ```
 
-Request:
+Search không bắt buộc gọi generator và chỉ tìm trong corpus `ACCEPTED` đang được phục vụ.
 
-```json
-{
-  "query": "vượt đèn đỏ",
-  "effective_date": "2025-06-01",
-  "document_type": "DECREE",
-  "vehicle_type": "MOTORCYCLE",
-  "top_k": 10
-}
-```
-
-Response:
-
-```json
-{
-  "results": [
-    {
-      "rank": 1,
-      "provision_id": "nd-168-2024__dieu-7__khoan-4__diem-b",
-      "document_number": "168/2024/NĐ-CP",
-      "document_title": "...",
-      "article": "7",
-      "clause": "4",
-      "point": "b",
-      "snippet": "...",
-      "effective_from": "2025-01-01",
-      "effective_to": null,
-      "status": "EFFECTIVE",
-      "page_number": 12
-    }
-  ],
-  "trace_id": "tr_..."
-}
-```
-
-Search không bắt buộc gọi LLM generator (FR-21, UC-04).
-
-### 3.28.3. Upload document (admin)
-
-```http
-POST /api/v1/documents
-Authorization: Bearer <token>
-Content-Type: multipart/form-data
-```
-
-Fields: `file`, `manifest_json`, `force=false`.
-
-Response (202 Accepted):
-
-```json
-{
-  "ingestion_job_id": "job_abc123",
-  "status": "QUEUED",
-  "document_id": "nd-168-2024",
-  "message": "Document queued for background ingestion.",
-  "trace_id": "tr_...f"
-}
-```
-
-### 3.28.4. Job status
+### 3.28.3. Job status
 
 ```http
 GET /api/v1/jobs/{job_id}
 ```
 
-Response:
+Trạng thái trả về gồm `QUEUED`, các stage xử lý nền, `ACCEPTED`, `REJECTED`, `INDEXED` hoặc `FAILED`, kèm snapshot/hash và gate summary.
 
-```json
-{
-  "ingestion_job_id": "job_abc123",
-  "status": "PENDING_REVIEW",
-  "current_stage": "quality_gate",
-  "parser_routing": {"parser": "DOCLING", "parser_version": "docling-2.1.0"},
-  "summary": {
-    "provision_count": 123,
-    "accepted_count": 110,
-    "review_count": 13,
-    "dropped_count": 0
-  },
-  "created_at": "2026-08-08T10:00:00+07:00",
-  "trace_id": "tr_...g"
-}
-```
-
-### 3.28.5. Review (admin)
-
-```http
-GET  /api/v1/reviews?status=PENDING
-POST /api/v1/reviews/{review_id}/decision
-```
-
-Decision body:
-
-```json
-{
-  "decision": "ACCEPT",          // ACCEPT | REJECT | DROP
-  "reviewer": "phuc-truong",
-  "note": "Provenance và hierarchy đạt; relation đã đối chiếu nguồn chính thức."
-}
-```
-
-Response:
-
-```json
-{
-  "review_id": "rv_abc123",
-  "status": "ACCEPTED",
-  "indexed": false,
-  "trace_id": "tr_...j"
-}
-```
-
-Chỉ sau ACCEPT, provision mới được index (FR-09, UC-08). Mọi quyết định ghi reviewer + timestamp. GET /api/v1/reviews trả danh sách review item, mỗi item kèm `trace_id` của chính nó (review trace, không phải query trace).
-
-### 3.28.6. Feedback
+### 3.28.4. Feedback
 
 ```http
 POST /api/v1/feedback
@@ -4062,13 +3439,10 @@ Content-Type: application/json
 ```
 
 ```json
-{
-  "trace_id": "tr_...",
-  "useful": false,
-  "category": "wrong_penalty",
-  "comment": "Mức phạt hiển thị không khớp nội dung Điều 7."
-}
+{"trace_id": "tr_...", "useful": true}
 ```
+
+Chỉ nhận LIKE/DISLIKE anonymous; không nhận category, comment, raw prompt/answer hoặc PII.
 
 ### 3.28.7. Health
 
@@ -4181,7 +3555,7 @@ final_response
 
 `final_response` chỉ phát sau verification.
 
----
+`POST /api/v1/feedback` chỉ nhận anonymous `LIKE`/`DISLIKE`; không nhận category, comment, raw prompt/answer hoặc PII.
 
 ## 3.29. Frontend
 
@@ -4189,27 +3563,18 @@ Frontend: Next.js + TypeScript + shadcn/ui. Ngôn ngữ giao diện: tiếng Vi�
 
 ### 3.29.1. Screens
 
-```text
 /chat                        Chat chính (UC-01, UC-02, UC-03, UC-06)
 /search                      Tìm provision (UC-04)
 /source/{provision_id}       Passage viewer (UC-05)
-/admin/reviews               Review UI (P1, FR-30; P0 dùng CLI)
-/admin/documents             Quản lý upload (P1)
-/evaluation                  Dashboard evaluation (P1)
-/corpus-qa                   Báo cáo chất lượng corpus (UC-12)
 ```
 
 ### 3.29.2. Chat UI
 
 Thành phần:
-
 - query input;
 - optional date picker và vehicle selector;
-- processing status (progress events, không stream draft);
 - answer panel;
 - applied date badge (hiển thị ngày hệ thống đã áp dụng);
-- citation cards (dựng từ metadata);
-- source passage drawer (mở snippet + trang);
 - disclaimer;
 - abstention panel (reason + missing information).
 
@@ -4237,7 +3602,7 @@ Frontend nhận SSE events theo 3.28.10; UI hiển thị trạng thái "Đang ph
 
 ### 3.29.6. Feedback widget
 
-Trên mỗi answer: nút Useful / Not Useful. Nếu Not Useful, hiện danh mục: sai trích dẫn, thiếu thông tin, sai ngày hiệu lực, sai mức phạt, câu trả lời không đầy đủ, khác (kèm ô comment). Gửi `POST /api/v1/feedback`.
+- Feedback: chỉ nút LIKE/DISLIKE anonymous, không category/comment.
 
 ### 3.29.7. Disclaimer
 
@@ -4255,8 +3620,6 @@ Hiển thị disclaimer tách biệt khỏi nội dung pháp lý ở mọi answe
 ---
 
 ## 3.30. Error Handling
-
-### 3.30.1. Error taxonomy
 
 | Nhóm | Code ví dụ | Nguồn |
 |---|---|---|
@@ -4282,19 +3645,14 @@ Hiển thị disclaimer tách biệt khỏi nội dung pháp lý ở mọi answe
 ```
 
 Mọi lỗi đều kèm `trace_id` để truy vết trong Langfuse và query_traces.
-
-### 3.30.3. Retry semantics
+- Feedback UI chỉ có hai lựa chọn anonymous `LIKE` hoặc `DISLIKE`; không có category, comment hay reviewer workflow.
 
 | Operation | Retry |
-|---|---|
 | PostgreSQL transaction | Không retry mù; retry lỗi connection có giới hạn |
 | Qdrant upsert | Có, idempotent |
 | Embedding API | Có cho 429/5xx |
 | Generation API | Có cho 429/5xx |
 | Structured schema invalid | Repair path regenerate (bounded) |
-| Citation invalid | Repair path (bounded), sau đó abstain |
-| Parser extraction | Parser Router fallback; không retry vô hạn |
-| Review decision | Idempotent |
 
 ### 3.30.4. No draft leak
 
@@ -4308,25 +3666,47 @@ Khi provider fail ở giai đoạn generate, hệ thống không trả draft n�
 
 | Threat | Biện pháp |
 |---|---|
-| Upload file độc hại | MIME + extension + magic bytes + size + filename validation; xử lý qua worker tách biệt |
-| Path traversal | Sinh filename nội bộ, không dùng path từ user |
-| Prompt injection trong PDF | Corpus được xử lý là dữ liệu, không phải instruction; tách khỏi system instructions; output bị giới hạn bởi structured schema (NFR-04) |
-| Prompt injection từ query | System schema, no-tool workflow, verifier chặn claim không được hỗ trợ |
-| Admin endpoint abuse | Bearer token, rate limit, audit log |
-| Secret leakage | `.env`, log redaction |
+| Untrusted PDF/content | MIME, magic byte, size, SHA-256; xử lý nền; prompt injection treated as data |
+| Path traversal | Sinh filename/object key nội bộ |
 | Oversized request | Body limit |
-| Cost abuse | Per-IP rate limit, request token limit |
+| Cost abuse | Rate limiting theo deployment |
 | Invalid citation | Verification contract (Returned Invalid Citation Rate = 0) |
-| Data poisoning | Review trước khi index (FR-09) |
+| Data poisoning | Automatic quality/provenance/temporal gates trước khi index |
 | SQL injection | SQLAlchemy parameterization |
 | Qdrant payload injection | Pydantic validation |
 
-### 3.31.2. Admin authentication
+### 3.31.2. Deployment boundary
 
-- Một Bearer token trong environment;
-- So sánh constant-time (ví dụ `hmac.compare_digest`);
-- Audit actor name từ config;
-- Production future: OAuth/OIDC, role-based access, token rotation.
+Đây là hệ thống single-user trên localhost hoặc private network. Không triển khai authentication, admin/reviewer/developer role, Bearer token hay public multi-tenant API. Network boundary, firewall và quyền truy cập máy chủ là biện pháp vận hành; các endpoint nghiệp vụ không được xem là public Internet service.
+
+### 3.31.3. Upload/source validation
+
+```text
+Chỉ ingestion từ manual CLI/background sync.
+Corpus MVP gồm đúng 14 PDF cục bộ, deduplicate theo document identity và SHA-256.
+URL nguồn chỉ hợp lệ khi là HTTPS exact host datafiles.chinhphu.vn,
+không credentials, fragment hoặc redirect.
+MIME, extension, magic bytes (%PDF), size và SHA-256 đều bắt buộc.
+```
+
+### 3.31.4. Prompt injection defense
+
+Nội dung PDF là dữ liệu nguồn, không phải instruction. Generator không có tool access; verifier từ chối claim không được hỗ trợ. Không có query-time web fallback.
+
+### 3.31.5. Log redaction và secrets
+
+- Không ghi API key, PII hoặc full PDF text vào log;
+- Secrets nằm trong `.env`, không commit.
+
+### 3.31.6. Privacy design (NFR-05)
+
+- Không yêu cầu PII;
+- Feedback chỉ anonymous LIKE/DISLIKE, không comment, category, raw prompt/answer;
+- Query trace chỉ giữ dữ liệu cần cho vận hành theo chính sách retention của deployment.
+
+### 3.31.7. Rate limiting
+
+Cấu hình theo deployment, không hardcode theo free-tier quota.
 
 ### 3.31.3. Upload validation
 
@@ -4433,8 +3813,7 @@ Mỗi ADR ghi status, context, decision, consequences và date theo đúng chu�
 
 - **Status**: Accepted
 - **Context**: LLM có thể tạo claim không được hỗ trợ, số liệu sai hoặc citation không tồn tại; citation regex là không đủ.
-- **Decision**: sáu verifier tách rời; Gemini 3.5 Flash Lite chỉ là semantic judge thứ cấp ở L5 và fail-closed. Deterministic checks remain the source of truth.
-- **Quyết định bổ sung (judge online)**: L5 semantic judge được phép chạy online trong verifier với fail-closed behavior (timeout/provider error -> repair có giới hạn hoặc ABSTAIN); khi tắt judge, claim không kết luận được bằng deterministic bị xử lý fail-closed. Judge không bao giờ quyết định citation ID hay temporal validity. Xem 3.24.2.
+- **Decision**: sáu verifier tách rời; L5 semantic judge dùng provider/model trong measured manifest và fail-closed. Deterministic checks remain the source of truth.
 - **Consequences**: Draft không đạt không bao giờ ra ngoài; chi phí verify tăng nhẹ (online judge tốn thêm latency/cost, có timeout và giới hạn); judge là nguồn thứ cấp, không quyết định citation/temporal.
 - **Date**: 2026-07-19
 
@@ -4445,7 +3824,6 @@ Mỗi ADR ghi status, context, decision, consequences và date theo đúng chu�
 - **Decision**: Langfuse (Cloud mặc định) là thành phần chuẩn; ingest bất đồng bộ; nếu không khả dụng, query vẫn hoạt động. Self-hosting là tùy chọn (cần ClickHouse, Redis/Valkey, blob storage, PostgreSQL, web và worker).
 - **Consequences**: Trace thiếu khi Langfuse down nhưng không ảnh hưởng correctness; chi phí vận hành nằm ở tài khoản cloud.
 - **Date**: 2026-07-19
-
 ### ADR-010: RAGFlow chỉ là baseline bên ngoài
 
 - **Status**: Accepted
@@ -4470,27 +3848,11 @@ Mỗi ADR ghi status, context, decision, consequences và date theo đúng chu�
 - **Consequences**: Thêm một service hạ tầng; dữ liệu file tách khỏi database, cần đồng bộ metadata khi restore.
 - **Date**: 2026-07-19
 
-### ADR-013: Embedding model chưa được chốt vĩnh viễn cho tới khi benchmark
-
-- **Status**: Accepted
-- **Context**: Không có bằng chứng model embedding nào vượt trội trên câu hỏi pháp luật tiếng Việt.
-- **Decision**: Ứng viên: Gemini Embedding 2 (768 dims, mặc định), Jina Embeddings v5 text-nano (768 dims), Jina Embeddings v5 text-small (1024 dims). Suite B đo Recall@10, MRR@10, nDCG@10, latency, cost. Collection Qdrant dùng named dense vector; đổi model = rebuild collection + alias switch. Model ID nằm trong config, không hardcode.
-- **Consequences**: Chi phí benchmark nhỏ (Jina 10M token miễn phí); chưa cam kết một model cho tới khi có kết quả.
-- **Date**: 2026-07-19
-
-### ADR-014: Reranker là stage chuẩn, Jina Reranker v3 là ứng viên chính
-
-- **Status**: Accepted
-- **Context**: Cần rerank candidate sau RRF; không khẳng định cải thiện chất lượng trước benchmark.
-- **Decision**: Reranking là stage chuẩn của pipeline (không phải future work). Jina Reranker v3 (API `POST /v1/rerank`) là ứng viên chính; late-interaction/ColBERT-style chỉ là ứng viên thí nghiệm. Suite C R6 đo tác động tăng thêm.
-- **Consequences**: Tăng latency và cost mỗi query; có cache và giới hạn candidate trước rerank.
+- **Consequences**: Tăng latency/cost theo kết quả benchmark; provider/model được đọc từ measured manifest.
 - **Date**: 2026-07-19
 
 ### ADR-015: Không dùng open-web search và không có query-time HITL
 
-- **Status**: Accepted
-- **Context**: Câu trả lời pháp lý cần nguồn kiểm soát; HITL trong query làm chậm và phụ thuộc người duyệt.
-- **Decision**: Không dùng DuckDuckGo/SerpAPI fallback; câu trả lời chỉ dựa trên corpus đã kiểm chứng. HITL chỉ nằm ở review ingestion, không nằm trong online query.
 - **Consequences**: Hệ thống ABSTAIN khi thiếu căn cứ thay vì tìm web; giữ tính tái lập và kiểm soát nguồn.
 - **Date**: 2026-07-19
 
@@ -4514,9 +3876,8 @@ Mỗi ADR ghi status, context, decision, consequences và date theo đúng chu�
 
 - **Status**: Accepted
 - **Context**: Draft tự do khó parse và khó verify từng claim.
-- **Decision**: Gemini 3.5 Flash sinh `StructuredAnswer` theo `json_schema`: `answer_summary`, `claims[]` (claim, claim_type, provision_ids, numbers), `missing_information`, `should_abstain`. Schema fail -> repair (bounded), không regex/sửa JSON thủ công.
-- **Consequences**: Verify từng claim dễ dàng hơn; giảm claim không có citation; số output tokens bị giới hạn bởi schema.
-- **Date**: 2026-07-19
+- **Decision**: Structured generation dùng schema cấp claim; provider/model đọc từ measured manifest, không chốt model cụ thể trước benchmark.
+- **Consequences**: Verify từng claim dễ dàng hơn; schema fail -> bounded repair.
 
 ### ADR-019: Failure-aware repair có giới hạn thay vì regenerate vô hạn
 
@@ -4589,8 +3950,7 @@ Thiết kế được xem là hoàn tất khi:
 
 - [x] Parser Router, Canonical Document IR và Legal Structure Extractor thay toàn bộ UDEF.
 - [x] Online và offline pipeline được tách; ingestion qua Redis + Dramatiq, không parse đồng bộ.
-- [x] PostgreSQL schema đầy đủ entity, ràng buộc interval và review_status.
-- [x] Qdrant collection với named dense/sparse vectors, payload, filter, alias và rebuild.
+- [x] PostgreSQL schema đầy đủ entity, ràng buộc interval và `ingestion_status` ACCEPTED/REJECTED.
 - [x] MinIO layout với bucket và quy ước object key; backup độc lập.
 - [x] Temporal invariant `[effective_from, effective_to)` và canonical date policy.
 - [x] LegalProvision 20 field + node_kind và quy tắc provision_id deterministic (gồm phân biệt d) và đ), dạng ID cho Appendix/Table/Transitional).

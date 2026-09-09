@@ -1,6 +1,6 @@
-> **MVP rebaseline — 06/09/2026**: The defense release scope is reduced to a fixed 5–10-document reviewed corpus, 30–50 evaluation questions, current and as-of-date retrieval, structure-aware citations, evidence gating, abstention, and a working chat UI. RAGFlow comparison, feedback, large-scale background ingestion, advanced observability/security, and production backup automation are deferred.
+> **MVP rebaseline — 10/09/2026**: Deployment là single-user localhost/private-network. Corpus MVP gồm đúng 14 PDF cục bộ, deduplicate theo document/hash; source allowlist chỉ nhận exact HTTPS host `datafiles.chinhphu.vn`. Ingestion chỉ manual CLI và xử lý nền; snapshot/hash bất biến, automatic quality/provenance/temporal gates, không human approval. Query không gọi web và search chỉ phục vụ corpus đang được index.
 >
-> **Model policy**: Gemini 3.7 Flash is the primary structured-answer generator. Gemini 3.5 Flash Lite is the independent semantic judge. OpenAI/GPT-5.4 is not used. Earlier scope/model statements in this document are superseded by this rebaseline.
+> **Model policy**: Embedding chọn sau benchmark nhỏ trên các ứng viên đã cài/cache. Model/version và vector dimension được ghi vào manifest; mọi thay đổi embedding yêu cầu rebuild và alias switch. Không nêu model hoặc ngưỡng chưa có kết quả đo.
 # 07. Triển Khai (Deployment)
 
 > **Giai đoạn SDLC**: 6 - Triển khai
@@ -35,18 +35,17 @@ The chat UI may use `GET /api/v1/chat/events?question=...` for incremental progr
 
 Source-PDF provenance is fail-closed at `GET /api/v1/documents/{document_id}/source`. A cached object is served from the content-addressed `source-pdfs` key; when absent, the recorded URL must be an exact HTTPS URL on the approved official host `datafiles.chinhphu.vn`, without credentials or fragments. Redirects are rejected. The downloaded bytes must stay within the configured upload limit, start with the PDF signature, and match the accepted document SHA-256 before being cached and returned. Missing/untrusted/unavailable sources return a structured error; the service never silently substitutes arbitrary remote content.
 
-Mục tiêu triển khai (suy ra từ NFR-03, NFR-04, NFR-06 và doc 03 mục 3.2.5):
+Mục tiêu triển khai:
 
-1. Toàn bộ hạ tầng dữ liệu (backend, worker, PostgreSQL, Qdrant, Redis, MinIO) chạy bằng Docker Compose trên máy bảo vệ, không phụ thuộc VPS.
-2. Dữ liệu pháp lý bền vững qua restart: PostgreSQL là nguồn chân lý; Qdrant là index dẫn xuất dựng lại được từ PostgreSQL.
-3. Database schema quản lý bằng Alembic; release lưu migration revision.
-4. Ingestion chạy nền qua Redis + Dramatiq; không parse PDF đồng bộ trong request handler (FR-07, ADR-011).
-5. Object storage qua MinIO; PostgreSQL lưu object key và metadata (FR-08, ADR-012).
-6. Backup và restore tái lập được: PostgreSQL dump, Qdrant snapshot, MinIO artifact, gold set, evaluation report, release config và git tag.
-7. External provider failure không làm mất dữ liệu và không bao giờ trả câu trả lời chưa verified.
-8. Release candidate tái tạo được từ git tag, lock file, image digest và data hash.
-9. Clean-room deployment có quy trình tài liệu hóa và kiểm chứng được.
-10. Không còn dependency triển khai của ChromaDB, SQLite-as-primary, BM25 pickle, DuckDuckGo, SerpAPI hoặc UDEF (xem mục 7.18).
+1. Toàn bộ hạ tầng dữ liệu chạy bằng Docker Compose trên máy local hoặc private network, không phụ thuộc VPS.
+2. Dữ liệu pháp lý bền vững qua restart: PostgreSQL là nguồn chân lý; Qdrant là index dẫn xuất dựng lại được.
+3. Ingestion từ đúng 14 PDF, manual CLI, xử lý nền; không parse đồng bộ trong request handler.
+4. Snapshot corpus, PDF, artifact và hash là immutable; mỗi run có provenance và gate report.
+5. Chỉ bản ghi `ACCEPTED` sau automatic gates mới được embed/index và phục vụ query; `REJECTED` giữ lý do, không index.
+6. Query và search không gọi web; source retrieval chỉ dùng allowlist exact `datafiles.chinhphu.vn`.
+7. Feedback chỉ anonymous LIKE/DISLIKE tối thiểu, không phải release gate.
+8. Rebuild Qdrant theo embedding/version mới dùng collection mới và serving alias; index cũ được giữ cho tới khi rebuild và kiểm tra pass, rồi mới switch; rollback bằng cách trỏ alias về collection cũ.
+9. Release ghi corpus hash, gold-set hash, model/prompt/config versions và Git commit; không khẳng định kết quả chưa đo.
 
 > **Ghi chú lịch sử**: bản v1 của tài liệu này dựa trên pipeline UDEF (`PDF -> UDEF -> Docling -> CDM`) với bốn service Compose (frontend, backend, postgres, qdrant), Qdrant pin 1.17.0 và mounted directory làm object storage. Phiên bản v2 loại bỏ hoàn toàn UDEF, thay bằng Parser Router + Canonical Document IR + Legal Structure Extractor (ADR-001), mở rộng Compose lên bảy service (thêm worker, redis, minio), pin Qdrant v1.19.0, PostgreSQL 18 và Redis 8, và dùng MinIO làm object storage (FR-08). UDEF chỉ xuất hiện trong tài liệu này ở ghi chú lịch sử và bảng mapping mục 7.18; không còn là thành phần được triển khai.
 
@@ -56,38 +55,21 @@ Mục tiêu triển khai (suy ra từ NFR-03, NFR-04, NFR-06 và doc 03 mục 3.
 
 ### 7.1.1. Service Compose
 
-Compose production gồm bảy service (canonical spec mục 35, doc 03 mục 3.2.5, doc 04 mục 4.18.6):
-
-```text
-frontend    Next.js + TypeScript, port 3000
-backend     FastAPI (uvicorn, 1 worker), port 8000
-worker      Dramatiq worker ingestion (cùng image backend)
-postgres    PostgreSQL 18.x, nguồn chân lý dữ liệu pháp lý
-qdrant      Qdrant v1.19.0, retrieval engine dẫn xuất
-redis       Redis 8.x, Dramatiq broker + cache
-minio       MinIO (S3-compatible candidate), object storage
-```
+Compose gồm frontend, backend, worker, PostgreSQL, Qdrant, Redis và MinIO. Worker là đường chạy nền cho manual CLI sync; không có service hoặc API cho human approval/reviewer.
 
 ### 7.1.2. Ranh giới network
 
-Mọi service nằm trong một Docker network nội bộ (bridge) tên `vnlaw-network`. Chỉ hai port public local trong release:
-
-```text
-127.0.0.1:3000    frontend
-127.0.0.1:8000    backend
-```
-
-Các service nội bộ (postgres, qdrant, redis, minio) không expose port ra host trong release. MinIO console port (9001) chỉ bind trong dev override. Lý do: giảm bề mặt tấn công, tránh xung đột port với phần mềm khác trên máy bảo vệ, và buộc mọi truy cập đi qua backend.
+Mọi service nằm trong Docker network nội bộ. Frontend/backend chỉ bind localhost hoặc interface private-network được chọn explícit; PostgreSQL, Qdrant, Redis và MinIO không expose công khai. Đây là boundary single-user, không phải public Internet deployment và không có authentication layer trong MVP.
 
 ### 7.1.3. Thành phần bên ngoài
 
-| Gemini API | Bên ngoài | Gemini 3.7 Flash generator and Gemini 3.5 Flash Lite semantic judge |
-| Jina API | Bên ngoài | Optional embedding/reranker only |
-| RAGFlow | Không nằm trong MVP compose | Deferred benchmark only |
-| Jina API | Bên ngoài | Embedding ứng viên E2/E3 và reranker jina-reranker-v3 |
-| RAGFlow | Môi trường benchmark RIÊNG | KHÔNG nằm trong compose production (ADR-010, FR-31) |
+| Thành phần | Vai trò |
+|---|---|
+| Gemini/Jina (nếu cấu hình) | Generation, verification/embedding/reranking theo model manifest |
+| `datafiles.chinhphu.vn` | Nguồn PDF được allowlist exact host; chỉ dùng trong manual sync hoặc source retrieval fail-closed |
+| RAGFlow | Benchmark riêng, không nằm trong compose |
 
-RAGFlow chạy trong môi trường benchmark riêng (doc 04 mục 4.6, doc 05 mục 5.18): image `infiniflow/ragflow:v0.26.4`, yêu cầu tối thiểu theo nhà cung cấp 4 CPU, 16 GB RAM, 50 GB disk, web port 80, API port 9380. RAGFlow không bao giờ được đưa vào compose production và không chạy cùng lúc với ingestion/demo/eval nặng trên cùng máy.
+Không có open-web search hoặc query-time web fallback.
 
 ### 7.1.4. Parser service tùy chọn
 
@@ -512,7 +494,7 @@ Lưu ý về resource limits: không bật `mem_limit` trong release compose m�
 - `.env` không bao giờ commit; permission `600` (chmod 600).
 - Template env được commit dưới `deploy/env/*.env.example`, tách theo môi trường: `development.env.example`, `evaluation.env.example`, `release.env.example`.
 - File `.env` thật được tạo từ template và điền secret, không chứa secret trong git.
-- Secret phải khác example; `ADMIN_TOKEN`, `MINIO_ROOT_PASSWORD`, `POSTGRES_PASSWORD` và API key đều bắt buộc đổi.
+- Secret phải khác example; `MINIO_ROOT_PASSWORD`, `POSTGRES_PASSWORD` và API key (nếu provider ngoài được bật) bắt buộc đổi.
 - Final evaluation dùng file env riêng, read-only (không cho phép sửa trong lúc run).
 - Model ID không hardcode trong domain logic; mọi model nằm trong config (doc 00 mục 7, NFR-08).
 
@@ -621,16 +603,18 @@ FALLBACK_PROMPT_VERSION_HYDE=
 FALLBACK_PROMPT_VERSION_GENERATOR=
 FALLBACK_PROMPT_VERSION_CLAIM_VERIFIER=
 
-# Generator
-GENERATION_PROVIDER=gemini
+# Generator provider (optional runtime dependency; configure only if used)
+GENERATION_PROVIDER=
 
-GEMINI_API_KEY=
+GENERATION_API_KEY=
 GENERATION_FALLBACK_ENABLED=false
 
-# Embedding (chọn sau Suite B; khởi điểm ứng viên E1)
-EMBEDDING_PROVIDER=gemini
-EMBEDDING_MODEL=gemini-embedding-2
-EMBEDDING_DIMENSIONS=768
+# Embedding (selected by local benchmark; values come from the versioned manifest)
+EMBEDDING_MANIFEST=deploy/manifests/embedding-manifest-v1.json
+EMBEDDING_PROVIDER=
+EMBEDDING_MODEL=
+EMBEDDING_VERSION=
+EMBEDDING_DIMENSIONS=
 
 # Reranker (ứng viên chính)
 RERANKER_PROVIDER=jina
@@ -643,10 +627,6 @@ JINA_API_KEY=
 
 
 # Security
-ADMIN_TOKEN=change-me
-MAX_UPLOAD_SIZE_MB=50
-PUBLIC_RATE_LIMIT_PER_MINUTE=10
-ADMIN_RATE_LIMIT_PER_MINUTE=5
 
 # Ingestion
 MAX_INGESTION_WORKERS=1
@@ -712,48 +692,33 @@ Langfuse nằm ngoài đường tới hạn tính đúng đắn (ADR-009); để
 
 ## 7.4. Hàng đợi và worker (queue health + worker recovery)
 
-### 7.4.1. Broker và mô hình job
+### 7.4.1. Manual CLI và mô hình job
 
-- Redis 8.x làm broker Dramatiq và cache (doc 03 mục 3.13.1).
-- Dramatiq 2.x chạy worker ingestion; `MAX_INGESTION_WORKERS=1`.
-- Job state nằm trong PostgreSQL (`ingestion_runs`) là source of truth; Redis chỉ là đường truyền message (doc 03 mục 3.13.1).
-- Actor không trả payload lớn; toàn bộ kết quả trung gian nằm trong PostgreSQL/MinIO; actor nhận `run_id` và tự enqueue bước kế tiếp (explicit chaining) để idempotent resume an toàn.
+- Redis + Dramatiq chỉ phục vụ xử lý nền được kích hoạt bởi manual CLI sync.
+- Job state nằm trong PostgreSQL (`ingestion_runs`) là source of truth; Redis chỉ là đường truyền message.
+- CLI đọc manifest 14 PDF, kiểm tra allowlist exact host và SHA-256, tạo immutable snapshot rồi enqueue `run_id`.
+- Pipeline: `parse -> normalize -> extract -> resolve refs -> resolve temporal -> automatic quality/provenance/temporal gates -> ACCEPTED hoặc REJECTED -> embed -> index`.
+- `ACCEPTED` mới được embed/index; `REJECTED` giữ snapshot, hash, gate report và lý do, không có pending review hoặc reviewer accept.
 
-Danh sách actor và state job tương ứng (doc 03 mục 3.13.2):
-
-```text
-parse_actor             PARSING
-normalize_actor         NORMALIZING
-extract_actor           EXTRACTING
-resolve_refs_actor      RESOLVING_REFS
-resolve_temporal_actor  RESOLVING_TEMPORAL
-quality_gate_actor      QUALITY_CHECK
-embed_actor             EMBEDDING (chỉ sau review accept)
-index_actor             INDEXING
-```
-
-Thứ tự pipeline: `parse_actor -> normalize_actor -> extract_actor -> resolve_refs_actor -> resolve_temporal_actor -> quality_gate_actor`. Sau quality gate: tất cả accepted -> `embed_actor -> index_actor`; có needs_review -> `PENDING_REVIEW` (không embed/index); dropped fatal -> dừng (doc 03 mục 3.13.3, FR-09).
-
-### 7.4.2. Upload flow
+### 7.4.2. Sync flow
 
 ```text
-POST /api/v1/documents (multipart: file, manifest_json, force; yêu cầu Bearer token)
-    -> validate MIME, magic bytes, size, filename, SHA-256
-    -> duplicate check theo file_hash
-    -> tạo IngestionRun (QUEUED)
-    -> lưu PDF nguồn lên MinIO
-    -> enqueue parse_actor
-    -> 202 Accepted + ingestion_job_id
+manual CLI sync
+    -> validate exact source host + PDF + SHA-256 + duplicate
+    -> create immutable corpus snapshot
+    -> persist IngestionRun (QUEUED)
+    -> enqueue background worker
+    -> report run_id/status
 ```
 
-Request handler không chạy parser, extractor hay embed (FR-07, ADR-011, doc 03 mục 3.13.7). Job status truy vấn qua `GET /api/v1/jobs/{job_id}`.
+Không có upload API hoặc request handler chạy parser/extractor/embed. Job status chỉ theo dõi tiến trình nền.
 
 ### 7.4.3. Queue health
 
 Queue health được kiểm tra ở hai tầng:
 
 1. **Redis connectivity**: healthcheck container (redis-cli ping) và một mục trong readiness backend (kết nối `REDIS_URL`).
-2. **Queue metrics** (admin-only, theo dõi bằng script hoặc endpoint admin):
+2. **Queue metrics** (theo dõi bằng CLI/logs):
    - độ sâu queue (`LLEN` của queue Dramatiq chính);
    - số message trong dead-letter queue (`dramatiq-dlq`);
    - worker liveness: Dramatiq CLI `dramatiq --check`;
@@ -924,63 +889,25 @@ Lập lịch ingestion batch: dừng demo (hoặc chọn thời điểm không d
 
 ## 7.7. Provider health (external dependencies)
 
-### 7.7.1. Danh sách provider bên ngoài
+Provider calls are optional runtime dependencies and never change the corpus acceptance decision. There is no provider-health endpoint or admin checklist; operator checks use local CLI/logs.
 
-| Provider | Mục đích | Model pin | Ghi chú |
-|---|---|---|---|
-| Langfuse Cloud | Tracing, prompt, experiment | Server v4 / SDK v4.x | Ngoài đường tới hạn; `LANGFUSE_ENABLED=false` không fail query |
-| Gemini API | Generator và semantic judge | Gemini 3.7 Flash; Gemini 3.5 Flash Lite | Theo model policy ở đầu tài liệu |
-| Jina API | Embedding E2/E3, reranker | `jina-embeddings-v5-text-nano`, `jina-embeddings-v5-text-small`, `jina-reranker-v3` | Embedding quyết định sau Suite B |
+### 7.7.1. Provider policy
 
-### 7.7.2. Endpoint provider health (admin-only)
+| Provider | Mục đích | Chính sách |
+|---|---|---|
+| Configured generation/verification provider (nếu cấu hình) | Generation, verification | Pin provider/model/version trong release manifest |
+| Langfuse (nếu bật) | Observability ngoài đường tới hạn | Không làm fail query |
 
-```http
-GET /api/v1/admin/health/providers
-Authorization: Bearer <token>
-```
+Embedding candidates are benchmarked locally from installed/cached artifacts. The selected local embedding candidate, exact model/version, dimensions, source artifact hash, benchmark dataset/config hash and benchmark result are recorded in a versioned embedding manifest before rebuild. No provider or model is an active MVP default until that benchmark selection is recorded.
 
-Response khởi điểm (doc 03 mục 3.28.7):
+### 7.7.2. Failure handling
 
-```json
-{
-  "generator": {"configured": true, "checked": "not_checked"},
-  "embedding": {"configured": true, "checked": "not_checked"},
-  "reranker": {"configured": true, "checked": "not_checked"},
-  "langfuse": {"configured": true, "enabled": true}
-}
-```
+- Generator unavailable: trả structured error hoặc abstention; không trả draft chưa verified.
+- Embedding unavailable trong rebuild: rebuild fail, serving alias vẫn trỏ index cũ.
+- Langfuse unavailable: pipeline tiếp tục bằng local fallback.
+- Không automatic provider failover.
 
-Provider check KHÔNG nằm trong public readiness (`/api/v1/health/ready`) vì:
-
-- gọi provider tốn quota;
-- làm health check phụ thuộc Internet, có thể false failure khi mạng phòng thi có vấn đề;
-- chỉ cần kiểm tra thủ công trước demo.
-
-Public readiness chỉ kiểm tra local infra (PostgreSQL, Qdrant, Redis, MinIO, migration, config, corpus).
-
-### 7.7.3. Không tự động failover
-
-- Không có automatic provider failover (doc 04 mục 4.10.5). Final evaluation pin một generator duy nhất; đổi provider âm thầm làm thay đổi kết quả ngoài kiểm soát (NFR-03, doc 02).
-- Mọi degradation phải được cấu hình tường minh, được trace, và được hiển thị trong evaluation report.
-
-### 7.7.4. Xử lý provider failure
-
-- **Generator unavailable**: public query trả structured error kèm `trace_id`; UI đề xuất chuyển sang search source. Không trả draft chưa verified (NFR-01).
-
-```json
-{
-  "error": {
-    "code": "GENERATION_PROVIDER_UNAVAILABLE",
-    "message": "Không thể tạo câu trả lời tại thời điểm này. Chức năng tìm kiếm nguồn vẫn khả dụng."
-  },
-  "trace_id": "..."
-}
-```
-
-- **Embedding unavailable**: query embedding không cache được thì dense retrieval unavailable; có thể dùng sparse-only nếu config cho phép; response trace ghi retrieval mode thực tế; final evaluation không cho automatic mode degradation.
-- **Online L5 judge unavailable** (vai trò online trong verifier L5, doc 03 mục 3.24.2, ADR-008): claim kết luận được bằng deterministic rule vẫn chạy bình thường; claim ngữ nghĩa không kết luận được bằng deterministic bị xử lý fail-closed (coi như unsupported): workflow chuyển sang repair có giới hạn (`MAX_REPAIR_ATTEMPTS`) hoặc ABSTAIN; không bao giờ trả claim chưa verified.
-- **Evaluation judge unavailable** (vai trò metric thứ cấp trong evaluation): deterministic metrics vẫn được tính và lưu; metric phụ thuộc judge bị đánh dấu `ABSENT_<lý do>` trong `metric_availability`; run tuân theo terminal-status policy `RUNNING -> COMPLETED/FAILED` một chiều, KHÔNG có trạng thái PARTIAL (doc 06 mục 6.8.5).
-- **Langfuse unavailable**: bỏ qua span hiện tại, pipeline tiếp tục, query trả kết quả bình thường (doc 03 mục 3.27.6); prompt được nạp từ fallback cục bộ với `prompt_source = CACHE` hoặc `RELEASE_FALLBACK` (mục 7.3.6).
+Query không gọi web; search vẫn chỉ đọc serving corpus/index.
 
 ---
 
@@ -1022,7 +949,7 @@ frontend start  (depends_on backend healthy + migrate completed)
 
 ```text
 legal_provisions_v1
-    dense: 768 cosine (dimension theo embedding production sau Suite B)
+    dense: <embedding_dimensions from versioned embedding manifest> cosine
     sparse: bm25
     payload indexes:
       document_id
@@ -1037,9 +964,8 @@ legal_provisions_v1
       review_status
       content_hash
     alias: legal_provisions_active -> legal_provisions_v1
-```
 
-Nếu embedding production là Jina v5 text-small (1024 dims), tạo collection 1024 dims và alias switch theo quy trình rebuild (mục 7.9, ADR-013).
+The collection dimension and embedding metadata must be read from the selected versioned embedding manifest. Do not create a collection from a provider/model/dimension hardcoded in deployment documentation. If the manifest changes, create a new collection and switch the alias only through the rebuild procedure (mục 7.9, ADR-013).
 
 ### 7.8.3. Bootstrap script
 
@@ -1081,41 +1007,21 @@ docker compose --project-directory . -f deploy/compose/compose.release.yml run -
 
 ### 7.9.1. Nguyên tắc
 
-Qdrant là index dẫn xuất; PostgreSQL là source of truth. Khi dữ liệu lệch, PostgreSQL thắng (doc 03 mục 3.11). Mọi thay đổi schema (embedding model, vector dimension, sparse encoding, payload schema, chunking production) được thực hiện bằng rebuild + alias switch, không bao giờ rebuild in place.
+Qdrant là index dẫn xuất; PostgreSQL và immutable corpus snapshots là source of truth. Mọi thay đổi embedding model/version, dimensions, sparse encoding, payload hoặc chunking phải rebuild collection mới, không rebuild in place.
 
-### 7.9.2. Quy trình rebuild
+### 7.9.2. Benchmark và versioning
 
-1. Tạo collection mới `legal_provisions_v{n+1}` với named dense vector và sparse vector đúng cấu hình mới.
-2. Đọc toàn bộ provision ACCEPTED từ PostgreSQL: `SELECT ... FROM legal_provisions WHERE review_status = 'ACCEPTED'` (mỗi row là một provision version; không đọc ngược từ Qdrant, không đọc từ `provision_versions`).
-3. Embed + upsert dense + sparse + payload vào collection mới.
-4. Chạy regression retrieval (dev set) trước khi switch.
-5. Switch alias `legal_provisions_active` sang collection mới.
-6. Giữ collection cũ một thời gian, xóa theo chính sách.
+Benchmark nhỏ chạy trên các embedding candidates đã cài/cache, cùng corpus và tập đo được pin trong manifest. Chỉ sau khi benchmark mới chọn candidate; ghi model ID, version, dimensions, benchmark hash và config. Thay đổi candidate/version bắt buộc tạo collection/version mới và rebuild.
 
-Không trộn vector từ hai embedding space trong cùng collection.
+### 7.9.3. Serving alias và rollback
 
-```bash
-# Rebuild
-docker compose --project-directory . -f deploy/compose/compose.release.yml run --rm backend \
-  python scripts/rebuild_index.py \
-    --source postgres \
-    --target legal_provisions_v2 \
-    --embedding-model gemini-embedding-2 \
-    --dimensions 768
+1. Resolve `legal_provisions_active` tới collection hiện tại và giữ nguyên collection cũ.
+2. Build collection mới từ PostgreSQL `ACCEPTED` của immutable snapshot.
+3. Chạy reconciliation, dimension/payload checks và smoke query.
+4. Chỉ khi tất cả checks pass mới atomically switch alias.
+5. Nếu rebuild hoặc sau switch có lỗi, rollback bằng cách trỏ alias về collection cũ; không xóa collection cũ trước khi release ổn định.
 
-# Sau regression pass
-docker compose --project-directory . -f deploy/compose/compose.release.yml run --rm backend \
-  python scripts/switch_collection_alias.py \
-    --alias legal_provisions_active \
-    --target legal_provisions_v2
-```
-
-### 7.9.3. Snapshot trước alias switch
-
-- Trước mỗi release/rebuild: resolve alias `legal_provisions_active` về collection thực (`legal_provisions_v{n}`), snapshot collection đó (snapshots API), copy snapshot sang nơi lưu trữ độc lập. "Nơi lưu trữ độc lập" là ổ đĩa/host/tài khoản object storage KHÁC với volume `qdrant_snapshots` và KHÁC deployment MinIO production. Nếu dùng bucket backup trên MinIO thì bucket đó phải nằm trong một deployment MinIO RIÊNG (endpoint/tài khoản khác) và được đưa vào backup/restore scope (mục 7.10).
-- Restore: tải snapshot về, tạo collection từ snapshot; kiểm chứng bằng cách so sánh số point và payload với PostgreSQL (`SELECT count(*) FROM legal_provisions WHERE review_status='ACCEPTED'`); nếu snapshot lỗi/thiếu, dựng lại hoàn toàn từ PostgreSQL.
-- Retention: giữ snapshot của collection active và một phiên bản liền trước; snapshot không phải nguồn chân lý.
-
+Index cũ được giữ cho tới khi rebuild pass và alias switch thành công.
 ---
 
 ## 7.10. Backup và restore
@@ -1496,9 +1402,10 @@ git push origin v1.0.0-rc2
   "gold_set_version": "gold-v1",
   "gold_set_hash": "…",
   "qdrant_collection": "legal_provisions_v1",
-  "embedding_model": "gemini-embedding-2",
-  "embedding_dimensions": 768,
-  "reranker_model": "jina-reranker-v3",
+  "embedding_manifest": "embedding-manifest-v1.json",
+  "embedding_model": "<selected local model ID from manifest>",
+  "embedding_version": "<selected version from manifest>",
+  "embedding_dimensions": "<selected dimensions from manifest>",
   "prompt_versions": {
     "legal-query-analyzer-v1": "…",
     "legal-query-rewriter-v1": "…",
@@ -1527,7 +1434,7 @@ git push origin v1.0.0-rc2
 }
 ```
 
-Model ID và prompt version phải khớp với cấu hình final evaluation (NFR-08, doc 06 mục 6.6.4). Embedding production quyết định sau Suite B; nếu chọn Jina v5 text-small (1024 dims), `embedding_dimensions` và collection dimension phải ghi tương ứng. `minio_image` ghi image của implementation hiện tại của `ObjectStoragePort` (mục 7.5); nếu object-storage ADR chốt implementation khác, trường này được đổi hoặc ghi chú tương ứng.
+Model ID and prompt version phải khớp với cấu hình final evaluation (NFR-08, doc 06 mục 6.6.4). Embedding production is selected only by the local benchmark process: the release manifest must reference the versioned embedding manifest, including selected local model/version, dimensions, artifact hash, benchmark dataset/config hash and result. Any change to that manifest requires a new Qdrant collection, full rebuild, validation, and alias switch; rollback remains the previous collection. `minio_image` ghi image của implementation hiện tại của `ObjectStoragePort` (mục 7.5); nếu object-storage ADR chốt implementation khác, trường này được đổi hoặc ghi chú tương ứng.
 
 ### 7.12.3. Release checklist (Gate F, doc 06 mục 6.12.6)
 
@@ -1596,9 +1503,8 @@ Response khởi điểm:
 
 Readiness KHÔNG gọi provider bên ngoài (mục 7.7.2).
 
-### 7.13.3. Provider health
-
-Admin-only `GET /api/v1/admin/health/providers` (mục 7.7.2); chạy thủ công trước demo.
+### 7.13.3. Provider and queue observation
+Provider failures are observed through local CLI/logs only; there is no admin/provider-health endpoint or admin checklist in the MVP. Readiness checks only local infrastructure, the serving alias and corpus availability. Queue checks remain the operational CLI/log procedure in mục 7.4.3.
 
 ### 7.13.4. Queue health và MinIO health
 
@@ -1658,109 +1564,40 @@ Các biện pháp sau được enforce trong compose/app cho service ứng dụn
 
 ```text
 request-body limit
-upload MIME + magic byte validation
-generated internal filename (chặn path traversal)
-admin auth Bearer token + constant-time compare (secrets.compare_digest)
+source MIME + magic byte + size + SHA-256 validation
+generated internal filename/object key (chặn path traversal)
 rate limiting (config, không hardcode)
 Pydantic extra="forbid"
 parameterized SQL (SQLAlchemy, không nối chuỗi)
-prompt injection defense (PDF/content xử lý là dữ liệu, tách khỏi system instructions,
+prompt injection defense (PDF/content là dữ liệu, tách khỏi system instructions,
                           structured output schema giới hạn output)
 provider timeouts
 ```
 
-Các endpoint quản trị dùng đường dẫn canonical của doc 03 (mục 3.28), xác thực bằng Bearer token trên chính endpoint, không dùng tiền tố `/admin`:
-
-```text
-POST /api/v1/documents                     (upload document, admin)
-GET  /api/v1/documents/{document_id}/source (PDF nguồn cho citation viewer; cache MinIO, crawl host chính thức khi thiếu, kiểm tra SHA-256)
-GET  /api/v1/jobs/{job_id}                 (job status)
-GET  /api/v1/reviews?status=PENDING        (danh sách review, admin)
-POST /api/v1/reviews/{review_id}/decision  (quyết định review, admin)
-POST /api/v1/evaluations                   (chạy evaluation, admin)
-GET  /api/v1/evaluations/{run_id}          (trạng thái evaluation, admin)
-GET  /api/v1/corpus-qa/report              (corpus QA report, admin)
-GET  /api/v1/admin/health/providers        (provider health, admin; endpoint `/admin` duy nhất theo doc 03 mục 3.28.7)
-```
-
-Mô hình vai trò (doc 02 mục 2.3, doc 06 mục 6.2.3): `User` (hỏi đáp, search, feedback), `Reviewer` (upload tài liệu, accept/reject ingestion, xem corpus QA), `Developer` (chạy evaluation, thay model/config, quản lý prompt version). Trong phạm vi khóa luận, `ADMIN_TOKEN` (Bearer, constant-time compare) là cơ chế xác thực duy nhất triển khai quyền admin/reviewer/developer; tách token riêng theo vai và RBAC hoàn chỉnh là future work ngoài phạm vi.
-
-Constant-time compare:
-
-```python
-import secrets
-
-from fastapi import HTTPException, Security, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-
-
-bearer = HTTPBearer(auto_error=False)
-
-
-def verify_admin_token(
-    credentials: HTTPAuthorizationCredentials | None = Security(bearer),
-) -> None:
-    expected = settings.admin_token.get_secret_value()
-
-    if credentials is None or credentials.scheme.lower() != "bearer":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing administrator token",
-        )
-
-    if not secrets.compare_digest(credentials.credentials, expected):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid administrator token",
-        )
-```
-
-Bearer token là P0 phù hợp local/demo; không tuyên bố đây là authentication production hoàn chỉnh (OAuth/OIDC, RBAC, token rotation là future work ngoài phạm vi).
+Deployment boundary là single-user localhost/private network. Không có authentication, ADMIN_TOKEN, admin endpoint, reviewer/developer role hoặc human approval API. Ingestion chỉ manual CLI/background sync; source URL phải exact HTTPS `datafiles.chinhphu.vn`, redirect/credentials/fragment bị từ chối. Chỉ `ACCEPTED` sau automatic gates được index.
 
 ### 7.14.3. Hạ tầng
 
 ```text
-private Docker network (vnlaw-network); không expose postgres/qdrant/redis/minio/admin ra public
-strong password cho POSTGRES_PASSWORD, MINIO_ROOT_PASSWORD
-MinIO access key không public; console chỉ dev override
-Qdrant API key nếu public/staging (QDRANT_API_KEY)
-secret không nằm trong image, không nằm trong Next.js public env
-HTTPS bắt buộc khi public deployment (staging future)
+private Docker network; không expose postgres/qdrant/redis/minio ra public
+secret không nằm trong image hoặc frontend public env
 .env permission 600
-rotate secret trước defense nếu từng chia sẻ
 ```
 
-Không bao giờ expose postgres, qdrant, redis, minio hoặc admin endpoint ra public. Khi có staging public (optional, ngoài phạm vi defense), dùng reverse proxy TLS (Nginx hoặc Caddy), `client_max_body_size 50m`, chỉ proxy tới frontend/backend, và chặn tường minh mọi đường tới endpoint quản trị tại proxy:
-
-```nginx
-# Chặn endpoint quản trị tại proxy public (documents/reviews/evaluations/corpus-qa và /admin)
-location ~ ^/api/v1/(documents|reviews|evaluations|corpus-qa) {
-    return 404;
-}
-
-location /api/v1/admin/ {
-    return 404;
-}
-```
-
-Endpoint quản trị chỉ được truy cập qua localhost (SSH tunnel/VPN) hoặc listener riêng trên host; không đi qua proxy public.
-
----
+Không triển khai public staging trong scope này; nếu mở rộng boundary sau này phải có ADR riêng.
 
 ## 7.15. Demo profiles (defense)
 
-### 7.15.1. Defense environment
-
 - Defense chạy local Docker Compose trên đúng tag `v1.0.0-rc2`, không phụ thuộc VPS (NFR-03).
 - Data load: restore release bundle (mục 7.10) hoặc fresh corpus từ corpus artifacts.
-- Trước demo: provider check thủ công (mục 7.7.2), health checks, và năm câu demo đã chạy rehearsal.
+- Trước demo: kiểm tra local CLI/logs theo mục 7.7.2, health checks, và năm câu demo đã chạy rehearsal.
 
 ### 7.15.2. Demo profiles
 
 ```text
 Full online
     retrieval + generator + verifier
-    cần provider khả dụng (Gemini, Jina, OpenAI, Langfuse)
+    cần các runtime provider đã cấu hình (Jina/Gemini nếu bật, Langfuse nếu bật)
 
 Provider-degraded
     search API (FR-21)
@@ -1783,8 +1620,7 @@ Không tạo fake live answer khi provider down. Provider failure phải trả s
 - [ ] Máy có ít nhất 8 GB RAM trống.
 - [ ] Docker daemon chạy.
 - [ ] Port 3000, 8000 không bị chiếm.
-- [ ] `.env` tồn tại, secret đúng.
-- [ ] Provider key hợp lệ (admin provider health).
+- [ ] Provider/runtime dependency checks completed through local CLI/logs where applicable; no admin provider-health endpoint is required.
 - [ ] PostgreSQL dump và Qdrant snapshot tồn tại.
 - [ ] Release manifest hash pass.
 - [ ] Năm câu demo đã chạy rehearsal.
@@ -1801,7 +1637,6 @@ Không tạo fake live answer khi provider down. Provider failure phải trả s
 | FastAPI (backend) | 300-800 MB |
 | Worker | idle thấp; spike khi ingestion |
 | Next.js (frontend) | 150-400 MB |
-| Docker overhead | 500 MB-1 GB |
 | Tổng online stack | Khoảng 2-5 GB |
 
 Máy bảo vệ cần >= 8 GB RAM trống. Ingestion (Docling/MinerU) không chạy đồng thời với demo hoặc evaluation nặng (doc 03 mục 3.2.5). Optional resource limits (mem_limit) chỉ bật sau khi đo `docker stats` thực tế.
