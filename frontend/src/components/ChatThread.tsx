@@ -16,7 +16,6 @@ type ChatThreadProps = {
   error: string;
   onOpenSource: (citation: Citation) => void;
   progressEvents?: ProgressEvent[];
-  scrollOnTurnChange?: boolean;
 };
 
 function ResponseMessage({
@@ -71,22 +70,17 @@ export default function ChatThread({
   error,
   onOpenSource,
   progressEvents,
-  scrollOnTurnChange = true,
 }: ChatThreadProps) {
   const reducedMotion = useReducedMotion();
   const endRef = useRef<HTMLDivElement>(null);
   const threadRef = useRef<HTMLDivElement>(null);
-  const previousTurnCount = useRef(turns.length);
   useEffect(() => {
-    const turnAdded = turns.length > previousTurnCount.current;
-    previousTurnCount.current = turns.length;
-    if (!scrollOnTurnChange && !turnAdded) return;
     const thread = threadRef.current;
     const end = endRef.current;
     if (!thread || !end) return;
     const distance = thread.scrollHeight - thread.scrollTop - thread.clientHeight;
     if (distance < 160) end.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth" });
-  }, [turns.length, loading, error, question, reducedMotion, scrollOnTurnChange]);
+  }, [turns.length, loading, error, question, reducedMotion]);
   const entrance = reducedMotion ? undefined : messageEntrance;
   return (
     <div ref={threadRef} className="thread">
@@ -123,6 +117,11 @@ export default function ChatThread({
             <span className="loading-question">{question}</span>
             <ProgressEvents loading={loading} events={progressEvents} />
             <span className="loading-bar" aria-hidden="true" />
+            <div className="loading-skeleton" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </div>
           </div>
         </motion.div>
       )}
