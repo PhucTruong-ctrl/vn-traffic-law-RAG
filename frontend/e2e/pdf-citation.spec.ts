@@ -18,19 +18,30 @@ const citation = {
 };
 
 async function openDrawer(page: Page, withBbox = true) {
-  await page.route("**/api/v1/chat", (route) => route.fulfill({
-    status: 200,
-    contentType: "application/json",
-    body: JSON.stringify({
-      status: "VERIFIED",
-      answer: "Câu trả lời kiểm thử.",
-      claims: [{ claim: "Có căn cứ pháp lý" }],
-      citations: [{ ...citation, ...(withBbox ? {} : { bbox: undefined, page_number: 1 }) }],
-      trace_id: "trace-pdf-fixture",
+  await page.route("**/api/v1/chat", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "VERIFIED",
+        answer: "Câu trả lời kiểm thử.",
+        claims: [{ claim: "Có căn cứ pháp lý" }],
+        citations: [
+          {
+            ...citation,
+            ...(withBbox ? {} : { bbox: undefined, page_number: 1 }),
+          },
+        ],
+        trace_id: "trace-pdf-fixture",
+      }),
     }),
-  }));
+  );
   await page.route("**/api/v1/documents/fixture-document/source", (route) =>
-    route.fulfill({ status: 200, contentType: "application/pdf", body: pdfFixture }),
+    route.fulfill({
+      status: 200,
+      contentType: "application/pdf",
+      body: pdfFixture,
+    }),
   );
   await page.goto("/");
   await page.getByLabel("Câu hỏi").first().fill("Mở nguồn PDF kiểm thử");
@@ -39,7 +50,9 @@ async function openDrawer(page: Page, withBbox = true) {
   await expect(page.getByRole("dialog")).toBeVisible();
 }
 
-test("opens a large PDF citation drawer with a rendered canvas and bbox highlight", async ({ page }) => {
+test("opens a large PDF citation drawer with a rendered canvas and bbox highlight", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await openDrawer(page);
   const dialog = page.getByRole("dialog");
@@ -48,31 +61,51 @@ test("opens a large PDF citation drawer with a rendered canvas and bbox highligh
   expect(dialogBox?.width ?? 0).toBeGreaterThan(600);
   const canvas = dialog.locator("canvas");
   await expect(canvas).toBeVisible();
-  await expect.poll(() => canvas.evaluate((node) => {
-    const element = node as HTMLCanvasElement;
-    const context = element.getContext("2d");
-    if (!context || !element.width || !element.height) return false;
-    const pixels = context.getImageData(0, 0, element.width, element.height).data;
-    for (let index = 0; index < pixels.length; index += 64) {
-      if (pixels[index] < 245 || pixels[index + 1] < 245 || pixels[index + 2] < 245) return true;
-    }
-    return false;
-  })).toBe(true);
+  await expect
+    .poll(() =>
+      canvas.evaluate((node) => {
+        const element = node as HTMLCanvasElement;
+        const context = element.getContext("2d");
+        if (!context || !element.width || !element.height) return false;
+        const pixels = context.getImageData(
+          0,
+          0,
+          element.width,
+          element.height,
+        ).data;
+        for (let index = 0; index < pixels.length; index += 64) {
+          if (
+            pixels[index] < 245 ||
+            pixels[index + 1] < 245 ||
+            pixels[index + 2] < 245
+          )
+            return true;
+        }
+        return false;
+      }),
+    )
+    .toBe(true);
   const highlight = dialog.locator(".pdf-viewer__highlight");
   await expect(highlight).toHaveCount(1);
   expect((await highlight.boundingBox())?.width ?? 0).toBeGreaterThan(0);
   expect((await highlight.boundingBox())?.height ?? 0).toBeGreaterThan(0);
 });
 
-test("zooms the canvas, enforces page boundaries, and accepts page input", async ({ page }) => {
+test("zooms the canvas, enforces page boundaries, and accepts page input", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await openDrawer(page);
   const dialog = page.getByRole("dialog");
   const canvas = dialog.locator("canvas");
   await expect(canvas).toBeVisible();
-  const initialWidth = await canvas.evaluate((node) => node.getBoundingClientRect().width);
+  const initialWidth = await canvas.evaluate(
+    (node) => node.getBoundingClientRect().width,
+  );
   await dialog.getByRole("button", { name: "Phóng to" }).click();
-  await expect.poll(() => canvas.evaluate((node) => node.getBoundingClientRect().width)).toBeGreaterThan(initialWidth);
+  await expect
+    .poll(() => canvas.evaluate((node) => node.getBoundingClientRect().width))
+    .toBeGreaterThan(initialWidth);
 
   const previous = dialog.getByRole("button", { name: "Trang trước" });
   const next = dialog.getByRole("button", { name: "Trang sau" });
@@ -94,16 +127,24 @@ test("zooms the canvas, enforces page boundaries, and accepts page input", async
   await expect(input).toHaveValue("3");
 });
 
-test("reports missing bbox explicitly and restores focus after Escape", async ({ page }) => {
+test("reports missing bbox explicitly and restores focus after Escape", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await openDrawer(page, false);
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByText("Trích dẫn chưa có tọa độ OCR; đang hiển thị đúng trang nguồn.")).toBeVisible();
+  await expect(
+    dialog.getByText(
+      "Trích dẫn chưa có tọa độ OCR; đang hiển thị đúng trang nguồn.",
+    ),
+  ).toBeVisible();
   await expect(dialog.getByLabel("Đoạn trích được tô sáng")).toHaveCount(0);
   await expect(dialog.locator("canvas")).toBeVisible();
   const close = dialog.getByRole("button", { name: "Đóng trình xem PDF" });
   await expect(close).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
-  await expect(page.getByRole("button", { name: "Xem đoạn trích" })).toBeFocused();
+  await expect(
+    page.getByRole("button", { name: "Xem đoạn trích" }),
+  ).toBeFocused();
 });

@@ -205,3 +205,14 @@ def test_single_case_query_retains_legacy_query_shape():
     assert len(plan.cases) == 1
     assert plan.case_queries == [plan.normalized_query]
     assert plan.cases[0].case_id == "case-1"
+
+
+def test_one_provision_cannot_cover_multiple_violation_cases():
+    plan = _plan("vượt đèn đỏ và đi sai làn phạt bao nhiêu?")
+    result = EvidenceCompletenessGate().evaluate(
+        plan, [_record("red-light", "Hành vi vượt đèn đỏ bị phạt 10 đồng.")]
+    )
+    assert result.status is EvidenceStatus.INCOMPLETE
+    assert result.case_results[0].status is EvidenceStatus.COMPLETE
+    assert result.case_results[1].status is EvidenceStatus.INCOMPLETE
+    assert EvidenceType.VIOLATION_DEFINITION in result.case_results[1].evidence_gaps

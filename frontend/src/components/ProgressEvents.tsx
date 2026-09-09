@@ -15,11 +15,13 @@ export default function ProgressEvents({ events }: ProgressEventsProps) {
     : DEFAULT_STEPS;
   return (
     <section className="progress-events-panel" aria-label="Tiến trình xử lý" aria-live="polite">
+      <div className="progress-events__skeleton" aria-hidden="true"><span /><span /><span /></div>
       <ol className="progress-events">
         {steps.map((step, index) => (
           <li className={`progress-events__item progress-events__item--${step.state}`} key={`${step.label}-${index}`}>
             <span className="progress-events__marker" aria-hidden="true">{step.icon || <span className="progress-events__spinner" />}</span>
             <span className="progress-events__label">{step.label}</span>
+            {step.state === "active" && <span className="progress-events__shimmer" aria-hidden="true" />}
           </li>
         ))}
       </ol>

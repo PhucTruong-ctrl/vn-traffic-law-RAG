@@ -226,14 +226,14 @@ def _build_cases(
     violations = [
         part.strip() for part in re.split(r"\s+(?:và|hoặc)\s+", text, flags=re.I) if part.strip()
     ]
-    if len(violations) > 1 and not vehicles:
+    if len(violations) > 1:
         count = min(len(violations), 2)
     cases = []
     for i in range(count):
         v = vehicles[i] if i < len(vehicles) else vehicle
         query = (
             violations[i]
-            if len(violations) > 1 and not vehicles
+            if len(violations) > 1
             else (normalized if count == 1 else f"{v} {normalized}")
         )
         ambiguity = (

@@ -788,7 +788,9 @@ def _verify(state: QueryState, services: GraphServices) -> QueryState:
         if getattr(item, "review_status", "ACCEPTED") != "ACCEPTED":
             continue
         provision_id = (
-            item.get("provision_id") if isinstance(item, dict) else getattr(item, "provision_id", None)
+            item.get("provision_id")
+            if isinstance(item, dict)
+            else getattr(item, "provision_id", None)
         )
         if provision_id and provision_id not in context_by_id:
             context_by_id[provision_id] = item

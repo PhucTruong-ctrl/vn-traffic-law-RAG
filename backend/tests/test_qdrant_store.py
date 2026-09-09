@@ -72,6 +72,8 @@ PAYLOAD_KEYS = DOC_03_311_KEYS | frozenset(
         "content_version",
         "source_text",
         "document_version_id",
+        "bbox",
+        "source_url",
     }
 )
 
@@ -173,7 +175,11 @@ def test_payload_emits_full_doc_3113_key_set() -> None:
 
 def test_payload_maps_unit_fields_and_defaults() -> None:
     unit = _unit()
-    payload = payload_for_unit(unit)
+    payload = payload_for_unit(
+        unit,
+        bbox={"left": 0.1, "top": 0.2, "right": 0.9, "bottom": 0.3},
+        source_url="https://example.test/source.pdf",
+    )
     assert payload["provision_id"] == unit.provision_id
     assert payload["provision_version"] == unit.version
     assert payload["node_kind"] == unit.node_kind
@@ -188,6 +194,8 @@ def test_payload_maps_unit_fields_and_defaults() -> None:
     # Unit-mapped doc 03 §3.11.3 fields.
     assert payload["page_number"] == unit.page_number
     assert payload["parent_context"] == unit.parent_context
+    assert payload["bbox"] == {"left": 0.1, "top": 0.2, "right": 0.9, "bottom": 0.3}
+    assert payload["source_url"] == "https://example.test/source.pdf"
     # Metadata defaults.
     assert payload["review_status"] == "PENDING"
     assert payload["content_version"] == 1

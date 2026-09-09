@@ -12,7 +12,10 @@ export type FeedbackWidgetProps = {
 
 const MAX_COMMENT_LENGTH = 2_000;
 
-export default function FeedbackWidget({ traceId, endpoint = "/api/v1/feedback" }: FeedbackWidgetProps) {
+export default function FeedbackWidget({
+  traceId,
+  endpoint = "/api/v1/feedback",
+}: FeedbackWidgetProps) {
   const [value, setValue] = useState<FeedbackValue | null>(null);
   const [comment, setComment] = useState("");
   const [state, setState] = useState<SubmissionState>("idle");
@@ -28,43 +31,105 @@ export default function FeedbackWidget({ traceId, endpoint = "/api/v1/feedback" 
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Trace-ID": traceId },
-        body: JSON.stringify({ trace_id: traceId, correctness: value === "useful" ? "correct" : "incorrect", comment: comment.trim() || null }),
+        body: JSON.stringify({
+          trace_id: traceId,
+          correctness: value === "useful" ? "correct" : "incorrect",
+          comment: comment.trim() || null,
+        }),
       });
       if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
+        const payload = (await response.json().catch(() => null)) as {
+          error?: { message?: string };
+        } | null;
         throw new Error(payload?.error?.message || "Không thể gửi phản hồi.");
       }
       setState("success");
     } catch (submissionError) {
       setState("error");
-      setError(submissionError instanceof Error ? submissionError.message : "Không thể gửi phản hồi.");
+      setError(
+        submissionError instanceof Error
+          ? submissionError.message
+          : "Không thể gửi phản hồi.",
+      );
     }
   }
 
   return (
-    <section className="feedback-widget motion-entrance" aria-labelledby="feedback-heading" aria-busy={state === "submitting"}>
+    <section
+      className="feedback-widget motion-entrance"
+      aria-labelledby="feedback-heading"
+      aria-busy={state === "submitting"}
+    >
       <div className="feedback-widget__header">
         <span className="feedback-widget__eyebrow">ĐÁNH GIÁ</span>
         <h2 id="feedback-heading">Phản hồi câu trả lời</h2>
       </div>
       {state === "success" ? (
-        <p className="feedback-widget__success" role="status">Cảm ơn bạn đã gửi phản hồi.</p>
+        <p className="feedback-widget__success" role="status">
+          Cảm ơn bạn đã gửi phản hồi.
+        </p>
       ) : (
         <form className="feedback-widget__form" onSubmit={submit}>
-          <fieldset className="feedback-widget__fieldset" disabled={state === "submitting"}>
+          <fieldset
+            className="feedback-widget__fieldset"
+            disabled={state === "submitting"}
+          >
             <legend>Câu trả lời này có hữu ích không?</legend>
-            <div className="feedback-widget__choice interaction-feedbacks" role="group" aria-label="Mức độ hữu ích">
-              <button className="feedback-widget__choice interaction-feedback" type="button" aria-pressed={value === "useful"} onClick={() => setValue("useful")}>Hữu ích</button>
-              <button className="feedback-widget__choice interaction-feedback" type="button" aria-pressed={value === "not_useful"} onClick={() => setValue("not_useful")}>Chưa hữu ích</button>
+            <div
+              className="feedback-widget__choice interaction-feedbacks"
+              role="group"
+              aria-label="Mức độ hữu ích"
+            >
+              <button
+                className="feedback-widget__choice interaction-feedback"
+                type="button"
+                aria-pressed={value === "useful"}
+                onClick={() => setValue("useful")}
+              >
+                Hữu ích
+              </button>
+              <button
+                className="feedback-widget__choice interaction-feedback"
+                type="button"
+                aria-pressed={value === "not_useful"}
+                onClick={() => setValue("not_useful")}
+              >
+                Chưa hữu ích
+              </button>
             </div>
-            <label htmlFor="feedback-comment">Bình luận <span>(không bắt buộc)</span></label>
-            <textarea id="feedback-comment" name="comment" value={comment} maxLength={MAX_COMMENT_LENGTH} onChange={(event) => setComment(event.target.value)} rows={4} aria-describedby="feedback-comment-count" />
-            <span id="feedback-comment-count" className="feedback-widget__count">{comment.length.toLocaleString("vi-VN")} / {MAX_COMMENT_LENGTH.toLocaleString("vi-VN")} ký tự</span>
-            <button className="feedback-widget__submit interaction-feedback" type="submit" disabled={!value || state === "submitting"} aria-busy={state === "submitting"}>
+            <label htmlFor="feedback-comment">
+              Bình luận <span>(không bắt buộc)</span>
+            </label>
+            <textarea
+              id="feedback-comment"
+              name="comment"
+              value={comment}
+              maxLength={MAX_COMMENT_LENGTH}
+              onChange={(event) => setComment(event.target.value)}
+              rows={4}
+              aria-describedby="feedback-comment-count"
+            />
+            <span
+              id="feedback-comment-count"
+              className="feedback-widget__count"
+            >
+              {comment.length.toLocaleString("vi-VN")} /{" "}
+              {MAX_COMMENT_LENGTH.toLocaleString("vi-VN")} ký tự
+            </span>
+            <button
+              className="feedback-widget__submit interaction-feedback"
+              type="submit"
+              disabled={!value || state === "submitting"}
+              aria-busy={state === "submitting"}
+            >
               {state === "submitting" ? "Đang gửi…" : "Gửi phản hồi"}
             </button>
           </fieldset>
-          {state === "error" && <p className="feedback-widget__error" role="alert">{error}</p>}
+          {state === "error" && (
+            <p className="feedback-widget__error" role="alert">
+              {error}
+            </p>
+          )}
         </form>
       )}
     </section>

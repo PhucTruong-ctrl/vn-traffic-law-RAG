@@ -6,9 +6,17 @@ export type AbstentionResultProps = {
   disclaimer?: string | null;
 };
 
-export default function AbstentionResult({ reason, reasonCode, disclaimer }: AbstentionResultProps) {
+export default function AbstentionResult({
+  reason,
+  reasonCode,
+  disclaimer,
+}: AbstentionResultProps) {
   return (
-    <section className="abstention-result alert warning motion-entrance" role="status" aria-labelledby="abstention-title">
+    <section
+      className="abstention-result alert warning motion-entrance"
+      role="status"
+      aria-labelledby="abstention-title"
+    >
       <div className="abstention-result__header">
         <span className="abstention-result__eyebrow">LƯU Ý VỀ CĂN CỨ</span>
         <h3 id="abstention-title">Chưa đủ căn cứ để kết luận</h3>
@@ -22,7 +30,8 @@ export default function AbstentionResult({ reason, reasonCode, disclaimer }: Abs
         </p>
       )}
       <p className="abstention-result__disclaimer">
-        {disclaimer || "Hãy bổ sung tình tiết hoặc tham khảo cơ quan có thẩm quyền."}
+        {disclaimer ||
+          "Hãy bổ sung tình tiết hoặc tham khảo cơ quan có thẩm quyền."}
       </p>
     </section>
   );

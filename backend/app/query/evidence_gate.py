@@ -48,7 +48,7 @@ def _fold_ocr_text(text: str) -> str:
 
 
 _AMOUNT = re.compile(r"\b\d[\d.,\s]*(?:dong|trieu\s*dong|nghin\s*dong)\b", re.IGNORECASE)
-_POINTS = re.compile(r"tru\s+(?:[\wd]+\s+)?\d+\s*diem|\d+\s*diem\s+(?:giay phep|gplx)")
+_POINTS = re.compile(r"tru\s+(?:[\w]+\s+)?\d+\s*diem|\d+\s*diem\s+(?:giay phep|gplx)")
 
 
 def _covered_types(candidate: RetrievalResult) -> set[EvidenceType]:
@@ -64,15 +64,18 @@ def _covered_types(candidate: RetrievalResult) -> set[EvidenceType]:
         covered.add(EvidenceType.VIOLATION_DEFINITION)
     if _AMOUNT.search(text):
         covered.add(EvidenceType.MONETARY_PENALTY)
-    if re.search(r"tru\s+\d+\s*diem|\d+\s*diem\s+(?:giay phep|gplx)", text):
+    if _POINTS.search(text):
         covered.add(EvidenceType.LICENSE_POINTS)
-    if re.search(r"tuoc|dinh chi|thu hoi", text):
+    if re.search(r"tuoc(?:\s+quyen\s+su\s+dung)?|dinh chi|thu hoi", text):
         covered.add(EvidenceType.LICENSE_SUSPENSION)
-    if re.search(r"ngoai le|mien phat|khong bi phat", text):
+    if re.search(r"ngoai le|truong hop duoc mien phat|mien phat|khong bi phat", text):
         covered.add(EvidenceType.EXCEPTION)
-    if re.search(r"thu tuc|quy trinh|nop phat|ho so", text):
+    if re.search(r"thu tuc nop phat|thu tuc|quy trinh|nop phat|ho so", text):
         covered.add(EvidenceType.PROCEDURE)
-    if re.search(r"dieu kien|ap dung khi|trong truong hop|duoc phep|nguoi duoc phep", text):
+    if re.search(
+        r"ap dung khi .*dieu kien|dieu kien|ap dung khi|trong truong hop|duoc phep|nguoi duoc phep",
+        text,
+    ):
         covered.add(EvidenceType.LEGAL_CONDITION)
     return covered
 
@@ -196,41 +199,6 @@ class EvidenceCompletenessGate:
             type("Case", (), {"case_id": "case-1", "query_text": plan.normalized_query})()
         ]
         case_results = [_evaluate_case(case, plan, context) for case in cases]
-        if len(cases) > 1 and len(context) > 0:
-            case_terms = [_fold_ocr_text(getattr(case, "query_text", "")) for case in cases]
-            combined_text = _fold_ocr_text(
-                " ".join(
-                    " ".join(
-                        part for part in (item.text, item.source_text, item.parent_context) if part
-                    )
-                    for item in context
-                )
-            )
-            missing_cases = [
-                text
-                for text in case_terms
-                if not any(
-                    term in combined_text
-                    for term in text.split()
-                    if len(term) > 3 and term not in {"phat", "bao", "nhieu"}
-                )
-            ]
-            if missing_cases:
-                case_results = [
-                    CaseEvidenceResult(
-                        result.case_id,
-                        result.requested_evidence,
-                        result.candidate_provisions,
-                        list(
-                            dict.fromkeys(
-                                [*result.evidence_gaps, EvidenceType.VIOLATION_DEFINITION]
-                            )
-                        ),
-                        [*result.gap_reasons, "missing evidence for independent case"],
-                        EvidenceStatus.INCOMPLETE,
-                    )
-                    for result in case_results
-                ]
         gaps = list(dict.fromkeys(gap for result in case_results for gap in result.evidence_gaps))
         provisions = list(
             dict.fromkeys(

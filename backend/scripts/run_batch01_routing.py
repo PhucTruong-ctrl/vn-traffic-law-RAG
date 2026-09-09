@@ -366,7 +366,7 @@ def quality_stats_for(
         "group_b_metrics": dict(group_b.metrics),
         "corpus_qa": corpus_qa.metrics.model_dump(mode="json"),
         "short_points": _short_point_stats(provisions),
-        "point_label_detection_rate": float(group_b.metrics["point_label_detection_rate"]),
+        "point_label_detection_rate": float(group_b.metrics["point_label_detection_rate"] or 0.0),
         "provenance_coverage": float(corpus_qa.metrics.provenance_coverage),
         "parent_context_coverage": float(corpus_qa.metrics.parent_context_coverage),
         "d_da_detection_rate": float(corpus_qa.metrics.d_point_detection_rate),

@@ -80,22 +80,26 @@ class StructureState:
 
 _CHAPTER_RE = re.compile(r"^Chương\s+([IVXLCDM]+|\d+)\s*[.:-]?\s*(.*)$", re.IGNORECASE)
 _SECTION_RE = re.compile(r"^Mục\s+([IVXLCDM]+|\d+)\s*[.:-]?\s*(.*)$", re.IGNORECASE)
-_ARTICLE_RE = re.compile(r"^Điều\s+(\d+[A-Za-z]?)\s*[.:-]?\s*(.*)$", re.IGNORECASE)
+_ARTICLE_RE = re.compile(
+    r"^(?:Điều|Dièu|Dieu|Ðiều)\s+(\d+[A-Za-z]?)(?:\s*[.:-]\s*(.*))?$", re.IGNORECASE
+)
 _CLAUSE_RE = re.compile(r"^(\d+)\s*[.]\s*(.*)$")
-_BARE_ARTICLE_MARKER_RE = re.compile(r"^Điều\s+\d+[A-Za-z]?\s*$", re.IGNORECASE)
+_BARE_ARTICLE_MARKER_RE = re.compile(r"^(?:Điều|Dièu|Dieu|Ðiều)\s+\d+[A-Za-z]?\s*$", re.IGNORECASE)
 _VIETNAMESE_POINT_LABELS = "aăâbcdđeêghiklmnoôơpqrstuưvxy"
-_POINT_RE = re.compile(rf"^([{_VIETNAMESE_POINT_LABELS}])\s*[)]\s*(.*)$", re.IGNORECASE)
+_POINT_RE = re.compile(rf"^([{_VIETNAMESE_POINT_LABELS}])\s*[).）．。]\s*(.*)$", re.IGNORECASE)
 _POINT_FALLBACK_LABELS = "abcdđeghiklmnoôơpqrstuưvxy"
-_APPENDIX_RE = re.compile(r"^Phụ\s+lục(?:\s+([IVXLCDM]+|\d+))?\s*[.:-]?\s*(.*)$", re.IGNORECASE)
+_APPENDIX_RE = re.compile(
+    r"^(?:Phụ\s+lục|Mẫu\s+số)\s*([IVXLCDM]+|\d+[A-Za-z]*)?\s*[.:-]?\s*(.*)$", re.IGNORECASE
+)
 _TRANSITIONAL_RE = re.compile(
     r"^(?:Điều\s+khoản\s+)?chuyển\s+tiếp\b(?:\s*[.:-]?\s*(.*))?$", re.IGNORECASE
 )
 
 
-def _clean_text(text: str) -> str:
+def _clean_text(text: str | None) -> str:
     """Normalize OCR whitespace without changing legal characters."""
 
-    return " ".join(unicodedata.normalize("NFC", text).strip().split())
+    return " ".join(unicodedata.normalize("NFC", text or "").strip().split())
 
 
 def _nonempty(text: str) -> str | None:
@@ -198,9 +202,28 @@ class LegalStructureStateParser:
             text = _clean_text(element.text)
             if not text or self._looks_repeated_chrome(element, counts, pages_by_text):
                 continue
+            # OCR often places multiple labelled points in one paragraph.
+            point_parts = [part.strip() for part in text.split(";")]
+            if (
+                ";" in text
+                and len(point_parts) > 1
+                and _POINT_RE.match(point_parts[0])
+                and re.match(r"^\s*[A-Za-zĐđĂăÂâÊêÔôƠơƯư]+\s*[).）．。]", point_parts[1])
+            ):
+                for part in point_parts:
+                    # Preserve the split fragment as node text while retaining
+                    # the original element provenance and geometry.
+                    child_element = element.model_copy(update={"text": part})
+                    child = self._recognize(child_element, part)
+                    if child is not None:
+                        self._transition(child)
+                        nodes.append(child)
+                continue
             node = self._recognize(element, text)
             if node is None:
                 continue
+            # OCR often places multiple labelled points in one paragraph.
+            # Split only when a semicolon is followed by a point marker.
             self._transition(node)
             nodes.append(node)
         return nodes
@@ -232,9 +255,12 @@ class LegalStructureStateParser:
         match = _ARTICLE_RE.match(text)
         if (
             match
-            and not _BARE_ARTICLE_MARKER_RE.match(text)
+            and (
+                re.match(r"^(?:Điều|Dièu|Dieu|Ðiều)\s+\d+[A-Za-z]?\s*[.:-]", text, re.IGNORECASE)
+                or _BARE_ARTICLE_MARKER_RE.match(text)
+            )
             and not re.match(
-                r"^Điều\s+\d+[A-Za-z]?\s*[.:]\s*[“\"]?Sửa\s+đổi\b",
+                r"^(?:Điều|Dièu|Dieu|Ðiều)\s+\d+[A-Za-z]?\s*[.:]\s*[“\"]?Sửa\s+đổi\b",
                 text,
                 re.IGNORECASE,
             )
@@ -242,6 +268,18 @@ class LegalStructureStateParser:
             number = match.group(1)
             needs_review = not number.isdigit()
             needs_review = not number.isdigit()
+            if match.group(0).split(None, 1)[0].casefold() != "điều":
+                element = element.model_copy(
+                    update={
+                        "text": re.sub(
+                            r"^(?:Dièu|Dieu|Ðiều)",
+                            "Điều",
+                            element.text,
+                            count=1,
+                            flags=re.IGNORECASE,
+                        )
+                    }
+                )
             return _node(
                 StructureKind.ARTICLE,
                 element,
@@ -253,16 +291,25 @@ class LegalStructureStateParser:
         match = _APPENDIX_RE.match(text)
         if match:
             raw_number = match.group(1)
-            number = (
-                str(_roman_to_int(raw_number))
-                if raw_number and not raw_number.isdigit()
-                else raw_number
+            if text.casefold().startswith("mẫu số"):
+                number_match = re.search(r"mẫu\s+số\s+(\d+[A-Za-z]*)", text, re.IGNORECASE)
+                raw_number = number_match.group(1) if number_match else raw_number
+            roman_number = (
+                _roman_to_int(raw_number) if raw_number and raw_number.isalpha() else None
             )
+            number = str(roman_number) if roman_number is not None else raw_number
+            if text.casefold().startswith("mẫu số"):
+                number_match = re.search(r"mẫu\s+số\s+(\d+[A-Za-z]*)", text, re.IGNORECASE)
+                number = number_match.group(1) if number_match else raw_number
+            if text.casefold().startswith("mẫu số"):
+                number_match = re.search(r"mẫu\s+số\s+(\d+[A-Za-z]*)", text, re.IGNORECASE)
+                number = number_match.group(1) if number_match else raw_number
             if number is None:
                 self.state._appendix_number += 1
                 number = str(self.state._appendix_number)
             else:
-                self.state._appendix_number = max(self.state._appendix_number, int(number))
+                if number.isdigit():
+                    self.state._appendix_number = max(self.state._appendix_number, int(number))
             return _node(
                 StructureKind.APPENDIX, element, number=number, label=_nonempty(match.group(2))
             )
