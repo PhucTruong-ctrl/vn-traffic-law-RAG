@@ -14,10 +14,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="vi"
-      className={`${dmSans.variable} ${dmMono.variable} ${sourceSerif.variable}`}
-    >
+    <html lang="vi" className={`${dmSans.variable} ${dmMono.variable} ${sourceSerif.variable}`}>
       <body>{children}</body>
     </html>
   );

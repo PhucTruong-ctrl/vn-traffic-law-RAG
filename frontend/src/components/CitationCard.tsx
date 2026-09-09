@@ -10,9 +10,7 @@ export type Citation = {
   source_url?: string;
   source_text?: string;
   page_number?: number | string;
-  bbox?:
-    | number[]
-    | { left: number; top: number; right: number; bottom: number };
+  bbox?: number[] | { left: number; top: number; right: number; bottom: number };
   document_title?: string;
   clause?: string;
   point?: string;
@@ -34,12 +32,8 @@ function hasBbox(bbox: Citation["bbox"]): boolean {
   return Array.isArray(bbox) ? bbox.length === 4 : Boolean(bbox);
 }
 
-export default function CitationCard({
-  citation,
-  onOpenSource,
-}: CitationCardProps) {
-  const sourceText =
-    citation.legal_context || citation.source_text || citation.snippet;
+export default function CitationCard({ citation, onOpenSource }: CitationCardProps) {
+  const sourceText = citation.legal_context || citation.source_text || citation.snippet;
   const interval = citation.interval || {
     from: citation.effective_from,
     to: citation.effective_to,
@@ -48,8 +42,7 @@ export default function CitationCard({
     if (!citation.source_url) return undefined;
     try {
       const url = new URL(citation.source_url);
-      return url.protocol === "https:" &&
-        url.hostname.toLowerCase().endsWith(".chinhphu.vn")
+      return url.protocol === "https:" && url.hostname.toLowerCase().endsWith(".chinhphu.vn")
         ? url.toString()
         : undefined;
     } catch {
@@ -80,11 +73,7 @@ export default function CitationCard({
       <dl className="citation-card__details">
         <div>
           <dt>Văn bản</dt>
-          <dd>
-            {citation.document_number
-              ? `${title} — ${citation.document_number}`
-              : title}
-          </dd>
+          <dd>{citation.document_number ? `${title} — ${citation.document_number}` : title}</dd>
         </div>
         <div>
           <dt>Vị trí quy định</dt>
@@ -116,9 +105,7 @@ export default function CitationCard({
       </dl>
       {(citation.page_number != null || citation.bbox != null) && (
         <p className="citation-card__meta">
-          {citation.page_number != null && (
-            <span>Trang {citation.page_number}</span>
-          )}
+          {citation.page_number != null && <span>Trang {citation.page_number}</span>}
           {hasBbox(citation.bbox) ? (
             <span>Đã xác định vị trí văn bản</span>
           ) : (
@@ -127,10 +114,7 @@ export default function CitationCard({
         </p>
       )}
       {citation.legal_context && (
-        <section
-          className="citation-card__context"
-          aria-label="Ngữ cảnh pháp lý nguyên văn"
-        >
+        <section className="citation-card__context" aria-label="Ngữ cảnh pháp lý nguyên văn">
           <h4>Ngữ cảnh pháp lý (nguyên văn nguồn OCR)</h4>
           <p>{citation.legal_context}</p>
         </section>
@@ -140,9 +124,7 @@ export default function CitationCard({
           <button
             className="citation-card__source-button interaction-feedback"
             type="button"
-            onClick={() =>
-              onOpenSource({ ...citation, source_text: sourceText })
-            }
+            onClick={() => onOpenSource({ ...citation, source_text: sourceText })}
           >
             Xem đoạn trích
           </button>
@@ -164,4 +146,3 @@ export default function CitationCard({
     </article>
   );
 }
-

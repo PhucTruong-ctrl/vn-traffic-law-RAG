@@ -1,12 +1,9 @@
 import { expect, test } from "@playwright/test";
 
-test("long responses keep the conversation scrollable above the composer", async ({
-  page,
-}) => {
+test("long responses keep the conversation scrollable above the composer", async ({ page }) => {
   const longAnswer = Array.from(
     { length: 48 },
-    (_, index) =>
-      `Đoạn giải thích pháp luật ${index + 1}. Nội dung đủ dài để tạo vùng cuộn.`,
+    (_, index) => `Đoạn giải thích pháp luật ${index + 1}. Nội dung đủ dài để tạo vùng cuộn.`,
   ).join("\n\n");
   await page.route("**/api/v1/chat/events**", (route) =>
     route.fulfill({
@@ -32,9 +29,7 @@ test("long responses keep the conversation scrollable above the composer", async
   await page.goto("/");
   await page.getByLabel("Câu hỏi").fill("Kiểm tra câu trả lời dài");
   await page.getByRole("button", { name: "Gửi", exact: true }).click();
-  await expect(
-    page.getByText("Đoạn giải thích pháp luật 24.", { exact: false }),
-  ).toBeVisible();
+  await expect(page.getByText("Đoạn giải thích pháp luật 24.", { exact: false })).toBeVisible();
   const metrics = await page.locator(".thread").evaluate((element) => ({
     clientHeight: element.clientHeight,
     scrollHeight: element.scrollHeight,
@@ -42,14 +37,8 @@ test("long responses keep the conversation scrollable above the composer", async
   }));
   expect(metrics.scrollHeight).toBeGreaterThanOrEqual(metrics.clientHeight);
   expect(["auto", "visible"]).toContain(metrics.overflowY);
-  await page
-    .locator(".thread")
-    .evaluate((element) => element.scrollTo(0, element.scrollHeight));
-  const scrollTop = await page
-    .locator(".thread")
-    .evaluate((element) => element.scrollTop);
+  await page.locator(".thread").evaluate((element) => element.scrollTo(0, element.scrollHeight));
+  const scrollTop = await page.locator(".thread").evaluate((element) => element.scrollTop);
   expect(scrollTop).toBeGreaterThanOrEqual(0);
-  await expect(
-    page.getByRole("button", { name: "Xem đoạn trích" }),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Xem đoạn trích" })).toBeVisible();
 });

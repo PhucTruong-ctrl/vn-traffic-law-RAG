@@ -19,16 +19,12 @@ export default function SourceDrawer({
   useEffect(() => {
     if (!citation) return;
     const previousFocus =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const background = [
       document.querySelector<HTMLElement>(".sidebar"),
       document.querySelector<HTMLElement>(".main-panel"),
     ].filter((element): element is HTMLElement => element !== null);
-    const previousInert = background.map((element) =>
-      element.hasAttribute("inert"),
-    );
+    const previousInert = background.map((element) => element.hasAttribute("inert"));
     background.forEach((element) => element.setAttribute("inert", ""));
     closeButtonRef.current?.focus();
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -91,9 +87,7 @@ export default function SourceDrawer({
             role="dialog"
             aria-modal="true"
             aria-labelledby="source-title"
-            initial={
-              shouldReduceMotion ? false : { opacity: 0, x: "100%" }
-            }
+            initial={shouldReduceMotion ? false : { opacity: 0, x: "100%" }}
             animate={{ opacity: 1, x: 0 }}
             exit={shouldReduceMotion ? undefined : { opacity: 0, x: "100%" }}
             transition={motionTransition}
@@ -102,9 +96,7 @@ export default function SourceDrawer({
               <div>
                 <span className="source-drawer__eyebrow">NGUỒN TRÍCH DẪN</span>
                 <h2 id="source-title">{title}</h2>
-                <p className="source-drawer__document">
-                  Trang {citation.page_number || 1}
-                </p>
+                <p className="source-drawer__document">Trang {citation.page_number || 1}</p>
               </div>
               <button
                 ref={closeButtonRef}
@@ -120,17 +112,11 @@ export default function SourceDrawer({
               <PdfCitationViewer citation={citation} />
               <details className="source-excerpt">
                 <summary>Đọc đoạn trích dạng văn bản</summary>
-                <blockquote>
-                  {excerpt || "Nguồn không cung cấp nội dung đoạn trích."}
-                </blockquote>
+                <blockquote>{excerpt || "Nguồn không cung cấp nội dung đoạn trích."}</blockquote>
               </details>
             </div>
             <footer className="source-drawer__footer">
-              <button
-                className="source-drawer__done"
-                type="button"
-                onClick={onClose}
-              >
+              <button className="source-drawer__done" type="button" onClick={onClose}>
                 Đóng
               </button>
               {citation.source_url && (

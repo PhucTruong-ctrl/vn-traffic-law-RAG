@@ -1,4 +1,3 @@
-
 export type ProgressEvent = {
   event?: string;
   type?: string;
@@ -21,7 +20,11 @@ export default function ProgressEvents({ events, loading }: ProgressEventsProps)
     .at(-1);
   return (
     <section className="progress-events-panel" aria-label="Tiến trình xử lý" aria-live="polite">
-      <div className="progress-events__skeleton" aria-hidden="true"><span /><span /><span /></div>
+      <div className="progress-events__skeleton" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
       <p className="progress-events__event" role="status">
         {latestEventMessage || NEUTRAL_STATUS}
       </p>

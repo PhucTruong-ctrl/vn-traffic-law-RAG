@@ -32,9 +32,7 @@ function ResponseMessage({
       <div className="response-content">
         <div className="message-meta">
           <strong>Trợ lý Luật Giao thông</strong>
-          <span>
-            {abstained ? "Chưa đủ căn cứ" : "Đã đối chiếu nguồn pháp luật"}
-          </span>
+          <span>{abstained ? "Chưa đủ căn cứ" : "Đã đối chiếu nguồn pháp luật"}</span>
         </div>
         {abstained ? (
           <AbstentionResult
@@ -59,9 +57,7 @@ function ResponseMessage({
             </div>
           </section>
         )}
-        {!abstained && response.trace_id && (
-          <FeedbackWidget traceId={response.trace_id} />
-        )}
+        {!abstained && response.trace_id && <FeedbackWidget traceId={response.trace_id} />}
       </div>
     </div>
   );
@@ -100,10 +96,7 @@ export default function ChatThread({
               {turn.question}
             </div>
           </div>
-          <ResponseMessage
-            response={turn.response}
-            onOpenSource={onOpenSource}
-          />
+          <ResponseMessage response={turn.response} onOpenSource={onOpenSource} />
         </motion.div>
       ))}
       {loading && (

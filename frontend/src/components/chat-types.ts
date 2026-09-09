@@ -6,7 +6,6 @@ export type Claim = {
   provision_ids?: string[];
   case_id?: string;
 };
-
 export type ChatResponse =
   | {
       status: "VERIFIED";
@@ -16,6 +15,7 @@ export type ChatResponse =
       disclaimer?: string;
       progress_events?: Array<Record<string, unknown>>;
       trace_id?: string;
+      conversation_id?: string;
     }
   | {
       status: "ABSTAINED";
@@ -23,6 +23,14 @@ export type ChatResponse =
       disclaimer?: string;
       progress_events?: Array<Record<string, unknown>>;
       trace_id?: string;
+      conversation_id?: string;
     };
-
 export type ConversationTurn = { question: string; response: ChatResponse };
+export type Conversation = {
+  id: string;
+  title: string;
+  last_activity_at?: string;
+  created_at?: string;
+  messages?: unknown[];
+  turns?: ConversationTurn[];
+};

@@ -7,20 +7,10 @@ import type { Citation } from "./CitationCard";
 type ViewerState = "loading" | "ready" | "error";
 type ZoomMode = "fit" | number;
 
-export default function PdfCitationViewer({
-  citation,
-}: {
-  citation: Citation;
-}) {
+export default function PdfCitationViewer({ citation }: { citation: Citation }) {
   const initialPage = Math.max(1, Number(citation.page_number) || 1);
   const key = `${citation.document_id ?? "missing"}:${initialPage}`;
-  return (
-    <PdfCitationDocument
-      key={key}
-      citation={citation}
-      initialPage={initialPage}
-    />
-  );
+  return <PdfCitationDocument key={key} citation={citation} initialPage={initialPage} />;
 }
 
 function PdfCitationDocument({
@@ -38,24 +28,16 @@ function PdfCitationDocument({
   const [pageCount, setPageCount] = useState(0);
   const [zoom, setZoom] = useState<ZoomMode>("fit");
   const [containerWidth, setContainerWidth] = useState(720);
-  const [state, setState] = useState<ViewerState>(
-    citation.document_id ? "loading" : "error",
-  );
+  const [state, setState] = useState<ViewerState>(citation.document_id ? "loading" : "error");
   const [error, setError] = useState(
-    citation.document_id
-      ? ""
-      : "Trích dẫn này chưa có mã tài liệu để mở bản PDF.",
+    citation.document_id ? "" : "Trích dẫn này chưa có mã tài liệu để mở bản PDF.",
   );
   const [retryToken, setRetryToken] = useState(0);
-  const highlightStyle = useMemo(
-    () => normalizeBbox(citation.bbox),
-    [citation.bbox],
-  );
+  const highlightStyle = useMemo(() => normalizeBbox(citation.bbox), [citation.bbox]);
   useEffect(() => {
     const element = viewportRef.current;
     if (!element) return;
-    const update = () =>
-      setContainerWidth(Math.max(280, element.clientWidth - 36));
+    const update = () => setContainerWidth(Math.max(280, element.clientWidth - 36));
     update();
     const observer = new ResizeObserver(update);
     observer.observe(element);
@@ -65,9 +47,7 @@ function PdfCitationDocument({
     if (!citation.document_id) return;
     let cancelled = false;
     let renderTask: { promise: Promise<void>; cancel: () => void } | undefined;
-    let loadingTask:
-      | { promise: Promise<unknown>; destroy: () => Promise<void> }
-      | undefined;
+    let loadingTask: { promise: Promise<unknown>; destroy: () => Promise<void> } | undefined;
     const render = async () => {
       try {
         const pdfjs = await import("pdfjs-dist");
@@ -81,8 +61,7 @@ function PdfCitationDocument({
           standardFontDataUrl: "/pdfjs/standard_fonts/",
           isImageDecoderSupported: false,
         }) as typeof loadingTask;
-        const pdf = (await loadingTask!
-          .promise) as import("pdfjs-dist").PDFDocumentProxy;
+        const pdf = (await loadingTask!.promise) as import("pdfjs-dist").PDFDocumentProxy;
         if (cancelled) return;
         setPageCount(pdf.numPages);
         const safePage = Math.min(Math.max(1, pageNumber), pdf.numPages);
@@ -91,8 +70,7 @@ function PdfCitationDocument({
         const page = await pdf.getPage(safePage);
         if (cancelled || !canvasRef.current) return;
         const unit = page.getViewport({ scale: 1 });
-        const scale =
-          zoom === "fit" ? Math.max(0.25, containerWidth / unit.width) : zoom;
+        const scale = zoom === "fit" ? Math.max(0.25, containerWidth / unit.width) : zoom;
         const viewport = page.getViewport({ scale });
         const ratio = Math.min(window.devicePixelRatio || 1, 2);
         const canvas = canvasRef.current;
@@ -118,16 +96,9 @@ function PdfCitationDocument({
           }),
         );
       } catch (caught) {
-        if (
-          !cancelled &&
-          (caught as { name?: string }).name !== "RenderingCancelledException"
-        ) {
+        if (!cancelled && (caught as { name?: string }).name !== "RenderingCancelledException") {
           setState("error");
-          setError(
-            caught instanceof Error
-              ? caught.message
-              : "Không thể tải bản PDF chính thức.",
-          );
+          setError(caught instanceof Error ? caught.message : "Không thể tải bản PDF chính thức.");
         }
       }
     };
@@ -138,12 +109,9 @@ function PdfCitationDocument({
       void loadingTask?.destroy();
     };
   }, [citation.document_id, containerWidth, pageNumber, zoom, retryToken]);
-  const zoomLabel =
-    zoom === "fit" ? "Vừa chiều rộng" : `${Math.round(zoom * 100)}%`;
+  const zoomLabel = zoom === "fit" ? "Vừa chiều rộng" : `${Math.round(zoom * 100)}%`;
   const changeZoom = (delta: number) =>
-    setZoom((value) =>
-      Math.min(3, Math.max(0.5, (value === "fit" ? 1 : value) + delta)),
-    );
+    setZoom((value) => Math.min(3, Math.max(0.5, (value === "fit" ? 1 : value) + delta)));
   const commitPage = () => {
     const next = Math.max(
       1,
@@ -188,9 +156,7 @@ function PdfCitationDocument({
           <span>/ {pageCount || "—"}</span>
           <button
             type="button"
-            onClick={() =>
-              setPageNumber((page) => Math.min(pageCount || page + 1, page + 1))
-            }
+            onClick={() => setPageNumber((page) => Math.min(pageCount || page + 1, page + 1))}
             disabled={!pageCount || pageNumber >= pageCount}
             aria-label="Trang sau"
           >
@@ -198,19 +164,11 @@ function PdfCitationDocument({
           </button>
         </div>
         <div className="pdf-viewer__zoom">
-          <button
-            type="button"
-            onClick={() => changeZoom(-0.1)}
-            aria-label="Thu nhỏ"
-          >
+          <button type="button" onClick={() => changeZoom(-0.1)} aria-label="Thu nhỏ">
             −
           </button>
           <span>{zoomLabel}</span>
-          <button
-            type="button"
-            onClick={() => changeZoom(0.1)}
-            aria-label="Phóng to"
-          >
+          <button type="button" onClick={() => changeZoom(0.1)} aria-label="Phóng to">
             +
           </button>
           <button type="button" onClick={() => setZoom("fit")}>
@@ -228,10 +186,7 @@ function PdfCitationDocument({
           <div className="pdf-viewer__error" role="alert">
             <strong>Không mở được PDF</strong>
             <span>{error || "Nguồn PDF không khả dụng."}</span>
-            <button
-              type="button"
-              onClick={() => setRetryToken((token) => token + 1)}
-            >
+            <button type="button" onClick={() => setRetryToken((token) => token + 1)}>
               Thử lại
             </button>
             {citation.source_url && (
@@ -264,9 +219,7 @@ function PdfCitationDocument({
 }
 function normalizeBbox(bbox: Citation["bbox"]): CSSProperties | undefined {
   if (!bbox) return undefined;
-  const values = Array.isArray(bbox)
-    ? bbox
-    : [bbox.left, bbox.top, bbox.right, bbox.bottom];
+  const values = Array.isArray(bbox) ? bbox : [bbox.left, bbox.top, bbox.right, bbox.bottom];
   if (
     values.length !== 4 ||
     values.some((value) => !Number.isFinite(value) || value < 0 || value > 1)

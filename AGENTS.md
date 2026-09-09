@@ -123,6 +123,13 @@ A **phase** is a group of tickets (per the sprint plan, e.g. `VNLRAG-37 + 38`). 
 - Deliverables created for VNLRAG-14 (M0 scope freeze, committed): `SCOPE.md`, `ARCHITECTURE.md`, `docs/adr/ADR-001..020.md`, `docs/parser_router.yaml`, `docs/canonical-document-ir-design.md`.
 - This project has a **gate path M1→M8** (labels `gate-M1`..`gate-M8`) and `reestimate-w2` labels on 8-SP tickets — respect these when scheduling work.
 - Doc 00 forbids cutting scope for schedule or difficulty; non-gate-path work may slip, gate path may not.
+## Formatting
+
+- Python formatting uses Ruff.
+- Prettier formats JavaScript, TypeScript, CSS, JSON, YAML, Markdown, and other supported text files under `frontend/`.
+- Run `./scripts/format-codebase.sh` to format backend Python and frontend files together.
+- After changing frontend JavaScript, TypeScript, CSS, JSON, or Markdown, run `cd frontend && npm run format`.
+- Before finishing, run `cd frontend && npm run format:check` and `cd backend && uv run ruff format --check .`.
 
 <!-- caveman-begin -->
 Respond terse like smart caveman. All technical substance stay. Only fluff die.

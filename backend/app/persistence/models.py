@@ -737,6 +737,63 @@ class QueryFeedback(Base):
     query_trace: Mapped[QueryTrace] = relationship(back_populates="feedback_items")
 
 
+class Conversation(Base):
+    """Owner-scoped chat conversation with soft deletion."""
+
+    __tablename__ = "conversations"
+    __table_args__ = (
+        Index("idx_conversations_owner_activity", "owner_key", "last_activity_at", "id"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    owner_key: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    title_manual: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _created_at()
+    last_activity_at: Mapped[datetime] = _created_at()
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    messages: Mapped[list[Message]] = relationship(
+        back_populates="conversation",
+        cascade="all, delete-orphan",
+        order_by="Message.created_at",
+    )
+
+
+class Message(Base):
+    """Persisted user or assistant turn in a conversation."""
+
+    __tablename__ = "messages"
+    __table_args__ = (
+        CheckConstraint("role IN ('user', 'assistant')", name="messages_role_check"),
+        CheckConstraint(
+            "status IN ('PENDING', 'COMPLETED', 'FAILED')", name="messages_status_check"
+        ),
+        Index("idx_messages_conversation_created", "conversation_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False
+    )
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="PENDING", server_default=text("'PENDING'")
+    )
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    query_trace_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("query_traces.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _created_at()
+
+    conversation: Mapped[Conversation] = relationship(back_populates="messages")
+    query_trace: Mapped[QueryTrace | None] = relationship()
+
+
 class EvaluationDataset(Base):
     """Dataset evaluation (gold set) (doc 03 §3.9.13)."""
 

@@ -30,8 +30,7 @@ export default function AbstentionResult({
         </p>
       )}
       <p className="abstention-result__disclaimer">
-        {disclaimer ||
-          "Hãy bổ sung tình tiết hoặc tham khảo cơ quan có thẩm quyền."}
+        {disclaimer || "Hãy bổ sung tình tiết hoặc tham khảo cơ quan có thẩm quyền."}
       </p>
     </section>
   );

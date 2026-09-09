@@ -29,20 +29,13 @@ export default function Composer({
   };
   useEffect(resizeTextarea, [value]);
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (
-      event.key === "Enter" &&
-      !event.shiftKey &&
-      !event.nativeEvent.isComposing
-    ) {
+    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
       event.currentTarget.form?.requestSubmit();
     }
   };
   return (
-    <form
-      onSubmit={onSubmit}
-      className={hero ? "composer hero-composer" : "composer"}
-    >
+    <form onSubmit={onSubmit} className={hero ? "composer hero-composer" : "composer"}>
       <label htmlFor={id}>Câu hỏi</label>
       <textarea
         ref={textareaRef}
@@ -57,19 +50,11 @@ export default function Composer({
       <div className="composer-actions">
         <span className="scope-chip">Luật giao thông</span>
         {loading ? (
-          <button
-            type="button"
-            aria-label="Dừng tra cứu"
-            onClick={onStop}
-          >
+          <button type="button" aria-label="Dừng tra cứu" onClick={onStop}>
             Dừng
           </button>
         ) : (
-          <button
-            type="submit"
-            aria-label="Gửi"
-            disabled={!value.trim()}
-          >
+          <button type="submit" aria-label="Gửi" disabled={!value.trim()}>
             <SendIcon />
           </button>
         )}

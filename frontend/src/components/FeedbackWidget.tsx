@@ -47,9 +47,7 @@ export default function FeedbackWidget({
     } catch (submissionError) {
       setState("error");
       setError(
-        submissionError instanceof Error
-          ? submissionError.message
-          : "Không thể gửi phản hồi.",
+        submissionError instanceof Error ? submissionError.message : "Không thể gửi phản hồi.",
       );
     }
   }
@@ -70,10 +68,7 @@ export default function FeedbackWidget({
         </p>
       ) : (
         <form className="feedback-widget__form" onSubmit={submit}>
-          <fieldset
-            className="feedback-widget__fieldset"
-            disabled={state === "submitting"}
-          >
+          <fieldset className="feedback-widget__fieldset" disabled={state === "submitting"}>
             <legend>Câu trả lời này có hữu ích không?</legend>
             <div
               className="feedback-widget__choice interaction-feedbacks"
@@ -109,10 +104,7 @@ export default function FeedbackWidget({
               rows={4}
               aria-describedby="feedback-comment-count"
             />
-            <span
-              id="feedback-comment-count"
-              className="feedback-widget__count"
-            >
+            <span id="feedback-comment-count" className="feedback-widget__count">
               {comment.length.toLocaleString("vi-VN")} /{" "}
               {MAX_COMMENT_LENGTH.toLocaleString("vi-VN")} ký tự
             </span>

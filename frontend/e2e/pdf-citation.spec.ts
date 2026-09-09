@@ -67,18 +67,9 @@ test("opens a large PDF citation drawer with a rendered canvas and bbox highligh
         const element = node as HTMLCanvasElement;
         const context = element.getContext("2d");
         if (!context || !element.width || !element.height) return false;
-        const pixels = context.getImageData(
-          0,
-          0,
-          element.width,
-          element.height,
-        ).data;
+        const pixels = context.getImageData(0, 0, element.width, element.height).data;
         for (let index = 0; index < pixels.length; index += 64) {
-          if (
-            pixels[index] < 245 ||
-            pixels[index + 1] < 245 ||
-            pixels[index + 2] < 245
-          )
+          if (pixels[index] < 245 || pixels[index + 1] < 245 || pixels[index + 2] < 245)
             return true;
         }
         return false;
@@ -91,17 +82,13 @@ test("opens a large PDF citation drawer with a rendered canvas and bbox highligh
   expect((await highlight.boundingBox())?.height ?? 0).toBeGreaterThan(0);
 });
 
-test("zooms the canvas, enforces page boundaries, and accepts page input", async ({
-  page,
-}) => {
+test("zooms the canvas, enforces page boundaries, and accepts page input", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await openDrawer(page);
   const dialog = page.getByRole("dialog");
   const canvas = dialog.locator("canvas");
   await expect(canvas).toBeVisible();
-  const initialWidth = await canvas.evaluate(
-    (node) => node.getBoundingClientRect().width,
-  );
+  const initialWidth = await canvas.evaluate((node) => node.getBoundingClientRect().width);
   await dialog.getByRole("button", { name: "Phóng to" }).click();
   await expect
     .poll(() => canvas.evaluate((node) => node.getBoundingClientRect().width))
@@ -127,16 +114,12 @@ test("zooms the canvas, enforces page boundaries, and accepts page input", async
   await expect(input).toHaveValue("3");
 });
 
-test("reports missing bbox explicitly and restores focus after Escape", async ({
-  page,
-}) => {
+test("reports missing bbox explicitly and restores focus after Escape", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await openDrawer(page, false);
   const dialog = page.getByRole("dialog");
   await expect(
-    dialog.getByText(
-      "Trích dẫn chưa có tọa độ OCR; đang hiển thị đúng trang nguồn.",
-    ),
+    dialog.getByText("Trích dẫn chưa có tọa độ OCR; đang hiển thị đúng trang nguồn."),
   ).toBeVisible();
   await expect(dialog.getByLabel("Đoạn trích được tô sáng")).toHaveCount(0);
   await expect(dialog.locator("canvas")).toBeVisible();
@@ -144,7 +127,5 @@ test("reports missing bbox explicitly and restores focus after Escape", async ({
   await expect(close).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
-  await expect(
-    page.getByRole("button", { name: "Xem đoạn trích" }),
-  ).toBeFocused();
+  await expect(page.getByRole("button", { name: "Xem đoạn trích" })).toBeFocused();
 });
