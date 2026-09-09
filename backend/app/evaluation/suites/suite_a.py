@@ -130,7 +130,9 @@ _FRACTION_METRICS = frozenset(
 #: Vietnamese point-label alphabet (a..y incl. đ) used to detect point labels
 #: in OCR text — đ is kept distinct from d (docs/03 §3.8.5; point_label_d_dd.json).
 _POINT_LABEL_ALPHABET = "aăâbcdđeêghiklmnoôơpqrstuưvxy"
-_POINT_LABEL_RE = re.compile(rf"(?<![A-Za-zÀ-ỹ])([{_POINT_LABEL_ALPHABET}])\s*\)", re.IGNORECASE)
+_POINT_LABEL_RE = re.compile(
+    rf"(?<![A-Za-zÀ-ỹ])(?:Điểm\s+)?([{_POINT_LABEL_ALPHABET}])\s*[)）.]", re.IGNORECASE
+)
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -1979,9 +1981,30 @@ def _discover_variant_runs(base_dir: Path) -> dict[str, Path]:
         manifest = run_root / "input-manifest.json"
         if not manifest.is_file():
             continue
-        # Newest-first iteration: the newest run per variant is seen first, so
-        # setdefault keeps it (older runs never overwrite a newer one).
-        group = by_hash.setdefault(_sha256(manifest), {})
+        phase = VARIANT_PHASE_DIR[variant]
+        # A COMPLETED marker alone is not release evidence: require the durable
+        # phase artifacts that the report hashes and reads. This prevents an
+        # interrupted/incomplete M7 tree from being selected as the freeze trio.
+        if any(
+            not path.is_file()
+            for path in (
+                run_root / "run.json",
+                run_root / "input-manifest.json",
+                run_root / "report.md",
+                *(
+                    run_root / phase / artifact
+                    for artifact in (
+                        "results.json",
+                        "metrics.json",
+                        "routing-and-gates.json",
+                        "artifacts-manifest.json",
+                    )
+                ),
+            )
+        ):
+            continue
+        manifest_hash = _sha256(manifest)
+        group = by_hash.setdefault(manifest_hash, {})
         group.setdefault(variant, run_root)
         if {"p1", "p2", "p3"} <= set(group):
             return {variant: group[variant] for variant in ("p1", "p2", "p3")}

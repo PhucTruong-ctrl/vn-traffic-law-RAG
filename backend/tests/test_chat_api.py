@@ -17,11 +17,12 @@ from app.persistence.models import QueryFeedback, QueryTrace
 from app.workflow.graph import GraphServices
 
 
-def test_chat_rejects_blank_and_unknown_fields() -> None:
+def test_chat_accepts_only_question() -> None:
     client = TestClient(app)
     assert client.post("/api/v1/chat", json={"question": "   "}).status_code == 422
     assert client.post("/api/v1/chat", json={"question": "x", "extra": 1}).status_code == 422
-
+    assert client.post("/api/v1/chat", json={"question": 1}).status_code == 422
+    assert client.post("/api/v1/chat", json={"question": None}).status_code == 422
 
 @pytest.mark.parametrize(
     "verification, expected",
@@ -47,7 +48,8 @@ def test_chat_disclaimer_trace_citations_and_abstention(
     class Graph:
         async def ainvoke(self, state: dict[str, object]) -> dict[str, object]:
             assert state["question"] == "hello"
-            assert state["query_date"] == date(2024, 1, 2)
+            assert state["query_date"] == date.today()
+            assert "vehicle_type" not in state
             return {
                 "verification_result": verification,
                 "final_response": {
@@ -63,7 +65,7 @@ def test_chat_disclaimer_trace_citations_and_abstention(
     try:
         response = TestClient(app).post(
             "/api/v1/chat",
-            json={"question": "hello", "query_date": "2024-01-02"},
+            json={"question": "hello"},
         )
     finally:
         app.dependency_overrides.pop(chat_api._optional_db, None)
@@ -153,7 +155,7 @@ def test_chat_uses_injected_production_composition(monkeypatch: pytest.MonkeyPat
     app.dependency_overrides[get_db] = override_db
     try:
         response = TestClient(app).post(
-            "/api/v1/chat", json={"question": "hello", "query_date": "2024-01-02"}
+            "/api/v1/chat", json={"question": "hello"}
         )
     finally:
         app.dependency_overrides.pop(get_db, None)
@@ -196,6 +198,28 @@ class ChatFeedbackSession:
 
     def refresh(self, row: object) -> None:
         assert getattr(row, "id", None) is not None
+def test_chat_never_returns_verified_without_serialized_citations(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Graph:
+        async def ainvoke(self, state: dict[str, object]) -> dict[str, object]:
+            return {
+                "verification_result": {"status": "VALID"},
+                "final_response": {
+                    "answer_summary": "answer",
+                    "claims": [{"provision_ids": ["missing"]}],
+                },
+                "expanded_context": [],
+            }
+
+    monkeypatch.setattr(chat_api, "build_query_graph", lambda _services: Graph())
+    app.dependency_overrides[chat_api._optional_db] = lambda: None
+    try:
+        payload = TestClient(app).post("/api/v1/chat", json={"question": "hello"}).json()
+    finally:
+        app.dependency_overrides.pop(chat_api._optional_db, None)
+    assert payload["status"] != "VERIFIED"
+    assert payload["citations"] == []
 
 
 def test_chat_trace_is_available_to_feedback(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -224,3 +248,33 @@ def test_chat_trace_is_available_to_feedback(monkeypatch: pytest.MonkeyPatch) ->
     assert feedback_response.status_code == 201
     assert feedback_response.json()["trace_id"] == trace_id
     assert session.committed
+
+
+def test_chat_rejects_duplicate_claim_citations(monkeypatch: pytest.MonkeyPatch) -> None:
+    record = SimpleNamespace(
+        provision_id="p-1",
+        document_id="d",
+        document_number="n",
+        article="1",
+        source_text="x",
+        page_number=1,
+        review_status="ACCEPTED",
+    )
+    class Graph:
+        async def ainvoke(self, state):
+            return {
+                "verification_result": {"status": "VALID"},
+                "final_response": {
+                    "answer_summary": "x",
+                    "claims": [{"provision_ids": ["p-1", "p-1"]}],
+                },
+                "expanded_context": [record],
+            }
+    monkeypatch.setattr(chat_api, "build_query_graph", lambda _: Graph())
+    app.dependency_overrides[chat_api._optional_db] = lambda: None
+    try:
+        payload = TestClient(app).post("/api/v1/chat", json={"question": "hello"}).json()
+    finally:
+        app.dependency_overrides.pop(chat_api._optional_db, None)
+    assert payload["status"] == "ABSTAINED"
+    assert payload["citations"] == []

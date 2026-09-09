@@ -3,17 +3,20 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Body, Depends, Query, Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.orm import Session
 
 from app.api.db import get_db
 from app.api.errors import NOT_FOUND, APIError
 from app.persistence.models import ReviewItem
-from app.persistence.repositories.review_items import ReviewItemRepository
+from app.persistence.repositories.review_items import (
+    ReviewItemNotFoundError,
+    ReviewItemRepository,
+)
 
 router = APIRouter(prefix="/api/v1", tags=["review"])
 
@@ -28,6 +31,8 @@ class ReviewItemResponse(BaseModel):
     reason_code: str
     description: str | None
     evidence: dict[str, object] | None
+    document_version_id: uuid.UUID | None
+    target_version: int | None
     status: str
     reviewer: str | None
     reviewed_at: datetime | None
@@ -41,6 +46,20 @@ class ReviewDecisionRequest(BaseModel):
     decision: Literal["ACCEPTED", "REJECTED"]
     reviewer: str = Field(min_length=1, max_length=256)
     evidence: dict[str, object] = Field(min_length=1)
+    effective_from: date | None = None
+    effective_to: date | None = None
+
+    @model_validator(mode="after")
+    def validate_interval(self) -> ReviewDecisionRequest:
+        if self.decision == "ACCEPTED" and self.effective_from is None:
+            raise ValueError("effective_from is required when accepting a review item")
+        if (
+            self.effective_from is not None
+            and self.effective_to is not None
+            and self.effective_to <= self.effective_from
+        ):
+            raise ValueError("effective_to must be later than effective_from")
+        return self
 
 
 def _response(row: ReviewItem, trace_id: str | None = None) -> ReviewItemResponse:
@@ -89,11 +108,32 @@ def decide_review_item(
     http_request: Request,
 ) -> ReviewItemResponse:
     """Record an explicit human decision; no decision is inferred or defaulted."""
-    row = ReviewItemRepository(db).get(item_id)
-    if row is None:
-        raise APIError(NOT_FOUND, "Review item was not found.", status_code=404)
-    row.evidence = {**(row.evidence or {}), "review_decision": request.evidence}
-    ReviewItemRepository(db).record_decision(item_id, request.decision, request.reviewer)
-    db.commit()
+    repository = ReviewItemRepository(db)
+    evidence: dict[str, object] = {"review_decision": request.evidence}
+    if request.effective_from is not None:
+        evidence["effective_from"] = request.effective_from.isoformat()
+        evidence["effective_to"] = (
+            request.effective_to.isoformat() if request.effective_to else None
+        )
+    try:
+        row = repository.decide(
+            item_id,
+            request.decision,
+            request.reviewer,
+            evidence=evidence,
+            effective_from=request.effective_from,
+            effective_to=request.effective_to,
+        )
+        db.commit()
+    except ReviewItemNotFoundError as exc:
+        db.rollback()
+        raise APIError(NOT_FOUND, "Review item was not found.", status_code=404) from exc
+    except ValueError as exc:
+        db.rollback()
+        if str(exc).startswith("review item ") and "already terminal" in str(exc):
+            raise APIError(
+                "REVIEW_ALREADY_DECIDED", "Review item is already terminal.", status_code=409
+            ) from exc
+        raise APIError("REVIEW_CONFLICT", str(exc), status_code=409) from exc
     db.refresh(row)
     return _response(row, http_request.headers.get("X-Trace-ID"))

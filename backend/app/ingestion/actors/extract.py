@@ -21,10 +21,16 @@ import hashlib
 from typing import Any
 
 import dramatiq
+from sqlalchemy import text
 
 from app.config import get_queue_settings
 from app.ingestion.context_enricher import enrich_provision
-from app.ingestion.projection import project_provenance, project_provisions, validate_provisions
+from app.ingestion.projection import (
+    _parse_iso_date,
+    project_provenance,
+    project_provisions,
+    validate_provisions,
+)
 from app.ingestion.structure_extractor import extract_legal_provisions
 from app.persistence.models import DocumentVersion, ProvisionProvenance
 
@@ -40,6 +46,7 @@ from ._state import (
     set_stage,
     stage_done,
 )
+from .resolve_refs import resolve_refs_actor
 
 _QUEUE_SETTINGS = get_queue_settings()
 _ACTOR_OPTIONS: dict[str, Any] = {
@@ -53,13 +60,27 @@ def _ensure_document_version(session, run, *, ir) -> DocumentVersion:
     """Reuse the latest document version or create version 1 (PENDING)."""
     version = latest_document_version(session, run.document_id)
     if version is not None:
+        manifest = dict(run.manifest_json or {})
+        if not version.effective_from:
+            version.effective_from = _parse_iso_date(manifest.get("effective_from"))
+        if not version.effective_to:
+            version.effective_to = _parse_iso_date(manifest.get("effective_to"))
+        if manifest:
+            merged_manifest = dict(version.manifest_json or {})
+            for key, value in manifest.items():
+                if key not in merged_manifest or merged_manifest[key] is None:
+                    merged_manifest[key] = value
+            version.manifest_json = merged_manifest
         return version
+    manifest = dict(run.manifest_json or {})
     fallback_hash = hashlib.sha256(ir.model_dump_json().encode("utf-8")).hexdigest()
     version = DocumentVersion(
         document_id=run.document_id,
         version=1,
-        manifest_json=dict(run.manifest_json or {}),
+        manifest_json=manifest,
         content_hash=run.file_hash or fallback_hash,
+        effective_from=_parse_iso_date(manifest.get("effective_from")),
+        effective_to=_parse_iso_date(manifest.get("effective_to")),
         review_status="PENDING",
     )
     session.add(version)
@@ -78,6 +99,15 @@ def extract_actor(job_id: str) -> None:
         if stage_done(run, "EXTRACTING"):
             return
 
+        # PostgreSQL advisory locks serialize version/provision creation for retries.
+        # Other SQLAlchemy-supported databases keep the existing idempotency path.
+        bind = session.get_bind()
+        if bind.dialect.name == "postgresql":
+            session.execute(
+                text("SELECT pg_advisory_xact_lock(hashtextextended(:document_id, 0))"),
+                {"document_id": str(run.document_id)},
+            )
+
         parsed_row, elements = load_parsed_document(session, run.document_id)
         if parsed_row is None:
             raise JobStateError(
@@ -90,6 +120,7 @@ def extract_actor(job_id: str) -> None:
             # Already extracted (resume path) — never duplicate provision rows.
             set_stage(run, "EXTRACTING")
             session.commit()
+            resolve_refs_actor.send(job_id)
             return
 
         extracted = extract_legal_provisions(ir, document_version_id=str(version.id))
@@ -121,9 +152,6 @@ def extract_actor(job_id: str) -> None:
         session.commit()
     finally:
         session.close()
-
-    from .resolve_refs import resolve_refs_actor
-
     resolve_refs_actor.send(job_id)
 
 

@@ -22,6 +22,7 @@ from app.persistence.models import (
     LegalEffectEvent,
     LegalProvision,
     LegalSource,
+    OutboxEvent,
     ParsedDocument,
     ProvisionProvenance,
     ProvisionReference,
@@ -47,6 +48,7 @@ DOCUMENTED_TABLES = [
     "ingestion_runs",
     "ingestion_artifacts",
     "review_items",
+    "outbox_events",
     "query_traces",
     "query_feedback",
     "evaluation_datasets",
@@ -70,6 +72,7 @@ MODEL_CLASSES = [
     IngestionRun,
     IngestionArtifact,
     ReviewItem,
+    OutboxEvent,
     QueryTrace,
     QueryFeedback,
     EvaluationDataset,
@@ -81,7 +84,7 @@ MODEL_CLASSES = [
 
 def test_models_import_cleanly() -> None:
     """Every documented model class is exported from the persistence package."""
-    assert len(MODEL_CLASSES) == 20
+    assert len(MODEL_CLASSES) == 21
     for cls in MODEL_CLASSES:
         assert cls.__table__ is not None
 
@@ -89,7 +92,7 @@ def test_models_import_cleanly() -> None:
 def test_metadata_contains_exactly_the_20_documented_tables() -> None:
     tables = set(Base.metadata.tables)
     assert tables == set(DOCUMENTED_TABLES)
-    assert len(tables) == 20
+    assert len(tables) == 21
 
 
 def test_model_classes_map_to_documented_table_names() -> None:

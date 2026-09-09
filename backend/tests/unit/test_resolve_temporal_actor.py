@@ -213,3 +213,97 @@ def test_actor_resolves_persisted_provisions_without_manifest_provisions(monkeyp
     assert row.review_status == "ACCEPTED"
     assert session.committed is True
     quality_gate_send.assert_called_once_with("job-id")
+
+
+def test_actor_reviews_unknown_dates_for_source_and_multiple_targets_across_rounds(
+    monkeypatch,
+) -> None:
+    run = SimpleNamespace(
+        id="run-id",
+        document_id="source-doc",
+        status="PENDING",
+        current_stage=None,
+        error=None,
+        manifest_json={
+            "effective_from": "UNKNOWN",
+            "review_status": "ACCEPTED",
+            "provisions": [{"provision_id": "source-article", "version": 1}],
+            "effect_events": [
+                {
+                    "event_type": "EFFECTIVE",
+                    "event_date": None,
+                    "affected_provision_versions": [{"provision_id": "source-article"}],
+                }
+            ],
+        },
+    )
+    source_version = SimpleNamespace(id="source-version", effective_from=None, effective_to=None)
+    target_versions = {
+        "target-a": SimpleNamespace(id="target-a-version", effective_from=None, effective_to=None),
+        "target-b": SimpleNamespace(id="target-b-version", effective_from=None, effective_to=None),
+    }
+    source_row = SimpleNamespace(
+        provision_id="source-article",
+        version=1,
+        effective_from=None,
+        effective_to=None,
+        review_status="PENDING",
+        document_version_id="source-version",
+    )
+    target_rows = {
+        key: [
+            SimpleNamespace(
+                provision_id=f"{key}-article",
+                version=1,
+                effective_from=None,
+                effective_to=None,
+                review_status="PENDING",
+                document_version_id=value.id,
+            )
+        ]
+        for key, value in target_versions.items()
+    }
+
+    class MultiDocumentSession(_Session):
+        def scalars(self, statement):
+            return SimpleNamespace(all=lambda: [])
+
+    session = MultiDocumentSession()
+    monkeypatch.setattr(temporal_actor, "new_session", lambda: session)
+    monkeypatch.setattr(temporal_actor, "load_run", lambda _session, _job_id: run)
+    monkeypatch.setattr(temporal_actor, "stage_done", lambda _run, _stage: False)
+    monkeypatch.setattr(
+        temporal_actor,
+        "latest_document_version",
+        lambda _session, document_id: (
+            source_version if document_id == "source-doc" else target_versions.get(document_id)
+        ),
+    )
+    monkeypatch.setattr(
+        temporal_actor,
+        "list_provisions",
+        lambda _session, version_id: (
+            [source_row]
+            if version_id == "source-version"
+            else next(
+                (
+                    rows
+                    for key, rows in target_rows.items()
+                    if target_versions[key].id == version_id
+                ),
+                [],
+            )
+        ),
+    )
+    monkeypatch.setattr(quality_gate_module.quality_gate_actor, "send", Mock())
+
+    # Two attempts model separate review rounds; one pending item is retained per target.
+    resolve_temporal_actor(job_id="job-id")
+    first_items = [item for item in session.added if item.reason_code == "UNKNOWN_EFFECTIVE_DATE"]
+    resolve_temporal_actor(job_id="job-id")
+    second_items = [item for item in session.added if item.reason_code == "UNKNOWN_EFFECTIVE_DATE"]
+
+    assert len(first_items) == 1
+    assert {item.document_id for item in first_items} == {"source-doc"}
+    assert len(second_items) == 2
+    assert {item.document_id for item in second_items} == {"source-doc"}

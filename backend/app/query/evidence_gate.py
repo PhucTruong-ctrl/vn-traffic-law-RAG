@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -27,42 +28,47 @@ class EvidenceGateResult:
     covered_provisions: list[str]
 
 
-_AMOUNT = re.compile(r"\b\d[\d.,\s]*(?:đồng|triệu\s*đồng|nghìn\s*đồng)\b", re.IGNORECASE)
-_POINTS = re.compile(r"trừ\s+(?:[\wđ]+\s+)?\d+\s*điểm|\d+\s*điểm\s+(?:giấy phép|gplx)")
+def _fold_ocr_text(text: str) -> str:
+    folded = unicodedata.normalize("NFD", text.casefold())
+    folded = "".join(char for char in folded if unicodedata.category(char) != "Mn")
+    return folded.replace("đ", "d")
+
+
+_AMOUNT = re.compile(r"\b\d[\d.,\s]*(?:dong|trieu\s*dong|nghin\s*dong)\b", re.IGNORECASE)
+_POINTS = re.compile(r"tru\s+(?:[\wd]+\s+)?\d+\s*diem|\d+\s*diem\s+(?:giay phep|gplx)")
 
 
 def _covered_types(candidate: RetrievalResult) -> set[EvidenceType]:
-    text = " ".join(
-        part for part in (candidate.text, candidate.source_text, candidate.parent_context) if part
-    ).casefold()
+    text = _fold_ocr_text(
+        " ".join(
+            part
+            for part in (candidate.text, candidate.source_text, candidate.parent_context)
+            if part
+        )
+    )
     covered: set[EvidenceType] = set()
 
-    # A definition needs the provision's violation/punishment language, not a
-    # bare heading or an unrelated mention of the offence.
-    if re.search(r"(?:hành vi|vi phạm).{0,100}(?:bị phạt|bị xử lý|xử phạt)", text):
+    if re.search(r"(?:hanh vi|vi pham|vi).{0,100}(?:bi phat|bi xu ly|xu phat|phat tien)", text):
         covered.add(EvidenceType.VIOLATION_DEFINITION)
-    if _AMOUNT.search(text) and re.search(r"phạt|xử phạt", text):
+    if _AMOUNT.search(text) and re.search(r"phat|xu phat", text):
         covered.add(EvidenceType.MONETARY_PENALTY)
-    if _POINTS.search(text) or re.search(r"trừ.{0,30}điểm\s+(?:giấy phép|gplx)", text):
+    if _POINTS.search(text) or re.search(r"tru.{0,30}diem\s+(?:giay phep|gplx)", text):
         covered.add(EvidenceType.LICENSE_POINTS)
     if re.search(
-        r"tước\s+(?:quyền\s+sử\s+dụng\s+)?(?:giấy phép lái xe|gplx)"
-        r"|thu hồi\s+(?:giấy phép lái xe|gplx)"
-        r"|đình chỉ\s+(?:giấy phép lái xe|gplx)",
+        r"tuoc\s+(?:quyen\s+su\s+dung\s+)?(?:giay phep lai xe|gplx)"
+        r"|thu hoi\s+(?:giay phep lai xe|gplx)"
+        r"|dinh chi\s+(?:giay phep lai xe|gplx)",
         text,
     ):
         covered.add(EvidenceType.LICENSE_SUSPENSION)
     if re.search(
-        r"không\s+(?:bị\s+)?phạt|trường hợp\s+(?:được\s+)?miễn|ngoại lệ|không áp dụng",
+        r"khong\s+(?:bi\s+)?phat|truong hop\s+(?:duoc\s+)?mien|ngoai le|khong ap dung",
         text,
     ):
         covered.add(EvidenceType.EXCEPTION)
-    if re.search(r"nộp phạt|trình tự|thủ tục|hồ sơ|cách xử lý", text):
+    if re.search(r"nop phat|trinh tu|thu tuc|ho so|cach xu ly", text):
         covered.add(EvidenceType.PROCEDURE)
-    if re.search(
-        r"điều kiện|áp dụng khi|trong trường hợp|khi đáp ứng|được phép",
-        text,
-    ):
+    if re.search(r"dieu kien|ap dung khi|trong truong hop|khi dap ung|duoc phep", text):
         covered.add(EvidenceType.LEGAL_CONDITION)
     return covered
 
@@ -70,15 +76,20 @@ def _covered_types(candidate: RetrievalResult) -> set[EvidenceType]:
 class EvidenceCompletenessGate:
     """Determine whether retrieved provisions cover every required evidence type."""
 
-    def evaluate(self, plan: QueryPlan, context: Sequence[RetrievalResult]) -> EvidenceGateResult:
+    def evaluate(
+        self, plan: QueryPlan, context: Sequence[RetrievalResult]
+    ) -> EvidenceGateResult:
         covered_provisions: list[str] = []
-        covered_types: set[EvidenceType] = set()
+        provision_types: dict[str, set[EvidenceType]] = {}
         for candidate in context:
+            if getattr(candidate, "review_status", "ACCEPTED") != "ACCEPTED":
+                continue
             types = _covered_types(candidate)
-            covered_types.update(types)
+            provision_types.setdefault(candidate.provision_id, set()).update(types)
             if types and candidate.provision_id not in covered_provisions:
                 covered_provisions.append(candidate.provision_id)
 
+        covered_types = set().union(*provision_types.values()) if provision_types else set()
         gaps = [evidence for evidence in plan.required_evidence if evidence not in covered_types]
         return EvidenceGateResult(
             status=EvidenceStatus.INCOMPLETE if gaps else EvidenceStatus.COMPLETE,

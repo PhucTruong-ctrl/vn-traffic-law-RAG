@@ -243,8 +243,18 @@ def project_provisions(
     corpus QA can count leakage from the caller's ``extracted`` list.
     """
 
+    identities: set[tuple[str, int]] = set()
+    for item in extracted:
+        identity = (item.provision_id, item.version)
+        if identity in identities:
+            raise ValueError(
+                f"duplicate provision identity: {item.provision_id} version {item.version}"
+            )
+        identities.add(identity)
+
     provisions: list[LegalProvision] = []
     for item in extracted:
+        version = item.version
         content_hash = _sha256_hex(item.source_text)
         if content_hash != item.content_hash:
             raise ValueError(
@@ -289,7 +299,7 @@ def project_provisions(
                 bbox=item.bbox,
                 source_element_ids=item.source_element_ids,
                 content_hash=content_hash,
-                version=item.version,
+                version=version,
                 review_status=provision_review_status,
             )
         )

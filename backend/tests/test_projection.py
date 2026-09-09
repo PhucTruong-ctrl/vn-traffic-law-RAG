@@ -275,6 +275,22 @@ def test_projection_round_trips_all_20_fields() -> None:
         assert provision.review_status == source.review_status
 
 
+def test_projection_rejects_duplicate_provision_version_identity() -> None:
+    extracted = _extracted(_nd_ir())
+    duplicate = extracted[0].model_copy(update={"source_element_ids": ["duplicate"]})
+    with pytest.raises(ValueError, match="duplicate provision identity"):
+        project_provisions([extracted[0], duplicate], document_version_id=uuid4())
+
+
+def test_projection_preserves_explicit_provision_versions() -> None:
+    extracted = [
+        item.model_copy(update={"version": index + 1})
+        for index, item in enumerate(_extracted(_nd_ir()))
+    ]
+    provisions = project_provisions(extracted, document_version_id=uuid4())
+    assert [provision.version for provision in provisions] == [item.version for item in extracted]
+
+
 def test_projection_preserves_per_item_temporal_and_lifecycle_fields() -> None:
     """Extractor-supplied interval/status/review_status survive without overrides."""
     extracted = _extracted(_nd_ir())

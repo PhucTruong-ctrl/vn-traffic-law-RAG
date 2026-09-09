@@ -11,7 +11,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from app.evaluation.gold_set import GoldRecord, validate_record
+from app.evaluation.gold_set import GoldRecord, ReviewStatus, validate_record
 from app.evaluation.metrics.retrieval import evaluate_retrieval
 from app.evaluation.run import EvaluationRunManifest, EvaluationRunWriter
 
@@ -100,10 +100,11 @@ VARIANTS: tuple[SuiteCVariant, ...] = (
 class ValidationSetBlocked(RuntimeError):
     """Raised when VNLRAG-93's complete validation set is unavailable."""
 
-    def __init__(self, actual: int) -> None:
+    def __init__(self, actual: int, *, reason: str | None = None) -> None:
         self.actual = actual
+        detail = f"found {actual}" if reason is None else reason
         super().__init__(
-            f"Suite C requires exactly {VALIDATION_SET_SIZE} validation records; found {actual}"
+            f"Suite C requires exactly {VALIDATION_SET_SIZE} validation records; {detail}"
         )
 
 
@@ -117,12 +118,25 @@ def validate_validation_set(
     """Validate the complete set before any provider or storage side effects."""
     if len(records) != VALIDATION_SET_SIZE:
         raise ValidationSetBlocked(len(records))
-    return tuple(
-        validate_record(record.model_dump(mode="python"))
-        if isinstance(record, GoldRecord)
-        else validate_record(dict(record))
-        for record in records
-    )
+    parsed: list[GoldRecord] = []
+    seen: set[str] = set()
+    for record in records:
+        value = validate_record(
+            record.model_dump(mode="python") if isinstance(record, GoldRecord) else dict(record)
+        )
+        if value.review_status is not ReviewStatus.APPROVED:
+            raise ValidationSetBlocked(
+                len(records),
+                reason=(
+                    f"record {value.id} has review status {value.review_status.value}; "
+                    "Suite C requires APPROVED records"
+                ),
+            )
+        if value.id in seen:
+            raise ValidationSetBlocked(len(records), reason=f"duplicate record id: {value.id}")
+        seen.add(value.id)
+        parsed.append(value)
+    return tuple(parsed)
 
 
 Evaluator = Callable[[SuiteCVariant, GoldRecord], Mapping[str, Any]]
@@ -167,6 +181,7 @@ def run_suite_c(
         run_ids.append(run_id)
         try:
             metric_records: list[dict[str, object]] = []
+            failure_categories: dict[str, int] = {}
             evaluator_failed = False
             for index, record in enumerate(validation_records):
                 try:
@@ -174,12 +189,6 @@ def run_suite_c(
                 except Exception as exc:
                     evaluator_failed = True
                     outcome = {"status": "FAILED", "error": f"{type(exc).__name__}: {exc}"}
-                if outcome.get("error") or str(outcome.get("status", "")).upper() in {
-                    "FAILED",
-                    "ERROR",
-                }:
-                    evaluator_failed = True
-
                 invalid_ranking = next(
                     (
                         name
@@ -199,6 +208,16 @@ def run_suite_c(
                         "status": "FAILED",
                         "error": (f"{invalid_ranking} must be a non-string Sequence"),
                     }
+
+                if outcome.get("error") or str(outcome.get("status", "")).upper() in {
+                    "FAILED",
+                    "ERROR",
+                }:
+                    evaluator_failed = True
+                    category = str(
+                        outcome.get("failure_category") or outcome.get("error") or "UNKNOWN"
+                    )
+                    failure_categories[category] = failure_categories.get(category, 0) + 1
 
                 writer.append_result(
                     run_id,
@@ -255,7 +274,7 @@ def run_suite_c(
             writer.finish(
                 run_id,
                 status="FAILED" if evaluator_failed else "COMPLETED",
-                metrics=metrics,
+                metrics={**metrics, "failure_categories": failure_categories},
                 metric_availability={
                     name: (
                         "ABSENT_EVALUATOR_FAILURE"

@@ -76,8 +76,8 @@ def quality_gate_actor(job_id: str) -> None:
             raise JobNotFoundError(f"ingestion run {job_id!r} not found")
         if stage_done(run, "QUALITY_CHECK"):
             return
-        if list_review_items(session, run.id):
-            # Already gated (resume path) — never duplicate review items.
+        if any(item.status == "PENDING" for item in list_review_items(session, run.id)):
+            # Pending review items still block reruns; resolved audit rows do not.
             set_stage(run, "QUALITY_CHECK")
             session.commit()
             return
@@ -124,6 +124,8 @@ def quality_gate_actor(job_id: str) -> None:
                     document_id=run.document_id,
                     target_type=TARGET_TYPE_PROVISION,
                     target_id=row.provision_id,
+                    document_version_id=row.document_version_id,
+                    target_version=row.version,
                     reason_code=";".join(decision.reason_codes),
                     description=(
                         f"Quality gate routed {row.provision_id} to review: "
@@ -139,6 +141,8 @@ def quality_gate_actor(job_id: str) -> None:
                     document_id=run.document_id,
                     target_type=TARGET_TYPE_PROVISION,
                     target_id=row.provision_id,
+                    document_version_id=row.document_version_id,
+                    target_version=row.version,
                     reason_code=";".join(decision.reason_codes),
                     description=(
                         f"Quality gate dropped {row.provision_id}: "

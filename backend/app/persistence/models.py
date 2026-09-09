@@ -660,8 +660,14 @@ class ReviewItem(Base):
         UUID(as_uuid=True), ForeignKey("ingestion_runs.id"), nullable=False
     )
     document_id: Mapped[str] = mapped_column(String, nullable=False)
+    # Immutable review target binding: a decision must never follow a later
+    # document/provision version merely because it is now the latest row.
+    document_version_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("document_versions.id")
+    )
     target_type: Mapped[str] = mapped_column(String, nullable=False)
     target_id: Mapped[str] = mapped_column(String, nullable=False)
+    target_version: Mapped[int | None] = mapped_column(Integer)
     reason_code: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     evidence: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
@@ -816,6 +822,26 @@ class EvaluationResult(Base):
     raw_results_path: Mapped[str | None] = mapped_column(Text)
 
     evaluation_run: Mapped[EvaluationRun] = relationship(back_populates="results")
+
+
+class OutboxEvent(Base):
+    """Durable event published after a database transaction commits."""
+
+    __tablename__ = "outbox_events"
+    __table_args__ = (Index("idx_outbox_events_pending", "status", "created_at"),)
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    event_type: Mapped[str] = mapped_column(String, nullable=False)
+    job_id: Mapped[str] = mapped_column(String, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    status: Mapped[str] = mapped_column(
+        String, nullable=False, default="PENDING", server_default=text("'PENDING'")
+    )
+    attempts: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
+    created_at: Mapped[datetime] = _created_at()
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class CorpusQaReport(Base):

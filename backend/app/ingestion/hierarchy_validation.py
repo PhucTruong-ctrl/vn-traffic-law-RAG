@@ -34,15 +34,11 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from app.ingestion.metadata_normalizer import canonical_point_label
+from app.ingestion.metadata_normalizer import VIETNAMESE_POINT_ALPHABET, canonical_point_label
 from app.ingestion.structure_extractor import ExtractedLegalProvision
 from app.ingestion.structure_state_parser import StructureKind
 
-#: PRIMARY Vietnamese point-run alphabet (rulespec §4.1: ``a→b→c→d→đ→e``,
-#: d = 4th, đ = 5th letter).  Mirrors ``metadata_normalizer._POINT_RUN_ALPHABET``;
-#: letters beyond ``e`` (e.g. ``g)`` … ``x)``) are flagged for review rather
-#: than silently accepted.
-_POINT_RUN_ALPHABET = "abcdđe"
+_POINT_RUN_ALPHABET = VIETNAMESE_POINT_ALPHABET
 
 #: Tree node kinds participating in the Điều hierarchy (docs/03 §3.8.1).
 _TREE_KINDS = frozenset({"ARTICLE", "CLAUSE", "POINT"})
@@ -89,15 +85,14 @@ class HierarchyViolation(BaseModel):
 class HierarchyValidationResult(BaseModel):
     """Validated hierarchy: violations plus aggregate metrics.
 
-    ``metrics`` always carries the contract keys ``orphan_point_count``,
-    ``orphan_clause_count``, ``duplicate_count`` and
-    ``point_label_detection_rate``; later tickets may add extra keys.
+    ``point_label_detection_rate`` (``None`` when no POINT candidates); later
+    tickets may add extra keys.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     violations: list[HierarchyViolation]
-    metrics: dict[str, float | int]
+    metrics: dict[str, float | int | None]
 
 
 def _provision_kind(provision: ExtractedLegalProvision) -> str | None:
@@ -289,7 +284,7 @@ def validate_hierarchy(
         for point in group:
             label = _label_source(point)
             canonical = canonical_point_label(label) if label is not None else None
-            if canonical is not None:
+            if canonical is not None and label is not None and not _is_d_label(label):
                 if canonical[0] in _POINT_RUN_ALPHABET:
                     valid_point_count += 1
                     continue
@@ -312,11 +307,11 @@ def validate_hierarchy(
             )
 
     point_count = len(points)
-    metrics: dict[str, float | int] = {
+    metrics: dict[str, float | int | None] = {
         "orphan_point_count": orphan_point_count,
         "orphan_clause_count": orphan_clause_count,
         "duplicate_count": len(duplicated),
-        "point_label_detection_rate": (valid_point_count / point_count if point_count else 0.0),
+        "point_label_detection_rate": (valid_point_count / point_count if point_count else None),
     }
     return HierarchyValidationResult(violations=violations, metrics=metrics)
 

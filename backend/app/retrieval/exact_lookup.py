@@ -42,6 +42,16 @@ class ExactLookup:
             point=point,
             query_date=query_date,
         )
+        # Point extraction is lossy in older ingests. Fall back only to the
+        # containing clause, preserving each row's actual citation metadata.
+        if not rows and point is not None:
+            rows = self._repository.lookup_exact(
+                document_number=document_number,
+                article=article,
+                clause=clause,
+                point=None,
+                query_date=query_date,
+            )
         if vehicle_type is not None:
             rows = [row for row in rows if _supports_vehicle(row, vehicle_type)]
 

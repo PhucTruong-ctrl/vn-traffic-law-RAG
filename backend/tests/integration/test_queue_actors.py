@@ -34,13 +34,21 @@ from alembic import command
 from app.config import get_redis_settings
 from app.ingestion.actors import embed as embed_module
 from app.ingestion.actors import enqueue_parse
+from app.ingestion.actors import extract as extract_module
 from app.ingestion.actors import index as index_module
 from app.ingestion.actors import parse as parse_module
 from app.ingestion.actors import quality_gate as quality_gate_module
+from app.ingestion.actors.extract import extract_actor
 from app.ingestion.actors.index import index_actor
+from app.ingestion.actors.outbox import outbox_dispatcher_actor
 from app.ingestion.actors.quality_gate import quality_gate_actor
 from app.ingestion.actors.resolve_temporal import resolve_temporal_actor
-from app.ingestion.document_ir import BoundingBox, DocumentElement, ParsedDocument, ParsedPage
+from app.ingestion.document_ir import (
+    BoundingBox,
+    DocumentElement,
+    ParsedDocument,
+    ParsedPage,
+)
 from app.ingestion.queue import get_broker
 from app.persistence.models import (
     DocumentElement as DocumentElementRow,
@@ -50,12 +58,14 @@ from app.persistence.models import (
     IngestionRun,
     LegalDocument,
     LegalProvision,
+    OutboxEvent,
     ProvisionProvenance,
     ReviewItem,
 )
 from app.persistence.models import (
     ParsedDocument as ParsedDocumentRow,
 )
+from app.persistence.repositories.review_items import ReviewItemRepository
 
 _QUEUES = (
     "parse",
@@ -331,6 +341,122 @@ def test_parse_chain_end_to_end_reaches_activated_resolvers(
             assert run.status == "RESOLVING_REFS"  # idempotent handoff
     finally:
         worker.stop()
+
+
+def test_extract_retry_reuses_persisted_provisions(
+    queue_env: Any, clean_queues: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A retry after provision commit must not insert the same rows again."""
+    engine = queue_env
+    document_id = _document_id()
+    job_id = _unique("job")
+    fake_ir = _nd_ir(document_id)
+
+    with Session(engine) as session:
+        session.add(
+            LegalDocument(
+                document_id=document_id,
+                document_number="168/2024/NĐ-CP",
+                document_title="Nghị định xử phạt vi phạm hành chính",
+                document_type="DECREE",
+                file_hash=uuid.uuid4().hex,
+                status="EFFECTIVE",
+            )
+        )
+        session.flush()
+        run = IngestionRun(
+            job_id=job_id,
+            document_id=document_id,
+            manifest_json={"effective_from": "2025-01-01"},
+            file_hash=uuid.uuid4().hex,
+            status="NORMALIZING",
+            current_stage="NORMALIZING",
+        )
+        session.add(run)
+        parsed = ParsedDocumentRow(
+            document_id=document_id,
+            parser="DOCLING",
+            parser_version="docling-2.1.0",
+            ir_schema_version="document-ir-v2",
+            source_object_key="fixture",
+            parse_status="SUCCESS",
+            quality_report={},
+            started_at=datetime(2025, 1, 1, tzinfo=UTC),
+            completed_at=datetime(2025, 1, 1, 0, 0, 1, tzinfo=UTC),
+        )
+        session.add(parsed)
+        session.flush()
+        for element in fake_ir.pages[0].elements:
+            session.add(
+                DocumentElementRow(
+                    parsed_document_id=parsed.id,
+                    element_id=element.element_id,
+                    element_type=element.element_type,
+                    text=element.text,
+                    page_number=element.page_number,
+                    bbox=element.bbox.model_dump() if element.bbox else None,
+                    reading_order=element.reading_order,
+                    parent_element_id=element.parent_element_id,
+                    table_html=element.table_html,
+                    source_parser=element.source_parser,
+                    parser_version=element.parser_version,
+                    parser_confidence=element.parser_confidence,
+                    raw_reference=element.raw_reference,
+                )
+            )
+        session.commit()
+
+    resolve_send = Mock()
+    monkeypatch.setattr(extract_module.resolve_refs_actor, "send", resolve_send)
+    monkeypatch.setattr(extract_module, "new_session", lambda: Session(engine))
+    monkeypatch.setattr(extract_module, "rebuild_ir", lambda row, elements: fake_ir)
+    extract_actor(job_id)
+
+    with Session(engine) as session:
+        run = session.scalar(select(IngestionRun).where(IngestionRun.job_id == job_id))
+        version = session.scalar(
+            select(DocumentVersion).where(DocumentVersion.document_id == document_id)
+        )
+        assert run is not None and run.current_stage == "EXTRACTING"
+        assert version is not None and version.effective_from == date(2025, 1, 1)
+        assert version.manifest_json["effective_from"] == "2025-01-01"
+        first_rows = list(
+            session.scalars(
+                select(LegalProvision).where(LegalProvision.document_version_id == version.id)
+            )
+        )
+        first_ids = {row.id for row in first_rows}
+        first_count = len(first_rows)
+        assert first_count >= 3
+
+        # Simulate a worker dying after the provision transaction committed but
+        # before the stage marker became visible to the retrying message.
+        run.status = "NORMALIZING"
+        run.current_stage = "NORMALIZING"
+        session.commit()
+
+    monkeypatch.setattr(
+        extract_module,
+        "extract_legal_provisions",
+        lambda *args, **kwargs: pytest.fail("re-extracted"),
+    )
+    extract_actor(job_id)
+
+    with Session(engine) as session:
+        run = session.scalar(select(IngestionRun).where(IngestionRun.job_id == job_id))
+        version = session.scalar(
+            select(DocumentVersion).where(DocumentVersion.document_id == document_id)
+        )
+        rows = list(
+            session.scalars(
+                select(LegalProvision).where(LegalProvision.document_version_id == version.id)
+            )
+        )
+        assert run is not None and run.current_stage == "EXTRACTING"
+        assert version is not None and version.effective_from == date(2025, 1, 1)
+        assert len(rows) == first_count
+        assert {row.id for row in rows} == first_ids
+    assert resolve_send.call_count == 2
 
 
 def test_temporal_missing_successor_hands_off_to_review(
@@ -699,7 +825,14 @@ def test_needs_review_creates_review_items_and_halts(
             assert items[0].status == "PENDING"  # the review queue
             assert "UNKNOWN_EFFECTIVE_DATE" in items[0].reason_code
 
-        # Re-run: gating again must not create a second review item.
+        # Resolving the audit row must allow the gate to evaluate again.
+        with Session(engine) as session:
+            item = session.scalar(select(ReviewItem).where(ReviewItem.ingestion_run_id == run_id))
+            assert item is not None
+            item.status = "REJECTED"
+            session.commit()
+
+        # Re-run: historical resolved rows do not block re-evaluation.
         quality_gate_actor.send(job_id)
         broker.join("quality_gate", timeout=60_000)
         worker.join()
@@ -712,6 +845,71 @@ def test_needs_review_creates_review_items_and_halts(
         worker.stop()
 
 
+def test_review_acceptance_dispatches_resume_outbox_to_embed(
+    queue_env: Any, clean_queues: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A real PG decision creates one outbox row and Redis delivers RESUME_EMBED."""
+    engine = queue_env
+    document_id = _document_id()
+    job_id = _unique("job")
+    run_id, provision_ids = _seed_gate_pipeline(engine, document_id, job_id)
+
+    # Start at the same durable state produced by quality_gate, then accept the
+    # sole review item through the repository (the API uses this exact path).
+    with Session(engine) as session:
+        run = session.get(IngestionRun, run_id)
+        assert run is not None
+        run.status = "PENDING_REVIEW"
+        run.current_stage = "QUALITY_CHECK"
+        item = ReviewItem(
+            ingestion_run_id=run_id,
+            document_id=document_id,
+            target_type="PROVISION",
+            target_id=provision_ids[2],
+            document_version_id=session.scalar(
+                select(DocumentVersion).where(DocumentVersion.document_id == document_id)
+            ).id,
+            target_version=1,
+            reason_code="LOW_OCR_COVERAGE",
+            description="manual review",
+            evidence={"source": "integration"},
+        )
+        session.add(item)
+        session.flush()
+        item_id = item.id
+        ReviewItemRepository(session).decide(
+            item_id,
+            "ACCEPTED",
+            "integration-reviewer",
+            evidence={"verified": True},
+            effective_from=date(2025, 1, 1),
+        )
+        session.commit()
+
+    with Session(engine) as session:
+        event = session.scalar(select(OutboxEvent).where(OutboxEvent.job_id == job_id))
+        assert event is not None
+        assert event.event_type == "RESUME_EMBED"
+        assert event.status == "PENDING"
+
+    delivered: list[str] = []
+    monkeypatch.setattr(
+        "app.ingestion.actors.outbox.embed_actor.send",
+        lambda received_job_id: delivered.append(received_job_id),
+    )
+    outbox_dispatcher_actor()
+
+    assert delivered == [job_id]
+    with Session(engine) as session:
+        event = session.scalar(select(OutboxEvent).where(OutboxEvent.job_id == job_id))
+        assert event is not None and event.status == "DELIVERED"
+        assert event.attempts == 1
+
+    # The uniqueness constraint and dispatcher claim make a repeat harmless.
+    outbox_dispatcher_actor()
+    assert delivered == [job_id]
+
+
 # --- dead letter queue -----------------------------------------------------------
 
 
@@ -721,8 +919,12 @@ def test_failed_message_lands_in_dead_letter_queue(queue_env: Any, clean_queues:
     queue = f"fail-{uuid.uuid4().hex[:8]}"
     actor_name = f"failing_{uuid.uuid4().hex[:8]}"
 
-    @dramatiq.actor(  # noqa: E501 - decorator options
-        broker=broker, queue_name=queue, actor_name=actor_name, max_retries=0, time_limit=60
+    @dramatiq.actor(
+        broker=broker,
+        queue_name=queue,
+        actor_name=actor_name,
+        max_retries=0,
+        time_limit=60,
     )
     def failing_actor(payload: str) -> None:  # pragma: no cover - always raises
         raise RuntimeError(f"boom {payload}")

@@ -73,6 +73,7 @@ def running(run_id: str) -> Mock:
 def test_manifest_hash_is_stable_and_changes_with_inputs() -> None:
     assert manifest().manifest_hash() == manifest().manifest_hash()
     assert manifest(config_snapshot={"k": 2}).manifest_hash() != manifest().manifest_hash()
+    assert manifest(parser_versions={"parser": "2"}).manifest_hash() != manifest().manifest_hash()
 
 
 def test_start_rejects_preexisting_per_question_artifact() -> None:

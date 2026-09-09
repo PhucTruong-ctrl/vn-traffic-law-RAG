@@ -48,7 +48,9 @@ def required_evidence_for(
         required.append(EvidenceType.LEGAL_CONDITION)
     if not required and asks_points:
         required.append(EvidenceType.LICENSE_POINTS)
-    elif not required and intent is not None:
+    elif (
+        not required and intent is not None and getattr(intent, "value", intent) != "SOURCE_SEARCH"
+    ):
         required.append(EvidenceType.VIOLATION_DEFINITION)
     return required
 

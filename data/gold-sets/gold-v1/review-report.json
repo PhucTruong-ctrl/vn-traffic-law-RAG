@@ -1,0 +1,9 @@
+{
+  "dataset": "VNLRAG-94 draft",
+  "reviewer": "independent-reviewer",
+  "record_count": 200,
+  "schema_valid": true,
+  "corpus_resolution": "PENDING PostgreSQL verification",
+  "corrections": [],
+  "approved_for_freeze": false
+}

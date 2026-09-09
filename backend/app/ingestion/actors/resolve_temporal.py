@@ -132,7 +132,7 @@ def resolve_temporal_actor(job_id: str) -> None:
             source_manifest,
             [*manifest_events, *stored_inputs],
         )
-        document_results = [(rows, source_result)]
+        document_results = [(run.document_id, version.id, rows, source_result)]
         for target_document_id, target_rows in target_rows_by_document.items():
             target_version = latest_document_version(session, target_document_id)
             if target_version is None:
@@ -166,7 +166,12 @@ def resolve_temporal_actor(job_id: str) -> None:
                     if relation.target_document_id == target_document_id
                 ]
                 document_results.append(
-                    (target_rows, resolve_temporal(target_manifest, target_events))
+                    (
+                        target_document_id,
+                        target_version.id,
+                        target_rows,
+                        resolve_temporal(target_manifest, target_events),
+                    )
                 )
         provision_repo = ProvisionRepository(session)
         has_missing_successor = bool(unscoped_relations or missing_target_relations)
@@ -177,6 +182,15 @@ def resolve_temporal_actor(job_id: str) -> None:
                     document_id=run.document_id,
                     target_type="document",
                     target_id=relation.target_document_id,
+                    document_version_id=(
+                        target_version.id
+                        if (
+                            target_version := latest_document_version(
+                                session, relation.target_document_id
+                            )
+                        )
+                        else None
+                    ),
                     reason_code="UNSCOPED_AMENDMENT",
                     description="Document amendment lacks affected provision scope",
                     evidence={"relation_type": relation.relation_type},
@@ -189,12 +203,21 @@ def resolve_temporal_actor(job_id: str) -> None:
                     document_id=run.document_id,
                     target_type="document",
                     target_id=relation.target_document_id,
+                    document_version_id=(
+                        target_version.id
+                        if (
+                            target_version := latest_document_version(
+                                session, relation.target_document_id
+                            )
+                        )
+                        else None
+                    ),
                     reason_code="MISSING_TARGET_CONTENT",
                     description="Temporal relation target has no persisted provision content",
                     evidence={"relation_type": relation.relation_type},
                 )
             )
-        for document_rows, result in document_results:
+        for result_document_id, result_version_id, document_rows, result in document_results:
             for resolved in result.versions:
                 successor = resolved.superseded_by_version
                 if successor is None:
@@ -233,6 +256,10 @@ def resolve_temporal_actor(job_id: str) -> None:
                                 document_id=run.document_id,
                                 target_type="provision",
                                 target_id=resolved.provision_id,
+                                document_version_id=source_row.document_version_id
+                                if source_row
+                                else None,
+                                target_version=resolved.version,
                                 reason_code="MISSING_SUCCESSOR_CONTENT",
                                 description="Temporal successor content is not persisted",
                                 evidence={"version": successor},
@@ -247,7 +274,9 @@ def resolve_temporal_actor(job_id: str) -> None:
                         ProvisionVersion(
                             provision_id=resolved.provision_id,
                             version=resolved.version,
-                            document_version_id=source_row.document_version_id,
+                            document_version_id=source_row.document_version_id
+                            if source_row
+                            else None,
                         )
                     )
                 predecessor.superseded_by_version = successor
@@ -272,27 +301,36 @@ def resolve_temporal_actor(job_id: str) -> None:
                     row.effective_to = matching_version.effective_to
                     row.review_status = matching_version.review_status
             if result.review_required and result.errors:
+                reason_code = (
+                    "UNKNOWN_EFFECTIVE_DATE"
+                    if any("uncertain effective_from" in error for error in result.errors)
+                    else "TEMPORAL_REVIEW_REQUIRED"
+                )
                 existing = session.scalar(
                     select(ReviewItem).where(
                         ReviewItem.ingestion_run_id == run.id,
-                        ReviewItem.reason_code == "UNKNOWN_EFFECTIVE_DATE",
+                        ReviewItem.document_id == result_document_id,
+                        ReviewItem.document_version_id == result_version_id,
+                        ReviewItem.reason_code == reason_code,
+                        ReviewItem.status == "PENDING",
                     )
                 )
                 if existing is None:
                     session.add(
                         ReviewItem(
                             ingestion_run_id=run.id,
-                            document_id=run.document_id,
+                            document_id=result_document_id,
                             target_type="document",
-                            target_id=run.document_id,
-                            reason_code="UNKNOWN_EFFECTIVE_DATE",
+                            target_id=result_document_id,
+                            document_version_id=result_version_id,
+                            reason_code=reason_code,
                             description="Temporal resolution requires review",
                             evidence={"errors": list(result.errors)},
                         )
                     )
-        review_required = any(result.review_required for _, result in document_results)
+        review_required = any(result.review_required for _, _, _, result in document_results)
         review_required = review_required or has_missing_successor
-        errors = [error for _, result in document_results for error in result.errors]
+        errors = [error for _, _, _, result in document_results for error in result.errors]
         if review_required:
             if has_missing_successor:
                 errors.append("missing temporal successor content")

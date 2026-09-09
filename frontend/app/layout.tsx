@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "VNLaw RAG",
-  description: "VN Traffic Law RAG — frontend",
+  title: "VNLAW — Tra cứu pháp luật giao thông",
+  description: "Trợ lý nghiên cứu pháp luật giao thông Việt Nam với câu trả lời có căn cứ.",
 };
 
 export default function RootLayout({

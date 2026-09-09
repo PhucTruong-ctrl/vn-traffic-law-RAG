@@ -54,6 +54,28 @@ def test_incomplete_validation_set_blocks_without_running() -> None:
     assert error.value.actual == 1
 
 
+def test_non_approved_validation_record_blocks_before_running() -> None:
+    records = valid_records()
+    payload = records[7].model_dump(mode="python")
+    payload["review_status"] = ReviewStatus.REVIEWED
+    payload["hash"] = GoldRecord.model_validate({**payload, "hash": "0" * 64}).computed_hash()
+    records[7] = GoldRecord.model_validate(payload)
+
+    with pytest.raises(
+        ValidationSetBlocked,
+        match=(r"record 7 has review status REVIEWED; Suite C requires APPROVED records"),
+    ):
+        validate_validation_set(records)
+
+
+def test_duplicate_validation_ids_block_before_running() -> None:
+    records = valid_records()
+    records[-1] = records[0]
+
+    with pytest.raises(ValidationSetBlocked, match="duplicate record id: 0"):
+        validate_validation_set(records)
+
+
 def test_runner_never_invokes_evaluator_when_validation_set_is_incomplete() -> None:
     called = False
 
@@ -197,3 +219,86 @@ def test_runner_rejects_malformed_rankings_without_dropping_raw_result(
     assert writer.finished[0]["status"] == "FAILED"
     assert writer.finished[0]["metric_availability"]["recall@5"] == ("ABSENT_EVALUATOR_FAILURE")
     assert "0" not in writer.finished[0]["metrics"]["recall@5"]["per_query"]
+
+
+def test_runner_reports_all_failure_categories_without_losing_raw_outcomes() -> None:
+    class Writer:
+        def __init__(self) -> None:
+            self.finished: list[dict[str, object]] = []
+            self.results: list[dict[str, object]] = []
+
+        def start(self, *_args: object, **_kwargs: object) -> str:
+            return "run-1"
+
+        def append_result(self, _run_id: str, result: dict[str, object], **_kwargs: object) -> None:
+            self.results.append(result)
+
+        def finish(self, _run_id: str, **kwargs: object) -> None:
+            self.finished.append(kwargs)
+
+    writer = Writer()
+
+    def evaluator(_variant: object, record: GoldRecord) -> dict[str, object]:
+        if record.id == "0":
+            return {
+                "status": "FAILED",
+                "failure_category": "provider_timeout",
+                "error": "timed out",
+            }
+        if record.id == "1":
+            return {"status": "ERROR", "failure_category": "provider_auth", "error": "unauthorized"}
+        return {"status": "OK", "provision_ids": []}
+
+    run_suite_c(
+        valid_records(),
+        evaluator=evaluator,
+        writer=writer,
+        manifest_for=lambda _: None,
+        session=None,
+        storage=None,
+        variants=VARIANTS[:1],
+    )
+    assert writer.results[0]["retrieval"]["outcome"]["failure_category"] == "provider_timeout"
+    assert writer.results[1]["retrieval"]["outcome"]["failure_category"] == "provider_auth"
+    assert writer.finished[0]["metrics"]["failure_categories"] == {
+        "provider_timeout": 1,
+        "provider_auth": 1,
+    }
+
+
+def test_runner_categorizes_malformed_ranking_failure_and_retains_raw_result() -> None:
+    class Writer:
+        def __init__(self) -> None:
+            self.finished: list[dict[str, object]] = []
+            self.results: list[dict[str, object]] = []
+
+        def start(self, *_args: object, **_kwargs: object) -> str:
+            return "run-1"
+
+        def append_result(self, _run_id: str, result: dict[str, object], **_kwargs: object) -> None:
+            self.results.append(result)
+
+        def finish(self, _run_id: str, **kwargs: object) -> None:
+            self.finished.append(kwargs)
+
+    writer = Writer()
+
+    def evaluator(_variant: object, record: GoldRecord) -> dict[str, object]:
+        if record.id == "0":
+            return {"status": "OK", "retrieved": "malformed", "raw": {"source": "provider"}}
+        return {"status": "OK", "provision_ids": []}
+
+    run_suite_c(
+        valid_records(),
+        evaluator=evaluator,
+        writer=writer,
+        manifest_for=lambda _: None,
+        session=None,
+        storage=None,
+        variants=VARIANTS[:1],
+    )
+
+    assert writer.results[0]["retrieval"]["outcome"]["status"] == "FAILED"
+    assert writer.finished[0]["metrics"]["failure_categories"] == {
+        "retrieved must be a non-string Sequence": 1,
+    }

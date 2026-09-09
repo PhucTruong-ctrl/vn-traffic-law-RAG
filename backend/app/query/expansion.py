@@ -31,6 +31,10 @@ class QueryVariant(BaseModel):
 
 RewriteProvider = Callable[[str], Iterable[str]]
 
+_STATUTORY_REWRITES: tuple[tuple[str, str], ...] = (
+    ("vượt đèn đỏ", "không chấp hành hiệu lệnh của đèn tín hiệu giao thông"),
+)
+
 
 def normalize_query(text: str) -> str:
     """Normalize Unicode and known legal terminology without stripping accents."""
@@ -85,6 +89,22 @@ class QueryExpander:
         normalized = normalize_query(plan.normalized_query)
         if normalized != original:
             variants.append(QueryVariant(text=normalized, source="normalized"))
+        # Retrieval corpora use the statutory wording for common colloquialisms.
+        # Keep this deterministic and bounded; it supplements, never replaces,
+        # the user's original query.
+        rewrite_count = 0
+        for colloquial, statutory in _STATUTORY_REWRITES:
+            colloquial = colloquial.rstrip("?!.,;:")
+            if rewrite_count >= self._max_rewrites:
+                break
+            if re.search(rf"(?<!\w){re.escape(colloquial)}(?!\w)", normalized, re.I):
+                candidate = re.sub(
+                    rf"(?<!\w){re.escape(colloquial)}(?!\w)", statutory, normalized, flags=re.I
+                )
+                candidate = " ".join(candidate.split())
+                if candidate and candidate not in {variant.text for variant in variants}:
+                    variants.append(QueryVariant(text=candidate, source="rewrite"))
+                    rewrite_count += 1
 
         if self._rewrite_provider and self._max_rewrites:
             for text in self._rewrite_provider(normalized):

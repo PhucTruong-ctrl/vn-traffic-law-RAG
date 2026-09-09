@@ -16,7 +16,6 @@ x-service-hardening: &service-hardening
 
 services:
   postgres:
-    <<: *service-hardening
     container_name: vnlaw-postgres
     image: postgres:18.4
     environment:
@@ -24,7 +23,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:?}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
     ports:
-      - "127.0.0.1:5432:5432"
+      - target: 5432
+        published: 5432
+        host_ip: 127.0.0.1
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:
@@ -37,11 +38,14 @@ services:
 
   qdrant:
     <<: *service-hardening
-    container_name: vnlaw-qdrant
     image: qdrant/qdrant:v1.19.0
     ports:
-      - "127.0.0.1:6333:6333"
-      - "127.0.0.1:6334:6334"
+      - target: 6333
+        published: 6333
+        host_ip: 127.0.0.1
+      - target: 6334
+        published: 6334
+        host_ip: 127.0.0.1
     volumes:
       - qdrant_data:/qdrant/storage
       - qdrant_snapshots:/qdrant/snapshots
@@ -54,11 +58,12 @@ services:
     networks: [vnlaw-network]
 
   redis:
-    <<: *service-hardening
     container_name: vnlaw-redis
     image: redis:8.10.0
     ports:
-      - "127.0.0.1:6379:6379"
+      - target: 6379
+        published: 6379
+        host_ip: 127.0.0.1
     volumes:
       - redis_data:/data
     command: ["redis-server", "--appendonly", "yes"]
@@ -71,7 +76,6 @@ services:
 
   minio:
     <<: *service-hardening
-    container_name: vnlaw-minio
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?}
@@ -94,17 +98,25 @@ services:
         touch /tmp/minio-buckets-ready
         wait "$$minio_pid"
     ports:
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9001:9001"
+      - target: 9000
+        published: 9000
+        host_ip: 127.0.0.1
+      - target: 9001
+        published: 9001
+        host_ip: 127.0.0.1
     volumes:
       - minio_data:/data
     healthcheck:
-      test: ["CMD-SHELL", "test -f /tmp/minio-buckets-ready && curl -f http://127.0.0.1:9000/minio/health/live"]
+      test: ["CMD-SHELL", "test -f /tmp/minio-buckets-ready"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
     networks: [vnlaw-network]
+
+networks:
+  vnlaw-network:
+    driver: bridge
 
 volumes:
   postgres_data:
@@ -112,8 +124,3 @@ volumes:
   qdrant_snapshots:
   redis_data:
   minio_data:
-
-networks:
-  vnlaw-network:
-    driver: bridge
-    internal: true

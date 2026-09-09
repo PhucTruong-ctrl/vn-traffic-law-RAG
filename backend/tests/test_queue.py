@@ -33,13 +33,16 @@ from app.config import (
     get_queue_settings,
 )
 from app.ingestion import actors
+from app.ingestion.actors import _state as state_module
+from app.ingestion.actors import extract as extract_module
 from app.ingestion.actors import normalize as normalize_module
 from app.ingestion.actors import parse as parse_module
 from app.ingestion.actors import resolve_refs, resolve_temporal
 from app.ingestion.actors.embed import embed_actor
-from app.ingestion.actors.extract import extract_actor
+from app.ingestion.actors.extract import _ensure_document_version, extract_actor
 from app.ingestion.actors.index import index_actor
 from app.ingestion.actors.normalize import normalize_actor
+from app.ingestion.actors.outbox import bootstrap_outbox_relay, outbox_trigger_actor
 from app.ingestion.actors.parse import parse_actor
 from app.ingestion.actors.quality_gate import quality_gate_actor
 from app.ingestion.actors.resolve_refs import resolve_refs_actor
@@ -51,7 +54,7 @@ from app.ingestion.queue import (
     get_broker,
     make_retry_when,
 )
-from app.persistence.models import IngestionRun
+from app.persistence.models import DocumentVersion, IngestionRun
 
 #: Actor queue names (== stage names, doc 03 §3.13.2).
 ACTOR_NAMES = [
@@ -96,6 +99,15 @@ def _stub_broker() -> StubBroker:
     for actor, bound in original_brokers.items():
         actor.broker = bound
     dramatiq.set_broker(original_global)
+
+
+def test_bootstrap_outbox_relay_seeds_trigger(monkeypatch: pytest.MonkeyPatch) -> None:
+    sent = Mock()
+    monkeypatch.setattr(outbox_trigger_actor, "send", sent)
+
+    bootstrap_outbox_relay()
+
+    sent.assert_called_once_with()
 
 
 class _FakeSession:
@@ -158,6 +170,54 @@ def _messages(broker: StubBroker, queue_name: str) -> list[Message]:
 
 def _queue_empty(broker: StubBroker, queue_name: str) -> bool:
     return broker.queues[queue_name].empty()
+
+
+def test_existing_version_merges_manifest_effective_dates() -> None:
+    session = _FakeSession()
+    version = DocumentVersion(
+        document_id="nd-160-2024",
+        version=1,
+        manifest_json={"document_number": "160/2024/NĐ-CP"},
+        content_hash="hash",
+        review_status="PENDING",
+    )
+    run = _run(
+        document_id="nd-160-2024",
+        manifest_json={
+            "document_number": "160/2024/NĐ-CP",
+            "effective_from": "2025-01-01",
+            "effective_to": None,
+        },
+    )
+    monkeypatch = pytest.MonkeyPatch()
+    try:
+        monkeypatch.setattr(
+            extract_module, "latest_document_version", lambda _session, _document_id: version
+        )
+        result = _ensure_document_version(session, run, ir=Mock(model_dump_json=lambda: "{}"))
+    finally:
+        monkeypatch.undo()
+
+    assert result is version
+    assert version.effective_from.isoformat() == "2025-01-01"
+    assert version.effective_to is None
+    assert version.manifest_json["effective_from"] == "2025-01-01"
+    assert version.review_status == "PENDING"
+
+
+def test_bootstrap_run_merges_repo_manifest_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Bootstrap reads accepted corpus metadata from the repository manifest tree."""
+    session = _FakeSession()
+    run = state_module.bootstrap_run(
+        session,
+        job_id="job-manifest",
+        document_id="nd-160-2024",
+        object_key="documents/nd-160-2024/source/file.pdf",
+    )
+
+    assert run.manifest_json["effective_from"] == "2025-01-01"
+    assert run.manifest_json["document_number"] == "160/2024/NĐ-CP"
+    assert run.manifest_json["source_object_key"] == "documents/nd-160-2024/source/file.pdf"
 
 
 # --- config ------------------------------------------------------------------

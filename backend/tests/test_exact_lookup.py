@@ -102,3 +102,31 @@ def test_exact_lookup_returns_all_canonical_rows_even_when_hint_matches_one():
         "canonical-a",
         "canonical-b",
     ]
+
+
+def test_exact_lookup_falls_back_to_clause_rows_when_point_is_missing():
+    row = _row("actual-clause", vehicle_types=["MOTORCYCLE"])
+    row.point = None
+    repository = FakeRepository([])
+    def lookup_exact(**kwargs):
+        repository.arguments = kwargs
+        return [row] if kwargs["point"] is None else []
+    repository.lookup_exact = lookup_exact
+
+    result = ExactLookup(repository).lookup(
+        document_number="168/2024/NĐ-CP", article="7", clause="4", point="b",
+        query_date=date(2025, 1, 1), vehicle_type="xe máy",
+    )
+
+    assert [item.provision_id for item in result.results] == ["actual-clause"]
+    assert result.results[0].point is None
+    assert repository.arguments["point"] is None
+
+
+def test_exact_lookup_does_not_fall_back_to_unrelated_rows():
+    repository = FakeRepository([])
+    result = ExactLookup(repository).lookup(
+        document_number="168/2024/NĐ-CP", article="5", clause="9", point="b",
+        query_date=date(2025, 1, 1),
+    )
+    assert result.results == []
