@@ -34,15 +34,13 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
-from urllib.parse import quote
 from typing import Any, Literal, cast
+from urllib.parse import quote
 
 import httpx
-
 from pydantic import BaseModel, ConfigDict
 
 from app.config import EmbeddingSettings
-
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +170,10 @@ class _HttpEmbeddingAdapter(EmbeddingProvider):
             return []
         if self._cache is None or self._encoder_version is None:
             return self._embed_uncached(texts)
-        keys = [embedding_cache_key(self.name, self._encoder_version, text) for text in texts]
+        keys = [
+            embedding_cache_key(self.name, self._encoder_version, text, mode="query")
+            for text in texts
+        ]
         vectors: list[list[float] | None] = [self._cache.get(key) for key in keys]
         missing = [index for index, vector in enumerate(vectors) if vector is None]
         if missing:
@@ -466,7 +467,16 @@ class JinaEmbeddingAdapter(_HttpEmbeddingAdapter):
 
 
 class LocalE5EmbeddingAdapter(EmbeddingProvider):
-    """Local SentenceTransformer E5 encoder with GPU-first CPU fallback."""
+    """Local E5 encoder, with a deterministic stdlib fallback when unavailable.
+
+    The fallback is intentionally lexical rather than semantic.  It is used
+    only when SentenceTransformers cannot be imported (including a broken
+    optional torch installation), never downloads a model, and advertises its
+    own stable encoder version.
+    """
+
+    FALLBACK_PROVIDER = "local-hash"
+    FALLBACK_ENCODER_VERSION = "local-hash-v1"
 
     def __init__(
         self,
@@ -482,10 +492,20 @@ class LocalE5EmbeddingAdapter(EmbeddingProvider):
         self._encoder_version = encoder_version
         self.total_tokens = 0
         self.requests = 0
+        self.provider = "local-sentence-transformer"
+        self.device = "cpu"
+        self._model: Any | None = None
         try:
             from sentence_transformers import SentenceTransformer
-        except ImportError as exc:
-            raise ConfigError("local E5 provider requires sentence-transformers") from exc
+        except Exception as exc:
+            logger.warning(
+                "SentenceTransformers unavailable; using deterministic %s fallback: %s",
+                self.FALLBACK_PROVIDER,
+                exc,
+            )
+            self.provider = self.FALLBACK_PROVIDER
+            self._encoder_version = encoder_version or self.FALLBACK_ENCODER_VERSION
+            return
         try:
             import torch
 
@@ -493,14 +513,44 @@ class LocalE5EmbeddingAdapter(EmbeddingProvider):
             if settings.local_device == "auto":
                 device = "cuda" if torch.cuda.is_available() else "cpu"
             else:
-                device = cast(Literal["cpu", "cuda"], settings.local_device)
-        except ImportError:
+                device = settings.local_device
+        except Exception:
             device = "cpu"
-        self.device = device
-        self._model = SentenceTransformer(self.name, device=device)
+        try:
+            self.device = device
+            self._model = SentenceTransformer(self.name, device=device)
+        except Exception as exc:
+            logger.warning(
+                "SentenceTransformers model unavailable; using deterministic %s fallback: %s",
+                self.FALLBACK_PROVIDER,
+                exc,
+            )
+            self.provider = self.FALLBACK_PROVIDER
+            self.device = "cpu"
+            self._encoder_version = encoder_version or self.FALLBACK_ENCODER_VERSION
+
+    @staticmethod
+    def _fallback_vector(text: str, dimensions: int) -> list[float]:
+        normalized = " ".join(text.casefold().split())
+        features = normalized.split()
+        features.extend(
+            normalized[index : index + 3] for index in range(max(0, len(normalized) - 2))
+        )
+        vector = [0.0] * dimensions
+        for feature in features or [""]:
+            digest = hashlib.blake2b(feature.encode("utf-8"), digest_size=16).digest()
+            bucket = int.from_bytes(digest[:8], "big") % dimensions
+            sign = 1.0 if digest[8] & 1 else -1.0
+            vector[bucket] += sign * (1.0 + digest[9] / 255.0)
+        norm = sum(value * value for value in vector) ** 0.5
+        return [value / norm for value in vector] if norm else vector
 
     def _encode(self, texts: list[str], prefix: str) -> list[list[float]]:
         prepared = [text if text.startswith(prefix) else prefix + text for text in texts]
+        if self._model is None:
+            out = [self._fallback_vector(text, self.dims) for text in prepared]
+            self.requests += 1
+            return out
         vectors = self._model.encode(
             prepared, batch_size=self.batch_size, convert_to_numpy=True, normalize_embeddings=True
         )
@@ -513,10 +563,46 @@ class LocalE5EmbeddingAdapter(EmbeddingProvider):
         return out
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        return self._encode(texts, "query: ")
+        if not texts:
+            return []
+        if self._cache is None or self._encoder_version is None:
+            return self._encode(texts, "query: ")
+        keys = [
+            embedding_cache_key(self.name, self._encoder_version, text, mode="query")
+            for text in texts
+        ]
+        vectors: list[list[float] | None] = [self._cache.get(key) for key in keys]
+        missing = [index for index, vector in enumerate(vectors) if vector is None]
+        if missing:
+            fresh = self._encode([texts[index] for index in missing], "query: ")
+            for index, vector in zip(missing, fresh, strict=True):
+                vectors[index] = vector
+                self._cache.set(keys[index], vector)
+        return [vector for vector in vectors if vector is not None]
 
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
-        return self._encode(texts, "passage: ")
+        if not texts:
+            return []
+        out: list[list[float]] = []
+        for start in range(0, len(texts), self.batch_size):
+            out.extend(self._embed_cached(texts[start : start + self.batch_size], "passage: "))
+        return out
+
+    def _embed_cached(self, texts: list[str], prefix: str) -> list[list[float]]:
+        if self._cache is None or self._encoder_version is None:
+            return self._encode(texts, prefix)
+        keys = [
+            embedding_cache_key(self.name, self._encoder_version, text, mode="passage")
+            for text in texts
+        ]
+        vectors: list[list[float] | None] = [self._cache.get(key) for key in keys]
+        missing = [index for index, vector in enumerate(vectors) if vector is None]
+        if missing:
+            fresh = self._encode([texts[index] for index in missing], prefix)
+            for index, vector in zip(missing, fresh, strict=True):
+                vectors[index] = vector
+                self._cache.set(keys[index], vector)
+        return [vector for vector in vectors if vector is not None]
 
 
 class EmbeddingSelectionManifest(BaseModel):
@@ -578,10 +664,21 @@ def benchmark_local_embeddings(
     output: list[EmbeddingSelectionManifest] = []
     for model in selected:
         settings = EmbeddingSettings(
-            provider="local", model=model, dimensions=384, local_device=device
+            provider="local",
+            model=model,
+            dimensions=768,
+            local_device=cast(Literal["auto", "cpu", "cuda"], device),
         )
         try:
             provider = (provider_factory or get_embedding_provider)(settings)
+            provider_name = getattr(provider, "provider", None)
+            if provider_name != "local-sentence-transformer":
+                logger.warning(
+                    "skipping %s benchmark candidate: provider %r is not SentenceTransformer E5",
+                    model,
+                    provider_name,
+                )
+                continue
             started = time.perf_counter()
             vectors = provider.embed_batch(texts)
             elapsed = max(time.perf_counter() - started, 1e-9)
@@ -589,9 +686,17 @@ def benchmark_local_embeddings(
             continue
         if not vectors:
             continue
-        revision = str(
-            getattr(getattr(provider, "_model", None), "config", {}).get("_name_or_path", model)
-        )
+        model_obj = getattr(provider, "_model", None)
+        model_config = getattr(model_obj, "config", None)
+        if not isinstance(model_config, Mapping):
+            continue
+        actual_model = str(model_config.get("_name_or_path", "")).strip()
+        actual_revision = str(
+            model_config.get("_commit_hash", model_config.get("revision", ""))
+        ).strip()
+        if not actual_model or not actual_revision:
+            logger.warning("skipping %s benchmark candidate: missing provider metadata", model)
+            continue
         quality_records = [
             {
                 "id": str(row.get("id", index)),
@@ -609,9 +714,9 @@ def benchmark_local_embeddings(
             quality = {name: report.value for name, report in reports.items()}
         output.append(
             EmbeddingSelectionManifest(
-                provider="local",
-                model=model,
-                revision=revision,
+                provider=str(provider_name),
+                model=actual_model,
+                revision=actual_revision,
                 dimensions=len(vectors[0]),
                 prefix="passage: ",
                 device=str(getattr(provider, "device", device)),
@@ -655,12 +760,15 @@ def ensure_embedding_space_compatible(
         )
 
 
-def embedding_cache_key(model: str, encoder_version: str, text: str) -> str:
-    """Deterministic cache key: sha256 of model + encoder version + text.
+def embedding_cache_key(
+    model: str, encoder_version: str, text: str, *, mode: str = "default"
+) -> str:
+    """Deterministic cache key including the embedding input mode.
 
-    Versioned so a model or encoder change never reuses vectors across runs.
+    Query and passage prefixes produce different vector-space inputs and must
+    never share a cache entry.
     """
-    material = "\x00".join((model, encoder_version, text))
+    material = "\x00".join((model, encoder_version, mode, text))
     return hashlib.sha256(material.encode("utf-8")).hexdigest()
 
 

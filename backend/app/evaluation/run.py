@@ -6,7 +6,7 @@ import contextlib
 import hashlib
 import json
 import uuid
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any, Literal
 
@@ -298,7 +298,7 @@ def _citation_ids(value: object) -> list[str]:
     ]
 
 
-def evaluate_release_records(records: list[Mapping[str, Any]]) -> dict[str, Any]:
+def evaluate_release_records(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     """Compute release metrics and fail-closed gates from serving outcomes."""
     from app.evaluation.metrics import evaluate_evidence, evaluate_retrieval, evaluate_temporal
 

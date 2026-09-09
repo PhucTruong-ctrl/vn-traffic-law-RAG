@@ -13,7 +13,11 @@ def upgrade() -> None:
     op.execute("ALTER TABLE query_feedback ADD COLUMN IF NOT EXISTS message_id varchar(128)")
     op.execute("ALTER TABLE query_feedback ADD COLUMN IF NOT EXISTS rating varchar(7)")
     op.execute(
-        "UPDATE query_feedback SET rating = CASE WHEN useful THEN 'LIKE' ELSE 'DISLIKE' END WHERE rating IS NULL"
+        """
+        UPDATE query_feedback
+        SET rating = CASE WHEN useful THEN 'LIKE' ELSE 'DISLIKE' END
+        WHERE rating IS NULL
+        """
     )
     op.execute("ALTER TABLE query_feedback ALTER COLUMN rating SET NOT NULL")
     op.execute("ALTER TABLE query_feedback DROP CONSTRAINT IF EXISTS query_feedback_rating_check")

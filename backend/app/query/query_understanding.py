@@ -260,8 +260,8 @@ def _build_cases(
 
 def _default_corpus_document_ids() -> frozenset[str]:
     """Return approved identifiers from committed corpus manifests."""
-    from pathlib import Path
     import json
+    from pathlib import Path
 
     root = Path(__file__).resolve().parents[3] / "data" / "manifests"
     ids: set[str] = set()
