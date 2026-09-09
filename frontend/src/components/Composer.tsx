@@ -25,9 +25,11 @@ export default function Composer({
     const textarea = textareaRef.current;
     if (!textarea) return;
     textarea.style.height = "auto";
-    textarea.style.height = `${textarea.scrollHeight}px`;
+    const maxHeight = hero ? Number.POSITIVE_INFINITY : 8 * 23;
+    const nextHeight = Math.min(textarea.scrollHeight, maxHeight);
+    textarea.style.height = `${nextHeight}px`;
+    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
   };
-  useEffect(resizeTextarea, [value]);
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
@@ -35,7 +37,10 @@ export default function Composer({
     }
   };
   return (
-    <form onSubmit={onSubmit} className={hero ? "composer hero-composer" : "composer"}>
+    <form
+      onSubmit={onSubmit}
+      className={hero ? "composer hero-composer" : "composer compact-composer"}
+    >
       <label htmlFor={id}>Câu hỏi</label>
       <textarea
         ref={textareaRef}
