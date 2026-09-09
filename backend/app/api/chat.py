@@ -8,18 +8,20 @@ import uuid
 from collections.abc import AsyncIterator
 from contextlib import suppress
 from dataclasses import asdict, is_dataclass
-from datetime import date
+from datetime import UTC, date, datetime
 from enum import Enum
 from typing import Annotated, Any, cast
 
-from fastapi import APIRouter, Body, Depends, Request
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Body, Depends, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from sqlalchemy.orm import Session
 
+from app.api.conversations import OWNER_COOKIE, _conversation, _title, owner_key
 from app.api.db import get_db
 from app.observability.langfuse import emit_query_trace
 from app.observability.query_trace import QueryTrace, QueryTraceStore
-from app.persistence.models import QueryTrace as QueryTraceRow
+from app.observability.query_trace import QueryTrace as ObservabilityQueryTrace
+from app.persistence.models import Conversation, Message, QueryTrace as QueryTraceRow
 from app.workflow import build_query_graph as _production_build_query_graph
 from app.workflow.graph import production_services
 
@@ -60,11 +62,9 @@ def _json_safe(value: Any) -> Any:
 
 
 class ChatRequest(BaseModel):
-    """Chat-only request contract: the question is the sole client input."""
-
     model_config = ConfigDict(extra="forbid")
-
     question: str = Field(min_length=1, max_length=10_000)
+    conversation_id: uuid.UUID | None = None
 
     @field_validator("question")
     @classmethod
@@ -78,13 +78,26 @@ class ChatRequest(BaseModel):
 async def chat(
     request: Annotated[ChatRequest, Body()],
     http_request: Request,
+    response: Response,
     db: Annotated[Any, Depends(_optional_db)],
 ) -> dict[str, Any]:
+    key = owner_key(response, http_request.cookies.get(OWNER_COOKIE))
+    conversation = None
+    user_message = assistant_message = None
+    if db is not None and isinstance(db, Session) and request.conversation_id is not None:
+        conversation = _conversation(db, request.conversation_id, key)
+    if db is not None and isinstance(db, Session):
+        if conversation is None:
+            conversation = Conversation(owner_key=key, title=_title(request.question))
+            db.add(conversation)
+            db.flush()
+        user_message = Message(conversation_id=conversation.id, role="user", status="COMPLETED", content=request.question)
+        assistant_message = Message(conversation_id=conversation.id, role="assistant", status="PENDING", content="")
+        db.add_all([user_message, assistant_message])
+        conversation.last_activity_at = conversation.updated_at = datetime.now(UTC)
+        db.flush()
     trace_id = http_request.headers.get("X-Trace-ID") or uuid.uuid4().hex
-    state: dict[str, Any] = {
-        "question": request.question,
-        "query_date": date.today(),
-    }
+    state: dict[str, Any] = {"question": request.question, "query_date": date.today()}
     trace = QueryTrace(request.question, trace_id=trace_id, metadata={})
     try:
         if db is None and build_query_graph is _production_build_query_graph:
@@ -93,43 +106,38 @@ async def chat(
         graph = build_query_graph(services)
         trace.add_span("workflow", input=state)
         result = await graph.ainvoke(state)
-        trace.add_span(
-            "workflow_result",
-            output={"status": (result.get("verification_result") or {}).get("status")},
-        )
     except (RuntimeError, ValueError) as exc:
-        result = {
-            "verification_result": {
-                "status": "ABSTAIN",
-                "reason_code": "WORKFLOW_UNAVAILABLE",
-                "error": str(exc),
-            },
-            "final_response": {},
-        }
+        result = {"verification_result": {"status": "ABSTAIN", "reason_code": "WORKFLOW_UNAVAILABLE", "error": str(exc)}, "final_response": {}}
     trace.finish(result)
-    if db is None:
-        _TRACE_STORE.save(trace)
-    else:
+    if isinstance(db, Session):
         verification = result.get("verification_result") or {}
-        plan = result.get("query_understanding")
-        db.add(
-            QueryTraceRow(
-                trace_id=trace_id,
-                question=request.question,
-                intent=str(getattr(plan, "intent", "UNKNOWN")),
-                query_date=None,
-                vehicle_type=None,
-                response_status=str(verification.get("status", "UNKNOWN")),
-                citations=_citations(result, result.get("final_response") or {}),
-                verification_summary=_json_safe(verification),
-            )
+        row = QueryTraceRow(
+            trace_id=trace_id,
+            question=request.question,
+            intent="UNKNOWN",
+            query_date=None,
+            vehicle_type=None,
+            response_status=str(verification.get("status", "UNKNOWN")),
+            citations=_citations(result, result.get("final_response") or {}),
+            verification_summary=_json_safe(verification),
         )
+        db.add(row)
+        db.flush()
+    elif db is not None and hasattr(db, "traces"):
+        _TRACE_STORE.save(trace)
+        db.traces[trace_id] = trace
         db.commit()
     with suppress(Exception):
         emit_query_trace(trace)
-    return _response_payload(result, trace_id)
-
-
+    payload = _response_payload(result, trace_id)
+    if isinstance(db, Session):
+        assistant_message.content = payload.get("answer") or (payload.get("abstention") or {}).get("reason_code", "")
+        assistant_message.status = "COMPLETED"
+        assistant_message.query_trace_id = db.query(QueryTraceRow).filter(QueryTraceRow.trace_id == trace_id).first().id
+        conversation.last_activity_at = conversation.updated_at = datetime.now(UTC)
+        db.commit()
+        payload.update(conversation_id=conversation.id, user_message_id=user_message.id, assistant_message_id=assistant_message.id)
+    return payload
 _WORKFLOW_STAGES = (
     ("analyze_query", "Phân tích câu hỏi"),
     ("resolve_temporal", "Xác định hiệu lực theo thời gian"),
@@ -181,47 +189,23 @@ async def _run_workflow(
                 continue
             for node, update in event.items():
                 result.update(update if isinstance(update, dict) else {})
-                label = dict(_WORKFLOW_STAGES).get(node, node)
                 if progress:
-                    await progress(node, label)
-        trace.add_span(
-            "workflow_result",
-            output={"status": (result.get("verification_result") or {}).get("status")},
-        )
+                    await progress(node, dict(_WORKFLOW_STAGES).get(node, node))
+        trace.add_span("workflow_result", output={"status": (result.get("verification_result") or {}).get("status")})
     except (RuntimeError, ValueError) as exc:
-        result = {
-            "verification_result": {
-                "status": "ABSTAIN",
-                "reason_code": "WORKFLOW_UNAVAILABLE",
-                "error": str(exc),
-            },
-            "final_response": {},
-        }
+        result = {"verification_result": {"status": "ABSTAIN", "reason_code": "WORKFLOW_UNAVAILABLE", "error": str(exc)}, "final_response": {}}
     trace.finish(result)
     if db is None:
         _TRACE_STORE.save(trace)
     else:
         verification = result.get("verification_result") or {}
         plan = result.get("query_understanding")
-        db.add(
-            QueryTraceRow(
-                trace_id=trace_id,
-                question=request.question,
-                intent=str(getattr(plan, "intent", "UNKNOWN")),
-                query_date=None,
-                vehicle_type=None,
-                response_status=str(verification.get("status", "UNKNOWN")),
-                citations=_citations(result, result.get("final_response") or {}),
-                verification_summary=_json_safe(verification),
-            )
+        db.add(QueryTraceRow(trace_id=trace_id, question=request.question, intent=str(getattr(plan, "intent", "UNKNOWN")), query_date=None, vehicle_type=None, response_status=str(verification.get("status", "UNKNOWN")), citations=_citations(result, result.get("final_response") or {}), verification_summary=_json_safe(verification))
         )
-        db.commit()
+        db.flush()
     with suppress(Exception):
         emit_query_trace(trace)
     return {"trace_id": trace_id, "payload": _response_payload(result, trace_id)}
-
-
-@router.get("/chat/events")
 async def chat_events(
     question: str,
     http_request: Request,
