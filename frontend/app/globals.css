@@ -911,7 +911,7 @@ input::placeholder {
   background: linear-gradient(180deg, transparent, rgba(244, 245, 243, 0.96) 30%);
 }
 .compact-composer textarea {
-  min-height: 38px;
+  min-height: 0;
   max-height: calc(23px * 8 + 24px);
   overflow-y: hidden;
   resize: none;
@@ -999,6 +999,18 @@ input::placeholder {
   color: #8d98a4;
   background: var(--slate-100);
   box-shadow: none;
+}
+
+.composer.compact-composer textarea {
+  min-height: 0;
+  max-height: calc(23px * 8 + 24px);
+  overflow-y: hidden;
+  resize: none;
+  transition:
+    height var(--motion-normal) var(--ease-standard),
+    border-color var(--motion-normal) var(--ease-standard),
+    box-shadow var(--motion-normal) var(--ease-standard),
+    background-color var(--motion-normal) var(--ease-standard);
 }
 
 .prompt-chips {

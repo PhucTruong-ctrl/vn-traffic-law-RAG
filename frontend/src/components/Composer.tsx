@@ -21,15 +21,17 @@ export default function Composer({
   onStop,
 }: ComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const resizeTextarea = () => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    textarea.style.height = "auto";
-    const maxHeight = hero ? Number.POSITIVE_INFINITY : 8 * 23;
-    const nextHeight = Math.min(textarea.scrollHeight, maxHeight);
+  const resizeTextarea = (textarea: HTMLTextAreaElement) => {
+    textarea.style.height = "0px";
+    const lineHeight = Number.parseFloat(getComputedStyle(textarea).lineHeight) || 23;
+    const maxHeight = hero ? Number.POSITIVE_INFINITY : lineHeight * 8 + 24;
+    const nextHeight = Math.max(lineHeight + 24, Math.min(textarea.scrollHeight, maxHeight));
     textarea.style.height = `${nextHeight}px`;
     textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
   };
+  useEffect(() => {
+    if (textareaRef.current) resizeTextarea(textareaRef.current);
+  }, [value, hero]);
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
@@ -47,7 +49,10 @@ export default function Composer({
         id={id}
         required
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(event) => {
+          onChange(event.target.value);
+          resizeTextarea(event.currentTarget);
+        }}
         onKeyDown={onKeyDown}
         placeholder={hero ? "Bạn muốn hỏi điều gì?" : "Hỏi tiếp..."}
         rows={hero ? 2 : 1}
