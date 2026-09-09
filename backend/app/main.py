@@ -2,7 +2,7 @@
 
 from fastapi import FastAPI, Request
 
-from app.api import chat, conversations, documents, errors, feedback, jobs, review, search
+from app.api import chat, conversations, documents, errors, feedback, jobs, search
 from app.observability.health import readiness
 
 app = FastAPI()
@@ -14,7 +14,6 @@ app.include_router(chat.router)
 app.include_router(conversations.router)
 app.include_router(search.router)
 app.include_router(feedback.router)
-app.include_router(review.router)
 
 
 @app.middleware("http")

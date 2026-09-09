@@ -1,6 +1,6 @@
-> **MVP rebaseline — 06/09/2026**: The defense release scope is reduced to a fixed 5–10-document reviewed corpus, 30–50 evaluation questions, current and as-of-date retrieval, structure-aware citations, evidence gating, abstention, and a working chat UI. RAGFlow comparison, feedback, large-scale background ingestion, advanced observability/security, and production backup automation are deferred.
->
-> **Model policy**: Gemini 3.7 Flash is the primary structured-answer generator. Gemini 3.5 Flash Lite is the independent semantic judge. OpenAI/GPT-5.4 is not used. Earlier scope/model statements in this document are superseded by this rebaseline.
+> **Active release contract (10/09/2026)**: The serving architecture is bounded to exactly 14 deduplicated local PDFs from `datafiles.chinhphu.vn`, with immutable snapshot/hash metadata. Manual CLI ingestion runs automatic quality/provenance/temporal gates; only `ACCEPTED` records reach PostgreSQL/Qdrant serving. The system is single-user on localhost/private network with no auth, admin/reviewer role, approval UI/API, or human approval. Release evaluation executes all 200 gold questions across 17 categories (40/40/120). Feedback is anonymous LIKE/DISLIKE telemetry and non-gating. Embedding selection is evidence-driven: benchmark installed/cached local candidates, then record the chosen model/version in an embedding manifest.
++
+> **Superseded historical note**: The former 5–10-document / 30–50-question rebaseline and named provider claims below are historical and do not define the active serving contract.
 # ARCHITECTURE — Kiến Trúc Hệ Thống VNLRAG v2
 
 Tài liệu này mô tả kiến trúc tổng quan của hệ thống VN Traffic Law RAG (bản thiết kế lại v2) ở mức đủ để triển khai theo phạm vi đã đóng băng tại M0 — Scope Freeze 19/07/2026 (xem [SCOPE.md](SCOPE.md)). Chi tiết thiết kế nằm ở `docs/03-thiet-ke-he-thong.md` và `docs/04-tech-stack-llm-research.md`.

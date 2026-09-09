@@ -71,7 +71,7 @@ _NON_ARTICLE_KINDS = frozenset({"APPENDIX", "TABLE", "HEADING", "TRANSITIONAL", 
 _VALID_STATUSES = frozenset(
     {"NOT_YET_EFFECTIVE", "EFFECTIVE", "PARTIALLY_EFFECTIVE", "EXPIRED", "UNKNOWN"}
 )
-_VALID_REVIEW_STATUSES = frozenset({"PENDING", "ACCEPTED", "REJECTED", "DROPPED"})
+_VALID_REVIEW_STATUSES = frozenset({"ACCEPTED", "REJECTED"})
 _VALID_NODE_KINDS = frozenset(
     {"ARTICLE", "CLAUSE", "POINT", "APPENDIX", "TABLE", "TRANSITIONAL", "HEADING", "OTHER"}
 )
@@ -234,13 +234,8 @@ def project_provisions(
     ``content_hash`` is recomputed deterministically from ``source_text`` and
     must equal the extractor's value.
 
-    Header/footer leakage (rulespec §9) is never persisted as auto-accepted:
-    when a provision's text is detected as repeated document chrome, its
-    ``review_status`` is forced to ``PENDING`` (an explicit ``review_status``
-    override never overrides leakage), and the marker is recorded on the
-    extractor record itself (``needs_review = True`` with ``ambiguity =
-    "header/footer leakage"``, the extractor's own review-flag convention) so
-    corpus QA can count leakage from the caller's ``extracted`` list.
+    Header/footer leakage is rejected and retains its immutable reason/hash
+    metadata; rejected rows are auditable but never serving.
     """
 
     identities: set[tuple[str, int]] = set()
@@ -267,7 +262,7 @@ def project_provisions(
         if leakage:
             item.needs_review = True
             item.ambiguity = item.ambiguity or "header/footer leakage"
-            provision_review_status = "PENDING"  # never auto-accept leaked chrome
+            provision_review_status = "REJECTED"
         else:
             provision_review_status = (
                 review_status if review_status is not None else item.review_status

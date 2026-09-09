@@ -11,6 +11,7 @@ from dataclasses import asdict, is_dataclass
 from datetime import UTC, date, datetime
 from enum import Enum
 from typing import Annotated, Any, cast
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Body, Depends, Request, Response
 from fastapi.responses import StreamingResponse
@@ -126,15 +127,21 @@ async def chat(
     trace.finish(result)
     if isinstance(db, Session):
         verification = result.get("verification_result") or {}
+        plan = result.get("query_understanding")
+        public_status = _response_payload(result, trace_id)["status"]
         row = QueryTraceRow(
             trace_id=trace_id,
             question=request.question,
-            intent="UNKNOWN",
+            intent=str(getattr(plan, "intent", "UNKNOWN")),
             query_date=None,
             vehicle_type=None,
             response_status=str(verification.get("status", "UNKNOWN")),
             citations=_citations(result, result.get("final_response") or {}),
-            verification_summary=_json_safe(verification),
+            verification_summary={
+                **_json_safe(verification),
+                "public_status": public_status,
+                "evidence_gaps": result.get("evidence_gaps", []),
+            },
         )
         db.add(row)
         db.flush()
@@ -174,9 +181,20 @@ _WORKFLOW_STAGES = (
 def _response_payload(result: dict[str, Any], trace_id: str) -> dict[str, Any]:
     final = result.get("final_response") or {}
     verification = result.get("verification_result") or {}
+    plan = result.get("query_understanding")
+    plan_status = str(getattr(plan, "status", "")) if plan is not None else ""
     citations = _citations(result, final)
-    status = "VERIFIED" if verification.get("status") == "VALID" and citations else "ABSTAINED"
-    return {
+    public_status = result.get("status") or verification.get("public_status")
+    if public_status:
+        status = str(public_status)
+    elif verification.get("status") == "VALID" and citations:
+        status = "VERIFIED"
+    elif plan_status in {"GREETING", "OUT_OF_SCOPE", "CORPUS_NOT_COVERED"}:
+        status = plan_status
+    else:
+        status = "ABSTAINED" if verification.get("status") != "VALID" else "INSUFFICIENT_EVIDENCE"
+    reason = verification.get("reason_code") or getattr(plan, "status_reason", None)
+    payload: dict[str, Any] = {
         "status": status,
         "answer": final.get("answer_summary") if status == "VERIFIED" else None,
         "claims": final.get("claims", []) if status == "VERIFIED" else [],
@@ -184,10 +202,11 @@ def _response_payload(result: dict[str, Any], trace_id: str) -> dict[str, Any]:
         "metadata": {},
         "abstention": None
         if status == "VERIFIED"
-        else {"reason_code": verification.get("reason_code", "INSUFFICIENT_EVIDENCE")},
+        else {"reason_code": reason or status, "evidence_gaps": result.get("evidence_gaps", [])},
         "disclaimer": DISCLAIMER,
         "trace_id": trace_id,
     }
+    return payload
 
 
 async def _run_workflow(
@@ -312,6 +331,16 @@ def _normalized_bbox(value: Any) -> dict[str, float] | None:
         return None
 
 
+_TRUSTED_SOURCE_HOST = "datafiles.chinhphu.vn"
+
+
+def _trusted_source_url(value: Any) -> bool:
+    if not isinstance(value, str) or not value:
+        return False
+    parsed = urlparse(value)
+    return parsed.scheme == "https" and parsed.hostname == _TRUSTED_SOURCE_HOST
+
+
 def _citations(result: dict[str, Any], final: dict[str, Any]) -> list[dict[str, Any]]:
     context = result.get("expanded_context") or result.get("context_package") or []
     if isinstance(context, dict):
@@ -327,6 +356,7 @@ def _citations(result: dict[str, Any], final: dict[str, Any]) -> list[dict[str, 
         for item in context
         if getattr(item, "provision_id", None)
         and getattr(item, "review_status", "ACCEPTED") == "ACCEPTED"
+        and _trusted_source_url(getattr(item, "source_url", None))
     }
     citations: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -344,10 +374,10 @@ def _citations(result: dict[str, Any], final: dict[str, Any]) -> list[dict[str, 
         if len(set(provision_ids)) != len(provision_ids):
             return []
         for provision_id in provision_ids:
-            if provision_id in seen:
-                return []
             item = records.get(provision_id)
             if item is None:
+                return []
+            if provision_id in seen:
                 return []
             seen.add(provision_id)
             citation = {
@@ -358,21 +388,15 @@ def _citations(result: dict[str, Any], final: dict[str, Any]) -> list[dict[str, 
                 "clause": item.clause,
                 "point": item.point,
                 "parent_context": item.parent_context,
-                "source_text": getattr(item, "source_text", None),
-                "page_number": getattr(item, "page_number", None),
-                "legal_context": "\n\n".join(
-                    part
-                    for part in (
-                        item.parent_context,
-                        item.source_text or item.text,
-                    )
-                    if part
-                ),
+                "source_text": item.source_text,
+                "page_number": item.page_number,
+                "legal_context": item.parent_context,
                 "bbox": _normalized_bbox(getattr(item, "bbox", None)),
+                "source_url": item.source_url,
+                "snapshot_at": getattr(item, "snapshot_at", None),
+                "content_hash": getattr(item, "content_hash", None),
+                "provision_version": item.provision_version,
             }
-            source_url = getattr(item, "source_url", None)
-            if isinstance(source_url, str) and source_url:
-                citation["source_url"] = source_url
             for identity_field in (
                 "provision_version",
                 "document_version_id",

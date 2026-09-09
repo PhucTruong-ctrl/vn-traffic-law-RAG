@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date
-from typing import Annotated, Any, Literal, cast
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Body, Request
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -15,7 +15,7 @@ from app.retrieval.dense import DenseRetriever
 from app.retrieval.embedding import get_embedding_provider
 from app.retrieval.hybrid import HybridRetriever
 from app.retrieval.qdrant_store import _default_client
-from app.retrieval.sparse import BM25SparseEncoder, SparseEncoder
+from app.retrieval.sparse import SparseEncoder
 from app.retrieval.sparse_retriever import SparseRetriever
 
 router = APIRouter(prefix="/api/v1", tags=["search"])
@@ -59,15 +59,20 @@ def _serialize(result: RetrievalResult) -> dict[str, Any]:
         "clause": result.clause,
         "point": result.point,
         "hierarchy": {"article": result.article, "clause": result.clause, "point": result.point},
-        "snippet": result.source_text or result.text,
+        "snippet": result.source_text,
+        "source_text": result.source_text,
+        "parent_context": result.parent_context,
         "effective_from": interval["from"],
         "effective_to": interval["to"],
         "interval": interval,
         "status": "EFFECTIVE",
-        "page_number": result.page_number,
+        "page_number": getattr(result, "page_number", None),
+        "source_url": getattr(result, "source_url", None),
+        "snapshot_at": getattr(result, "snapshot_at", None),
+        "content_hash": getattr(result, "content_hash", None),
         "provenance": {
-            "retrieval_sources": result.retrieval_sources,
-            "source_id": result.source_id,
+            "retrieval_sources": getattr(result, "retrieval_sources", []),
+            "source_id": getattr(result, "source_id", None),
             "document_version_id": result.document_version_id,
         },
     }
@@ -75,12 +80,56 @@ def _serialize(result: RetrievalResult) -> dict[str, Any]:
 
 def _build_retriever(mode: str) -> Any:
     client = _default_client()
+    # Querying the stable alias is the serving boundary.  It is switched
+    # atomically by promotion and contains only accepted, complete points.
+    from app.retrieval.qdrant_store import PROVISION_ALIAS
+
     if mode == "sparse":
-        return SparseRetriever(client, cast(SparseEncoder, BM25SparseEncoder()), top_k=100)
+        return SparseRetriever(
+            client,
+            _serving_sparse_encoder(),
+            collection=PROVISION_ALIAS,
+            top_k=100,
+        )
     embedder = get_embedding_provider(get_embedding_settings())
     if mode == "dense":
-        return DenseRetriever(client, embedder, top_k=100)
-    return HybridRetriever(client, embedder, cast(SparseEncoder, BM25SparseEncoder()))
+        return DenseRetriever(client, embedder, collection=PROVISION_ALIAS, top_k=100)
+    return HybridRetriever(
+        client,
+        embedder,
+        _serving_sparse_encoder(),
+        collection=PROVISION_ALIAS,
+    )
+
+
+def _serving_sparse_encoder() -> SparseEncoder:
+    """Load the immutable vocabulary used by the active serving rebuild."""
+    from sqlalchemy import select
+
+    from app.config import get_sparse_settings
+    from app.ingestion.actors._state import new_session
+    from app.ingestion.actors.index import load_or_fit_sparse_encoder
+    from app.persistence.models import LegalProvision
+
+    with new_session() as session:
+        from app.persistence.models import DocumentVersion, LegalProvision
+
+        active = session.scalar(
+            select(DocumentVersion)
+            .where(DocumentVersion.review_status == "ACCEPTED")
+            .order_by(DocumentVersion.id.desc())
+        )
+        if active is None:
+            raise RuntimeError("no active accepted document version for sparse serving")
+        texts = list(
+            session.scalars(
+                select(LegalProvision.retrieval_text).where(
+                    LegalProvision.document_version_id == active.id,
+                    LegalProvision.review_status == "ACCEPTED",
+                )
+            )
+        )
+    return load_or_fit_sparse_encoder(texts, version=get_sparse_settings().encoder_version)
 
 
 def _retrieve(request: SearchRequest) -> CandidateSet:

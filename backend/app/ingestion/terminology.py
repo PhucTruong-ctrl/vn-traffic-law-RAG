@@ -22,71 +22,72 @@ import unicodedata
 
 #: Current terminology vocabulary version.  Bump on any incompatible change
 #: to :data:`TERMINOLOGY` (added/removed/renamed canonical terms or variants).
-TERMINOLOGY_VERSION = "1.0.0"
+TERMINOLOGY_VERSION = "1.1.0"
 
 #: Canonical term -> variant spellings (canonical term listed first).
 #: Sources are the real corpus documents cited per entry.
 TERMINOLOGY: dict[str, list[str]] = {
-    # nd-168-2024 Điều 5: "xe ô tô và các loại xe tương tự xe ô tô".
-    "xe ô tô": [
-        "xe ô tô",
-        "xe ôtô",
-        "xe otô",
-        "xe oto",
-        "ô tô",
-        "ôtô",
-        "oto",
-    ],
-    # nd-168-2024 Điều 7: "xe mô tô, xe gắn máy".
-    "xe mô tô": [
-        "xe mô tô",
-        "xe môtô",
-        "xe moto",
-        "mô tô",
-        "môtô",
-    ],
-    "xe gắn máy": [
-        "xe gắn máy",
-        "xe gan may",
-        "gắn máy",
-    ],
-    # nd-168-2024 Điều 5 Khoản 1: "Phạt tiền từ 800.000 đồng ...".
-    "phạt tiền": [
-        "phạt tiền",
-        "phat tien",
-    ],
-    # nd-168-2024 title: "XỬ PHẠT VI PHẠM HÀNH CHÍNH TRONG LĨNH VỰC ...".
+    "xe ô tô": ["xe ô tô", "xe ôtô", "xe otô", "xe oto", "ô tô", "ôtô", "oto"],
+    "xe mô tô": ["xe mô tô", "xe môtô", "xe moto", "mô tô", "môtô"],
+    "xe gắn máy": ["xe gắn máy", "xe gan may", "gắn máy"],
+    "phạt tiền": ["phạt tiền", "phat tien"],
     "xử phạt vi phạm hành chính": [
         "xử phạt vi phạm hành chính",
         "xử phạt VPHC",
         "xử phạt vi phạm hành chính trong lĩnh vực giao thông đường bộ",
         "vphc",
     ],
-    # nd-168-2024 Điều 7 Khoản 1: "giấy phép lái xe".
-    "giấy phép lái xe": [
-        "giấy phép lái xe",
-        "GPLX",
-        "gplx",
-    ],
-    # nd-168-2024 Khoản 3/4: "nồng độ cồn vượt quá mức quy định".
+    "giấy phép lái xe": ["giấy phép lái xe", "GPLX", "gplx"],
     "nồng độ cồn": [
         "nồng độ cồn",
         "nồng độ cồn trong máu hoặc hơi thở",
         "nồng độ cồn trong máu",
         "nồng độ cồn trong hơi thở",
     ],
-    # tt-24-2023 Điều 5: "Hồ sơ đăng ký học lái xe" (y/i variant + OCR loss).
-    "đăng ký": [
-        "đăng ký",
-        "đăng kí",
-        "dang ky",
-        "dang ki",
-    ],
-    # nd-168-2024 / tt-24-2023 titles; OCR misplaced-mark variant included.
+    "đăng ký": ["đăng ký", "đăng kí", "dang ky", "dang ki"],
     "giao thông đường bộ": [
         "giao thông đường bộ",
         "giao thông đuờng bộ",
         "giao thông duong bo",
+    ],
+    # Canonical concepts bridge colloquial questions and statutory wording.
+    "không chấp hành hiệu lệnh của đèn tín hiệu giao thông": [
+        "không chấp hành hiệu lệnh đèn tín hiệu giao thông",
+        "không chấp hành hiệu lệnh của đèn tín hiệu giao thông",
+        "vượt đèn đỏ",
+        "vượt đèn đỏ",
+        "vuot den do",
+        "đèn đỏ",
+        "den do",
+    ],
+    "sử dụng điện thoại khi điều khiển xe": [
+        "sử dụng điện thoại khi điều khiển xe",
+        "dùng điện thoại khi lái xe",
+        "sử dụng điện thoại",
+        "dùng điện thoại",
+        "điện thoại khi điều khiển",
+    ],
+    "không đội mũ bảo hiểm": [
+        "không đội mũ bảo hiểm",
+        "không đội mũ bảo hiểm khi đi xe",
+        "không đội nón bảo hiểm",
+        "mũ bảo hiểm",
+        "nón bảo hiểm",
+    ],
+    "mức phạt tiền": ["mức phạt tiền", "phạt bao nhiêu", "tiền phạt"],
+    "điểm giấy phép lái xe": ["điểm giấy phép lái xe", "điểm GPLX", "điểm bị trừ", "trừ điểm"],
+    "tước đình chỉ giấy phép lái xe": [
+        "tước giấy phép lái xe",
+        "đình chỉ giấy phép lái xe",
+        "tước quyền sử dụng giấy phép lái xe",
+        "thu hồi giấy phép lái xe",
+    ],
+    "hình thức phạt bổ sung": [
+        "hình thức phạt bổ sung",
+        "phạt bổ sung",
+        "biện pháp bổ sung",
+        "kèm theo",
+        "ngoài phạt tiền",
     ],
 }
 
@@ -121,6 +122,36 @@ def canonical_term(term: str, version: str | None = None) -> str:
             f"current version is {TERMINOLOGY_VERSION!r}"
         )
     return _VARIANT_TO_CANONICAL.get(_term_key(term), term)
+
+
+def terminology_concepts(text: str, version: str | None = None) -> set[str]:
+    """Return canonical concepts mentioned anywhere in text."""
+    if version is not None and version != TERMINOLOGY_VERSION:
+        raise ValueError(f"unsupported terminology version {version!r}")
+    key = _term_key(text)
+    return {
+        canonical
+        for canonical, variants in TERMINOLOGY.items()
+        if any(
+            re.search(rf"(?<!\w){re.escape(_term_key(variant))}(?!\w)", key) for variant in variants
+        )
+    }
+
+
+def concept_variants(concept: str, version: str | None = None) -> tuple[str, ...]:
+    """Return all retrieval spellings for a canonical concept."""
+    if version is not None and version != TERMINOLOGY_VERSION:
+        raise ValueError(f"unsupported terminology version {version!r}")
+    return tuple(TERMINOLOGY.get(concept, [concept]))
+
+
+__all__ = [
+    "TERMINOLOGY",
+    "TERMINOLOGY_VERSION",
+    "canonical_term",
+    "concept_variants",
+    "terminology_concepts",
+]
 
 
 __all__ = ["TERMINOLOGY", "TERMINOLOGY_VERSION", "canonical_term"]

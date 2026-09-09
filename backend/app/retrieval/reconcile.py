@@ -57,13 +57,19 @@ from app.persistence.models import (
 )
 from app.retrieval.embedding import EmbeddingProvider
 from app.retrieval.qdrant_store import (
+    CHUNKING_VERSION_PAYLOAD_KEY,
+    EMBEDDING_VERSION_PAYLOAD_KEY,
     PAYLOAD_INDEX_FIELDS,
     PROVISION_ALIAS,
     PROVISION_COLLECTION,
+    SPARSE_VOCABULARY_VERSION_PAYLOAD_KEY,
     build_collection_config,
     rebuild_alias,
 )
 from app.retrieval.sparse import SparseEncoder
+
+#: Payload metadata used to prove one immutable vector space was promoted.
+CORPUS_SNAPSHOT_VERSION_PAYLOAD_KEY = "corpus_snapshot_version"
 
 logger = logging.getLogger(__name__)
 
@@ -717,6 +723,12 @@ def rebuild_index(
     effective_from_required: bool = True,
     batch_size: int = 32,
     dry_run: bool = False,
+    corpus_snapshot_version: str | None = None,
+    embedding_version: str | None = None,
+    sparse_vocabulary_version: str | None = None,
+    chunking_version: str | None = None,
+    retrieval_smoke: Callable[[QdrantClient, str], bool] | None = None,
+    release_manifest_path: Path | None = None,
 ) -> str | None:
     """Full collection replacement (doc 03 §3.11.7).
 
@@ -745,29 +757,50 @@ def rebuild_index(
     pointed at the new collection (idempotent re-run) or on ``dry_run``.
     """
     point_id = _resolve_point_id_for() if point_id_for is None else point_id_for
-
     new_name = collection_name or next_collection_name(client)
     if collection_name is not None and client.collection_exists(collection_name):
-        raise ReconcileError(
-            f"rebuild collection override {collection_name!r} already exists; refusing to "
-            "reuse it (prior points would survive the rebuild). Pick a new name or delete "
-            "the collection first"
-        )
+        raise ReconcileError(f"rebuild collection override {collection_name!r} already exists")
 
     provisions = _select_provisions(session, effective_from_required=effective_from_required)
     document_metadata = _document_metadata(session, {p.document_version_id for p in provisions})
     units, unit_point_ids, unit_payloads, _ = _prepare_units(
         provisions, point_id, document_metadata
     )
-
-    logger.info("rebuild: indexing %d accepted provisions into %s", len(units), new_name)
+    metadata = {
+        CORPUS_SNAPSHOT_VERSION_PAYLOAD_KEY: corpus_snapshot_version,
+        EMBEDDING_VERSION_PAYLOAD_KEY: embedding_version,
+        SPARSE_VOCABULARY_VERSION_PAYLOAD_KEY: sparse_vocabulary_version
+        or (getattr(sparse_encoder, "version", None) if sparse_encoder else None),
+        CHUNKING_VERSION_PAYLOAD_KEY: chunking_version,
+    }
+    for payload in unit_payloads.values():
+        payload.update(metadata)
+    if not dry_run:
+        required = {
+            CORPUS_SNAPSHOT_VERSION_PAYLOAD_KEY: corpus_snapshot_version,
+            EMBEDDING_VERSION_PAYLOAD_KEY: embedding_version,
+            SPARSE_VOCABULARY_VERSION_PAYLOAD_KEY: sparse_vocabulary_version
+            or (getattr(sparse_encoder, "version", None) if sparse_encoder else None),
+            CHUNKING_VERSION_PAYLOAD_KEY: chunking_version,
+        }
+        missing = [name for name, value in required.items() if not value]
+        if missing or retrieval_smoke is None:
+            raise ReconcileError(
+                "promotion metadata/smoke required: "
+                + ", ".join(missing + ([] if retrieval_smoke is not None else ["retrieval_smoke"]))
+            )
     if dry_run:
         return None
-
+    metadata = {
+        CORPUS_SNAPSHOT_VERSION_PAYLOAD_KEY: corpus_snapshot_version,
+        EMBEDDING_VERSION_PAYLOAD_KEY: embedding_version,
+        SPARSE_VOCABULARY_VERSION_PAYLOAD_KEY: sparse_vocabulary_version
+        or (getattr(sparse_encoder, "version", None) if sparse_encoder else None),
+        CHUNKING_VERSION_PAYLOAD_KEY: chunking_version,
+    }
     indexer = (
         _resolve_index_provision_units() if index_provision_units is None else index_provision_units
     )
-    _ensure_named_collection(client, new_name)
     indexed, errors = _reindex_units(
         indexer,
         client,
@@ -780,14 +813,45 @@ def rebuild_index(
         sparse_encoder=sparse_encoder,
     )
     if errors or indexed != len(units):
-        detail = f"indexed {indexed}/{len(units)}"
-        if errors:
-            detail += f"; first error: {errors[0]}"
+        raise ReconcileError(f"rebuild into {new_name} incomplete ({indexed}/{len(units)})")
+    report = reconcile_index(
+        client,
+        session=session,
+        collection=new_name,
+        dry_run=True,
+        embedder=embedder,
+        sparse_encoder=sparse_encoder,
+        effective_from_required=effective_from_required,
+    )
+    if report.diverged:
         raise ReconcileError(
-            f"rebuild into {new_name} incomplete ({detail}); PROVISION_ALIAS left unchanged "
-            "- re-run to retry the incomplete batches (idempotent upsert)"
+            f"rebuild identity reconciliation failed: {report.model_dump(mode='json')}"
         )
-    return rebuild_alias(client, new_name)
+    if retrieval_smoke is not None:
+        try:
+            passed = retrieval_smoke(client, new_name)
+        except Exception as exc:
+            raise ReconcileError(f"retrieval smoke failed: {exc}") from exc
+        if not passed:
+            raise ReconcileError("retrieval smoke gate failed")
+    old_name = rebuild_alias(client, new_name)
+    if release_manifest_path is not None:
+        release_manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        release_manifest_path.write_text(
+            json.dumps(
+                {
+                    "active_alias": PROVISION_ALIAS,
+                    "active_collection": new_name,
+                    "rollback_target": old_name,
+                    "metadata": metadata,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+    return old_name
 
 
 # ---------------------------------------------------------------------------

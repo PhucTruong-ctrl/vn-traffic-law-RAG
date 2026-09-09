@@ -36,6 +36,9 @@ class RetrievalResult(BaseModel):
     fused_score: float | None
     added_by: str | None
     source_id: str | None
+    source_url: str | None = None
+    snapshot_at: str | None = None
+    content_hash: str | None = None
     depth: int = Field(ge=0)
 
 
@@ -73,9 +76,6 @@ def result_from_payload(
 
     if payload.get("review_status") != "ACCEPTED":
         raise ValueError("retrieval payload must have review_status='ACCEPTED'")
-    if not isinstance(source, str) or not source:
-        raise ValueError("retrieval source must be a non-empty string")
-
     values = {
         "rank": rank,
         "provision_id": payload.get("provision_id"),
@@ -98,6 +98,9 @@ def result_from_payload(
         "fused_score": score,
         "added_by": payload.get("added_by"),
         "source_id": payload.get("source_id"),
+        "source_url": payload.get("source_url"),
+        "snapshot_at": payload.get("snapshot_at"),
+        "content_hash": payload.get("content_hash"),
         "depth": payload.get("depth", 0),
         "review_status": "ACCEPTED",
     }

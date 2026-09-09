@@ -254,3 +254,266 @@ class EvaluationRunWriter:
             with contextlib.suppress(Exception):
                 resolved_storage.delete(_BUCKET, finish_path)
             raise
+
+
+def _metric_report(report: Any) -> dict[str, Any]:
+    """Serialize a MetricReport without coupling reports to Pydantic."""
+    return {
+        "value": report.value,
+        "status": report.status,
+        "numerator": report.numerator,
+        "denominator": report.denominator,
+        "na_reason": report.na_reason,
+        "per_query": dict(report.per_query),
+        "by_category": dict(report.by_category),
+    }
+
+
+def _mapping(value: object) -> dict[str, Any]:
+    if isinstance(value, Mapping):
+        return dict(value)
+    model_dump = getattr(value, "model_dump", None)
+    if callable(model_dump):
+        dumped = model_dump()
+        return dict(dumped) if isinstance(dumped, Mapping) else {}
+    return {}
+
+
+def _field(value: object, name: str, default: Any = None) -> Any:
+    if isinstance(value, Mapping):
+        return value.get(name, default)
+    return getattr(value, name, default)
+
+
+def _sequence(value: object) -> list[Any]:
+    return list(value) if isinstance(value, (list, tuple)) else []
+
+
+def _citation_ids(value: object) -> list[str]:
+    citations = _sequence(value)
+    return [
+        str(item.get("provision_id"))
+        for item in citations
+        if isinstance(item, Mapping) and item.get("provision_id")
+    ]
+
+
+def evaluate_release_records(records: list[Mapping[str, Any]]) -> dict[str, Any]:
+    """Compute release metrics and fail-closed gates from serving outcomes."""
+    from app.evaluation.metrics import evaluate_evidence, evaluate_retrieval, evaluate_temporal
+
+    retrieval_records: list[dict[str, Any]] = []
+    evidence_records: list[dict[str, Any]] = []
+    temporal_records: list[dict[str, Any]] = []
+    abstentions: dict[str, int] = {}
+    invalid_citations = non_serving = superseded = unsupported_numeric = workflow_failures = 0
+    verified = 0
+    for record in records:
+        question_id = str(_field(record, "question_id", ""))
+        input_data = _mapping(_field(record, "input", {}))
+        retrieval = _mapping(_field(record, "retrieval", {}))
+        output = _mapping(_field(record, "output", {}))
+        metrics = _mapping(_field(record, "metrics", {}))
+        retrieved = [str(value) for value in _sequence(retrieval.get("retrieved_ids"))]
+        citations = _sequence(output.get("citations", _field(record, "citations")))
+        required = _sequence(input_data.get("required_evidence"))
+        category = str(input_data.get("category", "uncategorized"))
+        retrieval_records.append(
+            {
+                "id": question_id,
+                "category": category,
+                "retrieved": retrieved,
+                "relevant": _sequence(input_data.get("expected_provision_ids")),
+            }
+        )
+        evidence_records.append(
+            {
+                "id": question_id,
+                "category": category,
+                "required_evidence": required,
+                "covered_evidence": _sequence(metrics.get("covered_evidence", retrieved)),
+                "retrieved_evidence": retrieved,
+            }
+        )
+        temporal_records.append(
+            {
+                "id": question_id,
+                "category": category,
+                "query_date": input_data.get("query_date"),
+                "citations": [item for item in citations if isinstance(item, Mapping)],
+                "comparison_dates": input_data.get("comparison_dates"),
+                "comparison_citations": metrics.get("comparison_citations"),
+            }
+        )
+        status = str(output.get("status", _field(record, "status", ""))).upper()
+        if status in {"VERIFIED", "VALID", "COMPLETED"} and output.get("citations"):
+            verified += 1
+        else:
+            reason = str(
+                output.get("abstention_reason")
+                or output.get("reason_code")
+                or _field(record, "error")
+                or "UNCLASSIFIED"
+            )
+            abstentions[reason] = abstentions.get(reason, 0) + 1
+        invalid_citations += int(metrics.get("invalid_citation", 0) or 0)
+        non_serving += int(metrics.get("non_serving_evidence", 0) or 0)
+        superseded += int(metrics.get("superseded_current_answer", 0) or 0)
+        unsupported_numeric += int(metrics.get("unsupported_numeric_claim", 0) or 0)
+        workflow_failures += int(metrics.get("unclassified_workflow_failure", 0) or 0)
+
+    retrieval_reports = evaluate_retrieval(retrieval_records)
+    evidence_reports = evaluate_evidence(evidence_records)
+    temporal_reports = evaluate_temporal(temporal_records)
+    total = len(records)
+    hard_gates = {
+        "all_questions_executed": total == 200,
+        "invalid_citation_rate_zero": total > 0 and invalid_citations == 0,
+        "no_non_serving_evidence": non_serving == 0,
+        "no_superseded_current_answer": superseded == 0,
+        "no_unsupported_numeric_claim": unsupported_numeric == 0,
+        "no_unclassified_workflow_failure": workflow_failures == 0,
+    }
+    remediation = [
+        {"gate": name, "action": f"Remediate {name} before release"}
+        for name, passed in hard_gates.items()
+        if not passed
+    ]
+    reports = {
+        "retrieval": {name: _metric_report(value) for name, value in retrieval_reports.items()},
+        "evidence": {name: _metric_report(value) for name, value in evidence_reports.items()},
+        "temporal": {name: _metric_report(value) for name, value in temporal_reports.items()},
+        "citation": {
+            "invalid_citation_count": invalid_citations,
+            "invalid_citation_rate": invalid_citations / total if total else None,
+        },
+        "numeric": {"unsupported_numeric_claim_count": unsupported_numeric},
+        "verified_answer_rate": verified / total if total else None,
+        "abstention_taxonomy": abstentions,
+        "hard_gates": hard_gates,
+        "remediation_evidence": remediation,
+        "feedback": {"gating": False, "note": "LIKE/DISLIKE telemetry is non-gating"},
+    }
+    reports["release_status"] = "RELEASED" if all(hard_gates.values()) else "BLOCKED"
+    return reports
+
+
+async def run_serving_evaluation(
+    records: list[Any],
+    *,
+    serving_runtime: Any,
+    writer: EvaluationRunWriter,
+    manifest: EvaluationRunManifest,
+    session: Session,
+    storage: ObjectStoragePort,
+) -> tuple[str, dict[str, Any]]:
+    """Run every gold record through an injected actual serving runtime."""
+    if len(records) != 200:
+        raise ValueError(f"serving evaluation requires exactly 200 records (got {len(records)})")
+    run_id = writer.start(manifest, session=session, storage=storage)
+    outcomes: list[dict[str, Any]] = []
+    try:
+        for record in records:
+            question_id = str(
+                getattr(record, "id", None)
+                or (record.get("id") if isinstance(record, Mapping) else "")
+            )
+            question = str(
+                getattr(record, "question", None)
+                or (record.get("question", "") if isinstance(record, Mapping) else "")
+            )
+            started = __import__("time").perf_counter()
+            try:
+                result = serving_runtime(question)
+                if hasattr(result, "__await__"):
+                    result = await result
+                result = dict(result)
+                payload = _mapping(result.get("payload", result))
+                error = None
+            except Exception as exc:
+                payload = {
+                    "status": "ERROR",
+                    "abstention": {"reason_code": "WORKFLOW_UNAVAILABLE"},
+                }
+                error = f"{type(exc).__name__}: {exc}"
+            latency_ms = (__import__("time").perf_counter() - started) * 1000
+            retrieved = _mapping(result.get("retrieval")) if "result" in locals() else {}
+            outcome = {
+                "question_id": question_id,
+                "input": {
+                    "question": question,
+                    "category": getattr(
+                        record, "category", record.get("category", "uncategorized")
+                    ),
+                    "query_date": str(
+                        getattr(record, "query_date", record.get("query_date", "")) or ""
+                    ),
+                    "expected_provision_ids": list(
+                        getattr(
+                            record,
+                            "expected_provision_ids",
+                            record.get("expected_provision_ids", []),
+                        )
+                    ),
+                    "required_evidence": list(
+                        getattr(record, "required_evidence", record.get("required_evidence", []))
+                    ),
+                },
+                "retrieval": {
+                    "retrieved_ids": retrieved.get("retrieved_ids", result.get("retrieved_ids", []))
+                    if "result" in locals()
+                    else [],
+                },
+                "output": payload,
+                "metrics": {
+                    "latency_ms": latency_ms,
+                    "invalid_citation": int(payload.get("invalid_citation", False)),
+                    "non_serving_evidence": int(payload.get("non_serving_evidence", False)),
+                    "superseded_current_answer": int(
+                        payload.get("superseded_current_answer", False)
+                    ),
+                    "unsupported_numeric_claim": int(
+                        payload.get("unsupported_numeric_claim", False)
+                    ),
+                    "unclassified_workflow_failure": int(
+                        error is not None and not payload.get("abstention")
+                    ),
+                },
+            }
+            if error:
+                outcome["error"] = error
+            outcomes.append(outcome)
+            writer.append_result(run_id, outcome, session=session, storage=storage)
+            if "result" in locals():
+                del result
+        report = evaluate_release_records(outcomes)
+        writer.finish(
+            run_id,
+            metrics=report,
+            metric_availability={name: "AVAILABLE" for name in report},
+            status="COMPLETED" if report["release_status"] == "RELEASED" else "FAILED",
+            session=session,
+            storage=storage,
+        )
+        return run_id, report
+    except Exception:
+        writer.finish(
+            run_id,
+            metrics={
+                "release_status": "BLOCKED",
+                "remediation_evidence": [{"gate": "runner_failure"}],
+            },
+            metric_availability={"release": "ABSENT_RUN_FAILURE"},
+            status="FAILED",
+            session=session,
+            storage=storage,
+        )
+        raise
+
+
+__all__ = [
+    "EvaluationRunManifest",
+    "EvaluationRunWriter",
+    "evaluate_release_records",
+    "run_serving_evaluation",
+]

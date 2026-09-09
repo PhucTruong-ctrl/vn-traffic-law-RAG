@@ -1,6 +1,8 @@
-> **MVP rebaseline (06/09/2026)**: The defense release is intentionally reduced to a fixed 5–10-document corpus, 30–50 evaluation questions, current/as-of-date retrieval, verifiable citations, evidence gating, abstention, and a working chat UI. RAGFlow comparison, feedback, large-scale background ingestion, advanced observability/security, and production backup automation are deferred.
+> **Superseded historical note (06/09/2026; no longer active)**: The defense release was previously described as a fixed 5–10-document corpus and 30–50 evaluation questions. That claim is replaced by the active 14-PDF / 200-question contract above.
 >
-> **Models**: Gemini 3.7 Flash is the primary structured-answer generator; Gemini 3.5 Flash Lite is the independent semantic judge. OpenAI/GPT-5.4 is not used.
+> **Model policy**: Local embedding candidates are selected only after a bounded benchmark on the gold/regression data; the selected model/version, dimensions and configuration are recorded in the embedding manifest. No benchmark result is claimed here until an artifact records it.
+>
+> **Superseded historical note**: Earlier provider/model claims in this README are retained only as historical context; consult the active release manifest for the serving configuration.
 # 🏛️ VN Traffic Law RAG (VNLRAG) — Khóa Luận Tốt Nghiệp 2026
 
 > **Đề tài**: Hệ thống RAG nhận biết cấu trúc và thời gian hiệu lực (structure-aware + temporal) cho pháp luật giao thông Việt Nam, với trích dẫn chính xác (Điều/Khoản/Điểm) và cơ chế **verified-or-abstain** — chỉ trả lời khi mọi bằng chứng đã được kiểm chứng.
@@ -37,8 +39,7 @@
 **M0 — Scope Freeze (19/07/2026)**: scope, kiến trúc, tech stack và kế hoạch được chốt ở mức scope-baseline freeze; các cập nhật nghiên cứu sau freeze có kiểm soát và phải ghi vào change log, không làm thay đổi phạm vi đã chốt. Doc 00 là nguồn quyết định cao nhất; danh mục ADR-001..020 được tài liệu hóa tại `docs/adr/`.
 
 **Mục tiêu chính**:
-
-- Trích dẫn chính xác theo đơn vị pháp lý (Điều/Khoản/Điểm, `provision_id` ổn định), dựng citation từ metadata.
+- Release artifacts: [manifest template](.scratch/verified-traffic-rag-mvp/release-manifest.json) and [defense runbook](.scratch/verified-traffic-rag-mvp/DEFENSE-RUNBOOK.md). The manifest remains explicitly unverified until measured corpus, embedding, gold and evaluation evidence is recorded.
 - Cơ chế **verified-or-abstain**: verification sáu tầng (L1–L6) với bất biến Returned Invalid Citation Rate = 0; thiếu bằng chứng thì từ chối (abstain) thay vì bịa đặt.
 - Không dùng open-web search và không có query-time HITL (ADR-015) — câu trả lời chỉ dựa trên corpus đã kiểm chứng.
 - Evaluation bằng **Ragas + deterministic metrics** (Recall@k, MRR, nDCG, Citation P/R/F1, Temporal Validity Accuracy, Numeric Grounding Accuracy, Evidence Set Recall, Abstention P/R/F1) trên gold set 200 câu.

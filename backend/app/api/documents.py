@@ -20,23 +20,19 @@ from __future__ import annotations
 import hashlib
 import logging
 import uuid
-from pathlib import Path
 from typing import Annotated
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, UploadFile
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.db import get_db
 from app.api.errors import (
-    FILE_TOO_LARGE,
-    INVALID_CONTENT_TYPE,
     INVALID_DOCUMENT_ID,
-    UNSUPPORTED_MEDIA_TYPE,
     error_response,
 )
 from app.config import get_upload_settings
@@ -255,77 +251,11 @@ def get_document_source(
     )
 
 
-@router.post("/documents", status_code=202, response_model=None)
-async def upload_document(
-    file: Annotated[UploadFile, File()],
-    db: Annotated[Session, Depends(get_db)],
-    document_id: Annotated[str | None, Form()] = None,
-) -> dict[str, str] | JSONResponse:
-    """Accept a source PDF, store it, and enqueue background ingestion."""
-    settings = get_upload_settings()
-    max_bytes = settings.max_size_mb * 1024 * 1024
-
-    file_name = file.filename or "document.pdf"
-    if Path(file_name).suffix.lower() != ".pdf":
-        return error_response(
-            415,
-            UNSUPPORTED_MEDIA_TYPE,
-            f"Unsupported file type for {file_name!r}: only PDF documents are accepted.",
-        )
-    if file.content_type is not None and file.content_type not in _ACCEPTED_CONTENT_TYPES:
-        return error_response(
-            400,
-            INVALID_CONTENT_TYPE,
-            f"Unexpected content type {file.content_type!r} for {file_name!r}.",
-        )
-
-    # FastAPI/Starlette reports the spooled length on ``UploadFile.size``:
-    # reject early without reading anything. When it is unavailable (None),
-    # the bounded chunked read below still enforces the limit while streaming.
-    if file.size is not None and file.size > max_bytes:
-        return error_response(
-            413,
-            FILE_TOO_LARGE,
-            f"File {file_name!r} exceeds the {settings.max_size_mb} MB upload limit.",
-        )
-    data = await _read_bounded(file, max_bytes)
-    if data is None:
-        return error_response(
-            413,
-            FILE_TOO_LARGE,
-            f"File {file_name!r} exceeds the {settings.max_size_mb} MB upload limit.",
-        )
-
-    file_hash = hashlib.sha256(data).hexdigest()
-    job_id = _new_job_id()
-    doc_id = document_id or f"documents/{uuid.uuid4().hex}"
-    try:
-        key = object_key(
-            bucket="source-pdfs",
-            document_id=doc_id,
-            file_name=file_name,
-            content_hash=file_hash,
-            subpath=_SOURCE_SUBPATH,
-        )
-    except ValueError as exc:
-        return error_response(400, INVALID_DOCUMENT_ID, str(exc))
-
-    row = _ensure_document(db, doc_id, file_hash, file_name)
-    if row.document_id != doc_id:
-        # Bytes already ingested under another document_id (file_hash dedupe):
-        # store under the canonical row so key and document stay consistent.
-        key = object_key(
-            bucket="source-pdfs",
-            document_id=row.document_id,
-            file_name=file_name,
-            content_hash=file_hash,
-            subpath=_SOURCE_SUBPATH,
-        )
-
-    storage: ObjectStoragePort = get_object_storage()
-    storage.put("source-pdfs", key, data, content_type="application/pdf")
-    db.commit()
-    _enqueue(job_id, key, document_id=row.document_id)
-    logger.info("uploaded job_id=%s object_key=%s", job_id, key)
-
-    return {"ingestion_job_id": job_id, "status": "queued"}
+@router.post("/documents", status_code=410, response_model=None)
+def upload_document() -> JSONResponse:
+    """Arbitrary PDF upload is not part of the serving MVP."""
+    return error_response(
+        410,
+        "UPLOAD_DISABLED",
+        "Documents are ingested only from the configured corpus allowlist.",
+    )

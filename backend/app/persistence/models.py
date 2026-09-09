@@ -48,8 +48,8 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-_REVIEW_STATUS_VALUES = "'PENDING', 'ACCEPTED', 'REJECTED', 'DROPPED'"
-_RESOLUTION_STATUS_VALUES = "'RESOLVED', 'UNRESOLVED', 'PENDING_REVIEW'"
+_REVIEW_STATUS_VALUES = "'ACCEPTED', 'REJECTED'"
+_RESOLUTION_STATUS_VALUES = "'RESOLVED', 'UNRESOLVED'"
 
 
 def _utcnow() -> datetime:
@@ -190,7 +190,7 @@ class DocumentVersion(Base):
     effective_from: Mapped[date | None] = mapped_column(Date)
     effective_to: Mapped[date | None] = mapped_column(Date)
     review_status: Mapped[str] = mapped_column(
-        String, nullable=False, default="PENDING", server_default=text("'PENDING'")
+        String, nullable=False, default="REJECTED", server_default=text("'REJECTED'")
     )
     created_at: Mapped[datetime] = _created_at()
 
@@ -275,7 +275,7 @@ class LegalProvision(Base):
     content_hash: Mapped[str] = mapped_column(String, nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     review_status: Mapped[str] = mapped_column(
-        String, nullable=False, default="PENDING", server_default=text("'PENDING'")
+        String, nullable=False, default="REJECTED", server_default=text("'REJECTED'")
     )
     created_at: Mapped[datetime] = _created_at()
 
@@ -377,7 +377,7 @@ class ProvisionReference(Base):
         CheckConstraint(
             "(resolution_status = 'UNRESOLVED' AND "
             "target_legal_provision_id IS NULL) OR "
-            "(resolution_status IN ('RESOLVED', 'PENDING_REVIEW') AND "
+            "(resolution_status = 'RESOLVED' AND "
             "target_legal_provision_id IS NOT NULL)",
             name="provision_references_target_resolution_check",
         ),
@@ -412,7 +412,7 @@ class ProvisionReference(Base):
         server_default=text("'UNRESOLVED'"),
     )
     review_status: Mapped[str] = mapped_column(
-        String, nullable=False, default="PENDING", server_default=text("'PENDING'")
+        String, nullable=False, default="REJECTED", server_default=text("'REJECTED'")
     )
     created_at: Mapped[datetime] = _created_at()
 
@@ -466,7 +466,7 @@ class DocumentRelation(Base):
         String, nullable=False, default="RESOLVED", server_default=text("'RESOLVED'")
     )
     review_status: Mapped[str] = mapped_column(
-        String, nullable=False, default="PENDING", server_default=text("'PENDING'")
+        String, nullable=False, default="REJECTED", server_default=text("'REJECTED'")
     )
     created_at: Mapped[datetime] = _created_at()
     reviewed_by: Mapped[str | None] = mapped_column(String)
@@ -515,7 +515,7 @@ class LegalEffectEvent(Base):
     )
     confidence: Mapped[float | None] = mapped_column(Float)
     review_status: Mapped[str] = mapped_column(
-        String, nullable=False, default="PENDING", server_default=text("'PENDING'")
+        String, nullable=False, default="REJECTED", server_default=text("'REJECTED'")
     )
     created_at: Mapped[datetime] = _created_at()
 
@@ -672,10 +672,8 @@ class ReviewItem(Base):
     description: Mapped[str | None] = mapped_column(Text)
     evidence: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     status: Mapped[str] = mapped_column(
-        String, nullable=False, default="PENDING", server_default=text("'PENDING'")
+        String, nullable=False, default="REJECTED", server_default=text("'REJECTED'")
     )
-    reviewer: Mapped[str | None] = mapped_column(String)
-    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = _created_at()
 
     ingestion_run: Mapped[IngestionRun] = relationship(back_populates="review_items")
@@ -713,25 +711,17 @@ class QueryTrace(Base):
 
 
 class QueryFeedback(Base):
-    """Phản hồi của người dùng về một query trace (doc 03 §3.9.12)."""
+    """Minimal anonymous rating associated with a query trace."""
 
     __tablename__ = "query_feedback"
-    __table_args__ = (
-        CheckConstraint(
-            "category IN ('wrong_citation', 'missing_information', "
-            "'wrong_effective_date', 'wrong_penalty', 'incomplete_answer', 'other')",
-            name="query_feedback_category_check",
-        ),
-        Index("idx_query_feedback_trace", "query_trace_id"),
-    )
+    __table_args__ = (Index("idx_query_feedback_trace", "query_trace_id"),)
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     query_trace_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("query_traces.id"), nullable=False
     )
-    useful: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    category: Mapped[str | None] = mapped_column(String)
-    comment: Mapped[str | None] = mapped_column(Text)
+    message_id: Mapped[str | None] = mapped_column(String(128))
+    rating: Mapped[str] = mapped_column(String(7), nullable=False)
     created_at: Mapped[datetime] = _created_at()
 
     query_trace: Mapped[QueryTrace] = relationship(back_populates="feedback_items")

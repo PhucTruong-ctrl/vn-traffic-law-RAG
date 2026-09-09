@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from collections.abc import Callable, Iterable, Sequence
-from typing import Literal
+from collections.abc import Callable, Sequence
+from typing import Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -13,6 +13,10 @@ from app.ingestion.terminology import TERMINOLOGY, TERMINOLOGY_VERSION
 
 from .query_understanding import QueryPlan
 from .query_understanding_types import EvidenceType
+
+
+class RewriteProvider(Protocol):
+    def __call__(self, query: str, evidence_type: EvidenceType | None = None) -> str | None: ...
 
 
 class QueryVariant(BaseModel):
@@ -29,10 +33,10 @@ class QueryVariant(BaseModel):
         return self.source == "hyde"
 
 
-RewriteProvider = Callable[[str], Iterable[str]]
-
 _STATUTORY_REWRITES: tuple[tuple[str, str], ...] = (
     ("vượt đèn đỏ", "không chấp hành hiệu lệnh của đèn tín hiệu giao thông"),
+    ("dùng điện thoại", "sử dụng thiết bị điện thoại khi điều khiển phương tiện"),
+    ("không đội mũ bảo hiểm", "không đội mũ bảo hiểm theo quy định"),
 )
 
 
@@ -88,7 +92,9 @@ class QueryExpander:
         variants = [QueryVariant(text=original, source="original")]
         normalized = normalize_query(plan.normalized_query)
         if normalized != original:
-            variants.append(QueryVariant(text=normalized, source="normalized"))
+            canonical_statutory = {statutory for _, statutory in _STATUTORY_REWRITES}
+            if not any(statutory in normalized for statutory in canonical_statutory):
+                variants.append(QueryVariant(text=normalized, source="normalized"))
         # Retrieval corpora use the statutory wording for common colloquialisms.
         # Keep this deterministic and bounded; it supplements, never replaces,
         # the user's original query.
@@ -97,7 +103,12 @@ class QueryExpander:
             colloquial = colloquial.rstrip("?!.,;:")
             if rewrite_count >= self._max_rewrites:
                 break
-            if re.search(rf"(?<!\w){re.escape(colloquial)}(?!\w)", normalized, re.I):
+            trigger = (
+                original
+                if re.search(rf"(?<!\w){re.escape(colloquial)}(?!\w)", original, re.I)
+                else normalized
+            )
+            if re.search(rf"(?<!\w){re.escape(colloquial)}(?!\w)", trigger, re.I):
                 candidate = re.sub(
                     rf"(?<!\w){re.escape(colloquial)}(?!\w)", statutory, normalized, flags=re.I
                 )
@@ -107,7 +118,8 @@ class QueryExpander:
                     rewrite_count += 1
 
         if self._rewrite_provider and self._max_rewrites:
-            for text in self._rewrite_provider(normalized):
+            rewrite_output = self._rewrite_provider(normalized)
+            for text in rewrite_output or ():
                 if not isinstance(text, str):
                     QueryVariant.model_validate({"text": text, "source": "rewrite"})
                     continue

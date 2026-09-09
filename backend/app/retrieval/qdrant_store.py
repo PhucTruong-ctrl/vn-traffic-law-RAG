@@ -89,6 +89,11 @@ PAYLOAD_INDEX_FIELDS: tuple[str, ...] = (
     "review_status",
     "vehicle_types",
 )
+#: Collection-level metadata keys written to every point during promotion.
+CORPUS_SNAPSHOT_VERSION_PAYLOAD_KEY = "corpus_snapshot_version"
+EMBEDDING_VERSION_PAYLOAD_KEY = "embedding_version"
+SPARSE_VOCABULARY_VERSION_PAYLOAD_KEY = "sparse_vocabulary_version"
+CHUNKING_VERSION_PAYLOAD_KEY = "chunking_version"
 
 #: Allowed keys of a bounded relation entry (doc 03 §3.11.3).
 _RELATION_KEYS = ("relation_type", "target_provision_id")
@@ -156,8 +161,6 @@ def payload_for_unit(
     effective_to: str | None = None,
     parser_version: str | None = None,
     content_version: int = 1,
-    relations: list[dict] | None = None,
-    vehicle_types: list[str] | None = None,
     document_version_id: str | None = None,
     document_id: str | None = None,
     document_status: str | None = None,
@@ -174,9 +177,15 @@ def payload_for_unit(
     parser: str | None = None,
     legal_parser_version: str | None = None,
     sparse_encoder_version: str | None = None,
+    relations: list[dict[str, str]] | None = None,
+    vehicle_types: list[str] | None = None,
     content_hash: str | None = None,
     bbox: dict[str, float] | None = None,
     source_url: str | None = None,
+    corpus_snapshot_version: str | None = None,
+    embedding_version: str | None = None,
+    sparse_vocabulary_version: str | None = None,
+    chunking_version: str | None = None,
 ) -> dict:
     """Map a ``RetrievalUnit`` plus ingestion/review metadata to the Qdrant payload.
 
@@ -264,14 +273,18 @@ def payload_for_unit(
         "parser_version": parser_version,
         "legal_parser_version": legal_parser_version,
         "sparse_encoder_version": sparse_encoder_version,
+        "source_url": source_url if source_url is not None else getattr(unit, "source_url", None),
+        "corpus_snapshot_version": corpus_snapshot_version,
+        "embedding_version": embedding_version,
+        "sparse_vocabulary_version": sparse_vocabulary_version,
+        "relations": relations if relations is not None else [],
+        "vehicle_types": vehicle_types if vehicle_types is not None else [],
+        "content_version": content_version,
+        "bbox": bbox if bbox is not None else getattr(unit, "bbox", None),
         "text": unit.retrieval_text,
         "source_text": unit.source_text,
         "parent_context": unit.parent_context,
-        "relations": [] if relations is None else relations,
-        "vehicle_types": [] if vehicle_types is None else vehicle_types,
-        "content_version": content_version,
-        "bbox": bbox if bbox is not None else getattr(unit, "bbox", None),
-        "source_url": source_url if source_url is not None else getattr(unit, "source_url", None),
+        "chunking_version": chunking_version,
     }
 
 

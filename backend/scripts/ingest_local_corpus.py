@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 import hashlib
 import json
 import os
@@ -64,12 +63,29 @@ DEFAULT_DOCUMENTS = (
     "nd-161-2024",
     "nd-165-2024",
     "nd-166-2024",
+    "nd-168-2024",
     "tt-05-2024",
     "tt-16-2024",
     "tt-18-2024",
     "tt-39-2024",
     "tt-51-2024",
 )
+
+
+def _approved_targets() -> tuple[str, ...]:
+    """Return the immutable approved snapshot identities, deduplicated."""
+    candidates: list[str] = []
+    for manifest_path in sorted(MANIFESTS.rglob("*.manifest.json")):
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        document_id = manifest.get("document_id")
+        if manifest.get("review_status") == "ACCEPTED" and isinstance(document_id, str):
+            candidates.append(document_id)
+    approved = tuple(dict.fromkeys(candidates))
+    configured = tuple(item for item in DEFAULT_DOCUMENTS if item in approved)
+    return configured or approved
 
 
 def _manifest(document_id: str) -> dict[str, Any]:
@@ -361,7 +377,49 @@ def _persist(
     }
 
 
+def _failure(path: Path, error: str, *, stages: dict[str, Any] | None = None) -> dict[str, Any]:
+    return {
+        "document_id": path.stem,
+        "pdf": str(path),
+        "status": "REJECTED",
+        "error": error,
+        "stages": stages
+        or {
+            stage: {"status": "FAILED" if stage == "parse" else "NOT_RUN"}
+            for stage in ("parse", "structure", "relations", "temporal", "quality")
+        },
+        "retained_artifact": {
+            "artifact_type": "REJECTED_SOURCE",
+            "object_key": _source_object_key(path),
+            "file_hash": hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None,
+        },
+    }
+
+
+def _stage_outcomes(ir: Any, provisions: list[Any], manifest: dict[str, Any]) -> dict[str, Any]:
+    group_a = evaluate_group_a(ir)
+    group_b = evaluate_group_b(provisions)
+    return {
+        "parse": {"status": "PASSED", "parser": ir.parser, "pages": len(ir.pages)},
+        "structure": {"status": "PASSED", "provisions": len(provisions)},
+        "relations": {"status": "RECORDED", "source": "manifest.relation_notes"},
+        "temporal": {
+            "status": "PASSED"
+            if all(getattr(item, "effective_from", None) is not None for item in provisions)
+            else "FAILED",
+            "effective_from": manifest.get("effective_from"),
+            "effective_to": manifest.get("effective_to"),
+        },
+        "quality": {
+            "status": "PASSED" if group_a.verdict == "passed" and group_b.passed else "FAILED",
+            "group_a": group_a.model_dump(mode="json"),
+            "group_b": group_b.model_dump(mode="json"),
+        },
+    }
+
+
 def ingest(paths: list[Path], *, dry_run: bool, batch_size: int = 32) -> dict[str, Any]:
+    paths = list(dict.fromkeys(paths))
     documents: list[dict[str, Any]] = []
     failures: list[dict[str, Any]] = []
     parsed: list[tuple[Path, dict[str, Any], Any, list[Any]]] = []
@@ -382,6 +440,13 @@ def ingest(paths: list[Path], *, dry_run: bool, batch_size: int = 32) -> dict[st
             extracted = [enrich_provision(item) for item in extracted_items]
             if not extracted:
                 raise RuntimeError("no legal provisions extracted")
+            stages = _stage_outcomes(ir, extracted, manifest)
+            if stages["temporal"]["status"] != "PASSED":
+                raise RuntimeError(
+                    "temporal resolution failed: accepted provisions require effective_from"
+                )
+            if stages["quality"]["status"] != "PASSED":
+                raise RuntimeError("quality gates failed")
             parsed.append((path, manifest, ir, extracted))
             documents.append(
                 {
@@ -391,31 +456,27 @@ def ingest(paths: list[Path], *, dry_run: bool, batch_size: int = 32) -> dict[st
                     "pages": len(ir.pages),
                     "parser": ir.parser,
                     "provisions": len(extracted),
+                    "status": "ACCEPTED",
+                    "stages": stages,
                 }
             )
         except Exception as exc:
-            failures.append(
-                {
-                    "document_id": path.stem,
-                    "pdf": str(path),
-                    "error": f"{type(exc).__name__}: {exc}",
-                }
-            )
+            failures.append(_failure(path, f"{type(exc).__name__}: {exc}"))
     if not dry_run and parsed:
         session_factory = sessionmaker(bind=get_engine(), expire_on_commit=False)
         with session_factory() as session:
             for path, manifest, ir, provisions in parsed:
                 try:
-                    _persist(session, path, manifest, ir, provisions)
-                except Exception as exc:
-                    session.rollback()
-                    failures.append(
-                        {
-                            "document_id": path.stem,
-                            "pdf": str(path),
-                            "error": f"{type(exc).__name__}: {exc}",
+                    result = _persist(session, path, manifest, ir, provisions)
+                    next(item for item in documents if item["document_id"] == path.stem).update(
+                        reconciliation={
+                            "postgresql_accepted_rows": result["provisions"],
+                            "snapshot_hash": result["sha256"],
                         }
                     )
+                except Exception as exc:
+                    session.rollback()
+                    failures.append(_failure(path, f"{type(exc).__name__}: {exc}"))
             index_accepted_provisions(
                 ensure_qdrant_collection(),
                 session=session,
@@ -427,6 +488,12 @@ def ingest(paths: list[Path], *, dry_run: bool, batch_size: int = 32) -> dict[st
         "failures": failures,
         "dry_run": dry_run,
         "expected_documents": len(paths),
+        "reconciliation": {
+            "target_count": len(paths),
+            "accepted_count": len(documents),
+            "rejected_count": len(failures),
+            "complete": len(documents) + len(failures) == len(paths),
+        },
     }
 
 
@@ -452,7 +519,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.batch_size < 1:
         parser.error("--batch-size must be positive")
-    names = args.documents or list(DEFAULT_DOCUMENTS)
+    names = args.documents or list(_approved_targets())
     paths = [args.corpus / (name if name.endswith(".pdf") else f"{name}.pdf") for name in names]
     missing = [path for path in paths if not path.is_file()]
     if missing:

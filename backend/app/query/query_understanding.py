@@ -91,6 +91,9 @@ class QueryPlan(BaseModel):
     missing_query_information: list[str]
     case_queries: list[str] = []
     cases: list[CaseSpec] = []
+    status: str = "LEGAL"
+    status_reason: str | None = None
+    evidence_gaps: list[str] = []
 
 
 class QueryPlanFallback:
@@ -255,11 +258,43 @@ def _build_cases(
     return [c.query_text for c in cases], cases
 
 
+def _default_corpus_document_ids() -> frozenset[str]:
+    """Return approved identifiers from committed corpus manifests."""
+    from pathlib import Path
+    import json
+
+    root = Path(__file__).resolve().parents[3] / "data" / "manifests"
+    ids: set[str] = set()
+    for path in root.rglob("*.manifest.json"):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if payload.get("review_status") == "ACCEPTED" and isinstance(
+            payload.get("document_id"), str
+        ):
+            ids.add(payload["document_id"].casefold())
+    return frozenset(ids)
+
+
+def _document_id_for_number(number: str, approved: frozenset[str]) -> str | None:
+    candidate = re.sub(r"[^a-z0-9]+", "-", number.casefold().replace("đ", "d")).strip("-")
+    return candidate if candidate in approved else None
+
+
 class QueryAnalyzer:
     """Build a QueryPlan without database, vector-store, or model dependencies."""
 
-    def __init__(self, fallback_analyzer: FallbackAnalyzer | None = None) -> None:
+    def __init__(
+        self,
+        fallback_analyzer: FallbackAnalyzer | None = None,
+        *,
+        approved_document_ids: Iterable[str] | None = None,
+    ) -> None:
         self.fallback_analyzer = fallback_analyzer
+        self.approved_document_ids = frozenset(
+            value.casefold() for value in (approved_document_ids or _default_corpus_document_ids())
+        )
 
     def analyze(
         self,
@@ -270,14 +305,27 @@ class QueryAnalyzer:
     ) -> QueryPlan:
         text = question.strip()
         lowered = text.casefold()
+        hierarchy = re.search(r"\bđiều\s*([\w.-]+)", lowered)
+        clause = re.search(r"\bkhoản\s*([\w.-]+)", lowered)
+        point = re.search(r"\bđiểm\s*([a-zđ])\b", lowered)
         document = re.search(
             r"(?<![\w/])(\d{1,4}/\d{4}/(?:nđ|nd|tt|qđ|qdhđ|qcvn|qh)\-?[a-z0-9-]*)(?![\w/])",
             text,
             re.I,
         )
-        hierarchy = re.search(r"\bđiều\s*([\w.-]+)", lowered)
-        clause = re.search(r"\bkhoản\s*([\w.-]+)", lowered)
-        point = re.search(r"\bđiểm\s*([a-zđ])\b", lowered)
+        greeting = bool(
+            re.fullmatch(
+                r"(?:xin\s+chào|chào|hello|hi|hey|alo|good\s+(?:morning|afternoon|evening))(?:\s+\w+)?[!.?]*",
+                lowered,
+            )
+        )
+        if greeting:
+            plan = _safe_fallback_plan(text)
+            plan.status = "GREETING"
+            plan.status_reason = "GREETING"
+            plan.missing_query_information = []
+            plan._original_query = text
+            return plan
         red_light = bool(re.search(r"vượt\s+đèn\s+đỏ|đèn\s+đỏ|vuot\s+den\s+do|den\s+do", lowered))
         if (
             red_light
@@ -349,6 +397,12 @@ class QueryAnalyzer:
             for token in date_tokens
         ):
             missing.append("query_date")
+        covered_document = (
+            _document_id_for_number(document.group(1), self.approved_document_ids)
+            if document
+            else None
+        )
+        corpus_not_covered = bool(document and covered_document is None)
         if out_of_scope:
             intent, effective, comparison_from, comparison_to = (
                 QueryIntent.OUT_OF_SCOPE,
@@ -385,7 +439,12 @@ class QueryAnalyzer:
                 None,
                 None,
             )
-        if "query_date" in missing and not comparison and not out_of_scope:
+        if (
+            "query_date" in missing
+            and not comparison
+            and not out_of_scope
+            and not corpus_not_covered
+        ):
             intent, effective, comparison_from, comparison_to = (
                 QueryIntent.OUT_OF_SCOPE,
                 None,
@@ -403,6 +462,7 @@ class QueryAnalyzer:
             or dates
             or date_tokens
             or out_of_scope
+            or corpus_not_covered
         ):
             try:
                 fallback = getattr(self.fallback_analyzer, "analyze", self.fallback_analyzer)
@@ -413,6 +473,12 @@ class QueryAnalyzer:
                 return plan
             except Exception:
                 return _safe_fallback_plan(text)
+        status = (
+            "OUT_OF_SCOPE"
+            if out_of_scope
+            else ("CORPUS_NOT_COVERED" if corpus_not_covered else "LEGAL")
+        )
+        status_reason = status if status != "LEGAL" else None
         plan = QueryPlan(
             intent=intent,
             effective_date=effective,
@@ -429,9 +495,8 @@ class QueryAnalyzer:
             missing_query_information=missing,
             case_queries=[],
             cases=[],
-        )
-        plan.case_queries, plan.cases = _build_cases(
-            text, plan.normalized_query, vehicle, plan.required_evidence, missing
+            status=status,
+            status_reason=status_reason,
         )
         plan._original_query = text
         if (
@@ -439,6 +504,13 @@ class QueryAnalyzer:
             and "query_date" not in plan.missing_query_information
         ):
             plan.missing_query_information.append("query_date")
+        plan.case_queries, plan.cases = _build_cases(
+            text,
+            plan.normalized_query,
+            vehicle,
+            plan.required_evidence,
+            plan.missing_query_information,
+        )
         return plan
 
 

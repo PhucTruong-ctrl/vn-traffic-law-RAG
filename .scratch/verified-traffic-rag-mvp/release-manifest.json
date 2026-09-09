@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "manifest_version": "release-manifest-v1",
+  "status": "TEMPLATE_UNVERIFIED",
+  "release": {
+    "version": null,
+    "code_commit": null,
+    "created_at": null
+  },
+  "corpus": {
+    "source_allowlist": ["datafiles.chinhphu.vn"],
+    "snapshot_id": null,
+    "snapshot_sha256": null,
+    "document_count": 14,
+    "accepted_document_ids": [],
+    "rejected_document_ids": [],
+    "identity_deduplication": "document_identity_or_file_hash",
+    "gate_report": null
+  },
+  "serving": {
+    "active_alias": null,
+    "collection": null,
+    "promotion_status": "UNVERIFIED",
+    "rollback_target": null
+  },
+  "embedding": {
+    "benchmark_artifact": null,
+    "selected_model": null,
+    "model_revision": null,
+    "dimensions": null,
+    "configuration": null,
+    "artifact_sha256": null
+  },
+  "gold": {
+    "dataset": "gold-v1",
+    "readiness": "UNVERIFIED",
+    "record_count": 200,
+    "splits": {"development": 40, "validation": 40, "final_test": 120},
+    "category_count": 17,
+    "dataset_sha256": null
+  },
+  "evaluation": {
+    "run_artifact": null,
+    "report_artifact": null,
+    "hard_gates": {
+      "all_questions_executed": false,
+      "invalid_citation_rate_zero": false,
+      "non_serving_exclusion": false
+    },
+    "feedback_gating": "NON_GATING"
+  },
+  "evidence": {
+    "ingestion_report": null,
+    "evaluation_report": null,
+    "runbook": "DEFENSE-RUNBOOK.md"
+  }
+}

@@ -57,7 +57,12 @@ function ResponseMessage({
             </div>
           </section>
         )}
-        {!abstained && response.trace_id && <FeedbackWidget traceId={response.trace_id} />}
+        {!abstained && response.trace_id && (
+          <FeedbackWidget
+            traceId={response.trace_id}
+            messageId={response.assistant_message_id}
+          />
+        )}
       </div>
     </div>
   );

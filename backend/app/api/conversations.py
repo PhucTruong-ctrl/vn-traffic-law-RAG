@@ -89,20 +89,27 @@ def _message(row: Message) -> dict[str, object]:
     }
     if row.role == "assistant" and row.query_trace is not None:
         trace = row.query_trace
-        payload["response"] = {
-            "status": "VERIFIED"
+        summary = trace.verification_summary or {}
+        status = (
+            "VERIFIED"
             if trace.response_status == "VALID" and trace.citations
-            else "ABSTAINED",
-            "answer": row.content if trace.response_status == "VALID" and trace.citations else None,
-            "claims": (trace.verification_summary or {}).get("claims", []),
+            else str(
+                summary.get("public_status")
+                or summary.get("reason_code")
+                or "INSUFFICIENT_EVIDENCE"
+            )
+        )
+        payload["response"] = {
+            "status": status,
+            "answer": row.content if status == "VERIFIED" else None,
+            "claims": summary.get("claims", []),
             "citations": trace.citations or [],
             "metadata": {},
             "abstention": None
-            if trace.response_status == "VALID" and trace.citations
+            if status == "VERIFIED"
             else {
-                "reason_code": (trace.verification_summary or {}).get(
-                    "reason_code", "INSUFFICIENT_EVIDENCE"
-                )
+                "reason_code": summary.get("reason_code", status),
+                "evidence_gaps": summary.get("evidence_gaps", []),
             },
             "disclaimer": "This response is informational and not legal advice.",
             "trace_id": trace.trace_id,

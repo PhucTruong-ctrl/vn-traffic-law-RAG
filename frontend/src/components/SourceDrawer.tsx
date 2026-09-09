@@ -38,12 +38,11 @@ export default function SourceDrawer({
     citation.document_number ||
     citation.provision_id ||
     "Nguồn pháp luật";
-  const excerpt = (
-    citation.legal_context ||
-    citation.source_text ||
-    citation.snippet ||
-    ""
-  ).replace(/\r?\n/g, "\n");
+  const excerpt = (citation.source_text || citation.snippet || "").replace(/\r?\n/g, "\n");
+  const parentContext = (citation.parent_context || citation.legal_context || "").replace(
+    /\r?\n/g,
+    "\n",
+  );
 
   return (
     <Modal
@@ -62,9 +61,15 @@ export default function SourceDrawer({
       <div className="source-drawer__body">
         <PdfCitationViewer citation={citation} />
         <details className="source-excerpt">
-          <summary>Đọc đoạn trích dạng văn bản</summary>
+          <summary>Đọc đoạn trích nguyên văn</summary>
           <blockquote>{excerpt || "Nguồn không cung cấp nội dung đoạn trích."}</blockquote>
         </details>
+        {parentContext && (
+          <details className="source-excerpt">
+            <summary>Ngữ cảnh điều khoản cha</summary>
+            <blockquote>{parentContext}</blockquote>
+          </details>
+        )}
       </div>
       <footer className="source-drawer__footer">
         <button

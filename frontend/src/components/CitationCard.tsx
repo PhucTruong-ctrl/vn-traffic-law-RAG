@@ -15,11 +15,13 @@ export type Citation = {
   clause?: string;
   point?: string;
   version?: string;
+  provision_version?: number;
   version_date?: string;
   effective_from?: string;
   effective_to?: string | null;
   interval?: { from?: string; to?: string | null };
   snapshot_at?: string;
+  content_hash?: string;
   snippet?: string;
 };
 

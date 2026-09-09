@@ -8,6 +8,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 
+from app.ingestion.terminology import terminology_concepts
 from app.retrieval.contracts import RetrievalResult
 
 from .query_understanding import QueryPlan
@@ -124,7 +125,6 @@ _SCOPING_STOPWORDS = {
     "lai",
     "thi",
 }
-
 _VIOLATION_MARKERS = {
     "vuot den do",
     "sai lan",
@@ -137,13 +137,13 @@ _VIOLATION_MARKERS = {
 def _case_candidates(case: object, context: Sequence[RetrievalResult]) -> list[RetrievalResult]:
     query_text = _fold_ocr_text(getattr(case, "query_text", ""))
     candidates = list(context)
-    targeted_terms = {marker for marker in _VIOLATION_MARKERS if marker in query_text}
+    concepts = terminology_concepts(query_text)
     vehicle = _fold_ocr_text(getattr(case, "vehicle_type", "") or "")
-    # A vehicle inferred by the analyzer is not a scoping signal unless the
-    # case query itself names it; generic evidence queries must retain context.
     if vehicle and re.search(rf"(?<!\w){re.escape(vehicle)}(?!\w)", query_text):
-        targeted_terms.add(vehicle)
-    if not targeted_terms:
+        concepts.update(terminology_concepts(vehicle))
+    if not concepts:
+        concepts = {marker for marker in _VIOLATION_MARKERS if marker in query_text}
+    if not concepts:
         return candidates
     scoped: list[RetrievalResult] = []
     for candidate in candidates:
@@ -154,7 +154,9 @@ def _case_candidates(case: object, context: Sequence[RetrievalResult]) -> list[R
                 if part
             )
         )
-        if any(term in candidate_text for term in targeted_terms):
+        if concepts.intersection(terminology_concepts(candidate_text)) or any(
+            marker in candidate_text for marker in concepts
+        ):
             scoped.append(candidate)
     return scoped
 

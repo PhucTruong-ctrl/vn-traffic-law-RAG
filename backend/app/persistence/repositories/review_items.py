@@ -70,10 +70,14 @@ class ReviewItemRepository:
         if row is None:
             raise ReviewItemNotFoundError(f"review item {item_id} not found")
         if row.status != "PENDING":
-            if row.status == status and row.reviewer == reviewer:
+            if row.status == status and getattr(row, "reviewer", None) == reviewer:
                 return row
             raise ValueError(f"review item {item_id} is already terminal ({row.status})")
-        row.status, row.reviewer, row.reviewed_at = status, reviewer, datetime.now(UTC)
+        row.status = status
+        if hasattr(row, "reviewer"):
+            row.reviewer = reviewer
+        if hasattr(row, "reviewed_at"):
+            row.reviewed_at = datetime.now(UTC)
         if reason:
             row.description = "\n".join(part for part in (row.description, reason) if part)
         self._session.flush()
@@ -135,13 +139,17 @@ class ReviewItemRepository:
         if status is None:
             raise ValueError(f"invalid review decision: {decision!r}")
         if row.status != "PENDING":
-            if row.status == status and row.reviewer == reviewer:
+            if row.status == status and getattr(row, "reviewer", None) == reviewer:
                 return row
             raise ValueError(f"review item {item_id} is already terminal ({row.status})")
         row.evidence = {**(row.evidence or {}), **(evidence or {})}
         if decision == "ACCEPTED":
             self._apply_temporal_correction(row, effective_from, effective_to)
-        row.status, row.reviewer, row.reviewed_at = status, reviewer, datetime.now(UTC)
+        row.status = status
+        if hasattr(row, "reviewer"):
+            row.reviewer = reviewer
+        if hasattr(row, "reviewed_at"):
+            row.reviewed_at = datetime.now(UTC)
         self._session.flush()
         self.continue_run_after_decision(item_id, decision)
         return row

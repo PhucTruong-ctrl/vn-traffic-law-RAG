@@ -106,11 +106,11 @@ from app.ingestion.quality_gates import (
 )
 from app.ingestion.structure_extractor import ExtractedLegalProvision
 
-RoutingStatus = Literal["ACCEPTED", "NEEDS_REVIEW", "DROPPED"]
+RoutingStatus = Literal["ACCEPTED", "REJECTED"]
 
-#: Routing reason codes (aligned with parser_router.yaml scan-review policy
-#: and doc 03 §3.7.5). ``INVALID_POINT_LABEL`` is the DROPPED counterpart of
-#: the review-level ``POINT_LABEL_AMBIGUOUS``.
+REJECTED = "REJECTED"
+
+#: Reason codes retained on rejected artifacts for auditability.
 LOW_OCR_COVERAGE = "LOW_OCR_COVERAGE"
 POINT_LABEL_AMBIGUOUS = "POINT_LABEL_AMBIGUOUS"
 D_D_AMBIGUITY = "D_D_AMBIGUITY"
@@ -133,6 +133,7 @@ ReviewReason = Literal[
     "NEEDS_REVIEW",
 ]
 
+
 #: Tree node kinds participating in the Điều hierarchy (docs/03 §3.8.1).
 _TREE_KINDS = frozenset({"ARTICLE", "CLAUSE", "POINT"})
 
@@ -143,6 +144,7 @@ _PRIMARY_POINT_RUN = "abcdđe"
 #: Bare ``d)`` label needing ordinal context (rulespec §4.1) — the label form
 #: :func:`canonical_point_label` cannot resolve without an ordinal.
 _BARE_D_LABEL_RE = re.compile(r"^\s*(?:điểm\s+)?d[)）]", re.IGNORECASE)
+
 
 #: Extractor review flags (``ExtractedLegalProvision.ambiguity`` values set by
 #: the Legal Structure Extractor, structure_state_parser.py) → reason codes.
@@ -159,15 +161,7 @@ _AMBIGUITY_REASON: dict[str, str] = {
 
 
 class RoutingDecision(BaseModel):
-    """One provision's routing verdict.
-
-    ``status``: ``ACCEPTED`` (auto-accept per policy row 1), ``NEEDS_REVIEW``
-    (human review required, VNLRAG-155) or ``DROPPED`` (never indexed).
-    ``reason_codes`` lists the hard-failure codes for DROPPED and all review
-    codes for NEEDS_REVIEW (empty for ACCEPTED). ``auto_accepted`` is True
-    exactly when the decision was taken by the auto-accept policy
-    (``status == "ACCEPTED"``) — recorded for the parser_routing audit trail.
-    """
+    """Automatic ACCEPTED/REJECTED serving decision."""
 
     provision_id: str
     status: RoutingStatus
@@ -247,33 +241,30 @@ def route_provision(
     group_b: GroupBResult,
     duplicated_ids: frozenset[str] | None = None,
 ) -> RoutingDecision:
-    """Route one provision: DROPPED / NEEDS_REVIEW / ACCEPTED (deterministic).
+    """Route one provision as ACCEPTED or REJECTED (deterministic).
 
-    ``duplicated_ids`` is the set of provision_ids appearing more than once in
-    the document (computed by :func:`evaluate_and_route`; pass it when routing
-    within a full document so duplicates can be DROPPED). Decision precedence:
-    hard structural failures (duplicate, invalid point label) → DROPPED; any
-    review flag → NEEDS_REVIEW; otherwise ACCEPTED. ``auto_accepted`` is True
-    only for ACCEPTED decisions (policy row 1: gates pass AND no flags).
+    Hard failures and gate/ambiguity flags are rejected with reason codes;
+    only a fully passing provision is accepted for serving.
     """
 
     hard: list[str] = []
     review: list[str] = []
 
-    # 1. Hard structural failures → DROPPED (never indexed).
     if duplicated_ids is not None and provision.provision_id in duplicated_ids:
-        hard.append(DUPLICATE_PROVISION)
+        _append_unique(hard, DUPLICATE_PROVISION)
     if _label_status(provision) == "invalid":
-        hard.append(INVALID_POINT_LABEL)
+        _append_unique(hard, INVALID_POINT_LABEL)
+
+    # Hard structural failures are rejected and retained with reason codes.
     if hard:
         return RoutingDecision(
             provision_id=provision.provision_id,
-            status="DROPPED",
+            status="REJECTED",
             reason_codes=hard,
             auto_accepted=False,
         )
 
-    # 2. Review flags → NEEDS_REVIEW (all codes accumulated).
+    # Any gate or ambiguity failure is rejected; reason codes remain auditable.
     label_status = _label_status(provision)
     if label_status == "d_ambiguity":
         _append_unique(review, D_D_AMBIGUITY)
@@ -304,14 +295,11 @@ def route_provision(
         _append_unique(review, NEEDS_REVIEW)
 
     if not group_b.passed:
-        # Policy row 1: Group B must pass for auto-accept; a document-level
-        # structural failure blocks it for every provision.
         _append_unique(review, NEEDS_REVIEW)
-
     if review:
         return RoutingDecision(
             provision_id=provision.provision_id,
-            status="NEEDS_REVIEW",
+            status="REJECTED",
             reason_codes=review,
             auto_accepted=False,
         )
@@ -335,7 +323,8 @@ def evaluate_and_route(
 
     Convenience wrapper over :func:`evaluate_group_b` + :func:`route_provision`
     that computes the document-level duplicate set so duplicated ids are
-    DROPPED. An empty ``provisions`` list yields an empty routing list.
+    ACCEPTED/REJECTED decisions are returned for every provision; rejected
+    decisions carry reason codes for audit and are never indexed.
     """
 
     result = group_b if group_b is not None else evaluate_group_b(provisions, thresholds)
@@ -355,6 +344,7 @@ __all__ = [
     "LOW_OCR_COVERAGE",
     "NEEDS_REVIEW",
     "POINT_LABEL_AMBIGUOUS",
+    "REJECTED",
     "ReviewReason",
     "RoutingDecision",
     "RoutingStatus",

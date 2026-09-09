@@ -26,18 +26,23 @@ tracking. API keys are read from configuration only (``GEMINI_API_KEY`` /
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import threading
 import time
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from collections.abc import Callable, Sequence
-from typing import Any
+from collections.abc import Callable, Mapping, Sequence
+from pathlib import Path
 from urllib.parse import quote
+from typing import Any, Literal, cast
 
 import httpx
 
+from pydantic import BaseModel, ConfigDict
+
 from app.config import EmbeddingSettings
+
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +57,12 @@ __all__ = [
     "VersionedEmbeddingCache",
     "embedding_cache_key",
     "get_embedding_provider",
+    "EmbeddingSelectionManifest",
+    "EmbeddingSpaceMismatchError",
+    "benchmark_local_embeddings",
+    "load_embedding_selection_manifest",
+    "write_embedding_selection_manifest",
+    "ensure_embedding_space_compatible",
 ]
 
 #: Default REST base URLs (proxy/deployment overrides are not needed this phase).
@@ -455,12 +466,7 @@ class JinaEmbeddingAdapter(_HttpEmbeddingAdapter):
 
 
 class LocalE5EmbeddingAdapter(EmbeddingProvider):
-    """Local SentenceTransformer E5 encoder with GPU-first CPU fallback.
-
-    E5 models require ``query: `` for searches and ``passage: `` for indexed
-    documents.  ``sentence-transformers`` is imported lazily so Gemini/Jina
-    deployments do not require the optional local runtime.
-    """
+    """Local SentenceTransformer E5 encoder with GPU-first CPU fallback."""
 
     def __init__(
         self,
@@ -483,19 +489,17 @@ class LocalE5EmbeddingAdapter(EmbeddingProvider):
         try:
             import torch
 
-            device = (
-                ("cuda" if torch.cuda.is_available() else "cpu")
-                if settings.local_device == "auto"
-                else settings.local_device
-            )
+            device: Literal["cpu", "cuda"]
+            if settings.local_device == "auto":
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+            else:
+                device = cast(Literal["cpu", "cuda"], settings.local_device)
         except ImportError:
             device = "cpu"
         self.device = device
         self._model = SentenceTransformer(self.name, device=device)
 
     def _encode(self, texts: list[str], prefix: str) -> list[list[float]]:
-        if not texts:
-            return []
         prepared = [text if text.startswith(prefix) else prefix + text for text in texts]
         vectors = self._model.encode(
             prepared, batch_size=self.batch_size, convert_to_numpy=True, normalize_embeddings=True
@@ -515,12 +519,146 @@ class LocalE5EmbeddingAdapter(EmbeddingProvider):
         return self._encode(texts, "passage: ")
 
 
+class EmbeddingSelectionManifest(BaseModel):
+    """Deterministic metadata for the dense+sparse vector space in a rebuild."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    provider: str
+    model: str
+    revision: str
+    dimensions: int
+    prefix: str
+    device: str
+    throughput_texts_per_second: float
+    quality: dict[str, float | None]
+    artifact_hash: str
+    sparse_vocabulary_version: str
+    manifest_version: str = "embedding-selection-v1"
+
+    def to_dict(self) -> dict[str, Any]:
+        return self.model_dump()
+
+    def space_key(self) -> tuple[str, str, str, int, str, str]:
+        return (self.provider, self.model, self.revision, self.dimensions, self.prefix, self.device)
+
+
+class EmbeddingSpaceMismatchError(ValueError):
+    """Raised when vectors/metadata do not describe one immutable space."""
+
+
+def _artifact_hash(records: Sequence[object]) -> str:
+    payload = json.dumps(
+        list(records), ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def benchmark_local_embeddings(
+    records: Sequence[Mapping[str, object]],
+    *,
+    candidates: Sequence[str] = ("intfloat/multilingual-e5-small",),
+    sparse_vocabulary_version: str = "bm25-v1",
+    device: str = "cpu",
+    max_candidates: int = 3,
+    max_records: int = 40,
+    provider_factory: Callable[[EmbeddingSettings], EmbeddingProvider] | None = None,
+) -> list[EmbeddingSelectionManifest]:
+    """Benchmark only bounded local candidates already available to SentenceTransformers.
+
+    Candidates are intentionally explicit: discovery never downloads models.  A
+    candidate is usable only when its local adapter can be instantiated.
+    """
+    if max_candidates < 1 or max_records < 1:
+        raise ValueError("benchmark bounds must be positive")
+    selected = sorted(set(candidates))[:max_candidates]
+    sample = list(records)[:max_records]
+    texts = [str(row.get("text", row.get("query", ""))) for row in sample]
+    artifact_hash = _artifact_hash(sample)
+    output: list[EmbeddingSelectionManifest] = []
+    for model in selected:
+        settings = EmbeddingSettings(
+            provider="local", model=model, dimensions=384, local_device=device
+        )
+        try:
+            provider = (provider_factory or get_embedding_provider)(settings)
+            started = time.perf_counter()
+            vectors = provider.embed_batch(texts)
+            elapsed = max(time.perf_counter() - started, 1e-9)
+        except (ConfigError, EmbeddingProviderError, EmbeddingDimensionError, OSError):
+            continue
+        if not vectors:
+            continue
+        revision = str(
+            getattr(getattr(provider, "_model", None), "config", {}).get("_name_or_path", model)
+        )
+        quality_records = [
+            {
+                "id": str(row.get("id", index)),
+                "retrieved": row.get("retrieved", []),
+                "relevant": row.get("relevant", []),
+            }
+            for index, row in enumerate(sample)
+            if "retrieved" in row or "relevant" in row
+        ]
+        quality: dict[str, float | None] = {}
+        if quality_records:
+            from app.evaluation.metrics.retrieval import evaluate_retrieval
+
+            reports = evaluate_retrieval(quality_records)
+            quality = {name: report.value for name, report in reports.items()}
+        output.append(
+            EmbeddingSelectionManifest(
+                provider="local",
+                model=model,
+                revision=revision,
+                dimensions=len(vectors[0]),
+                prefix="passage: ",
+                device=str(getattr(provider, "device", device)),
+                throughput_texts_per_second=len(texts) / elapsed,
+                quality=quality,
+                artifact_hash=artifact_hash,
+                sparse_vocabulary_version=sparse_vocabulary_version,
+            )
+        )
+    return sorted(
+        output,
+        key=lambda item: (
+            -(item.quality.get("mrr@10") or -1.0),
+            -item.throughput_texts_per_second,
+            item.model,
+        ),
+    )
+
+
+def write_embedding_selection_manifest(path: Path, manifest: EmbeddingSelectionManifest) -> str:
+    payload = json.dumps(manifest.to_dict(), ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(payload, encoding="utf-8")
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def load_embedding_selection_manifest(path: Path) -> EmbeddingSelectionManifest:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return EmbeddingSelectionManifest(**data)
+
+
+def ensure_embedding_space_compatible(
+    selected: EmbeddingSelectionManifest,
+    existing: EmbeddingSelectionManifest | None,
+    *,
+    rebuild: bool = False,
+) -> None:
+    if existing is not None and selected.space_key() != existing.space_key() and not rebuild:
+        raise EmbeddingSpaceMismatchError(
+            "embedding model/revision/dimensions/prefix/device changed; rebuild required"
+        )
+
+
 def embedding_cache_key(model: str, encoder_version: str, text: str) -> str:
     """Deterministic cache key: sha256 of model + encoder version + text.
 
-    Versioned so a model or encoder change never reuses vectors across runs
-    (doc 08 §8.5.2): the key differs when any of the three inputs differs, and
-    identical inputs always map to the same key (deterministic reproduction).
+    Versioned so a model or encoder change never reuses vectors across runs.
     """
     material = "\x00".join((model, encoder_version, text))
     return hashlib.sha256(material.encode("utf-8")).hexdigest()

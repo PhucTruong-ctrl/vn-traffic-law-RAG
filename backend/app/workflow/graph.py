@@ -203,6 +203,9 @@ def _max_repair_attempts(state: QueryState) -> int:
 
 def _safe_route(state: QueryState) -> str:
     plan = state.get("query_understanding")
+    status = str(getattr(plan, "status", "LEGAL"))
+    if status in {"GREETING", "OUT_OF_SCOPE", "CORPUS_NOT_COVERED"}:
+        return "abstain"
     if plan is None or str(getattr(plan, "intent", "")) == "OUT_OF_SCOPE":
         return "abstain"
     missing = set(getattr(plan, "missing_query_information", []))
