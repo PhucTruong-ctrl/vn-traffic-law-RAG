@@ -430,6 +430,30 @@ input::placeholder {
   border-radius: 10px;
   transition: background-color var(--motion-fast) var(--ease-standard);
 }
+.chat-list__skeleton {
+  display: block;
+  height: 40px;
+  margin: 0;
+  border-radius: 10px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.035),
+    rgba(255, 255, 255, 0.09),
+    rgba(255, 255, 255, 0.035)
+  );
+  background-size: 220% 100%;
+  animation: chat-list-skeleton 1.2s ease-in-out infinite;
+}
+
+@keyframes chat-list-skeleton {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: -100% 0;
+  }
+}
 .chat-list__item.is-reordered {
   animation: chat-list-reordered 320ms var(--ease-standard);
 }

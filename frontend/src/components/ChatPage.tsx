@@ -102,7 +102,7 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
   const [turns, setTurns] = useState<ConversationTurn[]>([]);
   const [submittedQuestion, setSubmittedQuestion] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(Boolean(conversationId));
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [progressEvents, setProgressEvents] = useState<ProgressEvent[]>([]);
   const [activeId, setActiveId] = useState(conversationId);
@@ -110,7 +110,11 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
   const eventSourceRef = useRef<EventSource | null>(null);
   useEffect(() => {
     const controller = new AbortController();
-    if (!conversationId) return () => controller.abort();
+    if (!conversationId) {
+      setLoading(false);
+      return () => controller.abort();
+    }
+    setLoading(true);
     fetch(`/api/v1/conversations/${encodeURIComponent(conversationId)}`, {
       signal: controller.signal,
     })
@@ -124,12 +128,15 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
         setQuestion("");
         setSubmittedQuestion("");
         setError("");
+        setLoading(false);
       })
       .catch((loadError) => {
-        if (loadError.name !== "AbortError")
+        if (loadError.name !== "AbortError") {
           setError(
             loadError instanceof Error ? loadError.message : "Không thể tải cuộc trò chuyện.",
           );
+          setLoading(false);
+        }
       });
     return () => controller.abort();
   }, [conversationId]);
@@ -294,7 +301,7 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
           }
           aria-busy={loading}
         >
-          {!turns.length && !loading && !error ? (
+          {!conversationId && !turns.length && !loading && !error ? (
             <Welcome
               question={question}
               suggestions={suggestions}
@@ -311,7 +318,7 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
               onOpenSource={setDrawerCitation}
             />
           )}
-          {(turns.length > 0 || loading || error) && (
+          {(conversationId || turns.length > 0 || loading || error) && (
             <div className="sticky-composer">
               <Composer
                 id="question"

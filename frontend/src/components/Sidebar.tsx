@@ -34,6 +34,7 @@ export default function Sidebar({
   const [search, setSearch] = useState("");
   const [cursor, setCursor] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [conversationsLoading, setConversationsLoading] = useState(true);
   const [editing, setEditing] = useState<string | null>(null);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
@@ -44,6 +45,8 @@ export default function Sidebar({
   const mobileToggleRef = useRef<HTMLButtonElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
   const wasMobileOpen = useRef(false);
+  const [animatingConversationId, setAnimatingConversationId] = useState<string | null>(null);
+  const animationTimerRef = useRef<number | null>(null);
 
   async function fetchConversations(nextCursor?: string | null) {
     const params = new URLSearchParams({ limit: "30" });
@@ -63,11 +66,10 @@ export default function Sidebar({
       setCursor(payload.next_cursor ?? payload.cursor ?? null);
     } catch {
       // History remains non-blocking when API is unavailable.
+    } finally {
+      setConversationsLoading(false);
     }
   }
-  const [animatingConversationId, setAnimatingConversationId] = useState<string | null>(null);
-  const animationTimerRef = useRef<number | null>(null);
-
   useEffect(() => {
     const activity = onConversationActivity;
     if (!activity) return;
@@ -342,97 +344,107 @@ export default function Sidebar({
         </nav>
         <div className="chat-list">
           <p>Gần đây</p>
-          {conversations.map((item, index) => (
-            <div
-              key={item.id}
-              className={`chat-list__item sidebar-enter__item${item.id === activeConversationId ? " active" : ""}${
-                item.id === animatingConversationId ? " is-reordered" : ""
-              }`}
-              style={{ "--sidebar-delay": `${Math.min(index, 11) * 45}ms` } as React.CSSProperties}
-            >
-              <button
-                type="button"
-                className={item.id === activeConversationId ? "active" : ""}
-                onClick={() => {
-                  onSelectConversation(item.id);
-                  closeMobile();
-                }}
-              >
-                {item.title || activeQuestion || "Cuộc trò chuyện"}
-              </button>
-              {editing === item.id ? (
-                <form
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    void rename(item.id);
-                  }}
+          {conversationsLoading && !conversations.length
+            ? Array.from({ length: 5 }, (_, index) => (
+                <span
+                  key={`history-skeleton-${index}`}
+                  className="chat-list__skeleton"
+                  aria-hidden="true"
+                />
+              ))
+            : conversations.map((item, index) => (
+                <div
+                  key={item.id}
+                  className={`chat-list__item sidebar-enter__item${item.id === activeConversationId ? " active" : ""}${
+                    item.id === animatingConversationId ? " is-reordered" : ""
+                  }`}
+                  style={
+                    { "--sidebar-delay": `${Math.min(index, 11) * 45}ms` } as React.CSSProperties
+                  }
                 >
-                  <input
-                    ref={renameInputRef}
-                    aria-label="Tên cuộc trò chuyện"
-                    value={title}
-                    onChange={(event) => setTitle(event.target.value)}
-                    autoFocus
-                  />
-                </form>
-              ) : (
-                <span className="chat-list__actions">
                   <button
-                    ref={menuTriggerRef}
                     type="button"
-                    className="chat-list__menu-trigger"
-                    aria-label={`Tùy chọn ${item.title}`}
-                    aria-expanded={actionMenu === item.id}
-                    aria-controls={`chat-menu-${item.id}`}
-                    onClick={(event) => {
-                      if (actionMenu === item.id) {
-                        setActionMenu(null);
-                        return;
-                      }
-                      menuTriggerRef.current = event.currentTarget;
-                      setActionMenu(item.id);
+                    className={item.id === activeConversationId ? "active" : ""}
+                    onClick={() => {
+                      onSelectConversation(item.id);
+                      closeMobile();
                     }}
                   >
-                    <span aria-hidden="true">•••</span>
+                    {item.title || activeQuestion || "Cuộc trò chuyện"}
                   </button>
-                </span>
-              )}
-              {actionMenu === item.id &&
-                typeof document !== "undefined" &&
-                createPortal(
-                  <span
-                    ref={menuRef}
-                    id={`chat-menu-${item.id}`}
-                    className="chat-list__menu"
-                    role="menu"
-                    style={{ top: menuPosition.top, left: menuPosition.left }}
-                  >
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setEditing(item.id);
-                        setTitle(item.title);
-                        setActionMenu(null);
+                  {editing === item.id ? (
+                    <form
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void rename(item.id);
                       }}
                     >
-                      Đổi tên
-                    </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        void remove(item.id);
-                        setActionMenu(null);
-                      }}
-                    >
-                      Xóa
-                    </button>
-                  </span>,
-                  document.body,
-                )}
-            </div>
-          ))}
+                      <input
+                        ref={renameInputRef}
+                        aria-label="Tên cuộc trò chuyện"
+                        value={title}
+                        onChange={(event) => setTitle(event.target.value)}
+                        autoFocus
+                      />
+                    </form>
+                  ) : (
+                    <span className="chat-list__actions">
+                      <button
+                        ref={menuTriggerRef}
+                        type="button"
+                        className="chat-list__menu-trigger"
+                        aria-label={`Tùy chọn ${item.title}`}
+                        aria-expanded={actionMenu === item.id}
+                        aria-controls={`chat-menu-${item.id}`}
+                        onClick={(event) => {
+                          if (actionMenu === item.id) {
+                            setActionMenu(null);
+                            return;
+                          }
+                          menuTriggerRef.current = event.currentTarget;
+                          setActionMenu(item.id);
+                        }}
+                      >
+                        <span aria-hidden="true">•••</span>
+                      </button>
+                    </span>
+                  )}
+                  {actionMenu === item.id &&
+                    typeof document !== "undefined" &&
+                    createPortal(
+                      <span
+                        ref={menuRef}
+                        id={`chat-menu-${item.id}`}
+                        className="chat-list__menu"
+                        role="menu"
+                        style={{ top: menuPosition.top, left: menuPosition.left }}
+                      >
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setEditing(item.id);
+                            setTitle(item.title);
+                            setActionMenu(null);
+                          }}
+                        >
+                          Đổi tên
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            void remove(item.id);
+                            setActionMenu(null);
+                          }}
+                        >
+                          Xóa
+                        </button>
+                      </span>,
+                      document.body,
+                    )}
+                </div>
+              ))}
           {cursor && (
             <button type="button" onClick={() => void fetchConversations(cursor)}>
               Tải thêm
