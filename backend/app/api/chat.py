@@ -252,6 +252,7 @@ async def _run_workflow(
     return {"trace_id": trace_id, "payload": _response_payload(result, trace_id)}
 
 
+@router.get("/chat/events", response_model=None)
 async def chat_events(
     question: str,
     http_request: Request,
