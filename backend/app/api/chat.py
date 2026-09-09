@@ -107,9 +107,6 @@ async def chat(
     trace_id = http_request.headers.get("X-Trace-ID") or uuid.uuid4().hex
     state: dict[str, Any] = {"question": request.question, "query_date": date.today()}
     trace = QueryTrace(request.question, trace_id=trace_id, metadata={})
-    trace_id = http_request.headers.get("X-Trace-ID") or uuid.uuid4().hex
-    state: dict[str, Any] = {"question": request.question, "query_date": date.today()}
-    trace = QueryTrace(request.question, trace_id=trace_id, metadata={})
     try:
         if db is None and build_query_graph is _production_build_query_graph:
             raise RuntimeError("workflow database session is not configured")
@@ -147,14 +144,14 @@ async def chat(
     with suppress(Exception):
         emit_query_trace(trace)
     payload = _response_payload(result, trace_id)
-    if isinstance(db, Session):
+    if isinstance(db, Session) and assistant_message and conversation and user_message:
         assistant_message.content = payload.get("answer") or (payload.get("abstention") or {}).get(
             "reason_code", ""
         )
         assistant_message.status = "COMPLETED"
-        assistant_message.query_trace_id = (
-            db.query(QueryTraceRow).filter(QueryTraceRow.trace_id == trace_id).first().id
-        )
+        query_trace = db.query(QueryTraceRow).filter(QueryTraceRow.trace_id == trace_id).first()
+        if query_trace is not None:
+            assistant_message.query_trace_id = query_trace.id
         conversation.last_activity_at = conversation.updated_at = datetime.now(UTC)
         db.commit()
         payload.update(

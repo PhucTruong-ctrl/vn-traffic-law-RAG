@@ -4,7 +4,8 @@ export default function formatAfterEdit(pi: HookAPI): void {
   pi.on("tool_result", async (event) => {
     if (event.toolName !== "edit" || event.isError) return;
 
-    const result = await pi.exec("./scripts/format-codebase.sh", {
+    const result = await pi.exec("./scripts/format-codebase.sh", [], {
+      cwd: pi.cwd,
       timeout: 120_000,
     });
 

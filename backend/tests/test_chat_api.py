@@ -186,9 +186,7 @@ class ChatFeedbackSession:
 
     def add(self, row: object) -> None:
         self.added.append(row)
-        if isinstance(row, (QueryTrace, ObservabilityQueryTrace)):
-            if not hasattr(row, "id") or row.id is None:
-                row.id = uuid.uuid4()
+        if isinstance(row, (ObservabilityQueryTrace, QueryTrace)):
             self.traces[row.trace_id] = row
         elif isinstance(row, QueryFeedback):
             row.id = uuid.uuid4()

@@ -9,6 +9,7 @@ from sqlalchemy.orm import configure_mappers
 
 from app.persistence import Base
 from app.persistence.models import (
+    Conversation,
     CorpusQaReport,
     DocumentElement,
     DocumentRelation,
@@ -22,6 +23,7 @@ from app.persistence.models import (
     LegalEffectEvent,
     LegalProvision,
     LegalSource,
+    Message,
     OutboxEvent,
     ParsedDocument,
     ProvisionProvenance,
@@ -32,7 +34,7 @@ from app.persistence.models import (
     ReviewItem,
 )
 
-# docs/03 §3.9.15 mapping hints + §3.10.2 DDL — exactly these 20 tables.
+# docs/03 §3.9.15 mapping hints + §3.10.2 DDL — exactly these 22 tables.
 DOCUMENTED_TABLES = [
     "legal_sources",
     "legal_documents",
@@ -51,6 +53,8 @@ DOCUMENTED_TABLES = [
     "outbox_events",
     "query_traces",
     "query_feedback",
+    "conversations",
+    "messages",
     "evaluation_datasets",
     "evaluation_runs",
     "evaluation_results",
@@ -75,6 +79,8 @@ MODEL_CLASSES = [
     OutboxEvent,
     QueryTrace,
     QueryFeedback,
+    Conversation,
+    Message,
     EvaluationDataset,
     EvaluationRun,
     EvaluationResult,
@@ -84,15 +90,22 @@ MODEL_CLASSES = [
 
 def test_models_import_cleanly() -> None:
     """Every documented model class is exported from the persistence package."""
-    assert len(MODEL_CLASSES) == 21
+    assert len(MODEL_CLASSES) == 23
     for cls in MODEL_CLASSES:
         assert cls.__table__ is not None
 
 
-def test_metadata_contains_exactly_the_20_documented_tables() -> None:
+def test_metadata_contains_exactly_the_22_documented_tables() -> None:
     tables = set(Base.metadata.tables)
     assert tables == set(DOCUMENTED_TABLES)
-    assert len(tables) == 21
+    assert len(tables) == 23
+
+
+def test_conversation_and_message_tables_are_uniquely_registered() -> None:
+    assert list(Base.metadata.tables).count("conversations") == 1
+    assert list(Base.metadata.tables).count("messages") == 1
+    assert Conversation.__table__ is Base.metadata.tables["conversations"]
+    assert Message.__table__ is Base.metadata.tables["messages"]
 
 
 def test_model_classes_map_to_documented_table_names() -> None:
