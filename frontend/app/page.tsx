@@ -47,16 +47,20 @@ export default function Home() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!question.trim()) return;
+    const submittedQuestion = question.trim();
+    if (!submittedQuestion || loading) return;
     setLoading(true);
     setError("");
     setResponse(null);
-    setSubmittedQuestion(question.trim());
+    setSubmittedQuestion(submittedQuestion);
     try {
-      const body = { question: question.trim() };
-      const result = await fetch(API_PATH, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const payload = await result.json().catch(() => null);
-      if (!result.ok) throw new Error(payload?.error?.message || "Không thể gửi câu hỏi. Vui lòng thử lại.");
+      const result = await fetch(API_PATH, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: submittedQuestion }) });
+      const payload: unknown = await result.json().catch(() => null);
+      if (!result.ok) {
+        const message = typeof payload === "object" && payload !== null && "error" in payload && typeof payload.error === "object" && payload.error !== null && "message" in payload.error && typeof payload.error.message === "string" ? payload.error.message : "Không thể gửi câu hỏi. Vui lòng thử lại.";
+        throw new Error(message);
+      }
+      if (!payload || typeof payload !== "object") throw new Error("Phản hồi từ máy chủ không hợp lệ. Vui lòng thử lại.");
       setResponse(payload as ChatResponse);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Không thể gửi câu hỏi. Vui lòng thử lại.");

@@ -213,7 +213,7 @@ class QueryAnalyzer:
         hierarchy = re.search(r"\bđiều\s*([\w.-]+)", lowered)
         clause = re.search(r"\bkhoản\s*([\w.-]+)", lowered)
         point = re.search(r"\bđiểm\s*([a-zđ])\b", lowered)
-        red_light = bool(re.search(r"vượt\s+đèn\s+đỏ|đèn\s+đỏ", lowered))
+        red_light = bool(re.search(r"vượt\s+đèn\s+đỏ|đèn\s+đỏ|vuot\s+den\s+do|den\s+do", lowered))
         if (
             red_light
             and document is None
@@ -227,11 +227,22 @@ class QueryAnalyzer:
             point = re.match(r"(b)", "b")
         vehicle = next(
             (
-                term
-                for term in ("xe máy", "xe mô tô", "xe gắn máy", "ô tô", "xe tải", "xe đạp")
-                if term in lowered
+                canonical
+                for canonical, variants in TERMINOLOGY.items()
+                if any(
+                    re.search(rf"(?<!\w){re.escape(variant)}(?!\w)", text, re.I)
+                    for variant in variants
+                )
+                and canonical.startswith("xe ")
             ),
-            None,
+            next(
+                (
+                    term
+                    for term in ("xe máy", "xe mô tô", "xe gắn máy", "ô tô", "xe tải", "xe đạp")
+                    if term in lowered
+                ),
+                None,
+            ),
         )
         entities = [
             canonical

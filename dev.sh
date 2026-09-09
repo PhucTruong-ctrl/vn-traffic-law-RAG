@@ -46,12 +46,22 @@ trap cleanup INT TERM EXIT
 
 docker compose --env-file "$ENV_FILE" up -d postgres qdrant redis minio
 for _ in $(seq 1 60); do
-  postgres_state=$(docker inspect --format '{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{end}}' vnlaw-postgres 2>/dev/null || true)
-  redis_state=$(docker inspect --format '{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{end}}' vnlaw-redis 2>/dev/null || true)
-  qdrant_state=$(docker inspect --format '{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{end}}' vnlaw-qdrant 2>/dev/null || true)
-  minio_state=$(docker inspect --format '{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{end}}' vnlaw-minio 2>/dev/null || true)
+  service_state() {
+    local service=$1
+    local container_id
+    container_id=$(docker compose --env-file "$ENV_FILE" ps -q "$service" 2>/dev/null || true)
+    if [[ -z "$container_id" ]]; then
+      printf 'not found'
+      return
+    fi
+    docker inspect --format '{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{end}}' "$container_id" 2>/dev/null || printf 'not found'
+  }
+  postgres_state=$(service_state postgres)
+  redis_state=$(service_state redis)
+  qdrant_state=$(service_state qdrant)
+  minio_state=$(service_state minio)
   [[ "$postgres_state" == "running healthy" && "$redis_state" == "running healthy" && "$qdrant_state" == "running healthy" && "$minio_state" == "running healthy" ]] && break
-  [[ "$postgres_state" == "exited" || "$redis_state" == "exited" || "$qdrant_state" == "exited" || "$minio_state" == "exited" ]] && break
+  [[ "$postgres_state" == exited* || "$redis_state" == exited* || "$qdrant_state" == exited* || "$minio_state" == exited* ]] && break
   sleep 1
 done
 if [[ "$postgres_state" != "running healthy" ]]; then echo "PostgreSQL did not become healthy: ${postgres_state:-not found}" >&2; exit 1; fi
@@ -68,7 +78,8 @@ if ! docker run --rm --network container:vnlaw-redis redis:7-alpine redis-cli -h
 )
 (
   cd "$ROOT/backend"
-  exec env PYTHONPATH=. QDRANT_URL="$QDRANT_URL" QDRANT_API_KEY="${QDRANT_API_KEY:-}" S3_ENDPOINT="$S3_ENDPOINT" MINIO_ENDPOINT="$MINIO_ENDPOINT" DATABASE_URL="$DATABASE_URL" REDIS_URL="redis://127.0.0.1:6379/0" uv run --env-file /dev/null python -m uvicorn app.main:app --reload --reload-dir app --host 127.0.0.1 --port 8000
+  # Local index uses E5 vectors; override with DEV_* for deliberate provider changes.
+  exec env PYTHONPATH=. QDRANT_URL="$QDRANT_URL" QDRANT_API_KEY="${QDRANT_API_KEY:-}" S3_ENDPOINT="$S3_ENDPOINT" MINIO_ENDPOINT="$MINIO_ENDPOINT" DATABASE_URL="$DATABASE_URL" REDIS_URL="redis://127.0.0.1:6379/0" EMBEDDING_PROVIDER="${DEV_EMBEDDING_PROVIDER:-local}" EMBEDDING_MODEL="${DEV_EMBEDDING_MODEL:-intfloat/multilingual-e5-base}" EMBEDDING_LOCAL_DEVICE="${DEV_EMBEDDING_LOCAL_DEVICE:-auto}" GENERATION_PROVIDER="${DEV_GENERATION_PROVIDER:-gemini}" GENERATION_MODEL="${DEV_GENERATION_MODEL:-gemini-3.1-flash-lite}" uv run --env-file /dev/null python -m uvicorn app.main:app --reload --reload-dir app --host 127.0.0.1 --port 8000
 ) > >(sed -u 's/^/[api] /') 2>&1 &
 api_pid=$!; child_pids+=("$api_pid")
 api_ready=false
