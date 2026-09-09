@@ -177,11 +177,17 @@ input::placeholder {
   height: 100vh;
   flex-direction: column;
   padding: 14px 10px 12px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  direction: rtl;
   border-right: 1px solid var(--sidebar-border);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 22%), var(--bg-sidebar);
   color: #f4f7fa;
+}
+
+.sidebar > * {
+  direction: ltr;
 }
 
 .sidebar.is-collapsed {
@@ -404,12 +410,6 @@ input::placeholder {
   color: #ffffff;
   background: rgba(255, 255, 255, 0.07);
 }
-
-.sidebar-nav__item svg {
-  width: 18px;
-  color: #d8dee5;
-}
-
 .chat-list {
   position: relative;
   display: grid;
@@ -417,39 +417,9 @@ input::placeholder {
   flex: 1 1 auto;
   gap: 3px;
   margin-top: 8px;
-  margin-left: -10px;
-  padding-left: 10px;
   padding-right: 2px;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: visible;
   overscroll-behavior: contain;
-  direction: rtl;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
-}
-
-.chat-list > * {
-  direction: ltr;
-}
-
-.chat-list::-webkit-scrollbar {
-  width: 8px;
-}
-
-.chat-list::-webkit-scrollbar-thumb {
-  border: 2px solid transparent;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.16);
-  background-clip: padding-box;
-}
-
-.chat-list p {
-  margin: 12px 10px 6px;
-  color: #8391a0;
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.035em;
-  text-transform: uppercase;
 }
 
 .chat-list__item {
