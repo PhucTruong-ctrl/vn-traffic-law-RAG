@@ -22,12 +22,16 @@ const validateChatResponse = (payload: unknown): ChatResponse => {
   if (typeof payload !== "object" || payload === null)
     throw new Error("Phản hồi từ máy chủ không hợp lệ. Vui lòng thử lại.");
   const value = payload as Record<string, unknown>;
-  if (
-    value.status === "ABSTAINED" &&
-    typeof value.abstention === "object" &&
-    value.abstention !== null
-  )
+  const NON_VERIFIED_STATUS: Record<string, true> = {
+    GREETING: true,
+    OUT_OF_SCOPE: true,
+    CORPUS_NOT_COVERED: true,
+    INSUFFICIENT_EVIDENCE: true,
+    WORKFLOW_UNAVAILABLE: true,
+  };
+  if (typeof value.status === "string" && NON_VERIFIED_STATUS[value.status]) {
     return payload as ChatResponse;
+  }
   const claims = value.claims;
   const citations = value.citations;
   if (
@@ -171,7 +175,19 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
         signal: abortController.signal,
       });
       const payload = await result.json().catch(() => null);
-      if (!result.ok) throw new Error("Không thể xử lý câu hỏi.");
+      if (!result.ok) {
+        const message =
+          payload &&
+          typeof payload === "object" &&
+          "error" in payload &&
+          payload.error &&
+          typeof payload.error === "object" &&
+          "message" in payload.error &&
+          typeof payload.error.message === "string"
+            ? payload.error.message
+            : "Không thể xử lý câu hỏi.";
+        throw new Error(message);
+      }
       const nextResponse = validateChatResponse(payload);
       setTurns((previous) => [...previous, { question: submitted, response: nextResponse }]);
       setQuestion("");

@@ -1,15 +1,18 @@
 import { expect, test } from "@playwright/test";
-
 test("long responses keep the conversation scrollable above the composer", async ({ page }) => {
   const longAnswer = Array.from(
     { length: 48 },
     (_, index) => `Đoạn giải thích pháp luật ${index + 1}. Nội dung đủ dài để tạo vùng cuộn.`,
   ).join("\n\n");
-  await page.route("**/api/v1/chat/events**", (route) =>
-    route.fulfill({
+  await page.route("**/api/v1/chat", async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
       status: 200,
-      contentType: "text/event-stream",
-      body: `event: result\ndata: ${JSON.stringify({
+      contentType: "application/json",
+      body: JSON.stringify({
         status: "VERIFIED",
         answer: longAnswer,
         claims: [{ claim: "Có căn cứ pháp lý" }],
@@ -23,9 +26,9 @@ test("long responses keep the conversation scrollable above the composer", async
           },
         ],
         trace_id: "trace-scroll",
-      })}\n\n`,
-    }),
-  );
+      }),
+    });
+  });
   await page.goto("/");
   await page.getByLabel("Câu hỏi").fill("Kiểm tra câu trả lời dài");
   await page.getByRole("button", { name: "Gửi", exact: true }).click();

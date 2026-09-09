@@ -133,6 +133,7 @@ def build_candidate_corpus(
         "entries": selected,
     }
     artifact["artifact_sha256"] = _sha256(artifact)
+    return artifact
 
 
 def validate_frozen_corpus(artifact: dict[str, Any]) -> list[str]:

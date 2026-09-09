@@ -12,14 +12,19 @@ test.describe("Sprint 5 answer flow", () => {
   });
 
   test("submits only the chat question and renders a verified response", async ({ page }) => {
-    await page.route("**/api/v1/chat/events**", async (route) => {
-      expect(new URL(route.request().url()).searchParams.get("question")).toBe(
-        "Vượt đèn đỏ bị phạt thế nào?",
-      );
+    await page.route("**/api/v1/chat", async (route) => {
+      const request = route.request();
+      if (request.method() !== "POST") {
+        await route.continue();
+        return;
+      }
+      expect(request.postDataJSON()).toMatchObject({
+        question: "Vượt đèn đỏ bị phạt thế nào?",
+      });
       await route.fulfill({
         status: 200,
-        contentType: "text/event-stream",
-        body: `event: result\ndata: ${JSON.stringify({
+        contentType: "application/json",
+        body: JSON.stringify({
           status: "VERIFIED",
           answer: "Mức phạt được xác định theo quy định hiện hành.",
           claims: [{ claim: "Có căn cứ pháp lý", claim_type: "RULE" }],
@@ -32,7 +37,7 @@ test.describe("Sprint 5 answer flow", () => {
           ],
           disclaimer: "This response is informational and not legal advice.",
           trace_id: "trace-smoke-verified",
-        })}\n\n`,
+        }),
       });
     });
     await page.goto("/");
@@ -44,22 +49,19 @@ test.describe("Sprint 5 answer flow", () => {
   });
 
   test("renders an API failure as an actionable alert", async ({ page }) => {
-    await page.route("**/api/v1/chat/events**", async (route) =>
-      route.fulfill({
-        status: 500,
-        contentType: "text/event-stream",
-        body: "",
-      }),
-    );
-    await page.route("**/api/v1/chat", async (route) =>
-      route.fulfill({
+    await page.route("**/api/v1/chat", async (route) => {
+      if (route.request().method() !== "POST") {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({
         status: 503,
         contentType: "application/json",
         body: JSON.stringify({
           error: { message: "Dịch vụ tạm thời không khả dụng" },
         }),
-      }),
-    );
+      });
+    });
     await page.goto("/");
     await page.getByLabel("Câu hỏi").fill("Câu hỏi kiểm tra lỗi");
     await page.getByRole("button", { name: "Gửi", exact: true }).click();
@@ -67,20 +69,24 @@ test.describe("Sprint 5 answer flow", () => {
   });
 
   test("renders an abstention from the mock API boundary", async ({ page }) => {
-    await page.route("**/api/v1/chat/events**", async (route) =>
-      route.fulfill({
+    await page.route("**/api/v1/chat", async (route) => {
+      if (route.request().method() !== "POST") {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({
         status: 200,
-        contentType: "text/event-stream",
-        body: `event: result\ndata: ${JSON.stringify({
-          status: "ABSTAINED",
+        contentType: "application/json",
+        body: JSON.stringify({
+          status: "INSUFFICIENT_EVIDENCE",
           answer: null,
           claims: [],
           citations: [],
           abstention: { reason_code: "INSUFFICIENT_EVIDENCE" },
           trace_id: "trace-smoke-abstained",
-        })}\n\n`,
-      }),
-    );
+        }),
+      });
+    });
     await page.goto("/");
     await page.getByLabel("Câu hỏi").fill("Một tình huống chưa có đủ dữ kiện?");
     await page.getByRole("button", { name: "Gửi", exact: true }).click();
@@ -97,17 +103,22 @@ test.describe("Sprint 5 answer flow", () => {
     const responseReady = new Promise<void>((resolve) => {
       releaseResponse = resolve;
     });
-    await page.route("**/api/v1/chat/events**", async (route) => {
+    await page.route("**/api/v1/chat", async (route) => {
+      if (route.request().method() !== "POST") {
+        await route.continue();
+        return;
+      }
       await responseReady;
       await route.fulfill({
         status: 200,
-        contentType: "text/event-stream",
-        body: `event: result\ndata: ${JSON.stringify({
+        contentType: "application/json",
+        body: JSON.stringify({
           status: "VERIFIED",
           answer: "Đã xong.",
           claims: [{ claim: "Có căn cứ pháp lý" }],
           citations: [{ provision_id: "loading-fixture" }],
-        })}\n\n`,
+          trace_id: "trace-loading",
+        }),
       });
     });
     await page.goto("/");
@@ -127,18 +138,22 @@ test.describe("Delayed response accessibility", () => {
     const responseReady = new Promise<void>((resolve) => {
       releaseResponse = resolve;
     });
-    await page.route("**/api/v1/chat/events**", async (route) => {
+    await page.route("**/api/v1/chat", async (route) => {
+      if (route.request().method() !== "POST") {
+        await route.continue();
+        return;
+      }
       await responseReady;
       await route.fulfill({
         status: 200,
-        contentType: "text/event-stream",
-        body: `event: result\ndata: ${JSON.stringify({
+        contentType: "application/json",
+        body: JSON.stringify({
           status: "VERIFIED",
           answer: "Kết quả sau khi chờ.",
           claims: [{ claim: "Có căn cứ pháp lý" }],
           citations: [{ provision_id: "delayed-fixture" }],
           trace_id: "trace-delayed",
-        })}\n\n`,
+        }),
       });
     });
     await page.goto("/");
