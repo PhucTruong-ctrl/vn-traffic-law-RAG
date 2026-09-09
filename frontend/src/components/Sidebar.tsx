@@ -90,19 +90,7 @@ export default function Sidebar({
           <p>Gần đây</p>
           <button type="button" className="active" onClick={closeMobile}>
             {activeQuestion || "Cuộc trò chuyện mới"}
-          </button>
-          {suggestions.slice(0, 2).map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => {
-                onSuggestion(item);
-                closeMobile();
-              }}
-            >
-              {item}
-            </button>
-          ))}
+          </button> 
         </div>
         <div className="sidebar-user">
           <span className="user-avatar" aria-hidden="true">

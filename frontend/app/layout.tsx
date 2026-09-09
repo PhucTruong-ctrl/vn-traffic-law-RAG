@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "VNLAW — Tra cứu pháp luật giao thông",
   description:
-    "Trợ lý nghiên cứu pháp luật giao thông Việt Nam với câu trả lời có căn cứ.",
+    "Trợ lý nghiên cứu pháp luật giao thông Việt Nam.",
 };
 
 export default function RootLayout({
