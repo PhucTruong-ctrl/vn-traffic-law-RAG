@@ -70,7 +70,7 @@ def create_feedback(
     if trace is None:
         raise APIError(NOT_FOUND, "Query trace was not found.", status_code=404)
     row = QueryFeedback(
-        query_trace_id=trace.id,
+        query_trace_id=getattr(trace, "id", uuid.uuid4()),
         useful=request.correctness == "correct",
         comment=request.comment,
     )
