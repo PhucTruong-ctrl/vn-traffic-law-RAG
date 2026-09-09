@@ -1,39 +1,27 @@
 import React from "react";
 
-export type ProgressEvent = {
-  event?: string;
-  type?: string;
-  message?: string;
-  detail?: string;
-  status?: string;
-};
+export type ProgressEvent = { event?: string; type?: string; message?: string; detail?: string; status?: string };
+export type ProgressEventsProps = { events?: ProgressEvent[] | null };
 
-export type ProgressEventsProps = {
-  events?: ProgressEvent[] | null;
-};
+const DEFAULT_STEPS = [
+  { label: "Tìm văn bản liên quan", state: "complete", icon: "✓" },
+  { label: "Đối chiếu điều luật", state: "active", icon: "" },
+  { label: "Tổng hợp câu trả lời", state: "pending", icon: "✦" },
+] as const;
 
 export default function ProgressEvents({ events }: ProgressEventsProps) {
-  if (!events?.length) return null;
-
+  const steps = events?.length
+    ? events.map((item, index) => ({ label: item.message || item.detail || item.event || item.type || "Đang xử lý", state: index === events.length - 1 ? "active" : "complete", icon: index === events.length - 1 ? "" : "✓" }))
+    : DEFAULT_STEPS;
   return (
-    <section className="progress-events-panel motion-entrance" aria-labelledby="progress-events-title" aria-live="polite">
-      <div className="progress-events-panel motion-entrance__header">
-        <span className="progress-events-panel motion-entrance__eyebrow">NHẬT KÝ XỬ LÝ</span>
-        <h2 id="progress-events-title">Tiến trình xử lý</h2>
-      </div>
+    <section className="progress-events-panel" aria-label="Tiến trình xử lý" aria-live="polite">
       <ol className="progress-events">
-        {events.map((item, index) => {
-          const label = item.message || item.detail || item.event || item.type || "Đang xử lý";
-          return (
-            <li className="progress-events__item motion-entrance-item" key={`${item.event || item.type || "event"}-${index}`}>
-              <span className="progress-events__marker" aria-hidden="true" />
-              <span className="progress-events__content">
-                <span className="progress-events__label">{label}</span>
-                {item.status && <span className="progress-events__status">{item.status}</span>}
-              </span>
-            </li>
-          );
-        })}
+        {steps.map((step, index) => (
+          <li className={`progress-events__item progress-events__item--${step.state}`} key={`${step.label}-${index}`}>
+            <span className="progress-events__marker" aria-hidden="true">{step.icon || <span className="progress-events__spinner" />}</span>
+            <span className="progress-events__label">{step.label}</span>
+          </li>
+        ))}
       </ol>
     </section>
   );

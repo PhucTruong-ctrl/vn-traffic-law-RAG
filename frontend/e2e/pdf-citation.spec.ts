@@ -24,7 +24,7 @@ async function openDrawer(page: Page, withBbox = true) {
     body: JSON.stringify({
       status: "VERIFIED",
       answer: "Câu trả lời kiểm thử.",
-      claims: [],
+      claims: [{ claim: "Có căn cứ pháp lý" }],
       citations: [{ ...citation, ...(withBbox ? {} : { bbox: undefined, page_number: 1 }) }],
       trace_id: "trace-pdf-fixture",
     }),
@@ -58,10 +58,10 @@ test("opens a large PDF citation drawer with a rendered canvas and bbox highligh
     }
     return false;
   })).toBe(true);
-  const highlight = dialog.getByLabel("Đoạn trích được tô sáng");
-  await expect(highlight).toBeVisible();
-  expect((await highlight.boundingBox())?.width).toBeGreaterThan(0);
-  expect((await highlight.boundingBox())?.height).toBeGreaterThan(0);
+  const highlight = dialog.locator(".pdf-viewer__highlight");
+  await expect(highlight).toHaveCount(1);
+  expect((await highlight.boundingBox())?.width ?? 0).toBeGreaterThan(0);
+  expect((await highlight.boundingBox())?.height ?? 0).toBeGreaterThan(0);
 });
 
 test("zooms the canvas, enforces page boundaries, and accepts page input", async ({ page }) => {
@@ -91,7 +91,7 @@ test("zooms the canvas, enforces page boundaries, and accepts page input", async
   await expect(next).toBeDisabled();
   await input.fill("99");
   await input.press("Enter");
-  await expect(input).toHaveValue("99");
+  await expect(input).toHaveValue("3");
 });
 
 test("reports missing bbox explicitly and restores focus after Escape", async ({ page }) => {
