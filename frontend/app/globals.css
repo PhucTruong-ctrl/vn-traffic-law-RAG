@@ -159,7 +159,7 @@ input::placeholder {
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   width: min(1600px, 100%);
   min-height: 100vh;
-  margin: 0 auto;
+  margin: 0;
   overflow: clip;
   background: var(--bg-app);
   transition: grid-template-columns var(--motion-normal) var(--ease-standard);
@@ -284,21 +284,13 @@ input::placeholder {
   }
 }
 
-.sidebar-enter__item {
-  opacity: 0;
-  animation: sidebar-enter 520ms var(--ease-standard) both;
-  animation-delay: var(--sidebar-delay, 0ms);
-}
-
 @keyframes sidebar-enter {
   from {
     opacity: 0;
-    transform: translateX(-12px);
   }
 
   to {
     opacity: 1;
-    transform: translateX(0);
   }
 }
 
@@ -415,11 +407,18 @@ input::placeholder {
   display: grid;
   min-height: 0;
   flex: 1 1 auto;
+  align-content: start;
+  grid-auto-rows: max-content;
   gap: 3px;
   margin-top: 8px;
   padding-right: 2px;
   overflow: visible;
   overscroll-behavior: contain;
+  direction: ltr;
+}
+
+.chat-list > * {
+  direction: ltr;
 }
 
 .chat-list__item {
