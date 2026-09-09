@@ -231,50 +231,7 @@ input:focus-visible {
 .assistant-menu svg {
   width: 15px;
 }
-.theme-picker {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  margin: 0;
-  padding: 3px;
-  border: 1px solid var(--slate-200);
-  border-radius: 999px;
-}
-.theme-picker legend {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-}
-.theme-picker label {
-  position: relative;
-  display: flex;
-  align-items: center;
-  min-height: 32px;
-}
-.theme-picker input {
-  position: absolute;
-  opacity: 0;
-}
-.theme-picker span {
-  display: grid;
-  place-items: center;
-  min-height: 30px;
-  padding: 5px 9px;
-  border-radius: 999px;
-  color: var(--slate-600);
-  font-size: 11px;
-  font-weight: 700;
-}
-.theme-picker input:checked + span {
-  color: var(--navy-950);
-  background: var(--slate-100);
-}
-.theme-picker input:focus-visible + span {
-  outline: 3px solid var(--focus);
-  outline-offset: 1px;
-}
+
 .conversation {
   width: min(940px, 100%);
   flex: 1;
@@ -853,32 +810,4 @@ input:focus-visible {
   .progress-events__shimmer {
     display: none;
   }
-}
-[data-theme="dark"] {
-  --control-bg: #1c3040;
-  --control-fg: #f2f6f8;
-  --control-border: #587087;
-  --surface: #1c3040;
-  --surface-muted: #263c4d;
-  --line: #587087;
-  --muted: #b7c6d4;
-  color-scheme: dark;
-}
-[data-theme="dark"] .main-panel,
-[data-theme="dark"] .app-header {
-  background: #10243c;
-  color: #f2f6f8;
-}
-[data-theme="dark"] .citation-card,
-[data-theme="dark"] .progress-events-panel,
-[data-theme="dark"] .loading-state {
-  background: #1c3040;
-}
-[data-theme="dark"] .composer textarea {
-  background: #1c3040;
-  color: #f2f6f8;
-}
-[data-theme="dark"] .theme-picker input:checked + span {
-  color: #10243c;
-  background: #edf1f4;
 }

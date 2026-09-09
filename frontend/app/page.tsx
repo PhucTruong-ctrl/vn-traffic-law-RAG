@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
 import AppHeader from "../src/components/AppHeader";
 import ChatThread from "../src/components/ChatThread";
 import Composer from "../src/components/Composer";
@@ -68,32 +69,7 @@ export default function Home() {
   const [submittedQuestion, setSubmittedQuestion] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [theme, setTheme] = useState<"auto" | "light" | "dark">("auto");
-  useEffect(() => {
-    const stored = window.localStorage.getItem("vnlaw-theme");
-    const next = stored === "light" || stored === "dark" ? stored : "auto";
-    const apply = () => {
-      document.documentElement.dataset.theme =
-        next === "auto"
-          ? window.matchMedia("(prefers-color-scheme: dark)").matches
-            ? "dark"
-            : "light"
-          : next;
-    };
-    apply();
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    media.addEventListener("change", apply);
-    return () => media.removeEventListener("change", apply);
-  }, []);
-  useEffect(() => {
-    window.localStorage.setItem("vnlaw-theme", theme);
-    document.documentElement.dataset.theme =
-      theme === "auto"
-        ? window.matchMedia("(prefers-color-scheme: dark)").matches
-          ? "dark"
-          : "light"
-        : theme;
-  }, [theme]);
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const submitted = question.trim();
@@ -160,7 +136,7 @@ export default function Home() {
         onSuggestion={setQuestion}
       />
       <section className="main-panel" aria-label="Khu vực tra cứu">
-        <AppHeader theme={theme} onTheme={setTheme} />
+        <AppHeader />
         <div
           className={
             response || loading || error
