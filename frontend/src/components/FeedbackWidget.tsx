@@ -47,26 +47,61 @@ export default function FeedbackWidget({
   }
 
   return (
-    <section className="feedback-widget motion-entrance" aria-labelledby="feedback-heading" aria-busy={state === "submitting"}>
+    <section
+      className="feedback-widget motion-entrance"
+      aria-labelledby="feedback-heading"
+      aria-busy={state === "submitting"}
+    >
       <div className="feedback-widget__header">
         <span className="feedback-widget__eyebrow">ĐÁNH GIÁ</span>
         <h2 id="feedback-heading">Phản hồi câu trả lời</h2>
       </div>
       {state === "success" ? (
-        <p className="feedback-widget__success" role="status">Cảm ơn bạn đã gửi phản hồi.</p>
+        <p className="feedback-widget__success" role="status">
+          Cảm ơn bạn đã gửi phản hồi.
+        </p>
       ) : (
         <form className="feedback-widget__form" onSubmit={submit}>
           <fieldset className="feedback-widget__fieldset" disabled={state === "submitting"}>
             <legend>Đánh giá câu trả lời</legend>
-            <div className="feedback-widget__choice interaction-feedbacks" role="group" aria-label="Đánh giá">
-              <button className="feedback-widget__choice interaction-feedback" type="button" aria-label="Thích" aria-pressed={value === "LIKE"} onClick={() => setValue("LIKE")}>LIKE</button>
-              <button className="feedback-widget__choice interaction-feedback" type="button" aria-label="Không thích" aria-pressed={value === "DISLIKE"} onClick={() => setValue("DISLIKE")}>DISLIKE</button>
+            <div
+              className="feedback-widget__choice interaction-feedbacks"
+              role="group"
+              aria-label="Đánh giá"
+            >
+              <button
+                className="feedback-widget__choice interaction-feedback"
+                type="button"
+                aria-label="Thích"
+                aria-pressed={value === "LIKE"}
+                onClick={() => setValue("LIKE")}
+              >
+                LIKE
+              </button>
+              <button
+                className="feedback-widget__choice interaction-feedback"
+                type="button"
+                aria-label="Không thích"
+                aria-pressed={value === "DISLIKE"}
+                onClick={() => setValue("DISLIKE")}
+              >
+                DISLIKE
+              </button>
             </div>
-            <button className="feedback-widget__submit interaction-feedback" type="submit" disabled={!value || state === "submitting"} aria-busy={state === "submitting"}>
+            <button
+              className="feedback-widget__submit interaction-feedback"
+              type="submit"
+              disabled={!value || state === "submitting"}
+              aria-busy={state === "submitting"}
+            >
               {state === "submitting" ? "Đang gửi…" : "Gửi đánh giá"}
             </button>
           </fieldset>
-          {state === "error" && <p className="feedback-widget__error" role="alert">{error}</p>}
+          {state === "error" && (
+            <p className="feedback-widget__error" role="alert">
+              {error}
+            </p>
+          )}
         </form>
       )}
     </section>

@@ -111,10 +111,11 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
   useEffect(() => {
     const controller = new AbortController();
     if (!conversationId) {
-      setLoading(false);
       return () => controller.abort();
     }
-    setLoading(true);
+    void Promise.resolve().then(() => {
+      if (!controller.signal.aborted) setLoading(true);
+    });
     fetch(`/api/v1/conversations/${encodeURIComponent(conversationId)}`, {
       signal: controller.signal,
     })

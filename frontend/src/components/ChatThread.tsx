@@ -25,29 +25,30 @@ function ResponseMessage({
   response: ChatResponse;
   onOpenSource: (citation: Citation) => void;
 }) {
-  const abstained = response.status === "ABSTAINED";
+  const verified = response.status === "VERIFIED";
+  const citations = response.citations ?? [];
   return (
     <div className="assistant-message response-message">
       <LegalMark />
       <div className="response-content">
         <div className="message-meta">
           <strong>Trợ lý Luật Giao thông</strong>
-          <span>{abstained ? "Chưa đủ căn cứ" : "Đã đối chiếu nguồn pháp luật"}</span>
+          <span>{verified ? "Đã đối chiếu nguồn pháp luật" : "Chưa đủ căn cứ"}</span>
         </div>
-        {abstained ? (
+        {verified ? (
+          <p className="assistant-answer">{response.answer}</p>
+        ) : (
           <AbstentionResult
             reason={response.abstention?.reason}
             reasonCode={response.abstention?.reason_code}
             disclaimer={response.disclaimer}
           />
-        ) : (
-          <p className="assistant-answer">{response.answer}</p>
         )}
-        {!abstained && response.citations.length > 0 && (
+        {verified && citations.length > 0 && (
           <section className="citations" aria-label="Căn cứ pháp lý">
             <h2>Căn cứ pháp lý</h2>
             <div className="citation-list">
-              {response.citations.map((citation, index) => (
+              {citations.map((citation, index) => (
                 <CitationCard
                   key={`${citation.provision_id}-${index}`}
                   citation={citation}
@@ -57,11 +58,8 @@ function ResponseMessage({
             </div>
           </section>
         )}
-        {!abstained && response.trace_id && (
-          <FeedbackWidget
-            traceId={response.trace_id}
-            messageId={response.assistant_message_id}
-          />
+        {verified && response.trace_id && (
+          <FeedbackWidget traceId={response.trace_id} messageId={response.assistant_message_id} />
         )}
       </div>
     </div>

@@ -18,7 +18,11 @@ export default function Modal({ open, onClose, label, className = "", children }
     if (!open) return;
     const previousFocus =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    closeButtonRef.current?.focus();
+    const focusCloseButton = () => closeButtonRef.current?.focus();
+    // The dialog and its close button mount in the same render as `open`; defer
+    // focus until the browser has committed that DOM, including conditional
+    // dialog content such as the PDF error/missing-bbox state.
+    const frame = requestAnimationFrame(focusCloseButton);
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
       if (event.key !== "Tab" || !dialogRef.current) return;
@@ -40,6 +44,7 @@ export default function Modal({ open, onClose, label, className = "", children }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => {
+      cancelAnimationFrame(frame);
       document.removeEventListener("keydown", handleKeyDown);
       previousFocus?.focus();
     };
@@ -65,7 +70,7 @@ export default function Modal({ open, onClose, label, className = "", children }
           ref={closeButtonRef}
           type="button"
           className="modal__close"
-          aria-label="Đóng"
+          aria-label={className.includes("pdf-source-drawer") ? "Đóng trình xem PDF" : "Đóng"}
           onClick={onClose}
         >
           <span aria-hidden="true">×</span>
