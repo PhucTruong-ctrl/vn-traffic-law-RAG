@@ -1012,6 +1012,26 @@ input::placeholder {
     box-shadow var(--motion-normal) var(--ease-standard),
     background-color var(--motion-normal) var(--ease-standard);
 }
+.compact-composer.is-resizing {
+  animation: composer-resize-pulse 220ms var(--ease-standard);
+}
+
+@keyframes composer-resize-pulse {
+  0% {
+    transform: translateY(1px);
+    filter: brightness(0.99);
+  }
+
+  55% {
+    transform: translateY(-1px);
+    filter: brightness(1.02);
+  }
+
+  100% {
+    transform: translateY(0);
+    filter: brightness(1);
+  }
+}
 
 .prompt-chips {
   display: flex;

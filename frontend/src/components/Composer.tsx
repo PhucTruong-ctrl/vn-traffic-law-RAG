@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
 import { SendIcon } from "./Icons";
 
@@ -21,21 +21,33 @@ export default function Composer({
   onStop,
 }: ComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [resizing, setResizing] = useState(false);
+  const resizePulseRef = useRef<number | null>(null);
+  const resizeTargetRef = useRef<number | null>(null);
   const resizeTextarea = (textarea: HTMLTextAreaElement) => {
-    const transition = textarea.style.transition;
     textarea.style.transition = "none";
     textarea.style.height = "0px";
     const lineHeight = Number.parseFloat(getComputedStyle(textarea).lineHeight) || 23;
     const maxHeight = hero ? Number.POSITIVE_INFINITY : lineHeight * 8 + 24;
     const nextHeight = Math.max(lineHeight + 24, Math.min(textarea.scrollHeight, maxHeight));
-    textarea.style.height = `${nextHeight}px`;
     textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+    textarea.style.height = `${nextHeight}px`;
+    if (hero || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    setResizing(false);
     void textarea.offsetHeight;
-    textarea.style.transition = transition;
+    setResizing(true);
+    if (resizePulseRef.current !== null) window.clearTimeout(resizePulseRef.current);
+    resizePulseRef.current = window.setTimeout(() => {
+      setResizing(false);
+      resizePulseRef.current = null;
+    }, 220);
   };
   useEffect(() => {
-    if (textareaRef.current) resizeTextarea(textareaRef.current);
-  }, [value, hero]);
+    const timer = window.setTimeout(() => {
+      if (textareaRef.current) resizeTextarea(textareaRef.current);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [hero]);
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
@@ -45,7 +57,9 @@ export default function Composer({
   return (
     <form
       onSubmit={onSubmit}
-      className={hero ? "composer hero-composer" : "composer compact-composer"}
+      className={`${hero ? "composer hero-composer" : "composer compact-composer"}${
+        resizing ? " is-resizing" : ""
+      }`}
     >
       <label htmlFor={id}>Câu hỏi</label>
       <textarea
@@ -55,7 +69,9 @@ export default function Composer({
         value={value}
         onChange={(event) => {
           onChange(event.target.value);
-          resizeTextarea(event.currentTarget);
+          window.setTimeout(() => {
+            if (textareaRef.current) resizeTextarea(textareaRef.current);
+          }, 0);
         }}
         onKeyDown={onKeyDown}
         placeholder={hero ? "Bạn muốn hỏi điều gì?" : "Hỏi tiếp..."}
