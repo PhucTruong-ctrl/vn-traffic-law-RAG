@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BookIcon, PanelIcon, PlusIcon, SearchIcon } from "./Icons";
 import LegalMark from "./LegalMark";
 
@@ -14,10 +14,42 @@ export default function Sidebar({
 }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const mobileToggleRef = useRef<HTMLButtonElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const wasMobileOpen = useRef(false);
   useEffect(() => {
-    if (!mobileOpen) return;
+    if (!mobileOpen) {
+      if (wasMobileOpen.current) mobileToggleRef.current?.focus();
+      wasMobileOpen.current = false;
+      return;
+    }
+    wasMobileOpen.current = true;
+    const sidebar = sidebarRef.current;
+    const focusable = sidebar?.querySelector<HTMLElement>(
+      'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+    focusable?.focus();
     const close = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMobileOpen(false);
+      if (event.key === "Escape") {
+        setMobileOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !sidebar) return;
+      const items = Array.from(
+        sidebar.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", close);
     return () => document.removeEventListener("keydown", close);
@@ -26,6 +58,7 @@ export default function Sidebar({
   return (
     <>
       <button
+        ref={mobileToggleRef}
         type="button"
         className="mobile-sidebar-toggle"
         aria-controls="conversation-sidebar"
@@ -44,6 +77,7 @@ export default function Sidebar({
         />
       )}
       <aside
+        ref={sidebarRef}
         id="conversation-sidebar"
         className={`sidebar${mobileOpen ? " is-mobile-open" : ""}${collapsed ? " is-collapsed" : ""}`}
         aria-label="Lịch sử trò chuyện"

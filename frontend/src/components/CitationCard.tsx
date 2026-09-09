@@ -16,9 +16,12 @@ export type Citation = {
   document_title?: string;
   clause?: string;
   point?: string;
+  version?: string;
+  version_date?: string;
   effective_from?: string;
   effective_to?: string | null;
   interval?: { from?: string; to?: string | null };
+  snapshot_at?: string;
   snippet?: string;
 };
 
@@ -41,6 +44,18 @@ export default function CitationCard({
     from: citation.effective_from,
     to: citation.effective_to,
   };
+  const sourceUrl = (() => {
+    if (!citation.source_url) return undefined;
+    try {
+      const url = new URL(citation.source_url);
+      return url.protocol === "https:" &&
+        url.hostname.toLowerCase().endsWith(".chinhphu.vn")
+        ? url.toString()
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  })();
   const unavailable = !citation.document_id;
   const title =
     citation.document_title ||
@@ -75,12 +90,27 @@ export default function CitationCard({
           <dt>Vị trí quy định</dt>
           <dd>{hierarchy.length ? hierarchy.join(" / ") : "Chưa xác định"}</dd>
         </div>
-        {interval.from && (
+        {citation.version && (
+          <div>
+            <dt>Phiên bản</dt>
+            <dd>
+              {citation.version}
+              {citation.version_date ? ` (${citation.version_date})` : ""}
+            </dd>
+          </div>
+        )}
+        {(interval.from || interval.to) && (
           <div>
             <dt>Hiệu lực</dt>
             <dd>
-              {interval.from} đến {interval.to || "nay"}
+              {interval.from || "Không rõ"} đến {interval.to || "nay"}
             </dd>
+          </div>
+        )}
+        {citation.snapshot_at && (
+          <div>
+            <dt>Ảnh chụp dữ liệu</dt>
+            <dd>{citation.snapshot_at}</dd>
           </div>
         )}
       </dl>
@@ -120,10 +150,10 @@ export default function CitationCard({
         {unavailable && sourceText && (
           <span role="note">Không thể mở PDF: chưa có mã tài liệu.</span>
         )}
-        {citation.source_url && (
+        {sourceUrl && (
           <a
             className="citation-card__external-link"
-            href={citation.source_url}
+            href={sourceUrl}
             target="_blank"
             rel="noreferrer"
           >
@@ -134,3 +164,4 @@ export default function CitationCard({
     </article>
   );
 }
+

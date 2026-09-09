@@ -23,6 +23,18 @@
 
 Tài liệu này định nghĩa phương án triển khai (deployment) của VNLRAG v2 bằng Docker Compose local-first. Mọi nội dung phải nhất quán với [00-scope-and-decisions.md](00-scope-and-decisions.md) (mục 7, 12, 16), thiết kế chi tiết [03-thiet-ke-he-thong.md](03-thiet-ke-he-thong.md) (mục 3.2.5, 3.11, 3.12, 3.13, 3.27, 3.28, 3.31), nghiên cứu công nghệ [04-tech-stack-llm-research.md](04-tech-stack-llm-research.md) (mục 4.18.6, 4.20, 4.21), kế hoạch triển khai [05-ke-hoach-trien-khai.md](05-ke-hoach-trien-khai.md) (mục 5.15.4, 5.16, 5.18) và kiểm thử [06-test-evaluation.md](06-test-evaluation.md) (mục 6.10, 6.12).
 
+### 7.0.1. Chat SSE contract and evidence boundary
+
+The chat UI may use `GET /api/v1/chat/events?question=...` for incremental progress. The endpoint returns `text/event-stream` with buffering disabled:
+
+- Each workflow stage is sent as `event: progress` with JSON data containing `stage` and a human-readable `message`.
+- After the workflow completes, exactly one `event: result` carries the same verified response payload contract as the non-streaming chat endpoint.
+- The server waits briefly for queued progress events before reading the completed workflow result, so terminal progress is not discarded.
+- If the client disconnects or the response is cancelled, the stream cancels and awaits the workflow task. It does not continue generation in the background and does not emit a fabricated result.
+- Workflow `RuntimeError`/`ValueError` failures are converted to a fail-closed abstention payload (`WORKFLOW_UNAVAILABLE`) rather than an unverified answer.
+
+Source-PDF provenance is fail-closed at `GET /api/v1/documents/{document_id}/source`. A cached object is served from the content-addressed `source-pdfs` key; when absent, the recorded URL must be an exact HTTPS URL on the approved official host `datafiles.chinhphu.vn`, without credentials or fragments. Redirects are rejected. The downloaded bytes must stay within the configured upload limit, start with the PDF signature, and match the accepted document SHA-256 before being cached and returned. Missing/untrusted/unavailable sources return a structured error; the service never silently substitutes arbitrary remote content.
+
 Mục tiêu triển khai (suy ra từ NFR-03, NFR-04, NFR-06 và doc 03 mục 3.2.5):
 
 1. Toàn bộ hạ tầng dữ liệu (backend, worker, PostgreSQL, Qdrant, Redis, MinIO) chạy bằng Docker Compose trên máy bảo vệ, không phụ thuộc VPS.

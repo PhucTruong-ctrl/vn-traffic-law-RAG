@@ -37,6 +37,10 @@ def test_chat_disclaimer_trace_citations_and_abstention(
 ) -> None:
     context = SimpleNamespace(
         provision_id="p-1",
+        provision_version=3,
+        document_version_id="dv-1",
+        effective_from=date(2024, 1, 1),
+        effective_to=date(2025, 1, 1),
         document_id="d-1",
         document_number="12/2024",
         article="Điều 1",
@@ -95,6 +99,10 @@ def test_chat_disclaimer_trace_citations_and_abstention(
                     "Khoản 2. Phạt tiền từ 1 đến 2 triệu đồng.\n\na) Cited point text."
                 ),
                 "bbox": {"left": 10.0, "top": 20.0, "right": 100.0, "bottom": 40.0},
+                "provision_version": 3,
+                "document_version_id": "dv-1",
+                "effective_from": "2024-01-01",
+                "effective_to": "2025-01-01",
             }
         ]
         assert payload["answer"] == "answer"

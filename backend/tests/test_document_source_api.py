@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+import pytest
 from fastapi.responses import JSONResponse, Response
 
 from app.api import documents
@@ -66,4 +67,25 @@ def test_document_source_rejects_untrusted_download_host(monkeypatch):
     assert isinstance(response, JSONResponse)
     assert response.status_code == 502
     assert b"SOURCE_PDF_UNAVAILABLE" in response.body
+    assert storage.put_calls == []
+
+
+@pytest.mark.parametrize(
+    "source_url",
+    [
+        "https://datafiles.chinhphu.vn/example.pdf?download=1",
+        "https://user:pass@datafiles.chinhphu.vn/example.pdf",
+        "https://datafiles.chinhphu.vn:444/example.pdf",
+        "https://datafiles.chinhphu.vn",
+    ],
+)
+def test_document_source_rejects_malicious_or_noncanonical_url(monkeypatch, source_url):
+    storage = _Storage()
+    monkeypatch.setattr(documents, "get_object_storage", lambda: storage)
+    response = documents.get_document_source(
+        "nd-168-2024",
+        _Session(_document(source_url=source_url)),
+    )
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == 502
     assert storage.put_calls == []

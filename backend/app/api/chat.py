@@ -327,7 +327,6 @@ def _citations(result: dict[str, Any], final: dict[str, Any]) -> list[dict[str, 
                 "clause": item.clause,
                 "point": item.point,
                 "parent_context": item.parent_context,
-                "source_url": getattr(item, "source_url", None),
                 "source_text": getattr(item, "source_text", None),
                 "page_number": getattr(item, "page_number", None),
                 "legal_context": "\n\n".join(
@@ -340,9 +339,20 @@ def _citations(result: dict[str, Any], final: dict[str, Any]) -> list[dict[str, 
                 ),
                 "bbox": _normalized_bbox(getattr(item, "bbox", None)),
             }
-            for identity_field in ("provision_version", "document_version_id", "source_id"):
+            source_url = getattr(item, "source_url", None)
+            if isinstance(source_url, str) and source_url:
+                citation["source_url"] = source_url
+            for identity_field in (
+                "provision_version",
+                "document_version_id",
+                "effective_from",
+                "effective_to",
+                "source_id",
+            ):
                 identity_value = getattr(item, identity_field, None)
                 if identity_value is not None:
+                    if hasattr(identity_value, "isoformat"):
+                        identity_value = identity_value.isoformat()
                     citation[identity_field] = identity_value
             citations.append(citation)
     return (

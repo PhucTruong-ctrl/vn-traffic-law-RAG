@@ -14,15 +14,23 @@
 | Workflow | Multi-case evidence mixed | Case-scoped plans and partitioned fusion/reranking | Agentic regression tests |
 | Model | Prompt omitted structured multi-case constraints | Added Vietnamese answer structure, citations, uncertainty limits, and next step | Generation tests |
 | API | Source endpoint lacked cached official PDF | HTTPS-only download, PDF/hash/size validation, cache | Document source tests and live source response |
+| API | Streaming chat had no documented contract | `GET /api/v1/chat/events` emits workflow progress events followed by one result event; client cancellation cancels the workflow task | `backend/app/api/chat.py` implementation and focused chat API coverage |
+| Provenance | Official PDF source could be treated as arbitrary remote content | Source retrieval accepts only exact HTTPS URLs on `datafiles.chinhphu.vn`, rejects credentials/fragments and redirects, validates PDF signature/size, verifies SHA-256 against the accepted corpus hash, then caches the verified bytes in `source-pdfs` | `backend/app/api/documents.py` source endpoint and source validation tests |
 
 ## Verification
 
-- Backend focused agentic/evidence tests: 23 passed.
-- Query analyzer tests plus agentic tests: 35 passed.
+- Full backend suite: 1491+ passed (current resolved result).
+- Focused current results: agentic/evidence and query-analyzer coverage passed; chat API coverage verifies question-only input, verified/abstained response shaping, citation serialization, and fail-closed citation handling.
 - Frontend lint, typecheck, and production build pass after final UI repair.
-- Full backend suite: 1471 passed, 19 failed, 30 skipped; failures exposed existing contract regressions still requiring repair before release.
+- The audit records executed evidence only; it does not assert a PR, merge, tag, or release readiness.
+
+## Intentional exclusions
+
+- Sidebar suggestions are intentionally excluded from this implementation audit and release scope.
+- Future session context is intentionally excluded; the current chat contract remains a single `{question}` request without persisted conversational session context.
 
 ## Remaining release blockers
 
-- Full backend suite currently reports hierarchy-validation/indexing contract failures and workflow integration expectation failures.
-- Frontend Playwright and live model scenario matrix still require execution after backend blockers are repaired.
+- Full backend pass does not by itself prove clean-room deployment, final evaluation, or defense rehearsal; those remain separate release gates.
+- Frontend Playwright and live model scenario matrix still require execution when those gates are run.
+

@@ -149,6 +149,9 @@ def _source_url_for_document(document: LegalDocument) -> str | None:
         or parsed.username is not None
         or parsed.password is not None
         or parsed.fragment
+        or parsed.query
+        or parsed.port not in (None, 443)
+        or parsed.path == ""
     ):
         return None
     return source_url
@@ -166,7 +169,16 @@ def _source_key(document: LegalDocument) -> str:
 
 def _download_official_pdf(source_url: str, max_bytes: int) -> bytes:
     parsed = urlparse(source_url)
-    if parsed.scheme != "https" or parsed.hostname not in _TRUSTED_PDF_HOSTS:
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname not in _TRUSTED_PDF_HOSTS
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.fragment
+        or parsed.query
+        or parsed.port not in (None, 443)
+        or parsed.path == ""
+    ):
         raise ValueError("Document source is not an approved official PDF host.")
     request = Request(source_url, headers={"User-Agent": "VNLRAG/1.0 document-cache"})
     with build_opener(_RejectRedirects).open(request, timeout=20) as response:

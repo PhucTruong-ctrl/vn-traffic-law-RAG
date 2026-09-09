@@ -173,6 +173,8 @@ input:focus-visible {
 .mobile-sidebar-toggle {
   display: grid;
   place-items: center;
+  min-width: 44px;
+  min-height: 44px;
   border: 0;
   background: transparent;
   color: inherit;
@@ -185,9 +187,7 @@ input:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 42px;
-  margin: 24px 0 18px;
+  min-height: 44px;
   padding: 8px 12px;
   color: var(--navy-950);
   background: var(--gold-100);
@@ -229,6 +229,7 @@ input:focus-visible {
   text-transform: uppercase;
 }
 .chat-list button {
+  min-height: 44px;
   overflow: hidden;
   padding: 10px 9px;
   color: #c8d5e3;
@@ -793,8 +794,8 @@ input:focus-visible {
     top: 14px;
     left: 14px;
     z-index: 5;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     background: var(--navy-900);
     border-radius: var(--radius-sm);
     color: #fff;
