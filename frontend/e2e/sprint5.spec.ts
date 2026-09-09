@@ -8,7 +8,7 @@ test.describe("Sprint 5 answer flow", () => {
     await expect(page.getByRole("heading", { name: "Hỏi đáp pháp luật giao thông" })).toBeVisible();
     await expect(page.getByLabel("Câu hỏi")).toBeVisible();
     await expect(page.getByText("Phạm vi tra cứu")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Gửi câu hỏi" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Gửi", exact: true })).toBeDisabled();
   });
 
   test("submits only the chat question and renders a verified response", async ({ page }) => {
@@ -18,7 +18,7 @@ test.describe("Sprint 5 answer flow", () => {
     });
     await page.goto("/");
     await page.getByLabel("Câu hỏi").fill("Vượt đèn đỏ bị phạt thế nào?");
-    await page.getByRole("button", { name: "Gửi câu hỏi" }).click();
+    await page.getByRole("button", { name: "Gửi", exact: true }).click();
     await expect(page.getByText("Đã kiểm chứng")).toBeVisible();
     await expect(page.getByText("Mức phạt được xác định theo quy định hiện hành.")).toBeVisible();
     await expect(page.getByText("Nghị định 100/2019/NĐ-CP")).toBeVisible();
@@ -28,7 +28,7 @@ test.describe("Sprint 5 answer flow", () => {
     await page.route("**/api/v1/chat", async (route) => route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: { message: "Dịch vụ tạm thời không khả dụng" } }) }));
     await page.goto("/");
     await page.getByLabel("Câu hỏi").fill("Câu hỏi kiểm tra lỗi");
-    await page.getByRole("button", { name: "Gửi câu hỏi" }).click();
+    await page.getByRole("button", { name: "Gửi", exact: true }).click();
     await expect(page.getByRole("alert", { name: "Lỗi truy vấn" })).toContainText("Dịch vụ tạm thời không khả dụng");
   });
 
@@ -38,11 +38,23 @@ test.describe("Sprint 5 answer flow", () => {
     });
     await page.goto("/");
     await page.getByLabel("Câu hỏi").fill("Một tình huống chưa có đủ dữ kiện?");
-    await page.getByRole("button", { name: "Gửi câu hỏi" }).click();
+    await page.getByRole("button", { name: "Gửi", exact: true }).click();
     await expect(page.getByText("Chưa đủ căn cứ")).toBeVisible();
     await expect(page.getByText("Mã lý do:")).toBeVisible();
     await expect(page.getByText("INSUFFICIENT_EVIDENCE")).toBeVisible();
     await expect(page.getByText("Không thể đưa ra kết luận chắc chắn cho câu hỏi này.")).toBeVisible();
+  });
+
+  test("shows the submitted question in the chat loading bubble", async ({ page }) => {
+    let releaseResponse!: () => void;
+    const responseReady = new Promise<void>((resolve) => { releaseResponse = resolve; });
+    await page.route("**/api/v1/chat", async (route) => { await responseReady; await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ status: "VERIFIED", answer: "Đã xong.", claims: [], citations: [] }) }); });
+    await page.goto("/");
+    await page.getByLabel("Câu hỏi").fill("Không đội mũ bảo hiểm bị phạt thế nào?");
+    await page.getByRole("button", { name: "Gửi", exact: true }).click();
+    await expect(page.getByRole("status")).toContainText("Không đội mũ bảo hiểm bị phạt thế nào?");
+    await expect(page.locator(".loading-bar")).toBeVisible();
+    releaseResponse();
   });
 });
 
@@ -53,7 +65,7 @@ test.describe("Delayed response accessibility", () => {
     await page.route("**/api/v1/chat", async (route) => { await responseReady; await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ status: "VERIFIED", answer: "Kết quả sau khi chờ.", claims: [], citations: [], trace_id: "trace-delayed" }) }); });
     await page.goto("/");
     await page.getByLabel("Câu hỏi").fill("Tra cứu khi phản hồi chậm");
-    await page.getByRole("button", { name: "Gửi câu hỏi" }).click();
+    await page.getByRole("button", { name: "Gửi", exact: true }).click();
     const status = page.getByRole("status");
     await expect(status).toContainText("Đang chuẩn bị tra cứu");
     await expect(status).toHaveAttribute("aria-live", "polite");

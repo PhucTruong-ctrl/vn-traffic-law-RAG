@@ -99,6 +99,7 @@ def _result(row: LegalProvision, rank: int) -> RetrievalResult:
         effective_from=row.effective_from,
         effective_to=row.effective_to,
         page_number=row.page_number,
+        bbox=getattr(row, "bbox", None),
         retrieval_sources=["exact"],
         fused_score=None,
         added_by=None,

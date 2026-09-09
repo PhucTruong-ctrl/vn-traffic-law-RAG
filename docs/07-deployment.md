@@ -1661,6 +1661,7 @@ Các endpoint quản trị dùng đường dẫn canonical của doc 03 (mục 3
 
 ```text
 POST /api/v1/documents                     (upload document, admin)
+GET  /api/v1/documents/{document_id}/source (PDF nguồn cho citation viewer; cache MinIO, crawl host chính thức khi thiếu, kiểm tra SHA-256)
 GET  /api/v1/jobs/{job_id}                 (job status)
 GET  /api/v1/reviews?status=PENDING        (danh sách review, admin)
 POST /api/v1/reviews/{review_id}/decision  (quyết định review, admin)

@@ -1,56 +1,48 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Citation } from "./CitationCard";
+import type { Citation } from "./CitationCard";
+import PdfCitationViewer from "./PdfCitationViewer";
 
 export default function SourceDrawer({ citation, onClose }: { citation: Citation | null; onClose: () => void }) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-
+  const dialogRef = useRef<HTMLElement>(null);
   useEffect(() => {
     if (!citation) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const background = [
+      document.querySelector<HTMLElement>(".sidebar"),
+      document.querySelector<HTMLElement>(".main-panel"),
+    ].filter((element): element is HTMLElement => element !== null);
+    const previousInert = background.map((element) => element.hasAttribute("inert"));
+    background.forEach((element) => element.setAttribute("inert", ""));
     closeButtonRef.current?.focus();
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
+      if (event.key !== "Tab" || !dialogRef.current) return;
+      const controls = [...dialogRef.current.querySelectorAll<HTMLElement>('button, a[href], input, textarea, [tabindex]:not([tabindex="-1"])')].filter((item) => !item.hasAttribute("disabled"));
+      if (!controls.length) return;
+      const first = controls[0]; const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
+      background.forEach((element, index) => {
+        if (!previousInert[index]) element.removeAttribute("inert");
+      });
+      previousFocus?.focus();
     };
   }, [citation, onClose]);
-
   if (!citation) return null;
-  const title = citation.document_title || citation.document_number || citation.provision_id || "Đoạn trích nguồn";
-
-  return (
-    <div className="drawer-backdrop motion-entrance" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <aside className="source-drawer" role="dialog" aria-modal="true" aria-labelledby="source-title" aria-describedby="source-excerpt">
-        <header className="source-drawer__header">
-          <div>
-            <span className="source-drawer__eyebrow">NGUỒN TRÍCH DẪN</span>
-            <h2 id="source-title">Đoạn trích nguồn</h2>
-            <p className="source-drawer__document">{title}</p>
-          </div>
-          <button ref={closeButtonRef} className="source-drawer__close interaction-feedback" type="button" onClick={onClose} aria-label="Đóng đoạn trích nguồn">
-            <span aria-hidden="true">×</span>
-          </button>
-        </header>
-        <div className="source-drawer__body">
-          <blockquote id="source-excerpt">{citation.source_text || "Không có nội dung đoạn trích."}</blockquote>
-          {(citation.page_number != null || citation.bbox?.length === 4) && (
-            <dl className="source-drawer__metadata">
-              {citation.page_number != null && <div><dt>Trang</dt><dd>{citation.page_number}</dd></div>}
-              {citation.bbox?.length === 4 && <div><dt>Vị trí văn bản</dt><dd>{citation.bbox.join(", ")}</dd></div>}
-            </dl>
-          )}
-        </div>
-        <footer className="source-drawer__footer">
-          <button className="source-drawer__done interaction-feedback" type="button" onClick={onClose}>Đóng</button>
-          {citation.source_url && <a href={citation.source_url} target="_blank" rel="noreferrer">Mở văn bản gốc <span aria-hidden="true">↗</span></a>}
-        </footer>
-      </aside>
-    </div>
-  );
+  const title = citation.document_title || citation.document_number || citation.provision_id || "Nguồn pháp luật";
+  const excerpt = citation.legal_context || citation.source_text || citation.snippet;
+  return <div className="drawer-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <aside ref={dialogRef} className="source-drawer pdf-source-drawer" role="dialog" aria-modal="true" aria-labelledby="source-title">
+      <header className="source-drawer__header"><div><span className="source-drawer__eyebrow">NGUỒN TRÍCH DẪN</span><h2 id="source-title">{title}</h2><p className="source-drawer__document">Trang {citation.page_number || 1}</p></div><button ref={closeButtonRef} className="source-drawer__close" type="button" onClick={onClose} aria-label="Đóng trình xem PDF"><span aria-hidden="true">×</span></button></header>
+      <div className="source-drawer__body"><PdfCitationViewer citation={citation}/><details className="source-excerpt"><summary>Đọc đoạn trích dạng văn bản</summary><blockquote>{excerpt || "Nguồn không cung cấp nội dung đoạn trích."}</blockquote></details></div>
+      <footer className="source-drawer__footer"><button className="source-drawer__done" type="button" onClick={onClose}>Đóng</button>{citation.source_url && <a href={citation.source_url} target="_blank" rel="noreferrer">Mở bản gốc ↗</a>}</footer>
+    </aside>
+  </div>;
 }

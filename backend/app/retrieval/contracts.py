@@ -31,6 +31,7 @@ class RetrievalResult(BaseModel):
     # Retrieval channels query the accepted-only index and authoritative temporal store.
     review_status: str = "ACCEPTED"
     page_number: int = Field(ge=1)
+    bbox: dict[str, float] | None = None
     retrieval_sources: list[str]
     fused_score: float | None
     added_by: str | None
@@ -92,6 +93,7 @@ def result_from_payload(
         "effective_from": _as_date(payload.get("effective_from"), "effective_from"),
         "effective_to": _as_date(payload.get("effective_to"), "effective_to"),
         "page_number": payload.get("page_number"),
+        "bbox": payload.get("bbox"),
         "retrieval_sources": [source],
         "fused_score": score,
         "added_by": payload.get("added_by"),

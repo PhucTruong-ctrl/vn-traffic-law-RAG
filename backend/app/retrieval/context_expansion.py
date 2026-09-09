@@ -193,6 +193,7 @@ def _result(row: Any, rank: int, relation: Any, depth: int) -> RetrievalResult:
         effective_from=effective_from,
         effective_to=row.effective_to,
         page_number=row.page_number,
+        bbox=getattr(row, "bbox", None),
         retrieval_sources=["context_expansion"],
         fused_score=None,
         added_by=_relation_value(relation, "added_by", _ADDED_BY.get(relation_type)),

@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from app.query.evidence_plan import required_evidence_for
 from app.query.query_understanding import (
+    CaseSpec,
     EvidenceType,
     QueryAnalyzer,
     QueryIntent,
@@ -355,3 +356,24 @@ def test_query_plan_rejects_coercive_structured_values() -> None:
     payload["effective_date"] = TODAY.isoformat()
     with pytest.raises(ValidationError):
         QueryPlan.model_validate(payload)
+
+
+def test_coordinated_vehicle_query_creates_stable_cases() -> None:
+    plan = QueryAnalyzer().analyze(
+        "xe máy và ô tô vượt đèn đỏ phạt sao?", current_date=TODAY
+    )
+    assert [case.case_id for case in plan.cases] == ["case-1", "case-2"]
+    assert [case.vehicle_type for case in plan.cases] == ["xe máy", "ô tô"]
+    assert all(EvidenceType.MONETARY_PENALTY in case.requested_evidence for case in plan.cases)
+
+
+def test_single_case_keeps_compatibility_and_records_uncertainty() -> None:
+    plan = QueryAnalyzer().analyze("xe máy, không rõ có bị phạt sao", current_date=TODAY)
+    assert len(plan.cases) == 1
+    assert plan.case_queries == [plan.normalized_query]
+    assert "negation_or_uncertainty" in plan.cases[0].ambiguity
+
+
+def test_case_spec_forbids_unknown_fields() -> None:
+    with pytest.raises(ValidationError):
+        CaseSpec(case_id="case-1", query_text="q", unexpected="x")

@@ -35,9 +35,9 @@ def test_original_is_first_and_normalization_keeps_diacritics() -> None:
 
 
 def test_original_preserves_raw_question_when_plan_is_normalized() -> None:
-    variants = QueryExpander().expand(
-        plan("giấy phép lái xe phạt tiền").model_copy(update={"original_query": "GPLX phat tien"})
-    )
+    normalized_plan = plan("giấy phép lái xe phạt tiền")
+    normalized_plan._original_query = "GPLX phat tien"
+    variants = QueryExpander().expand(normalized_plan)
     assert variants[0] == QueryVariant(text="GPLX phat tien", source="original")
     assert variants[1] == QueryVariant(text="giấy phép lái xe phạt tiền", source="normalized")
 

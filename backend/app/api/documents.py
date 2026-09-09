@@ -22,9 +22,12 @@ import logging
 import uuid
 from pathlib import Path
 from typing import Annotated
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -125,6 +128,94 @@ def _ensure_document(
     repo.create_document(document)
     return document
 
+
+
+_TRUSTED_PDF_HOSTS = frozenset({"datafiles.chinhphu.vn"})
+
+
+class _RejectRedirects(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001, ANN201
+        raise HTTPError(req.full_url, code, "PDF redirects are not allowed", headers, fp)
+
+
+def _source_key(document: LegalDocument) -> str:
+    return object_key(
+        bucket="source-pdfs",
+        document_id=document.document_id,
+        file_name="source.pdf",
+        content_hash=document.file_hash,
+        subpath=_SOURCE_SUBPATH,
+    )
+
+
+def _download_official_pdf(source_url: str, max_bytes: int) -> bytes:
+    parsed = urlparse(source_url)
+    if parsed.scheme != "https" or parsed.hostname not in _TRUSTED_PDF_HOSTS:
+        raise ValueError("Document source is not an approved official PDF host.")
+    request = Request(source_url, headers={"User-Agent": "VNLRAG/1.0 document-cache"})
+    with build_opener(_RejectRedirects).open(request, timeout=20) as response:
+        content_length = response.headers.get("Content-Length")
+        if content_length and int(content_length) > max_bytes:
+            raise ValueError("Official PDF exceeds the configured document size limit.")
+        data = response.read(max_bytes + 1)
+    if len(data) > max_bytes:
+        raise ValueError("Official PDF exceeds the configured document size limit.")
+    if not data.startswith(b"%PDF-"):
+        raise ValueError("Official source did not return a valid PDF document.")
+    return data
+
+
+@router.get("/documents/{document_id}/source", response_model=None)
+def get_document_source(
+    document_id: str,
+    db: Annotated[Session, Depends(get_db)],
+) -> Response | JSONResponse:
+    """Return a verified source PDF, caching the accepted official source when absent."""
+    document = db.scalar(select(LegalDocument).where(LegalDocument.document_id == document_id))
+    if document is None:
+        return error_response(404, "NOT_FOUND", "Document source was not found.")
+    try:
+        key = _source_key(document)
+    except ValueError as exc:
+        return error_response(400, INVALID_DOCUMENT_ID, str(exc))
+    storage: ObjectStoragePort = get_object_storage()
+    try:
+        data = storage.get("source-pdfs", key)
+    except Exception:
+        if not document.source_url:
+            return error_response(
+                404,
+                "SOURCE_PDF_UNAVAILABLE",
+                "No official PDF is available for this document.",
+            )
+        try:
+            data = _download_official_pdf(
+                document.source_url,
+                get_upload_settings().max_size_mb * 1024 * 1024,
+            )
+        except (HTTPError, URLError, TimeoutError, ValueError) as exc:
+            logger.warning("official PDF unavailable document_id=%s error=%s", document_id, exc)
+            return error_response(
+                502,
+                "SOURCE_PDF_UNAVAILABLE",
+                "The official PDF could not be retrieved.",
+            )
+        if hashlib.sha256(data).hexdigest() != document.file_hash:
+            return error_response(
+                409,
+                "SOURCE_PDF_HASH_MISMATCH",
+                "The official PDF no longer matches the accepted corpus file.",
+            )
+        storage.put("source-pdfs", key, data, content_type="application/pdf")
+    return Response(
+        content=data,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="{document.document_id}.pdf"',
+            "Cache-Control": "private, max-age=3600",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 @router.post("/documents", status_code=202, response_model=None)
 async def upload_document(

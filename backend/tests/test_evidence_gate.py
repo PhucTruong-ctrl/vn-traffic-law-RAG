@@ -4,6 +4,7 @@ import pytest
 
 from app.query.evidence_gate import (
     EvidenceCompletenessGate,
+    EvidenceGateResult,
     EvidenceStatus,
     targeted_query_for_gap,
 )
@@ -48,6 +49,7 @@ def _result(provision_id: str, text: str) -> RetrievalResult:
         effective_from=date(2025, 1, 1),
         effective_to=None,
         page_number=1,
+        bbox=None,
         retrieval_sources=["dense"],
         fused_score=None,
         added_by=None,
@@ -78,12 +80,7 @@ def test_each_evidence_type_is_detected(evidence: EvidenceType, text: str) -> No
 def test_condition_query_detects_duoc_phep_wording() -> None:
     result = EvidenceCompletenessGate().evaluate(
         _plan(EvidenceType.LEGAL_CONDITION),
-        [
-            _result(
-                "p1",
-                "Người được phép lưu thông trên đường bộ phải có giấy phép hợp lệ.",
-            )
-        ],
+        [_result("p1", "Người được phép lưu thông trên đường bộ phải có giấy phép hợp lệ.")],
     )
     assert result.status is EvidenceStatus.COMPLETE
     assert result.evidence_gaps == []
@@ -123,3 +120,27 @@ def test_targeted_query_mentions_original_and_gap_term() -> None:
 def test_empty_evidence_plan_is_complete() -> None:
     result = EvidenceCompletenessGate().evaluate(_plan(), [])
     assert result.status is EvidenceStatus.COMPLETE
+
+
+def test_colloquial_phat_sao_requires_penalty_evidence() -> None:
+    from app.query.evidence_plan import required_evidence_for
+
+    assert required_evidence_for(QueryIntent.CURRENT, "xe máy phạt sao?") == [
+        EvidenceType.VIOLATION_DEFINITION,
+        EvidenceType.MONETARY_PENALTY,
+    ]
+
+
+def test_legacy_evidence_gate_result_constructor_defaults_case_results() -> None:
+    result = EvidenceGateResult(EvidenceStatus.COMPLETE, [], [])
+
+    assert result.case_results == []
+
+
+def test_case_results_are_isolated_per_case() -> None:
+    result_a = EvidenceGateResult(EvidenceStatus.COMPLETE, [], [])
+    result_b = EvidenceGateResult(EvidenceStatus.COMPLETE, [], [])
+
+    assert result_a.case_results is not result_b.case_results
+    result_a.case_results.append("case")
+    assert result_b.case_results == []

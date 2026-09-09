@@ -175,6 +175,8 @@ def payload_for_unit(
     legal_parser_version: str | None = None,
     sparse_encoder_version: str | None = None,
     content_hash: str | None = None,
+    bbox: dict[str, float] | None = None,
+    source_url: str | None = None,
 ) -> dict:
     """Map a ``RetrievalUnit`` plus ingestion/review metadata to the Qdrant payload.
 
@@ -268,6 +270,8 @@ def payload_for_unit(
         "relations": [] if relations is None else relations,
         "vehicle_types": [] if vehicle_types is None else vehicle_types,
         "content_version": content_version,
+        "bbox": bbox if bbox is not None else getattr(unit, "bbox", None),
+        "source_url": source_url if source_url is not None else getattr(unit, "source_url", None),
     }
 
 

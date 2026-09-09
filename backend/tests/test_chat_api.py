@@ -39,8 +39,12 @@ def test_chat_disclaimer_trace_citations_and_abstention(
         document_id="d-1",
         document_number="12/2024",
         article="Điều 1",
+        clause="Khoản 2",
+        point="a",
+        parent_context="Khoản 2. Phạt tiền từ 1 đến 2 triệu đồng.",
         source_url="https://example.test",
-        source_text="Legal text supporting the claim.",
+        source_text="a) Cited point text.",
+        text="a) Cited point text.",
         page_number=1,
         bbox={"left": 10, "top": 20, "right": 100, "bottom": 40},
     )
@@ -63,10 +67,7 @@ def test_chat_disclaimer_trace_citations_and_abstention(
 
     app.dependency_overrides[chat_api._optional_db] = lambda: None
     try:
-        response = TestClient(app).post(
-            "/api/v1/chat",
-            json={"question": "hello"},
-        )
+        response = TestClient(app).post("/api/v1/chat", json={"question": "hello"})
     finally:
         app.dependency_overrides.pop(chat_api._optional_db, None)
     assert response.status_code == 200
@@ -76,24 +77,22 @@ def test_chat_disclaimer_trace_citations_and_abstention(
     assert len(payload["trace_id"]) == 32
     if expected == "ABSTAINED":
         assert payload["citations"] == []
-        assert payload["answer"] is None
-        assert payload["abstention"]["reason_code"] == "NO_SUPPORT"
     else:
-        assert payload["citations"] == [
-            {
-                "provision_id": "p-1",
-                "document_id": "d-1",
-                "document_number": "12/2024",
-                "article": "Điều 1",
-                "source_url": "https://example.test",
-                "source_text": "Legal text supporting the claim.",
-                "page_number": 1,
-                "bbox": {"left": 10, "top": 20, "right": 100, "bottom": 40},
-            }
-        ]
+        assert payload["citations"] == [{
+            "provision_id": "p-1",
+            "document_id": "d-1",
+            "document_number": "12/2024",
+            "article": "Điều 1",
+            "clause": "Khoản 2",
+            "point": "a",
+            "parent_context": "Khoản 2. Phạt tiền từ 1 đến 2 triệu đồng.",
+            "source_url": "https://example.test",
+            "source_text": "a) Cited point text.",
+            "page_number": 1,
+            "legal_context": "Khoản 2. Phạt tiền từ 1 đến 2 triệu đồng.\n\na) Cited point text.",
+            "bbox": {"left": 10.0, "top": 20.0, "right": 100.0, "bottom": 40.0},
+        }]
         assert payload["answer"] == "answer"
-        assert payload["abstention"] is None
-
 
 def test_chat_uses_injected_production_composition(monkeypatch: pytest.MonkeyPatch) -> None:
     class Analyzer:

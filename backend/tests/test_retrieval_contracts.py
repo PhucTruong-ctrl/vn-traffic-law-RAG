@@ -25,6 +25,7 @@ def payload() -> dict[str, object]:
         "effective_from": "2025-01-01",
         "effective_to": None,
         "page_number": 4,
+        "bbox": {"left": 0.1, "top": 0.2, "right": 0.9, "bottom": 0.8},
         "review_status": "ACCEPTED",
     }
 
@@ -32,10 +33,16 @@ def payload() -> dict[str, object]:
 def test_payload_maps_to_strict_result(payload: dict[str, object]) -> None:
     result = result_from_payload(payload, rank=2, score=0.75, source="dense")
     assert result.rank == 2
+    assert result.bbox == payload["bbox"]
+    assert result.bbox["left"] == 0.1
+    assert result.bbox["bottom"] == 0.8
+    assert result.model_config["extra"] == "forbid"
+    assert result.article == "7"
+    assert result.clause is None
+    assert result.point == "đ"
     assert result.fused_score == 0.75
     assert result.retrieval_sources == ["dense"]
     assert result.effective_from == date(2025, 1, 1)
-    assert result.point == "đ"
     assert result.document_type == "DECREE"
 
 

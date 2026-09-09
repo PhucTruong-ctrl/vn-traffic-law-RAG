@@ -145,6 +145,18 @@ async def chat(
     }
 
 
+def _normalized_bbox(value: Any) -> dict[str, float] | None:
+    if not isinstance(value, dict):
+        return None
+    keys = ("left", "top", "right", "bottom")
+    if any(key not in value for key in keys):
+        return None
+    try:
+        return {key: float(value[key]) for key in keys}
+    except (TypeError, ValueError):
+        return None
+
+
 def _citations(result: dict[str, Any], final: dict[str, Any]) -> list[dict[str, Any]]:
     context = result.get("expanded_context") or result.get("context_package") or []
     if isinstance(context, dict):
@@ -189,10 +201,21 @@ def _citations(result: dict[str, Any], final: dict[str, Any]) -> list[dict[str, 
                     "document_id": item.document_id,
                     "document_number": item.document_number,
                     "article": item.article,
+                    "clause": item.clause,
+                    "point": item.point,
+                    "parent_context": item.parent_context,
                     "source_url": getattr(item, "source_url", None),
-                    "source_text": item.source_text,
-                    "page_number": item.page_number,
-                    "bbox": getattr(item, "bbox", None),
+                    "source_text": getattr(item, "source_text", None),
+                    "page_number": getattr(item, "page_number", None),
+                    "legal_context": "\n\n".join(
+                        part
+                        for part in (
+                            item.parent_context,
+                            item.source_text or item.text,
+                        )
+                        if part
+                    ),
+                    "bbox": _normalized_bbox(getattr(item, "bbox", None)),
                 }
             )
     return (

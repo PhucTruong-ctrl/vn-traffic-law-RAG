@@ -17,11 +17,15 @@ class QueryState(TypedDict, total=False):
     temporal_context: Any
     expansion_set: Any
     recall_candidates: Any
+    case_candidates: dict[str, Any]
     fused: Any
     reranked: Any
     expanded_context: Any
+    case_evidence: dict[str, Any]
     evidence_status: Any
     evidence_gaps: list[Any]
+    evidence_limitations: dict[str, list[Any]]
+    missing_information: list[str]
     context_package: Any
     prompt_context: str
     draft_answer: Any

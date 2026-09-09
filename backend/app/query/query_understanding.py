@@ -49,6 +49,20 @@ def _safe_fallback_plan(question: str) -> QueryPlan:
     )
 
 
+class CaseSpec(BaseModel):
+    """One independently answerable decomposition of a legal query."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    case_id: str
+    query_text: str
+    vehicle_type: str | None = None
+    actor: str | None = None
+    requested_evidence: list[EvidenceType] = []
+    ambiguity: list[str] = []
+    missing_information: list[str] = []
+
+
 class QueryPlan(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
@@ -75,6 +89,8 @@ class QueryPlan(BaseModel):
         )
 
     missing_query_information: list[str]
+    case_queries: list[str] = []
+    cases: list[CaseSpec] = []
 
 
 class QueryPlanFallback:
@@ -188,6 +204,55 @@ def _normalize(text: str) -> str:
                 flags=re.I,
             )
     return " ".join(normalized.split())
+
+
+def _build_cases(
+    text: str,
+    normalized: str,
+    vehicle: str | None,
+    evidence: list[EvidenceType],
+    missing: list[str],
+) -> tuple[list[str], list[CaseSpec]]:
+    vehicles = [
+        v
+        for v in ("xe máy", "ô tô", "xe mô tô", "xe gắn máy", "xe tải", "xe đạp")
+        if re.search(rf"(?<!\w){re.escape(v)}(?!\w)", text, re.I)
+    ]
+    if "xe máy" in vehicles and "xe mô tô" in vehicles:
+        vehicles.remove("xe mô tô")
+    vehicles = list(dict.fromkeys(vehicles))
+    actors = re.findall(r"\b(người (?:lái|điều khiển)|chủ xe)\b", text.casefold())
+    count = min(max(len(vehicles), 1), 2)
+    violations = [
+        part.strip() for part in re.split(r"\s+(?:và|hoặc)\s+", text, flags=re.I) if part.strip()
+    ]
+    if len(violations) > 1 and not vehicles:
+        count = min(len(violations), 2)
+    cases = []
+    for i in range(count):
+        v = vehicles[i] if i < len(vehicles) else vehicle
+        query = (
+            violations[i]
+            if len(violations) > 1 and not vehicles
+            else (normalized if count == 1 else f"{v} {normalized}")
+        )
+        ambiguity = (
+            ["negation_or_uncertainty"]
+            if re.search(r"không rõ|chưa rõ|có bị|không biết", text, re.I)
+            else []
+        )
+        cases.append(
+            CaseSpec(
+                case_id=f"case-{i + 1}",
+                query_text=query,
+                vehicle_type=v,
+                actor=actors[0] if actors else None,
+                requested_evidence=list(evidence),
+                ambiguity=ambiguity,
+                missing_information=list(missing),
+            )
+        )
+    return [c.query_text for c in cases], cases
 
 
 class QueryAnalyzer:
@@ -362,6 +427,11 @@ class QueryAnalyzer:
             normalized_query=_normalize(text),
             required_evidence=required_evidence_for(intent, text, entities),
             missing_query_information=missing,
+            case_queries=[],
+            cases=[],
+        )
+        plan.case_queries, plan.cases = _build_cases(
+            text, plan.normalized_query, vehicle, plan.required_evidence, missing
         )
         plan._original_query = text
         if (
@@ -375,6 +445,7 @@ class QueryAnalyzer:
 __all__ = [
     "EvidenceType",
     "QueryIntent",
+    "CaseSpec",
     "QueryPlan",
     "QueryPlanFallback",
     "QueryAnalyzer",

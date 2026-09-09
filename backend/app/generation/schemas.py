@@ -23,6 +23,7 @@ class Claim(BaseModel):
     claim_type: ClaimType
     provision_ids: list[str] = Field(min_length=1)
     numbers: list[str] = Field(default_factory=list)
+    case_id: str | None = None
 
     @field_validator("provision_ids")
     @classmethod

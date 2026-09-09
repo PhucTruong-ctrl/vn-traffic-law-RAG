@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
-from typing import Any
+from typing import Any, cast
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
@@ -41,8 +41,10 @@ def _items(value: Any) -> list[Any]:
         return list(value.results)
     if isinstance(value, ComparisonResult):
         return list(value.before.results) + list(value.after.results)
-    if isinstance(value, dict) and {"before", "after"} <= value.keys():
-        return _items(value["before"]) + _items(value["after"])
+    if isinstance(value, dict):
+        if {"before", "after"} <= value.keys():
+            return _items(value["before"]) + _items(value["after"])
+        return [item for grouped in value.values() for item in _items(grouped)]
     if value is None:
         return []
     if isinstance(value, (str, bytes)):
@@ -133,7 +135,7 @@ def production_services(*, session: Any = None) -> GraphServices:
         fusion=lambda candidates: _items(candidates),
         reranker=lambda question, candidates: candidates,
         context_expander=expander,
-        context_builder=lambda candidates: build_context(_items(candidates)),
+        context_builder=lambda candidates: build_context(candidates),
         generator=GeminiStructuredGenerator(),
         legal_verifier=LegalVerificationBoundary(),
     )
@@ -273,7 +275,7 @@ def _retrieve_one(
     state: QueryState, services: GraphServices, query: str, *, source: str, query_date: date
 ) -> Any:
     plan = state.get("query_understanding")
-    vehicle_type = getattr(plan, "vehicle_type", None) or state.get("vehicle_type")
+    vehicle_type = state.get("vehicle_type") or getattr(plan, "vehicle_type", None)
     if source == "hyde":
         return _call(
             services.dense_retriever,
@@ -294,8 +296,43 @@ def _retrieve_one(
     )
 
 
+def _cases(plan: Any) -> list[Any]:
+    return list(getattr(plan, "cases", ()) or ())
+
+
+def _case_date(state: QueryState, case: Any) -> date | None:
+    value = getattr(case, "temporal_qualifier", None)
+    return value if isinstance(value, date) else _plan_date(state)
+
+
+def _retrieve_case(state: QueryState, services: GraphServices, case: Any) -> Any:
+    plan = state.get("query_understanding")
+    query_date = _case_date(state, case)
+    if query_date is None:
+        return []
+    scoped = cast(QueryState, dict(state))
+    scoped["vehicle_type"] = getattr(case, "vehicle_type", None) or getattr(
+        plan, "vehicle_type", None
+    )
+    queries = [(getattr(case, "query_text", "") or _question(state), "original")]
+    queries += [
+        (_variant_text(v), getattr(v, "source", "original"))
+        for v in (state.get("expansion_set") or ())
+    ]
+    out: Any = []
+    for query, source in queries:
+        out = _merge_results(
+            out, _retrieve_one(scoped, services, query, source=source, query_date=query_date)
+        )
+    return out
+
+
 def _retrieve(state: QueryState, services: GraphServices) -> QueryState:
     plan = state.get("query_understanding")
+    cases = _cases(plan)
+    if cases and str(getattr(plan, "intent", "")) != "COMPARISON":
+        grouped = {str(case.case_id): _retrieve_case(state, services, case) for case in cases}
+        return {"recall_candidates": grouped, "case_candidates": grouped}
     intent = str(getattr(plan, "intent", ""))
     queries = _variant_queries(state, plan)
     if intent == "COMPARISON":
@@ -346,6 +383,13 @@ def _retrieve(state: QueryState, services: GraphServices) -> QueryState:
 
 def _fuse(state: QueryState, services: GraphServices) -> QueryState:
     candidates = state.get("recall_candidates")
+    if isinstance(candidates, dict) and not _comparison_sides(candidates):
+        return {
+            "fused": {
+                key: _call(services.fusion, value, service_name="fusion", method_names=("fuse",))
+                for key, value in candidates.items()
+            }
+        }
     return {
         "fused": _map_comparison(
             candidates,
@@ -358,6 +402,19 @@ def _fuse(state: QueryState, services: GraphServices) -> QueryState:
 
 def _rerank(state: QueryState, services: GraphServices) -> QueryState:
     fused: Any = state.get("fused", [])
+    if isinstance(fused, dict) and not _comparison_sides(fused):
+        return {
+            "reranked": {
+                key: _call(
+                    services.reranker,
+                    _question(state),
+                    _items(value),
+                    service_name="reranker",
+                    method_names=("rerank",),
+                )
+                for key, value in fused.items()
+            }
+        }
     return {
         "reranked": _map_comparison(
             fused,
@@ -374,9 +431,28 @@ def _rerank(state: QueryState, services: GraphServices) -> QueryState:
 
 def _expand_context(state: QueryState, services: GraphServices) -> QueryState:
     reranked: Any = state.get("reranked", [])
+    if isinstance(reranked, dict) and _cases(state.get("query_understanding")):
+        expanded: dict[str, Any] = {}
+        for case in _cases(state.get("query_understanding")):
+            key = str(case.case_id)
+            values = _items(reranked.get(key, []))
+            additions = _call(
+                services.context_expander,
+                values,
+                service_name="context_expander",
+                method_names=("expand",),
+                query_date=_case_date(state, case),
+            )
+            combined = values + _items(additions)
+            expanded[key] = (
+                deduplicate_results(combined)
+                if combined and all(isinstance(x, RetrievalResult) for x in combined)
+                else combined
+            )
+        return {"expanded_context": expanded}
     sides = _comparison_sides(reranked)
     if sides is not None and (dates := _comparison_dates(state)) is not None:
-        expanded: list[Any] = []
+        expanded_sides: list[Any] = []
         for candidates, side_date in zip(sides, dates, strict=True):
             additions = _call(
                 services.context_expander,
@@ -386,12 +462,12 @@ def _expand_context(state: QueryState, services: GraphServices) -> QueryState:
                 query_date=side_date,
             )
             values = _items(candidates) + _items(additions)
-            expanded.append(
+            expanded_sides.append(
                 candidates.model_copy(update={"results": deduplicate_results(values)})
                 if isinstance(candidates, CandidateSet)
                 else values
             )
-        return {"expanded_context": _comparison_result(*expanded)}
+        return {"expanded_context": _comparison_result(*expanded_sides)}
     serving_date = _plan_date(state)
     if serving_date is None:
         return {"expanded_context": reranked}
@@ -414,6 +490,36 @@ def _expand_context(state: QueryState, services: GraphServices) -> QueryState:
 def _check_evidence(state: QueryState, services: GraphServices) -> QueryState:
     gate = services.evidence_gate or EvidenceCompletenessGate()
     context: Any = state.get("expanded_context", [])
+    if isinstance(context, dict) and _cases(state.get("query_understanding")):
+        plan = state.get("query_understanding")
+        cases = {str(case.case_id): case for case in _cases(plan)}
+        case_results = {
+            key: _call(
+                gate,
+                plan.model_copy(update={"cases": [cases[key]]})
+                if plan is not None and hasattr(plan, "model_copy") and key in cases
+                else plan,
+                _items(value),
+                service_name="evidence_gate",
+                method_names=("evaluate",),
+            )
+            for key, value in context.items()
+        }
+        case_gaps = {
+            key: list(result.evidence_gaps)
+            for key, result in case_results.items()
+            if result.status != EvidenceStatus.COMPLETE
+        }
+        return {
+            "case_evidence": case_results,
+            "evidence_status": (
+                EvidenceStatus.COMPLETE if not case_gaps else EvidenceStatus.INCOMPLETE
+            ),
+            "evidence_gaps": list(
+                dict.fromkeys(gap for values in case_gaps.values() for gap in values)
+            ),
+            "evidence_limitations": case_gaps,
+        }
     sides = _comparison_sides(context)
     if sides is None:
         result = _call(
@@ -424,7 +530,7 @@ def _check_evidence(state: QueryState, services: GraphServices) -> QueryState:
             method_names=("evaluate",),
         )
         return {"evidence_status": result.status, "evidence_gaps": list(result.evidence_gaps)}
-    results = [
+    results: list[Any] = [
         _call(
             gate,
             state.get("query_understanding"),
@@ -434,7 +540,7 @@ def _check_evidence(state: QueryState, services: GraphServices) -> QueryState:
         )
         for side in sides
     ]
-    gaps = list(dict.fromkeys(gap for result in results for gap in result.evidence_gaps))
+    gaps: list[Any] = list(dict.fromkeys(gap for result in results for gap in result.evidence_gaps))
     return {
         "evidence_status": EvidenceStatus.COMPLETE
         if all(result.status == EvidenceStatus.COMPLETE for result in results)
@@ -516,6 +622,18 @@ def _targeted(state: QueryState, services: GraphServices) -> QueryState:
 
 def _build_context(state: QueryState, services: GraphServices) -> QueryState:
     context: Any = state.get("expanded_context", state.get("reranked", []))
+    if isinstance(context, dict) and _cases(state.get("query_understanding")):
+        value = _call(
+            services.context_builder,
+            context,
+            service_name="context_builder",
+            method_names=("build",),
+        )
+        return (
+            {"context_package": context, "prompt_context": value}
+            if isinstance(value, str)
+            else {"context_package": value}
+        )
     sides = _comparison_sides(context)
     if sides is None:
         value = _call(
@@ -580,12 +698,13 @@ def _evidence_fallback(state: QueryState) -> StructuredAnswer | None:
         return None
     reference = _exact_reference(plan) or {}
     if intent == "SOURCE_SEARCH" and reference:
+
         def matches(item: Any) -> bool:
             return all(
-                expected is None
-                or str(getattr(item, field, "")).strip() == str(expected).strip()
+                expected is None or str(getattr(item, field, "")).strip() == str(expected).strip()
                 for field, expected in reference.items()
             )
+
         records = [item for item in records if matches(item)]
     if not records:
         return None
@@ -602,8 +721,8 @@ def _evidence_fallback(state: QueryState) -> StructuredAnswer | None:
     )
 
 
-
 _source_search_fallback = _evidence_fallback
+
 
 def _generate(state: QueryState, services: GraphServices) -> QueryState:
     try:
@@ -738,13 +857,20 @@ def _finalize(state: QueryState) -> QueryState:
     if verification.get("status") != "VALID" or draft is None:
         return _abstain(state)
     answer = StructuredAnswer.model_validate(draft)
-    return {
-        "final_response": {
-            "status": "COMPLETED",
-            "answer_summary": " ".join(claim.claim.strip() for claim in answer.claims),
+    final_response = dict(state.get("final_response") or {})
+    final_response.update(
+        {
+            "status": final_response.get("status", "COMPLETED"),
+            "answer_summary": answer.answer_summary,
             "claims": [claim.model_dump() for claim in answer.claims],
         }
-    }
+    )
+    for field in ("missing_information", "evidence_limitations"):
+        if hasattr(answer, field):
+            final_response[field] = getattr(answer, field)
+        elif field in state:
+            final_response[field] = state.get(field)
+    return {"final_response": final_response}
 
 
 def _abstain(state: QueryState) -> QueryState:
