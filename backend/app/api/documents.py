@@ -129,13 +129,29 @@ def _ensure_document(
     return document
 
 
-
 _TRUSTED_PDF_HOSTS = frozenset({"datafiles.chinhphu.vn"})
 
 
 class _RejectRedirects(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001, ANN201
         raise HTTPError(req.full_url, code, "PDF redirects are not allowed", headers, fp)
+
+
+def _source_url_for_document(document: LegalDocument) -> str | None:
+    """Return only an exact, trusted URL recorded for this document."""
+    source_url = document.source_url
+    if not isinstance(source_url, str) or not source_url:
+        return None
+    parsed = urlparse(source_url)
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname not in _TRUSTED_PDF_HOSTS
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.fragment
+    ):
+        return None
+    return source_url
 
 
 def _source_key(document: LegalDocument) -> str:
@@ -171,6 +187,7 @@ def get_document_source(
     db: Annotated[Session, Depends(get_db)],
 ) -> Response | JSONResponse:
     """Return a verified source PDF, caching the accepted official source when absent."""
+    storage: ObjectStoragePort = get_object_storage()
     document = db.scalar(select(LegalDocument).where(LegalDocument.document_id == document_id))
     if document is None:
         return error_response(404, "NOT_FOUND", "Document source was not found.")
@@ -178,11 +195,19 @@ def get_document_source(
         key = _source_key(document)
     except ValueError as exc:
         return error_response(400, INVALID_DOCUMENT_ID, str(exc))
-    storage: ObjectStoragePort = get_object_storage()
     try:
         data = storage.get("source-pdfs", key)
     except Exception:
-        if not document.source_url:
+        source_url = _source_url_for_document(document)
+        if source_url is None:
+            # Preserve the established unavailable-source contract for recorded
+            # URLs while refusing to fetch untrusted hosts.
+            if isinstance(document.source_url, str) and document.source_url:
+                return error_response(
+                    502,
+                    "SOURCE_PDF_UNAVAILABLE",
+                    "The official PDF could not be retrieved.",
+                )
             return error_response(
                 404,
                 "SOURCE_PDF_UNAVAILABLE",
@@ -190,7 +215,7 @@ def get_document_source(
             )
         try:
             data = _download_official_pdf(
-                document.source_url,
+                source_url,
                 get_upload_settings().max_size_mb * 1024 * 1024,
             )
         except (HTTPError, URLError, TimeoutError, ValueError) as exc:
@@ -216,6 +241,7 @@ def get_document_source(
             "X-Content-Type-Options": "nosniff",
         },
     )
+
 
 @router.post("/documents", status_code=202, response_model=None)
 async def upload_document(

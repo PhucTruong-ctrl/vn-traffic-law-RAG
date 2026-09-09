@@ -450,7 +450,13 @@ def evaluate_group_b(
     config = thresholds or GroupBThresholds()
     hierarchy = validate_hierarchy(provisions)
     detection_metric = hierarchy.metrics["point_label_detection_rate"]
-    detection_rate = float(detection_metric) if detection_metric is not None else None
+    detection_rate = (
+        None
+        if not provisions
+        else float(detection_metric)
+        if detection_metric is not None
+        else None
+    )
     orphan_point_count = int(hierarchy.metrics["orphan_point_count"] or 0)
     orphan_clause_count = int(hierarchy.metrics["orphan_clause_count"] or 0)
     duplicate_count = int(hierarchy.metrics["duplicate_count"] or 0)

@@ -380,11 +380,13 @@ def test_local_e5_prefixes_query_and_passage(monkeypatch: pytest.MonkeyPatch) ->
     class FakeModel:
         def __init__(self, name: str, device: str) -> None:
             self.device = device
+
         def encode(self, texts: list[str], **kwargs: Any) -> list[Any]:
             if texts == ["query: q"]:
                 return [[0.0] * DIMS]
             assert texts == ["passage: p"]
             return [[1.0] * DIMS]
+
     monkeypatch.setitem(
         __import__("sys").modules,
         "sentence_transformers",

@@ -20,14 +20,14 @@ test.describe("Sprint 5 answer flow", () => {
   test("submits only the chat question and renders a verified response", async ({
     page,
   }) => {
-    await page.route("**/api/v1/chat", async (route) => {
-      expect(route.request().postDataJSON()).toEqual({
-        question: "Vượt đèn đỏ bị phạt thế nào?",
-      });
+    await page.route("**/api/v1/chat/events**", async (route) => {
+      expect(new URL(route.request().url()).searchParams.get("question")).toBe(
+        "Vượt đèn đỏ bị phạt thế nào?",
+      );
       await route.fulfill({
         status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
+        contentType: "text/event-stream",
+        body: `event: result\ndata: ${JSON.stringify({
           status: "VERIFIED",
           answer: "Mức phạt được xác định theo quy định hiện hành.",
           claims: [{ claim: "Có căn cứ pháp lý", claim_type: "RULE" }],
@@ -40,7 +40,7 @@ test.describe("Sprint 5 answer flow", () => {
           ],
           disclaimer: "This response is informational and not legal advice.",
           trace_id: "trace-smoke-verified",
-        }),
+        })}\n\n`,
       });
     });
     await page.goto("/");
@@ -56,6 +56,13 @@ test.describe("Sprint 5 answer flow", () => {
   });
 
   test("renders an API failure as an actionable alert", async ({ page }) => {
+    await page.route("**/api/v1/chat/events**", async (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: "text/event-stream",
+        body: "",
+      }),
+    );
     await page.route("**/api/v1/chat", async (route) =>
       route.fulfill({
         status: 503,
@@ -74,20 +81,20 @@ test.describe("Sprint 5 answer flow", () => {
   });
 
   test("renders an abstention from the mock API boundary", async ({ page }) => {
-    await page.route("**/api/v1/chat", async (route) => {
-      await route.fulfill({
+    await page.route("**/api/v1/chat/events**", async (route) =>
+      route.fulfill({
         status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
+        contentType: "text/event-stream",
+        body: `event: result\ndata: ${JSON.stringify({
           status: "ABSTAINED",
           answer: null,
           claims: [],
           citations: [],
           abstention: { reason_code: "INSUFFICIENT_EVIDENCE" },
           trace_id: "trace-smoke-abstained",
-        }),
-      });
-    });
+        })}\n\n`,
+      }),
+    );
     await page.goto("/");
     await page.getByLabel("Câu hỏi").fill("Một tình huống chưa có đủ dữ kiện?");
     await page.getByRole("button", { name: "Gửi", exact: true }).click();
@@ -108,17 +115,17 @@ test.describe("Sprint 5 answer flow", () => {
     const responseReady = new Promise<void>((resolve) => {
       releaseResponse = resolve;
     });
-    await page.route("**/api/v1/chat", async (route) => {
+    await page.route("**/api/v1/chat/events**", async (route) => {
       await responseReady;
       await route.fulfill({
         status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
+        contentType: "text/event-stream",
+        body: `event: result\ndata: ${JSON.stringify({
           status: "VERIFIED",
           answer: "Đã xong.",
           claims: [{ claim: "Có căn cứ pháp lý" }],
           citations: [{ provision_id: "loading-fixture" }],
-        }),
+        })}\n\n`,
       });
     });
     await page.goto("/");
@@ -126,9 +133,9 @@ test.describe("Sprint 5 answer flow", () => {
       .getByLabel("Câu hỏi")
       .fill("Không đội mũ bảo hiểm bị phạt thế nào?");
     await page.getByRole("button", { name: "Gửi", exact: true }).click();
-    await expect(page.getByRole("status")).toContainText(
-      "Không đội mũ bảo hiểm bị phạt thế nào?",
-    );
+    await expect(
+      page.locator('.loading-state[role="status"]'),
+    ).toContainText("Không đội mũ bảo hiểm bị phạt thế nào?");
     await expect(page.locator(".loading-bar")).toHaveCount(1);
     releaseResponse();
   });
@@ -142,29 +149,33 @@ test.describe("Delayed response accessibility", () => {
     const responseReady = new Promise<void>((resolve) => {
       releaseResponse = resolve;
     });
-    await page.route("**/api/v1/chat", async (route) => {
+    await page.route("**/api/v1/chat/events**", async (route) => {
       await responseReady;
       await route.fulfill({
         status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
+        contentType: "text/event-stream",
+        body: `event: result\ndata: ${JSON.stringify({
           status: "VERIFIED",
           answer: "Kết quả sau khi chờ.",
           claims: [{ claim: "Có căn cứ pháp lý" }],
           citations: [{ provision_id: "delayed-fixture" }],
           trace_id: "trace-delayed",
-        }),
+        })}\n\n`,
       });
     });
     await page.goto("/");
     await page.getByLabel("Câu hỏi").fill("Tra cứu khi phản hồi chậm");
     await page.getByRole("button", { name: "Gửi", exact: true }).click();
-    const status = page.getByRole("status");
+    const status = page.locator('.loading-state[role="status"]');
     await expect(status).toContainText("Tra cứu khi phản hồi chậm");
     await expect(status).toHaveAttribute("aria-live", "polite");
     await expect(
-      page.getByRole("button", { name: "Đang tra cứu..." }),
-    ).toBeDisabled();
+      page.getByRole("button", { name: "Dừng tra cứu", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Gửi", exact: true }),
+    ).toHaveCount(0);
+    await expect(page.locator(".loading-bar")).toHaveCount(1);
     releaseResponse();
     await expect(page.getByText("Kết quả sau khi chờ.")).toBeVisible();
   });

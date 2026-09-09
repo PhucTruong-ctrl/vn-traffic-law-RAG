@@ -632,7 +632,6 @@ def test_evaluate_group_b_short_point_retention_never_fails() -> None:
     result_vacuous = evaluate_group_b(without_short)
     assert result_vacuous.metrics["short_point_retention_rate"] == 1.0
 
-
     # No POINT candidates makes label detection N/A, while empty extraction
     # still fails hierarchy completeness and therefore cannot auto-accept.
     result = evaluate_group_b([])

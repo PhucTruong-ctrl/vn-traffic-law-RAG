@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
 import uuid
+from collections.abc import AsyncIterator
 from contextlib import suppress
 from dataclasses import asdict, is_dataclass
 from datetime import date
@@ -10,6 +13,7 @@ from enum import Enum
 from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Body, Depends, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.api.db import get_db
@@ -123,14 +127,23 @@ async def chat(
         db.commit()
     with suppress(Exception):
         emit_query_trace(trace)
+    return _response_payload(result, trace_id)
+
+
+_WORKFLOW_STAGES = (
+    ("analyze_query", "Phân tích câu hỏi"),
+    ("resolve_temporal", "Xác định hiệu lực theo thời gian"),
+    ("retrieve_parallel", "Tra cứu điều khoản"),
+    ("check_evidence", "Kiểm tra bằng chứng"),
+    ("verify", "Xác minh câu trả lời"),
+)
+
+
+def _response_payload(result: dict[str, Any], trace_id: str) -> dict[str, Any]:
     final = result.get("final_response") or {}
     verification = result.get("verification_result") or {}
     citations = _citations(result, final)
-    status = (
-        "VERIFIED"
-        if verification.get("status") == "VALID" and citations
-        else "ABSTAINED"
-    )
+    status = "VERIFIED" if verification.get("status") == "VALID" and citations else "ABSTAINED"
     return {
         "status": status,
         "answer": final.get("answer_summary") if status == "VERIFIED" else None,
@@ -143,6 +156,117 @@ async def chat(
         "disclaimer": DISCLAIMER,
         "trace_id": trace_id,
     }
+
+
+async def _run_workflow(
+    request: ChatRequest,
+    http_request: Request,
+    db: Any,
+    progress: Any = None,
+) -> dict[str, Any]:
+    trace_id = http_request.headers.get("X-Trace-ID") or uuid.uuid4().hex
+    state: dict[str, Any] = {"question": request.question, "query_date": date.today()}
+    trace = QueryTrace(request.question, trace_id=trace_id, metadata={})
+    try:
+        if db is None and build_query_graph is _production_build_query_graph:
+            raise RuntimeError("workflow database session is not configured")
+        services = production_services(session=db) if db is not None else None
+        graph = build_query_graph(services)
+        trace.add_span("workflow", input=state)
+        if progress:
+            await progress("workflow_started", "Bắt đầu tra cứu")
+        result: dict[str, Any] = {}
+        async for event in graph.astream(state, stream_mode="updates"):
+            if not isinstance(event, dict):
+                continue
+            for node, update in event.items():
+                result.update(update if isinstance(update, dict) else {})
+                label = dict(_WORKFLOW_STAGES).get(node, node)
+                if progress:
+                    await progress(node, label)
+        trace.add_span(
+            "workflow_result",
+            output={"status": (result.get("verification_result") or {}).get("status")},
+        )
+    except (RuntimeError, ValueError) as exc:
+        result = {
+            "verification_result": {
+                "status": "ABSTAIN",
+                "reason_code": "WORKFLOW_UNAVAILABLE",
+                "error": str(exc),
+            },
+            "final_response": {},
+        }
+    trace.finish(result)
+    if db is None:
+        _TRACE_STORE.save(trace)
+    else:
+        verification = result.get("verification_result") or {}
+        plan = result.get("query_understanding")
+        db.add(
+            QueryTraceRow(
+                trace_id=trace_id,
+                question=request.question,
+                intent=str(getattr(plan, "intent", "UNKNOWN")),
+                query_date=None,
+                vehicle_type=None,
+                response_status=str(verification.get("status", "UNKNOWN")),
+                citations=_citations(result, result.get("final_response") or {}),
+                verification_summary=_json_safe(verification),
+            )
+        )
+        db.commit()
+    with suppress(Exception):
+        emit_query_trace(trace)
+    return {"trace_id": trace_id, "payload": _response_payload(result, trace_id)}
+
+
+@router.get("/chat/events")
+async def chat_events(
+    question: str,
+    http_request: Request,
+    db: Annotated[Any, Depends(_optional_db)],
+) -> StreamingResponse:
+    request = ChatRequest(question=question)
+    queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+
+    async def progress(stage: str, message: str) -> None:
+        await queue.put({"stage": stage, "message": message})
+
+    async def stream() -> AsyncIterator[str]:
+        task = asyncio.create_task(_run_workflow(request, http_request, db, progress))
+        try:
+            while True:
+                if task.done() and queue.empty():
+                    break
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=0.1)
+                except TimeoutError:
+                    continue
+                if event is None:
+                    break
+                yield f"event: progress\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
+            outcome = await task
+            yield (
+                f"event: result\ndata: "
+                f"{json.dumps(outcome['payload'], ensure_ascii=False, default=str)}\n\n"
+            )
+        except asyncio.CancelledError:
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
+            raise
+        finally:
+            if not task.done():
+                task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await task
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 def _normalized_bbox(value: Any) -> dict[str, float] | None:
@@ -195,33 +319,34 @@ def _citations(result: dict[str, Any], final: dict[str, Any]) -> list[dict[str, 
             if item is None:
                 return []
             seen.add(provision_id)
-            citations.append(
-                {
-                    "provision_id": item.provision_id,
-                    "document_id": item.document_id,
-                    "document_number": item.document_number,
-                    "article": item.article,
-                    "clause": item.clause,
-                    "point": item.point,
-                    "parent_context": item.parent_context,
-                    "source_url": getattr(item, "source_url", None),
-                    "source_text": getattr(item, "source_text", None),
-                    "page_number": getattr(item, "page_number", None),
-                    "legal_context": "\n\n".join(
-                        part
-                        for part in (
-                            item.parent_context,
-                            item.source_text or item.text,
-                        )
-                        if part
-                    ),
-                    "bbox": _normalized_bbox(getattr(item, "bbox", None)),
-                }
-            )
+            citation = {
+                "provision_id": item.provision_id,
+                "document_id": item.document_id,
+                "document_number": item.document_number,
+                "article": item.article,
+                "clause": item.clause,
+                "point": item.point,
+                "parent_context": item.parent_context,
+                "source_url": getattr(item, "source_url", None),
+                "source_text": getattr(item, "source_text", None),
+                "page_number": getattr(item, "page_number", None),
+                "legal_context": "\n\n".join(
+                    part
+                    for part in (
+                        item.parent_context,
+                        item.source_text or item.text,
+                    )
+                    if part
+                ),
+                "bbox": _normalized_bbox(getattr(item, "bbox", None)),
+            }
+            for identity_field in ("provision_version", "document_version_id", "source_id"):
+                identity_value = getattr(item, identity_field, None)
+                if identity_value is not None:
+                    citation[identity_field] = identity_value
+            citations.append(citation)
     return (
-        citations
-        if len(citations) == sum(len(c.get("provision_ids", [])) for c in claims)
-        else []
+        citations if len(citations) == sum(len(c.get("provision_ids", [])) for c in claims) else []
     )
 
 

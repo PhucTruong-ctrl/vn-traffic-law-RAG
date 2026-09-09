@@ -214,9 +214,7 @@ def test_penalty_with_points_and_suspension_requires_all_evidence() -> None:
 def test_unrelated_provisions_cannot_jointly_satisfy_evidence_plan() -> None:
     from app.query.evidence_gate import EvidenceCompletenessGate, EvidenceStatus
 
-    plan = QueryAnalyzer().analyze(
-        "phạt bao nhiêu và bị trừ bao nhiêu điểm?", current_date=TODAY
-    )
+    plan = QueryAnalyzer().analyze("phạt bao nhiêu và bị trừ bao nhiêu điểm?", current_date=TODAY)
     base = dict(
         rank=1,
         provision_version=1,
@@ -359,9 +357,7 @@ def test_query_plan_rejects_coercive_structured_values() -> None:
 
 
 def test_coordinated_vehicle_query_creates_stable_cases() -> None:
-    plan = QueryAnalyzer().analyze(
-        "xe máy và ô tô vượt đèn đỏ phạt sao?", current_date=TODAY
-    )
+    plan = QueryAnalyzer().analyze("xe máy và ô tô vượt đèn đỏ phạt sao?", current_date=TODAY)
     assert [case.case_id for case in plan.cases] == ["case-1", "case-2"]
     assert [case.vehicle_type for case in plan.cases] == ["xe máy", "ô tô"]
     assert all(EvidenceType.MONETARY_PENALTY in case.requested_evidence for case in plan.cases)

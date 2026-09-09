@@ -18,11 +18,11 @@ const citation = {
 };
 
 async function openDrawer(page: Page, withBbox = true) {
-  await page.route("**/api/v1/chat", (route) =>
+  await page.route("**/api/v1/chat/events**", (route) =>
     route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
+      contentType: "text/event-stream",
+      body: `event: result\ndata: ${JSON.stringify({
         status: "VERIFIED",
         answer: "Câu trả lời kiểm thử.",
         claims: [{ claim: "Có căn cứ pháp lý" }],
@@ -33,7 +33,7 @@ async function openDrawer(page: Page, withBbox = true) {
           },
         ],
         trace_id: "trace-pdf-fixture",
-      }),
+      })}\n\n`,
     }),
   );
   await page.route("**/api/v1/documents/fixture-document/source", (route) =>

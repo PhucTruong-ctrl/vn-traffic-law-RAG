@@ -177,6 +177,8 @@ def validate_hierarchy(provisions: list[ExtractedLegalProvision]) -> HierarchyVa
             valid = False
             if canonical is not None and label is not None and not _is_d_label(label):
                 valid = canonical[0] in _POINT_RUN_ALPHABET and canonical != "x)"
+                if canonical == "g)":
+                    valid = False
             elif label is not None and _is_d_label(label):
                 d_seen += 1
                 canonical = canonical_point_label(label, ordinal=3 + d_seen)

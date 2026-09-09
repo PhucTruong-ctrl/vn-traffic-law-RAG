@@ -257,15 +257,25 @@ def test_scanned_documents_use_fresh_ocr_workers(monkeypatch, tmp_path):
 def test_ocr_worker_roundtrips_parsed_document(monkeypatch, tmp_path):
     output = tmp_path / "worker.json"
     parsed = cli.ParsedDocument(
-        pages=[], parser="hybrid_ocr", parsed_document_id="parse-1", document_id="doc-1",
-        parser_version="test", ir_schema_version="document-ir-v2", source_object_key="doc-1.pdf",
-        parse_started_at=datetime.now(UTC), parse_completed_at=datetime.now(UTC), quality_report={}
+        pages=[],
+        parser="hybrid_ocr",
+        parsed_document_id="parse-1",
+        document_id="doc-1",
+        parser_version="test",
+        ir_schema_version="document-ir-v2",
+        source_object_key="doc-1.pdf",
+        parse_started_at=datetime.now(UTC),
+        parse_completed_at=datetime.now(UTC),
+        quality_report={},
     )
+
     class OCR:
         def __init__(self, **kwargs):
             assert kwargs["device"] == "gpu:0"
+
         def parse_document(self, *_args, **kwargs):
             return parsed
+
     monkeypatch.setattr(cli, "_render_scanned_pdf", lambda *_args: [(1, tmp_path / "page.png")])
     import app.ingestion.adapters.hybrid_ocr_adapter as hybrid_ocr_adapter
 
@@ -279,6 +289,7 @@ def test_ocr_worker_failure_includes_child_stderr(monkeypatch, tmp_path):
         returncode = 2
         stderr = "GPU init failed"
         stdout = ""
+
     monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: Completed())
     with pytest.raises(RuntimeError, match="GPU init failed"):
         cli._parse_scanned_in_worker(_pdf(tmp_path), tmp_path / "checkpoint")

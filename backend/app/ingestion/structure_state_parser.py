@@ -89,7 +89,8 @@ _VIETNAMESE_POINT_LABELS = "aăâbcdđeêghiklmnoôơpqrstuưvxy"
 _POINT_RE = re.compile(rf"^([{_VIETNAMESE_POINT_LABELS}])\s*[).）．。]\s*(.*)$", re.IGNORECASE)
 _POINT_FALLBACK_LABELS = "abcdđeghiklmnoôơpqrstuưvxy"
 _APPENDIX_RE = re.compile(
-    r"^(?:Phụ\s+lục|Mẫu\s+số)\s*([IVXLCDM]+|\d+[A-Za-z]*)?\s*[.:-]?\s*(.*)$", re.IGNORECASE
+    r"^(?:Phụ\s+lục|PHỤ\s+LỤC|Mẫu\s+số)\s*([IVXLCDM]+|\d+[A-Za-z]*)?\s*[.:-]?\s*(.*)$",
+    re.IGNORECASE,
 )
 _TRANSITIONAL_RE = re.compile(
     r"^(?:Điều\s+khoản\s+)?chuyển\s+tiếp\b(?:\s*[.:-]?\s*(.*))?$", re.IGNORECASE
@@ -198,10 +199,21 @@ class LegalStructureStateParser:
         counts, pages_by_text = self._text_locations(elements)
 
         nodes: list[StructureNode] = []
-        for element in elements:
+        for index, element in enumerate(elements):
             text = _clean_text(element.text)
             if not text or self._looks_repeated_chrome(element, counts, pages_by_text):
                 continue
+            if _BARE_ARTICLE_MARKER_RE.match(text) and self.state.clause is not None:
+                following_text = ""
+                for following in elements[index + 1 :]:
+                    following_text = _clean_text(following.text)
+                    if not following_text or self._looks_repeated_chrome(
+                        following, counts, pages_by_text
+                    ):
+                        continue
+                    break
+                if _POINT_RE.match(following_text):
+                    continue
             # OCR often places multiple labelled points in one paragraph.
             point_parts = [part.strip() for part in text.split(";")]
             if (
@@ -256,8 +268,12 @@ class LegalStructureStateParser:
         if (
             match
             and (
-                re.match(r"^(?:Điều|Dièu|Dieu|Ðiều)\s+\d+[A-Za-z]?\s*[.:-]", text, re.IGNORECASE)
-                or _BARE_ARTICLE_MARKER_RE.match(text)
+                _BARE_ARTICLE_MARKER_RE.match(text)
+                or re.match(
+                    r"^(?:Điều|Dièu|Dieu|Ðiều)\s+\d+[A-Za-z]?\s*[.:-]\s*\S",
+                    text,
+                    re.IGNORECASE,
+                )
             )
             and not re.match(
                 r"^(?:Điều|Dièu|Dieu|Ðiều)\s+\d+[A-Za-z]?\s*[.:]\s*[“\"]?Sửa\s+đổi\b",
@@ -298,18 +314,11 @@ class LegalStructureStateParser:
                 _roman_to_int(raw_number) if raw_number and raw_number.isalpha() else None
             )
             number = str(roman_number) if roman_number is not None else raw_number
-            if text.casefold().startswith("mẫu số"):
-                number_match = re.search(r"mẫu\s+số\s+(\d+[A-Za-z]*)", text, re.IGNORECASE)
-                number = number_match.group(1) if number_match else raw_number
-            if text.casefold().startswith("mẫu số"):
-                number_match = re.search(r"mẫu\s+số\s+(\d+[A-Za-z]*)", text, re.IGNORECASE)
-                number = number_match.group(1) if number_match else raw_number
             if number is None:
                 self.state._appendix_number += 1
                 number = str(self.state._appendix_number)
-            else:
-                if number.isdigit():
-                    self.state._appendix_number = max(self.state._appendix_number, int(number))
+            elif number.isdigit():
+                self.state._appendix_number = max(self.state._appendix_number, int(number))
             return _node(
                 StructureKind.APPENDIX, element, number=number, label=_nonempty(match.group(2))
             )

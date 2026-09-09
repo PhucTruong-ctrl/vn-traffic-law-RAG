@@ -8,11 +8,11 @@ test("long responses keep the conversation scrollable above the composer", async
     (_, index) =>
       `Đoạn giải thích pháp luật ${index + 1}. Nội dung đủ dài để tạo vùng cuộn.`,
   ).join("\n\n");
-  await page.route("**/api/v1/chat", (route) =>
+  await page.route("**/api/v1/chat/events**", (route) =>
     route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
+      contentType: "text/event-stream",
+      body: `event: result\ndata: ${JSON.stringify({
         status: "VERIFIED",
         answer: longAnswer,
         claims: [{ claim: "Có căn cứ pháp lý" }],
@@ -26,7 +26,7 @@ test("long responses keep the conversation scrollable above the composer", async
           },
         ],
         trace_id: "trace-scroll",
-      }),
+      })}\n\n`,
     }),
   );
   await page.goto("/");

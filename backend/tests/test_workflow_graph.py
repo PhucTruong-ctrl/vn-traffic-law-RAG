@@ -793,38 +793,42 @@ def test_quota_failure_abstains_for_penalty_queries():
     state = graph.invoke({"question": "mức phạt", "max_repair_attempts": 0})
     assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
     assert state["verification_result"]["reason_code"] == "GENERATION_QUOTA_EXHAUSTED"
+
+
 def test_source_fallback_excludes_unrelated_records() -> None:
-    assert workflow_graph._source_search_fallback({
-        "query_understanding": SimpleNamespace(
-            intent="SOURCE_SEARCH",
-            normalized_query="Điều 7",
-            document_number="168/2024/NĐ-CP",
-            article="7",
-            clause=None,
-            point=None,
-        ),
-        "evidence_status": EvidenceStatus.COMPLETE,
-        "expanded_context": [
-            SimpleNamespace(
-                provision_id="wanted",
-                text="Điều 7 nội dung",
-                review_status="ACCEPTED",
+    assert workflow_graph._source_search_fallback(
+        {
+            "query_understanding": SimpleNamespace(
+                intent="SOURCE_SEARCH",
+                normalized_query="Điều 7",
                 document_number="168/2024/NĐ-CP",
                 article="7",
                 clause=None,
                 point=None,
             ),
-            SimpleNamespace(
-                provision_id="other",
-                text="Điều 8 nội dung",
-                review_status="ACCEPTED",
-                document_number="168/2024/NĐ-CP",
-                article="8",
-                clause=None,
-                point=None,
-            ),
-        ],
-    }).claims[0].provision_ids == ["wanted"]
+            "evidence_status": EvidenceStatus.COMPLETE,
+            "expanded_context": [
+                SimpleNamespace(
+                    provision_id="wanted",
+                    text="Điều 7 nội dung",
+                    review_status="ACCEPTED",
+                    document_number="168/2024/NĐ-CP",
+                    article="7",
+                    clause=None,
+                    point=None,
+                ),
+                SimpleNamespace(
+                    provision_id="other",
+                    text="Điều 8 nội dung",
+                    review_status="ACCEPTED",
+                    document_number="168/2024/NĐ-CP",
+                    article="8",
+                    clause=None,
+                    point=None,
+                ),
+            ],
+        }
+    ).claims[0].provision_ids == ["wanted"]
 
 
 def test_quota_fallback_supports_current_when_one_accepted_provision_covers_evidence():

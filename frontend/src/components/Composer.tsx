@@ -1,4 +1,5 @@
-import { FormEvent, KeyboardEvent } from "react";
+import { useEffect, useRef } from "react";
+import type { FormEvent, KeyboardEvent } from "react";
 import { SendIcon } from "./Icons";
 
 type ComposerProps = {
@@ -8,6 +9,7 @@ type ComposerProps = {
   hero?: boolean;
   onChange: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onStop?: () => void;
 };
 export default function Composer({
   id,
@@ -16,9 +18,22 @@ export default function Composer({
   hero = false,
   onChange,
   onSubmit,
+  onStop,
 }: ComposerProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const resizeTextarea = () => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  };
+  useEffect(resizeTextarea, [value]);
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey &&
+      !event.nativeEvent.isComposing
+    ) {
       event.preventDefault();
       event.currentTarget.form?.requestSubmit();
     }
@@ -30,6 +45,7 @@ export default function Composer({
     >
       <label htmlFor={id}>Câu hỏi</label>
       <textarea
+        ref={textareaRef}
         id={id}
         required
         value={value}
@@ -40,13 +56,23 @@ export default function Composer({
       />
       <div className="composer-actions">
         <span className="scope-chip">Luật giao thông</span>
-        <button
-          type="submit"
-          aria-label={loading ? "Đang tra cứu..." : "Gửi"}
-          disabled={Boolean(loading || !value.trim())}
-        >
-          <SendIcon />
-        </button>
+        {loading ? (
+          <button
+            type="button"
+            aria-label="Dừng tra cứu"
+            onClick={onStop}
+          >
+            Dừng
+          </button>
+        ) : (
+          <button
+            type="submit"
+            aria-label="Gửi"
+            disabled={!value.trim()}
+          >
+            <SendIcon />
+          </button>
+        )}
       </div>
     </form>
   );

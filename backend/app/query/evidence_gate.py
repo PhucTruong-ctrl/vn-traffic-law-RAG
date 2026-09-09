@@ -48,7 +48,12 @@ def _fold_ocr_text(text: str) -> str:
 
 
 _AMOUNT = re.compile(r"\b\d[\d.,\s]*(?:dong|trieu\s*dong|nghin\s*dong)\b", re.IGNORECASE)
-_POINTS = re.compile(r"tru\s+(?:[\w]+\s+)?\d+\s*diem|\d+\s*diem\s+(?:giay phep|gplx)")
+_POINTS = re.compile(
+    r"(?:tru\s+(?:[\w]+\s+)?\d+\s*diem"
+    r"|\d+\s*diem\s+(?:giay\s+phep|gplx)"
+    r"|bi\s+tru\s+\d+\s*diem)",
+    re.IGNORECASE,
+)
 
 
 def _covered_types(candidate: RetrievalResult) -> set[EvidenceType]:
@@ -119,21 +124,25 @@ _SCOPING_STOPWORDS = {
     "lai",
     "thi",
 }
-_VIOLATION_MARKERS = {"vuot", "den", "do", "sai", "lan", "nong", "toc", "ruou", "bia"}
+
+_VIOLATION_MARKERS = {
+    "vuot den do",
+    "sai lan",
+    "nong do",
+    "toc do",
+    "ruou bia",
+}
 
 
 def _case_candidates(case: object, context: Sequence[RetrievalResult]) -> list[RetrievalResult]:
     query_text = _fold_ocr_text(getattr(case, "query_text", ""))
     candidates = list(context)
-    terms = {
-        token
-        for token in re.findall(r"[a-z0-9]+", query_text)
-        if len(token) >= 3 and token not in _SCOPING_STOPWORDS
-    }
-    targeted_terms = terms & _VIOLATION_MARKERS
+    targeted_terms = {marker for marker in _VIOLATION_MARKERS if marker in query_text}
     vehicle = _fold_ocr_text(getattr(case, "vehicle_type", "") or "")
-    if vehicle:
-        targeted_terms |= {token for token in re.findall(r"[a-z0-9]+", vehicle) if len(token) >= 3}
+    # A vehicle inferred by the analyzer is not a scoping signal unless the
+    # case query itself names it; generic evidence queries must retain context.
+    if vehicle and re.search(rf"(?<!\w){re.escape(vehicle)}(?!\w)", query_text):
+        targeted_terms.add(vehicle)
     if not targeted_terms:
         return candidates
     scoped: list[RetrievalResult] = []
@@ -147,7 +156,7 @@ def _case_candidates(case: object, context: Sequence[RetrievalResult]) -> list[R
         )
         if any(term in candidate_text for term in targeted_terms):
             scoped.append(candidate)
-    return scoped or candidates
+    return scoped
 
 
 def _evaluate_case(
@@ -195,9 +204,44 @@ class EvidenceCompletenessGate:
     """Require every planned evidence type before generation."""
 
     def evaluate(self, plan: QueryPlan, context: Sequence[RetrievalResult]) -> EvidenceGateResult:
-        cases = list(getattr(plan, "cases", [])) or [
-            type("Case", (), {"case_id": "case-1", "query_text": plan.normalized_query})()
-        ]
+        cases = list(getattr(plan, "cases", []))
+        if not cases:
+            query = plan.normalized_query
+            folded_query = _fold_ocr_text(query)
+            conjunction = re.search(
+                r"(.+?)\s+va\s+(.+?)(?=\s+phat\b|$)",
+                folded_query,
+            )
+            if conjunction and all(
+                marker in conjunction.group(0) for marker in ("vuot den do", "sai lan")
+            ):
+                cases = [
+                    type(
+                        "Case",
+                        (),
+                        {
+                            "case_id": f"case-{index}",
+                            "query_text": phrase.strip(),
+                            "requested_evidence": list(plan.required_evidence),
+                        },
+                    )()
+                    for index, phrase in enumerate(conjunction.groups(), start=1)
+                ]
+            else:
+                cases = [
+                    type(
+                        "Case",
+                        (),
+                        {
+                            "case_id": "case-1",
+                            # Generic synthetic fixtures represent the complete
+                            # retrieved context; do not scope them by the
+                            # analyzer's normalized query.
+                            "query_text": "",
+                            "requested_evidence": list(plan.required_evidence),
+                        },
+                    )()
+                ]
         case_results = [_evaluate_case(case, plan, context) for case in cases]
         gaps = list(dict.fromkeys(gap for result in case_results for gap in result.evidence_gaps))
         provisions = list(

@@ -53,8 +53,7 @@ from app.retrieval.qdrant_store import ensure_qdrant_collection  # noqa: E402
 CORPUS = _ROOT / "data" / "corpus" / "task1-pdfs"
 MANIFESTS = _ROOT / "data" / "manifests"
 OCR_CHECKPOINTS = (
-    Path(os.environ.get("OCR_CHECKPOINT_DIR", tempfile.gettempdir()))
-    / "vnlaw-ocr-checkpoints"
+    Path(os.environ.get("OCR_CHECKPOINT_DIR", tempfile.gettempdir())) / "vnlaw-ocr-checkpoints"
 )
 DEFAULT_DOCUMENTS = (
     "nd-44-2024",
@@ -76,15 +75,11 @@ DEFAULT_DOCUMENTS = (
 def _manifest(document_id: str) -> dict[str, Any]:
     matches = list(MANIFESTS.rglob(f"{document_id}.manifest.json"))
     if len(matches) != 1:
-        raise RuntimeError(
-            f"expected exactly one manifest for {document_id}, "
-            f"found {len(matches)}"
-        )
+        raise RuntimeError(f"expected exactly one manifest for {document_id}, found {len(matches)}")
     manifest = json.loads(matches[0].read_text(encoding="utf-8"))
     if manifest.get("document_id") != document_id:
         raise RuntimeError(
-            f"manifest document_id {manifest.get('document_id')!r} "
-            f"does not match {document_id!r}"
+            f"manifest document_id {manifest.get('document_id')!r} does not match {document_id!r}"
         )
     if manifest.get("review_status") != "ACCEPTED":
         raise RuntimeError(f"manifest {matches[0]} is not ACCEPTED")
@@ -93,6 +88,7 @@ def _manifest(document_id: str) -> dict[str, Any]:
 
 def _render_scanned_pdf(path: Path, checkpoint: Path) -> list[tuple[int, Path]]:
     import subprocess
+
     checkpoint.mkdir(parents=True, exist_ok=True)
     try:
         subprocess.run(
@@ -231,9 +227,7 @@ def _prepare_document(
     """Validate and project document without touching persistence."""
 
     provisions = _uniquify_ocr_provisions(provisions)
-    metadata = extract_document_metadata(
-        ir, manifest_number=manifest.get("document_number")
-    )
+    metadata = extract_document_metadata(ir, manifest_number=manifest.get("document_number"))
     issues = validate_against_manifest(metadata, manifest)
     if issues:
         raise RuntimeError("metadata validation failed: " + "; ".join(issues))
@@ -271,9 +265,7 @@ def _persist(
         session.add(document)
         session.flush()
     elif existing.file_hash != document.file_hash:
-        raise RuntimeError(
-            f"document ownership/content conflict for {document.document_id}"
-        )
+        raise RuntimeError(f"document ownership/content conflict for {document.document_id}")
     else:
         document = existing
     versions = list(
@@ -321,8 +313,7 @@ def _persist(
             or found.source_text != row.source_text
         ):
             raise RuntimeError(
-                f"conflicting provision ownership/content for "
-                f"{row.provision_id} v{row.version}"
+                f"conflicting provision ownership/content for {row.provision_id} v{row.version}"
             )
         else:
             found.effective_from = row.effective_from
@@ -344,8 +335,7 @@ def _persist(
             )
         elif registry.document_version_id != version.id:
             raise RuntimeError(
-                f"conflicting provision registry ownership for "
-                f"{row.provision_id} v{row.version}"
+                f"conflicting provision registry ownership for {row.provision_id} v{row.version}"
             )
         for provenance in project_provenance(
             extracted,
@@ -353,8 +343,7 @@ def _persist(
             source_document_version_id=version.id,
         ):
             key = (
-                ProvisionProvenance.provision_version_row_id
-                == provenance.provision_version_row_id,
+                ProvisionProvenance.provision_version_row_id == provenance.provision_version_row_id,
                 ProvisionProvenance.source_document_version_id
                 == provenance.source_document_version_id,
                 ProvisionProvenance.source_element_id == provenance.source_element_id,
@@ -382,9 +371,7 @@ def ingest(paths: list[Path], *, dry_run: bool, batch_size: int = 32) -> dict[st
             actual = hashlib.sha256(path.read_bytes()).hexdigest()
             expected = manifest.get("file_hash") or manifest.get("sha256")
             if expected and expected != actual:
-                raise RuntimeError(
-                    f"hash mismatch: manifest={expected}, actual={actual}"
-                )
+                raise RuntimeError(f"hash mismatch: manifest={expected}, actual={actual}")
             ir = _parse(path)
             try:
                 extracted_items = extract_legal_provisions(ir, document_slug=path.stem)
@@ -422,10 +409,13 @@ def ingest(paths: list[Path], *, dry_run: bool, batch_size: int = 32) -> dict[st
                     _persist(session, path, manifest, ir, provisions)
                 except Exception as exc:
                     session.rollback()
-                    failures.append({
-                        "document_id": path.stem, "pdf": str(path),
-                        "error": f"{type(exc).__name__}: {exc}",
-                    })
+                    failures.append(
+                        {
+                            "document_id": path.stem,
+                            "pdf": str(path),
+                            "error": f"{type(exc).__name__}: {exc}",
+                        }
+                    )
             index_accepted_provisions(
                 ensure_qdrant_collection(),
                 session=session,
@@ -433,9 +423,12 @@ def ingest(paths: list[Path], *, dry_run: bool, batch_size: int = 32) -> dict[st
                 batch_size=batch_size,
             )
     return {
-        "documents": documents, "failures": failures,
-        "dry_run": dry_run, "expected_documents": len(paths),
+        "documents": documents,
+        "failures": failures,
+        "dry_run": dry_run,
+        "expected_documents": len(paths),
     }
+
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
@@ -460,10 +453,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.batch_size < 1:
         parser.error("--batch-size must be positive")
     names = args.documents or list(DEFAULT_DOCUMENTS)
-    paths = [
-        args.corpus / (name if name.endswith(".pdf") else f"{name}.pdf")
-        for name in names
-    ]
+    paths = [args.corpus / (name if name.endswith(".pdf") else f"{name}.pdf") for name in names]
     missing = [path for path in paths if not path.is_file()]
     if missing:
         report = {

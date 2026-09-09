@@ -1,17 +1,21 @@
+"use client";
+import { useEffect, useRef } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import AbstentionResult from "./AbstentionResult";
 import CitationCard, { type Citation } from "./CitationCard";
 import FeedbackWidget from "./FeedbackWidget";
 import LegalMark from "./LegalMark";
-import ProgressEvents from "./ProgressEvents";
+import ProgressEvents, { type ProgressEvent } from "./ProgressEvents";
+import { messageEntrance, motionTransition } from "./motion";
 import type { ChatResponse, ConversationTurn } from "./chat-types";
 
 type ChatThreadProps = {
   turns: ConversationTurn[];
   question: string;
-  response: ChatResponse | null;
   loading: boolean;
   error: string;
   onOpenSource: (citation: Citation) => void;
+  progressEvents?: ProgressEvent[];
 };
 
 function ResponseMessage({
@@ -41,7 +45,6 @@ function ResponseMessage({
         ) : (
           <p className="assistant-answer">{response.answer}</p>
         )}
-        <ProgressEvents events={response.progress_events} />
         {!abstained && response.citations.length > 0 && (
           <section className="citations" aria-label="Căn cứ pháp lý">
             <h2>Căn cứ pháp lý</h2>
@@ -66,15 +69,32 @@ function ResponseMessage({
 
 export default function ChatThread({
   turns,
-  question: _question,
+  question,
   loading,
   error,
   onOpenSource,
+  progressEvents,
 }: ChatThreadProps) {
+  const reducedMotion = useReducedMotion();
+  const endRef = useRef<HTMLDivElement>(null);
+  const threadRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const thread = threadRef.current;
+    const end = endRef.current;
+    if (!thread || !end) return;
+    const distance = thread.scrollHeight - thread.scrollTop - thread.clientHeight;
+    if (distance < 160) end.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth" });
+  }, [turns.length, loading, error, question, reducedMotion]);
+  const entrance = reducedMotion ? undefined : messageEntrance;
   return (
-    <div className="thread">
+    <div ref={threadRef} className="thread">
       {turns.map((turn, index) => (
-        <div key={`${turn.question}-${index}`}>
+        <motion.div
+          key={`${turn.question}-${index}`}
+          initial={entrance?.initial}
+          animate={entrance?.animate}
+          transition={motionTransition}
+        >
           <div className="user-message">
             <div className="query-bubble" aria-label="Câu hỏi đã gửi">
               {turn.question}
@@ -84,13 +104,16 @@ export default function ChatThread({
             response={turn.response}
             onOpenSource={onOpenSource}
           />
-        </div>
+        </motion.div>
       ))}
       {loading && (
-        <div
+        <motion.div
           className="assistant-message loading-state"
           role="status"
           aria-live="polite"
+          initial={entrance?.initial}
+          animate={entrance?.animate}
+          transition={motionTransition}
         >
           <LegalMark />
           <div className="loading-content">
@@ -98,8 +121,8 @@ export default function ChatThread({
               <strong>Trợ lý Luật Giao thông</strong>
               <span className="streaming-badge">Đang trả lời</span>
             </div>
-            <span className="loading-question">{_question}</span>
-            <ProgressEvents />
+            <span className="loading-question">{question}</span>
+            <ProgressEvents loading={loading} events={progressEvents} />
             <span className="loading-bar" aria-hidden="true" />
             <div className="loading-skeleton" aria-hidden="true">
               <span />
@@ -107,13 +130,14 @@ export default function ChatThread({
               <span />
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
       {error && (
         <p role="alert" className="error-message">
           {error}
         </p>
       )}
+      <div ref={endRef} aria-hidden="true" />
     </div>
   );
 }

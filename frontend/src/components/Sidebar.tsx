@@ -4,18 +4,16 @@ import LegalMark from "./LegalMark";
 
 type SidebarProps = {
   activeQuestion: string;
-  suggestions: string[];
   onNewChat: () => void;
-  onSuggestion: (question: string) => void;
+  onCollapsedChange?: (collapsed: boolean) => void;
 };
-
 export default function Sidebar({
   activeQuestion,
-  suggestions,
   onNewChat,
-  onSuggestion,
+  onCollapsedChange,
 }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   useEffect(() => {
     if (!mobileOpen) return;
     const close = (event: KeyboardEvent) => {
@@ -47,9 +45,8 @@ export default function Sidebar({
       )}
       <aside
         id="conversation-sidebar"
-        className={`sidebar${mobileOpen ? " is-mobile-open" : ""}`}
+        className={`sidebar${mobileOpen ? " is-mobile-open" : ""}${collapsed ? " is-collapsed" : ""}`}
         aria-label="Lịch sử trò chuyện"
-        aria-hidden={!mobileOpen}
       >
         <div className="sidebar-head">
           <a className="wordmark" href="#" aria-label="Trợ lý Luật Giao thông">
@@ -60,6 +57,19 @@ export default function Sidebar({
             className="icon-button sidebar-close-mobile"
             aria-label="Đóng điều hướng"
             onClick={closeMobile}
+          >
+            <PanelIcon />
+          </button>
+          <button
+            type="button"
+            className="icon-button sidebar-collapse-toggle"
+            aria-label={collapsed ? "Mở rộng thanh bên" : "Thu gọn thanh bên"}
+            aria-expanded={!collapsed}
+            onClick={() => {
+              const nextCollapsed = !collapsed;
+              setCollapsed(nextCollapsed);
+              onCollapsedChange?.(nextCollapsed);
+            }}
           >
             <PanelIcon />
           </button>
@@ -90,7 +100,7 @@ export default function Sidebar({
           <p>Gần đây</p>
           <button type="button" className="active" onClick={closeMobile}>
             {activeQuestion || "Cuộc trò chuyện mới"}
-          </button> 
+          </button>
         </div>
         <div className="sidebar-user">
           <span className="user-avatar" aria-hidden="true">

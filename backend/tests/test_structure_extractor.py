@@ -308,12 +308,17 @@ def test_section_clears_previous_appendix_context() -> None:
 
 
 def test_duplicate_article_marker_does_not_drop_following_content() -> None:
-    provisions = LegalStructureExtractor().extract(_document([
-        ("Điều 2. Thật", "heading"),
-        ("Điều 2. “Sửa đổi khoản 1 Điều 2”,", "paragraph"),
-        ("1. Nội dung tiếp", "paragraph"),
-    ]))
+    provisions = LegalStructureExtractor().extract(
+        _document(
+            [
+                ("Điều 2. Thật", "heading"),
+                ("Điều 2. “Sửa đổi khoản 1 Điều 2”,", "paragraph"),
+                ("1. Nội dung tiếp", "paragraph"),
+            ]
+        )
+    )
     assert [p.provision_id for p in provisions] == [
-        "nd-168-2024__dieu-2", "nd-168-2024__dieu-2__khoan-1"
+        "nd-168-2024__dieu-2",
+        "nd-168-2024__dieu-2__khoan-1",
     ]
     assert provisions[-1].source_text == "1. Nội dung tiếp"
