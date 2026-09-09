@@ -8,7 +8,7 @@ import app.config as config
 
 from .schemas import StructuredAnswer
 
-MODEL_VERSION = "gemini-3.7-flash"
+MODEL_VERSION = "gemini-3.1-flash-lite"
 PROMPT_NAME = "legal-generator-v1"
 PROMPT_VERSION = "1"
 
@@ -64,7 +64,8 @@ class GeminiStructuredGenerator:
 
         prompt = (
             "Use only the supplied legal evidence. Return only a structured legal answer. "
-            "Every legal claim must cite a provision ID from the evidence. "
+            "Every legal claim must cite the exact provision_id from the evidence, "
+            "without the @vN version suffix shown in context labels. "
             f"Question: {query}\nEvidence: {evidence}"
         )
         if feedback:
@@ -75,7 +76,9 @@ class GeminiStructuredGenerator:
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
-                    response_schema=StructuredAnswer,
+                    # Passing the plain schema avoids the SDK's Pydantic adapter
+                    # emitting unsupported ``additional_properties`` fields.
+                    response_json_schema=StructuredAnswer.model_json_schema(),
                     temperature=0.2,
                 ),
             )

@@ -657,3 +657,197 @@ def test_invalid_verification_routes_to_abstain_not_finalize() -> None:
     state = graph.invoke({"question": "mức phạt", "max_repair_attempts": 0})
     assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
     assert state.get("verification_result", {}).get("status") != "VALID"
+
+
+def test_source_search_quota_failure_uses_complete_evidence_fallback():
+    class CompleteGate:
+        def evaluate(self, plan, context):
+            return type("Gate", (), {"status": EvidenceStatus.COMPLETE, "evidence_gaps": []})()
+
+    class QuotaGenerator:
+        def generate(self, question, context):
+            raise workflow_graph.StructuredGenerationError("429 RESOURCE_EXHAUSTED quota")
+
+    record = SimpleNamespace(
+        provision_id="TT51/2024-7.1",
+        text="Người điều khiển phải tuân thủ quy định.",
+        source_text="",
+        parent_context=None,
+        review_status="ACCEPTED",
+    )
+    plan = SimpleNamespace(
+        intent="SOURCE_SEARCH",
+        normalized_query="Điều 7",
+        effective_date=date(2024, 1, 1),
+        missing_query_information=[],
+        required_evidence=[],
+    )
+    graph = build_query_graph(
+        services(
+            analyzer=lambda question, **_: plan,
+            retriever=lambda query, **_: [record],
+            context_expander=lambda candidates, **_: [],
+            evidence_gate=CompleteGate(),
+            generator=QuotaGenerator(),
+            context_builder=lambda candidates: candidates,
+            legal_verifier=type(
+                "Verifier",
+                (),
+                {
+                    "verify": lambda self, answer, context, **_: type(
+                        "Result", (), {"passed": True}
+                    )()
+                },
+            )(),
+            temporal_verifier=type(
+                "Temporal",
+                (),
+                {"verify": lambda self, cited, **_: type("Result", (), {"verified": True})()},
+            )(),
+        )
+    )
+    state = graph.invoke({"question": "Điều 7", "max_repair_attempts": 0})
+    assert state["final_response"]["status"] == "COMPLETED"
+    assert state["final_response"]["claims"][0]["provision_ids"] == ["TT51/2024-7.1"]
+
+
+def test_wrapped_quota_failure_uses_complete_evidence_fallback():
+    class CompleteGate:
+        def evaluate(self, plan, context):
+            return type("Gate", (), {"status": EvidenceStatus.COMPLETE, "evidence_gaps": []})()
+
+    class QuotaGenerator:
+        def generate(self, question, context):
+            try:
+                raise RuntimeError("429 RESOURCE_EXHAUSTED")
+            except RuntimeError as cause:
+                raise workflow_graph.StructuredGenerationError(
+                    "provider generation failed"
+                ) from cause
+
+    record = SimpleNamespace(
+        provision_id="TT51/2024-7.1",
+        text="Người điều khiển phải tuân thủ quy định.",
+        source_text="",
+        parent_context=None,
+        review_status="ACCEPTED",
+    )
+    plan = SimpleNamespace(
+        intent="SOURCE_SEARCH",
+        normalized_query="Điều 7",
+        effective_date=date(2024, 1, 1),
+        missing_query_information=[],
+        required_evidence=[],
+    )
+    graph = build_query_graph(
+        services(
+            analyzer=lambda question, **_: plan,
+            retriever=lambda query, **_: [record],
+            context_expander=lambda candidates, **_: [],
+            evidence_gate=CompleteGate(),
+            generator=QuotaGenerator(),
+            context_builder=lambda candidates: candidates,
+            legal_verifier=type(
+                "Verifier",
+                (),
+                {
+                    "verify": lambda self, answer, context, **_: type(
+                        "Result", (), {"passed": True}
+                    )()
+                },
+            )(),
+            temporal_verifier=type(
+                "Temporal",
+                (),
+                {"verify": lambda self, cited, **_: type("Result", (), {"verified": True})()},
+            )(),
+        )
+    )
+    state = graph.invoke({"question": "Điều 7", "max_repair_attempts": 0})
+    assert state["final_response"]["status"] == "COMPLETED"
+    assert state["final_response"]["claims"][0]["provision_ids"] == ["TT51/2024-7.1"]
+
+
+def test_quota_failure_abstains_for_penalty_queries():
+    class CompleteGate:
+        def evaluate(self, plan, context):
+            return type("Gate", (), {"status": EvidenceStatus.COMPLETE, "evidence_gaps": []})()
+
+    class QuotaGenerator:
+        def generate(self, question, context):
+            raise workflow_graph.StructuredGenerationError("429 RESOURCE_EXHAUSTED quota")
+
+    plan = SimpleNamespace(
+        intent="CURRENT",
+        normalized_query="mức phạt",
+        effective_date=date(2024, 1, 1),
+        missing_query_information=[],
+    )
+    graph = build_query_graph(
+        services(
+            analyzer=lambda question, **_: plan,
+            evidence_gate=CompleteGate(),
+            generator=QuotaGenerator(),
+        )
+    )
+    state = graph.invoke({"question": "mức phạt", "max_repair_attempts": 0})
+    assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
+    assert state["verification_result"]["reason_code"] == "GENERATION_QUOTA_EXHAUSTED"
+def test_source_fallback_excludes_unrelated_records() -> None:
+    assert workflow_graph._source_search_fallback({
+        "query_understanding": SimpleNamespace(
+            intent="SOURCE_SEARCH",
+            normalized_query="Điều 7",
+            document_number="168/2024/NĐ-CP",
+            article="7",
+            clause=None,
+            point=None,
+        ),
+        "evidence_status": EvidenceStatus.COMPLETE,
+        "expanded_context": [
+            SimpleNamespace(
+                provision_id="wanted",
+                text="Điều 7 nội dung",
+                review_status="ACCEPTED",
+                document_number="168/2024/NĐ-CP",
+                article="7",
+                clause=None,
+                point=None,
+            ),
+            SimpleNamespace(
+                provision_id="other",
+                text="Điều 8 nội dung",
+                review_status="ACCEPTED",
+                document_number="168/2024/NĐ-CP",
+                article="8",
+                clause=None,
+                point=None,
+            ),
+        ],
+    }).claims[0].provision_ids == ["wanted"]
+
+
+def test_quota_fallback_supports_current_when_one_accepted_provision_covers_evidence():
+    plan = SimpleNamespace(
+        intent="CURRENT",
+        normalized_query="mức phạt",
+        effective_date=date(2024, 1, 1),
+        missing_query_information=[],
+    )
+    record = SimpleNamespace(
+        provision_id="p1", text="Phạt tiền 500.000 đồng.", review_status="ACCEPTED"
+    )
+    result = workflow_graph._evidence_fallback(
+        {
+            "query_understanding": plan,
+            "evidence_status": EvidenceStatus.COMPLETE,
+            "expanded_context": [record],
+        }
+    )
+    assert result is not None
+    assert result.claims[0].provision_ids == ["p1"]
+
+
+def test_comparison_items_flatten_records_not_container_keys():
+    record = SimpleNamespace(provision_id="p1")
+    assert workflow_graph._items({"before": [record], "after": [record]}) == [record, record]

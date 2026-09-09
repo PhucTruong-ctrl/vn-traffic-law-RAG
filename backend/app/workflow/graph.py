@@ -1,8 +1,4 @@
-"""Controlled LangGraph skeleton for the legal retrieval workflow.
-
-The services are deliberately injected: this module owns orchestration, not
-provider or legal-answer policy.
-"""
+"""Controlled LangGraph skeleton for the legal retrieval workflow."""
 
 from __future__ import annotations
 
@@ -21,6 +17,7 @@ from app.persistence.repositories.provisions import ProvisionRepository
 from app.persistence.repositories.relations import RelationRepository
 from app.persistence.repositories.temporal import TemporalRepository
 from app.query.evidence_gate import EvidenceCompletenessGate, EvidenceStatus, targeted_query_for_gap
+from app.query.expansion import QueryExpander
 from app.query.query_understanding import QueryAnalyzer
 from app.query.temporal_verifier import verify_temporal
 from app.retrieval.comparison import ComparisonResult
@@ -31,7 +28,6 @@ from app.retrieval.filters import build_temporal_filter, deduplicate_results
 from app.retrieval.hybrid import HybridRetriever
 from app.retrieval.qdrant_store import _default_client
 from app.retrieval.sparse import BM25SparseEncoder
-from app.verification.l2_citation import L2CitationVerifier
 from app.verification.workflow import LegalVerificationBoundary
 
 from .repair import MAX_REPAIR_ATTEMPTS, repair_route
@@ -43,13 +39,18 @@ Service = Any
 def _items(value: Any) -> list[Any]:
     if isinstance(value, CandidateSet):
         return list(value.results)
+    if isinstance(value, ComparisonResult):
+        return list(value.before.results) + list(value.after.results)
+    if isinstance(value, dict) and {"before", "after"} <= value.keys():
+        return _items(value["before"]) + _items(value["after"])
     if value is None:
         return []
+    if isinstance(value, (str, bytes)):
+        return [value]
     return list(value)
 
 
 def _merge_results(existing: Any, additions: Any) -> Any:
-    """Merge retrieval values while retaining the original CandidateSet shape."""
     merged = _items(existing) + _items(additions)
     if merged and all(isinstance(item, RetrievalResult) for item in merged):
         merged = deduplicate_results(merged)
@@ -69,7 +70,6 @@ def _comparison_sides(value: Any) -> tuple[Any, Any] | None:
 
 
 def _comparison_result(before: Any, after: Any) -> Any:
-    """Keep comparison branches independent between graph nodes."""
     if isinstance(before, CandidateSet) and isinstance(after, CandidateSet):
         return ComparisonResult(before=before, after=after)
     return {"before": before, "after": after}
@@ -77,30 +77,22 @@ def _comparison_result(before: Any, after: Any) -> Any:
 
 def _map_comparison(value: Any, operation: Callable[[Any], Any]) -> Any:
     sides = _comparison_sides(value)
-    if sides is None:
-        return operation(value)
-    before, after = sides
-    return _comparison_result(operation(before), operation(after))
+    return (
+        operation(value)
+        if sides is None
+        else _comparison_result(operation(sides[0]), operation(sides[1]))
+    )
 
 
 def _comparison_dates(state: QueryState) -> tuple[date, date] | None:
     plan = state.get("query_understanding")
     before = getattr(plan, "comparison_from", None)
     after = getattr(plan, "comparison_to", None)
-    if isinstance(before, date) and isinstance(after, date):
-        return before, after
-    return None
+    return (before, after) if isinstance(before, date) and isinstance(after, date) else None
 
 
 @dataclass(slots=True)
 class GraphServices:
-    """Injected collaborators for graph nodes.
-
-    ``analyzer`` and ``evidence_gate`` have deterministic defaults.  Retrieval
-    collaborators are required once their node executes; a missing one is a
-    configuration error, not an empty retrieval result.
-    """
-
     analyzer: Service = None
     temporal: Service = None
     expander: Service = None
@@ -119,11 +111,6 @@ class GraphServices:
 
 
 def production_services(*, session: Any = None) -> GraphServices:
-    """Build concrete providers from application configuration.
-
-    A database session is required because PostgreSQL is authoritative for
-    exact lookup, temporal validation, and citation metadata.
-    """
     if session is None:
         raise RuntimeError("workflow database session is not configured")
     temporal_repository = TemporalRepository(session)
@@ -140,7 +127,7 @@ def production_services(*, session: Any = None) -> GraphServices:
     expander = LegalContextExpander(relation_repository, temporal_repository)
     return GraphServices(
         temporal=lambda plan, *, query_date: query_date,
-        expander=lambda plan, **_: [],
+        expander=QueryExpander(),
         retriever=hybrid,
         dense_retriever=hybrid,
         fusion=lambda candidates: _items(candidates),
@@ -153,13 +140,8 @@ def production_services(*, session: Any = None) -> GraphServices:
 
 
 def _call(
-    service: Service,
-    *args: Any,
-    service_name: str,
-    method_names: tuple[str, ...],
-    **kwargs: Any,
+    service: Service, *args: Any, service_name: str, method_names: tuple[str, ...], **kwargs: Any
 ) -> Any:
-    """Call an injected service and fail clearly on invalid wiring."""
     if service is None:
         raise RuntimeError(f"required workflow service {service_name!r} is not configured")
     if callable(service):
@@ -168,8 +150,9 @@ def _call(
         method = getattr(service, name, None)
         if callable(method):
             return method(*args, **kwargs)
-    expected = ", ".join(method_names)
-    raise TypeError(f"workflow service {service_name!r} must be callable or expose {expected}()")
+    raise TypeError(
+        f"workflow service {service_name!r} must be callable or expose {', '.join(method_names)}()"
+    )
 
 
 def _question(state: QueryState) -> str:
@@ -177,7 +160,6 @@ def _question(state: QueryState) -> str:
 
 
 def _plan_date(state: QueryState) -> date | None:
-    """Return the plan's serving date, never an arbitrary fallback date."""
     plan = state.get("query_understanding")
     intent = str(getattr(plan, "intent", ""))
     if intent == "COMPARISON":
@@ -198,6 +180,8 @@ def _plan_date(state: QueryState) -> date | None:
 
 
 def _today(state: QueryState) -> date:
+    # Chat requests always seed query_date with today; retain input_date only for
+    # legacy internal callers that invoke the graph directly.
     return state.get("query_date") or state.get("input_date") or date.today()
 
 
@@ -210,7 +194,6 @@ def _exact_reference(plan: Any) -> dict[str, str | None] | None:
 
 
 def _max_repair_attempts(state: QueryState) -> int:
-    """Use an explicit state bound, otherwise the shared workflow bound."""
     return state.get(
         "max_repair_attempts", get_settings().max_repair_attempts or MAX_REPAIR_ATTEMPTS
     )
@@ -224,50 +207,53 @@ def _safe_route(state: QueryState) -> str:
     if missing.intersection({"query_date", "comparison_dates", "query_analysis"}):
         return "abstain"
     if str(getattr(plan, "intent", "")) == "COMPARISON":
-        if not (
-            isinstance(getattr(plan, "comparison_from", None), date)
-            and isinstance(getattr(plan, "comparison_to", None), date)
-        ):
-            return "abstain"
-    elif _plan_date(state) is None:
-        return "abstain"
-    return "expand_query"
+        return (
+            "abstain"
+            if not (
+                isinstance(getattr(plan, "comparison_from", None), date)
+                and isinstance(getattr(plan, "comparison_to", None), date)
+            )
+            else "expand_query"
+        )
+    return "abstain" if _plan_date(state) is None else "expand_query"
 
 
 def _analyze(state: QueryState, services: GraphServices) -> QueryState:
-    plan = _call(
-        services.analyzer or QueryAnalyzer(),
-        _question(state),
-        service_name="analyzer",
-        method_names=("analyze",),
-        current_date=_today(state),
-        effect_change_dates=state.get("effect_change_dates", ()),
-    )
-    return {"query_understanding": plan} if plan is not None else {}
+    return {
+        "query_understanding": _call(
+            services.analyzer or QueryAnalyzer(),
+            _question(state),
+            service_name="analyzer",
+            method_names=("analyze",),
+            current_date=_today(state),
+            effect_change_dates=state.get("effect_change_dates", ()),
+        )
+    }
 
 
 def _resolve_temporal(state: QueryState, services: GraphServices) -> QueryState:
-    value = _call(
-        services.temporal,
-        state.get("query_understanding"),
-        service_name="temporal",
-        method_names=("resolve",),
-        query_date=_today(state),
-    )
-    return {"temporal_context": value}
+    return {
+        "temporal_context": _call(
+            services.temporal,
+            state.get("query_understanding"),
+            service_name="temporal",
+            method_names=("resolve",),
+            query_date=_today(state),
+        )
+    }
 
 
 def _expand_query(state: QueryState, services: GraphServices) -> QueryState:
-    plan = state.get("query_understanding")
-    value = _call(
-        services.expander,
-        plan,
-        service_name="expander",
-        method_names=("expand",),
-        repair_attempts=state.get("repair_attempts", 0),
-        evidence_gaps=state.get("evidence_gaps", []),
-    )
-    return {"expansion_set": value}
+    return {
+        "expansion_set": _call(
+            services.expander,
+            state.get("query_understanding"),
+            service_name="expander",
+            method_names=("expand",),
+            repair_attempts=state.get("repair_attempts", 0),
+            evidence_gaps=state.get("evidence_gaps", []),
+        )
+    }
 
 
 def _variant_text(variant: Any) -> str:
@@ -284,12 +270,7 @@ def _variant_queries(state: QueryState, plan: Any) -> list[tuple[str, str]]:
 
 
 def _retrieve_one(
-    state: QueryState,
-    services: GraphServices,
-    query: str,
-    *,
-    source: str,
-    query_date: date,
+    state: QueryState, services: GraphServices, query: str, *, source: str, query_date: date
 ) -> Any:
     plan = state.get("query_understanding")
     vehicle_type = getattr(plan, "vehicle_type", None) or state.get("vehicle_type")
@@ -318,9 +299,8 @@ def _retrieve(state: QueryState, services: GraphServices) -> QueryState:
     intent = str(getattr(plan, "intent", ""))
     queries = _variant_queries(state, plan)
     if intent == "COMPARISON":
-        date_from = getattr(plan, "comparison_from", None)
-        date_to = getattr(plan, "comparison_to", None)
-        if not isinstance(date_from, date) or not isinstance(date_to, date):
+        dates = _comparison_dates(state)
+        if dates is None:
             return {"recall_candidates": []}
         before: Any = []
         after: Any = []
@@ -328,168 +308,139 @@ def _retrieve(state: QueryState, services: GraphServices) -> QueryState:
             if source == "hyde":
                 before = _merge_results(
                     before,
-                    _retrieve_one(state, services, query, source=source, query_date=date_from),
+                    _retrieve_one(state, services, query, source=source, query_date=dates[0]),
                 )
                 after = _merge_results(
-                    after,
-                    _retrieve_one(state, services, query, source=source, query_date=date_to),
+                    after, _retrieve_one(state, services, query, source=source, query_date=dates[1])
                 )
             elif services.comparison is not None:
-                comparison_plan: Any = plan
-                copier = getattr(plan, "model_copy", None)
-                if query != getattr(plan, "normalized_query", None) and callable(copier):
-                    comparison_plan = copier(update={"normalized_query": query})
                 result = _call(
                     services.comparison,
-                    comparison_plan,
+                    plan,
                     service_name="comparison",
                     method_names=("compare",),
-                    date_from=date_from,
-                    date_to=date_to,
+                    date_from=dates[0],
+                    date_to=dates[1],
                 )
                 before = _merge_results(before, result.before)
                 after = _merge_results(after, result.after)
             else:
                 before = _merge_results(
                     before,
-                    _retrieve_one(state, services, query, source=source, query_date=date_from),
+                    _retrieve_one(state, services, query, source=source, query_date=dates[0]),
                 )
                 after = _merge_results(
-                    after,
-                    _retrieve_one(state, services, query, source=source, query_date=date_to),
+                    after, _retrieve_one(state, services, query, source=source, query_date=dates[1])
                 )
-        comparison: Any
-        if isinstance(before, CandidateSet) and isinstance(after, CandidateSet):
-            comparison = ComparisonResult(before=before, after=after)
-        else:
-            comparison = {"before": before, "after": after}
-        return {"recall_candidates": comparison}
+        return {"recall_candidates": _comparison_result(before, after)}
     query_date = _plan_date(state)
     if query_date is None:
         return {"recall_candidates": []}
     candidates: Any = []
     for query, source in queries:
         candidates = _merge_results(
-            candidates,
-            _retrieve_one(state, services, query, source=source, query_date=query_date),
+            candidates, _retrieve_one(state, services, query, source=source, query_date=query_date)
         )
     return {"recall_candidates": candidates}
 
 
 def _fuse(state: QueryState, services: GraphServices) -> QueryState:
     candidates = state.get("recall_candidates")
-    sides = _comparison_sides(candidates)
-    if sides is None:
-        value = _call(services.fusion, candidates, service_name="fusion", method_names=("fuse",))
-    else:
-        before, after = sides
-        value = _comparison_result(
-            _call(services.fusion, before, service_name="fusion", method_names=("fuse",)),
-            _call(services.fusion, after, service_name="fusion", method_names=("fuse",)),
+    return {
+        "fused": _map_comparison(
+            candidates,
+            lambda value: _call(
+                services.fusion, value, service_name="fusion", method_names=("fuse",)
+            ),
         )
-    return {"fused": value}
+    }
 
 
 def _rerank(state: QueryState, services: GraphServices) -> QueryState:
     fused: Any = state.get("fused", [])
-    sides = _comparison_sides(fused)
-    if sides is None:
-        value = _call(
-            services.reranker,
-            _question(state),
-            _items(fused),
-            service_name="reranker",
-            method_names=("rerank",),
-        )
-    else:
-        before, after = sides
-        value = _comparison_result(
-            _call(
+    return {
+        "reranked": _map_comparison(
+            fused,
+            lambda value: _call(
                 services.reranker,
                 _question(state),
-                _items(before),
-                service_name="reranker",
-                method_names=("rerank",),
-            ),
-            _call(
-                services.reranker,
-                _question(state),
-                _items(after),
+                _items(value),
                 service_name="reranker",
                 method_names=("rerank",),
             ),
         )
-    return {"reranked": value}
+    }
 
 
 def _expand_context(state: QueryState, services: GraphServices) -> QueryState:
     reranked: Any = state.get("reranked", [])
     sides = _comparison_sides(reranked)
-    if sides is None:
-        query_date = _plan_date(state)
-        if query_date is None:
-            return {"expanded_context": reranked}
-        additions = _call(
-            services.context_expander,
-            _items(reranked),
-            service_name="context_expander",
-            method_names=("expand",),
-            query_date=query_date,
-        )
-        expanded = _items(reranked) + _items(additions)
-        if expanded and all(isinstance(item, RetrievalResult) for item in expanded):
-            expanded = deduplicate_results(expanded)
-        return {"expanded_context": expanded}
-
-    dates = _comparison_dates(state)
-    if dates is None:
-        return {"expanded_context": reranked}
-    expanded_sides: list[Any] = []
-    for candidates, query_date in zip(sides, dates, strict=True):
-        additions = _call(
-            services.context_expander,
-            _items(candidates),
-            service_name="context_expander",
-            method_names=("expand",),
-            query_date=query_date,
-        )
-        expanded = _items(candidates) + _items(additions)
-        if isinstance(candidates, CandidateSet):
-            expanded_sides.append(
-                candidates.model_copy(update={"results": deduplicate_results(expanded)})
+    if sides is not None and (dates := _comparison_dates(state)) is not None:
+        expanded: list[Any] = []
+        for candidates, side_date in zip(sides, dates, strict=True):
+            additions = _call(
+                services.context_expander,
+                _items(candidates),
+                service_name="context_expander",
+                method_names=("expand",),
+                query_date=side_date,
             )
-        else:
-            expanded_sides.append(expanded)
-    return {"expanded_context": _comparison_result(*expanded_sides)}
+            values = _items(candidates) + _items(additions)
+            expanded.append(
+                candidates.model_copy(update={"results": deduplicate_results(values)})
+                if isinstance(candidates, CandidateSet)
+                else values
+            )
+        return {"expanded_context": _comparison_result(*expanded)}
+    serving_date = _plan_date(state)
+    if serving_date is None:
+        return {"expanded_context": reranked}
+    values = _items(reranked)
+    additions = _call(
+        services.context_expander,
+        values,
+        service_name="context_expander",
+        method_names=("expand",),
+        query_date=serving_date,
+    )
+    combined = values + _items(additions)
+    return {
+        "expanded_context": deduplicate_results(combined)
+        if combined and all(isinstance(item, RetrievalResult) for item in combined)
+        else combined
+    }
 
 
 def _check_evidence(state: QueryState, services: GraphServices) -> QueryState:
     gate = services.evidence_gate or EvidenceCompletenessGate()
-    plan = state.get("query_understanding")
     context: Any = state.get("expanded_context", [])
     sides = _comparison_sides(context)
     if sides is None:
         result = _call(
-            gate, plan, context, service_name="evidence_gate", method_names=("evaluate",)
+            gate,
+            state.get("query_understanding"),
+            _items(context),
+            service_name="evidence_gate",
+            method_names=("evaluate",),
         )
         return {"evidence_status": result.status, "evidence_gaps": list(result.evidence_gaps)}
     results = [
         _call(
             gate,
-            plan,
-            side.results if isinstance(side, CandidateSet) else side,
+            state.get("query_understanding"),
+            _items(side),
             service_name="evidence_gate",
             method_names=("evaluate",),
         )
         for side in sides
     ]
     gaps = list(dict.fromkeys(gap for result in results for gap in result.evidence_gaps))
-    status = (
-        EvidenceStatus.COMPLETE
+    return {
+        "evidence_status": EvidenceStatus.COMPLETE
         if all(result.status == EvidenceStatus.COMPLETE for result in results)
-        else EvidenceStatus.INCOMPLETE
-    )
-    return {"evidence_status": status, "evidence_gaps": gaps}
+        else EvidenceStatus.INCOMPLETE,
+        "evidence_gaps": gaps,
+    }
 
 
 def _evidence_route(state: QueryState) -> str:
@@ -504,9 +455,9 @@ def _targeted(state: QueryState, services: GraphServices) -> QueryState:
     attempts = state.get("repair_attempts", 0) + 1
     plan = state.get("query_understanding")
     gaps = state.get("evidence_gaps", [])
-    queries = [targeted_query_for_gap(gap, plan) for gap in gaps if plan is not None]
-    if not queries:
-        queries = [_question(state)]
+    queries = [targeted_query_for_gap(gap, plan) for gap in gaps if plan is not None] or [
+        _question(state)
+    ]
     expansion_set = state.get("expansion_set") or []
     if services.expander is not None and plan is not None:
         expansion_set = _call(
@@ -527,7 +478,7 @@ def _targeted(state: QueryState, services: GraphServices) -> QueryState:
     comparison = _comparison_sides(state.get("recall_candidates"))
     dates = _comparison_dates(state)
     if comparison is not None and dates is not None:
-        updated = []
+        updated: list[Any] = []
         for existing, repair_date in zip(comparison, dates, strict=True):
             targeted: Any = []
             for query, source in repair_queries:
@@ -541,7 +492,6 @@ def _targeted(state: QueryState, services: GraphServices) -> QueryState:
             "expansion_set": expansion_set,
             "recall_candidates": _comparison_result(*updated),
         }
-
     serving_date = _plan_date(state)
     if serving_date is None or str(getattr(plan, "intent", "")) == "OUT_OF_SCOPE":
         return {
@@ -574,41 +524,91 @@ def _build_context(state: QueryState, services: GraphServices) -> QueryState:
             service_name="context_builder",
             method_names=("build",),
         )
-        if isinstance(value, str):
-            state_context = context
-            return {"context_package": state_context, "prompt_context": value}
-    else:
-        value = _comparison_result(
-            _call(
-                services.context_builder,
-                sides[0],
-                service_name="context_builder",
-                method_names=("build",),
-            ),
-            _call(
-                services.context_builder,
-                sides[1],
-                service_name="context_builder",
-                method_names=("build",),
-            ),
+        return (
+            {"context_package": context, "prompt_context": value}
+            if isinstance(value, str)
+            else {"context_package": value}
         )
-    return {"context_package": value}
+    values = [
+        _call(
+            services.context_builder, side, service_name="context_builder", method_names=("build",)
+        )
+        for side in sides
+    ]
+    return {"context_package": _comparison_result(*values)}
 
 
 def _normalize_answer_numbers(value: Any, key: str | None = None) -> Any:
     if isinstance(value, dict):
         return {name: _normalize_answer_numbers(item, name) for name, item in value.items()}
     if isinstance(value, list):
-        values = [_normalize_answer_numbers(item, key) for item in value]
-        return [str(item) for item in values] if key == "numbers" else values
+        return [_normalize_answer_numbers(item, key) for item in value]
+    if key == "numbers" and isinstance(value, (int, float)) and not isinstance(value, bool):
+        return str(value)
     return value
 
 
+def _is_quota_error(exc: BaseException) -> bool:
+    tokens = ("resource_exhausted", "quota", "rate limit", "rate_limit", "429")
+    current: BaseException | None = exc
+    seen: set[int] = set()
+    for _ in range(8):
+        if current is None or id(current) in seen:
+            return False
+        seen.add(id(current))
+        if any(token in str(current).casefold() for token in tokens):
+            return True
+        current = current.__cause__ or current.__context__
+    return False
+
+
+def _evidence_fallback(state: QueryState) -> StructuredAnswer | None:
+    plan = state.get("query_understanding")
+    intent = str(getattr(plan, "intent", ""))
+    supported = {"CURRENT", "HISTORICAL", "COMPARISON", "SOURCE_SEARCH"}
+    if intent not in supported or state.get("evidence_status") != EvidenceStatus.COMPLETE:
+        return None
+    context: Any = state.get("expanded_context", [])
+    records = [
+        item
+        for item in _items(context)
+        if getattr(item, "review_status", "ACCEPTED") == "ACCEPTED"
+        and getattr(item, "provision_id", None)
+        and getattr(item, "text", "").strip()
+    ]
+    if not records:
+        return None
+    reference = _exact_reference(plan) or {}
+    if intent == "SOURCE_SEARCH" and reference:
+        def matches(item: Any) -> bool:
+            return all(
+                expected is None
+                or str(getattr(item, field, "")).strip() == str(expected).strip()
+                for field, expected in reference.items()
+            )
+        records = [item for item in records if matches(item)]
+    if not records:
+        return None
+    claims = [
+        {
+            "claim": item.text.strip(),
+            "claim_type": "OTHER",
+            "provision_ids": [item.provision_id],
+        }
+        for item in records
+    ]
+    return StructuredAnswer.model_validate(
+        {"answer_summary": " ".join(claim["claim"] for claim in claims), "claims": claims}
+    )
+
+
+
+_source_search_fallback = _evidence_fallback
+
 def _generate(state: QueryState, services: GraphServices) -> QueryState:
-    generator = services.generator or GeminiStructuredGenerator()
     try:
         answer = _call(
-            generator,
+            services.generator or GeminiStructuredGenerator(),
             _question(state),
             state.get(
                 "prompt_context", state.get("context_package", state.get("expanded_context", []))
@@ -617,17 +617,20 @@ def _generate(state: QueryState, services: GraphServices) -> QueryState:
             method_names=("generate",),
         )
     except StructuredGenerationError as exc:
+        fallback = _evidence_fallback(state) if _is_quota_error(exc) else None
+        if fallback is not None:
+            return {"draft_answer": fallback}
+        quota = _is_quota_error(exc)
         return {
             "draft_answer": None,
             "verification_result": {
-                "status": "REPAIRABLE",
-                "reason_code": "L1_SCHEMA_INVALID",
+                "status": "ABSTAIN" if quota else "REPAIRABLE",
+                "reason_code": "GENERATION_QUOTA_EXHAUSTED" if quota else "L1_SCHEMA_INVALID",
                 "error": str(exc),
             },
         }
     try:
-        normalized = _normalize_answer_numbers(answer)
-        return {"draft_answer": StructuredAnswer.model_validate(normalized)}
+        return {"draft_answer": StructuredAnswer.model_validate(_normalize_answer_numbers(answer))}
     except Exception as exc:
         return {
             "draft_answer": None,
@@ -661,67 +664,69 @@ def _verify(state: QueryState, services: GraphServices) -> QueryState:
         return {
             "verification_result": {"status": "ABSTAIN", "reason_code": "INSUFFICIENT_EVIDENCE"}
         }
-
-    context = _items(state.get("expanded_context", state.get("context_package", [])))
-    context = [item for item in context if getattr(item, "review_status", "ACCEPTED") == "ACCEPTED"]
+    context_by_id: dict[str, Any] = {}
+    for item in _items(state.get("expanded_context", state.get("context_package", []))):
+        if getattr(item, "review_status", "ACCEPTED") != "ACCEPTED":
+            continue
+        provision_id = getattr(item, "provision_id", None)
+        if provision_id and provision_id not in context_by_id:
+            context_by_id[provision_id] = item
+    context = list(context_by_id.values())
     if not all(getattr(claim, "provision_ids", None) for claim in answer.claims):
         return {"verification_result": {"status": "ABSTAIN", "reason_code": "L1_SCHEMA_INVALID"}}
-    if services.legal_verifier is not None:
-        query_date = _plan_date(state)
-        legal = _call(
-            services.legal_verifier,
-            answer,
-            context,
-            query_date=query_date,
-            service_name="legal_verifier",
-            method_names=("verify",),
-        )
-        if not legal.passed:
-            return {
-                "verification_result": {
-                    "status": "ABSTAIN",
-                    "reason_code": legal.reason_code or "VERIFICATION_FAILURE",
-                    "issues": list(legal.issues),
-                    "missing": list(legal.missing),
-                }
-            }
-    else:
-        legal = LegalVerificationBoundary(
-            citation=services.verifier or L2CitationVerifier()
-        ).verify(
-            answer,
-            context,
-            query_date=_plan_date(state),
-            in_scope=str(getattr(state.get("query_understanding"), "intent", "")) != "OUT_OF_SCOPE",
-        )
-        if not legal.passed:
-            return {
-                "verification_result": {
-                    "status": "ABSTAIN",
-                    "reason_code": legal.reason_code or "VERIFICATION_FAILURE",
-                    "issues": list(legal.issues),
-                    "missing": list(legal.missing),
-                }
-            }
-    cited = [
-        item
-        for claim in answer.claims
-        for pid in claim.provision_ids
-        for item in context
-        if getattr(item, "provision_id", None) == pid
-    ]
-    query_date = _plan_date(state)
-    temporal = services.temporal_verifier
-    l3 = (
-        temporal.verify(cited, query_date=query_date)
-        if temporal is not None
-        else verify_temporal(cited, query_date=query_date)
+    legal = _call(
+        services.legal_verifier or LegalVerificationBoundary(),
+        answer,
+        context,
+        query_date=_plan_date(state),
+        service_name="legal_verifier",
+        method_names=("verify",),
     )
-    if not l3.verified:
+    if not legal.passed:
         return {
             "verification_result": {
                 "status": "ABSTAIN",
-                "reason_code": l3.reason_code or "L3_TEMPORAL_INVALID",
+                "reason_code": legal.reason_code or "VERIFICATION_FAILURE",
+                "issues": list(legal.issues),
+                "missing": list(legal.missing),
+            }
+        }
+    cited: list[Any] = []
+    for claim in answer.claims:
+        if len(set(claim.provision_ids)) != len(claim.provision_ids):
+            return {
+                "verification_result": {
+                    "status": "ABSTAIN",
+                    "reason_code": "L2_CITATION_MISSING",
+                }
+            }
+        claim_records = [context_by_id.get(pid) for pid in claim.provision_ids]
+        if any(item is None for item in claim_records):
+            return {
+                "verification_result": {
+                    "status": "ABSTAIN",
+                    "reason_code": "L2_CITATION_MISSING",
+                }
+            }
+        cited.extend(claim_records)
+    if len(cited) != sum(len(claim.provision_ids) for claim in answer.claims):
+        return {"verification_result": {"status": "ABSTAIN", "reason_code": "L2_CITATION_MISSING"}}
+    temporal = (
+        _call(
+            services.temporal_verifier,
+            cited,
+            query_date=_plan_date(state),
+            service_name="temporal_verifier",
+            method_names=("verify",),
+        )
+        if services.temporal_verifier is not None
+        else verify_temporal(cited, query_date=_plan_date(state))
+    )
+    if not temporal.verified:
+        return {
+            "verification_result": {
+                "status": "ABSTAIN",
+                "reason_code": temporal.reason_code or "L3_TEMPORAL_INVALID",
             }
         }
     return {"verification_result": {"status": "VALID", "verified_claims": answer.claims}}
@@ -733,20 +738,20 @@ def _finalize(state: QueryState) -> QueryState:
     if verification.get("status") != "VALID" or draft is None:
         return _abstain(state)
     answer = StructuredAnswer.model_validate(draft)
-    summary = " ".join(claim.claim.strip() for claim in answer.claims)
     return {
         "final_response": {
             "status": "COMPLETED",
-            "answer_summary": summary,
+            "answer_summary": " ".join(claim.claim.strip() for claim in answer.claims),
             "claims": [claim.model_dump() for claim in answer.claims],
         }
     }
 
 
 def _abstain(state: QueryState) -> QueryState:
-    verification = state.get("verification_result")
-    if not verification or verification.get("status") == "VALID":
-        verification = {"status": "ABSTAIN", "reason_code": "INSUFFICIENT_EVIDENCE"}
+    verification = state.get("verification_result") or {
+        "status": "ABSTAIN",
+        "reason_code": "INSUFFICIENT_EVIDENCE",
+    }
     return {
         "verification_result": verification,
         "final_response": {"status": "INSUFFICIENT_EVIDENCE", "answer": None},
@@ -754,7 +759,6 @@ def _abstain(state: QueryState) -> QueryState:
 
 
 def build_query_graph(services: GraphServices | None = None) -> CompiledStateGraph:
-    """Compile the fixed-order graph and bounded evidence-repair loop."""
     services = services or GraphServices()
     graph = StateGraph(QueryState)
     nodes: dict[str, Callable[..., QueryState]] = {

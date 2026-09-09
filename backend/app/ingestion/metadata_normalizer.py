@@ -137,9 +137,9 @@ _ROMAN_NUMERAL_TRANS = str.maketrans(_ROMAN_NUMERAL_MAP)
 
 #: Vietnamese point-run alphabet with ordinal positions (rulespec §4.1:
 #: d = position 4, đ = position 5).
-_POINT_RUN_ALPHABET = "abcdđe"
-
-
+VIETNAMESE_POINT_ALPHABET = "aăâbcdđeêghiklmnoôơpqrstuưvxy"
+# Shared legal point-label sequence used by parsing and hierarchy gates.
+_POINT_RUN_ALPHABET = VIETNAMESE_POINT_ALPHABET
 class NormalizationResult(BaseModel):
     """Canonical metadata plus the review flags raised during normalization.
 

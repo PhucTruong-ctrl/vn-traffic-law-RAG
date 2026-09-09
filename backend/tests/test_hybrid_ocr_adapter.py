@@ -65,6 +65,39 @@ def test_parse_page_recognizes_each_detected_line_and_quarantines_low_confidence
     assert calls == [(50, 20)]
 
 
+def test_parse_page_merges_wrapped_article_heading_and_body_without_losing_provenance(tmp_path):
+    image_path = tmp_path / "page.jpg"
+    Image.new("RGB", (100, 100), "white").save(image_path)
+    adapter = HybridOCRAdapter()
+    adapter._detector = SimpleNamespace(
+        predict=lambda _: iter(
+            [
+                SimpleNamespace(
+                    json=lambda: {
+                        "res": {
+                            "dt_polys": [
+                                [[0, 0], [80, 0], [80, 10], [0, 10]],
+                                [[0, 12], [90, 12], [90, 22], [0, 22]],
+                                [[0, 40], [80, 40], [80, 50], [0, 50]],
+                            ],
+                            "rec_texts": ["Điều 1.", "Phạm vi điều chỉnh", "1. Nội dung."],
+                            "rec_scores": [0.95, 0.95, 0.95],
+                            "det_scores": [0.9, 0.9, 0.9],
+                        }
+                    }
+                )
+            ]
+        )
+    )
+    page = adapter.parse_page(image_path, page_number=1, document_id="doc")
+    assert [element.text for element in page.elements] == [
+        "Điều 1. Phạm vi điều chỉnh",
+        "1. Nội dung.",
+    ]
+    assert page.elements[0].raw_reference["merged_element_ids"] == ["p1-e0", "p1-e1"]
+    assert page.elements[0].bbox.bottom == 0.22
+
+
 def test_parse_document_writes_atomic_page_checkpoint_and_resumes(tmp_path) -> None:
     image_path = tmp_path / "page.jpg"
     Image.new("RGB", (10, 10), "white").save(image_path)
@@ -108,3 +141,28 @@ def test_parse_document_writes_atomic_page_checkpoint_and_resumes(tmp_path) -> N
         checkpoint_path=checkpoint,
     )
     assert resumed.pages[0].text == "line"
+
+
+def test_parse_page_splits_embedded_ocr_article_heading(tmp_path) -> None:
+    image_path = tmp_path / "page.jpg"
+    Image.new("RGB", (100, 100), "white").save(image_path)
+    adapter = HybridOCRAdapter()
+    adapter._detector = SimpleNamespace(
+        predict=lambda _: iter(
+            [
+                SimpleNamespace(
+                    json=lambda: {
+                        "res": {
+                            "dt_polys": [[[0, 0], [90, 0], [90, 10], [0, 10]]],
+                            "rec_texts": ["Nghị định 1 Dièu 1. Phạm vi"],
+                            "rec_scores": [0.95],
+                            "det_scores": [0.9],
+                        }
+                    }
+                )
+            ]
+        )
+    )
+    page = adapter.parse_page(image_path, page_number=1, document_id="doc")
+    assert [element.text for element in page.elements] == ["Nghị định 1", "Điều 1. Phạm vi"]
+    assert page.elements[1].raw_reference["split_from_element_id"] == "p1-e0"

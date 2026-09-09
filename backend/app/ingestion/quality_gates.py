@@ -376,7 +376,7 @@ class GroupBResult(BaseModel):
     """
 
     passed: bool
-    metrics: dict[str, float | int]
+    metrics: dict[str, Any]
     failed_checks: list[str]
 
 
@@ -443,16 +443,17 @@ def evaluate_group_b(
     losses are 0 by the rulespec §5 no-token-length rule); retention is
     retained/flagged short points = 1.0 (vacuously 1.0 when none flagged) and
     never fails a check. A gate fails when its value is below the threshold
-    (``>=`` boundary passes, same as Group A); empty input fails both numeric
-    gates (0.0 < 0.9) — nothing extracted is never auto-accepted.
+    (``>=`` boundary passes, same as Group A). A document with no POINT
+    candidates has no point-label metric: that gate is N/A and does not fail.
     """
 
     config = thresholds or GroupBThresholds()
     hierarchy = validate_hierarchy(provisions)
-    detection_rate = float(hierarchy.metrics["point_label_detection_rate"])
-    orphan_point_count = int(hierarchy.metrics["orphan_point_count"])
-    orphan_clause_count = int(hierarchy.metrics["orphan_clause_count"])
-    duplicate_count = int(hierarchy.metrics["duplicate_count"])
+    detection_metric = hierarchy.metrics["point_label_detection_rate"]
+    detection_rate = float(detection_metric) if detection_metric is not None else None
+    orphan_point_count = int(hierarchy.metrics["orphan_point_count"] or 0)
+    orphan_clause_count = int(hierarchy.metrics["orphan_clause_count"] or 0)
+    duplicate_count = int(hierarchy.metrics["duplicate_count"] or 0)
 
     # Short-point retention (rulespec §5): no token-length threshold — every
     # flagged short point is retained, so the rate is 1.0 and contributes no
@@ -466,18 +467,22 @@ def evaluate_group_b(
     hierarchy_completeness = (tree_count - defects) / tree_count if tree_count else 0.0
 
     failed_checks: list[str] = []
-    if detection_rate < config.min_point_label_detection:
+    if detection_rate is not None and detection_rate < config.min_point_label_detection:
         failed_checks.append("point_label_detection")
     if hierarchy_completeness < config.min_hierarchy_completeness:
         failed_checks.append("hierarchy_completeness")
 
-    metrics: dict[str, float | int] = {
+    invalid_labels = [v.provision_id for v in hierarchy.violations if v.type == "invalid_label"]
+    point_label_denominator = len([p for p in provisions if p.node_kind == "POINT"])
+    metrics: dict[str, float | int | None | list[str]] = {
         "point_label_detection_rate": detection_rate,
         "hierarchy_completeness": hierarchy_completeness,
         "short_point_retention_rate": short_point_retention_rate,
         "orphan_point_count": orphan_point_count,
         "orphan_clause_count": orphan_clause_count,
         "duplicate_count": duplicate_count,
+        "point_label_denominator": point_label_denominator,
+        "point_label_misses": invalid_labels,
     }
     return GroupBResult(passed=not failed_checks, metrics=metrics, failed_checks=failed_checks)
 

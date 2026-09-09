@@ -1,32 +1,20 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Sprint 5 answer flow", () => {
-  // Gate M6: these flows exercise the rendered production contract; the API is
-  // stubbed only because CI has no release database/corpus credentials.
   test.describe.configure({ mode: "serial" });
-  test("renders the home form and validates a blank question", async ({ page }) => {
+
+  test("renders the chat-only home form and validates a blank question", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Hỏi đáp pháp luật giao thông" })).toBeVisible();
     await expect(page.getByLabel("Câu hỏi")).toBeVisible();
-    await expect(page.getByLabel("Ngày áp dụng")).toBeVisible();
-    await expect(page.getByLabel("Loại phương tiện")).toBeVisible();
+    await expect(page.getByText("Phạm vi tra cứu")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Gửi câu hỏi" })).toBeDisabled();
   });
 
-  test("renders a verified response from the mock API boundary", async ({ page }) => {
+  test("submits only the chat question and renders a verified response", async ({ page }) => {
     await page.route("**/api/v1/chat", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          status: "VERIFIED",
-          answer: "Mức phạt được xác định theo quy định hiện hành.",
-          claims: [{ claim: "Có căn cứ pháp lý", claim_type: "RULE" }],
-          citations: [{ provision_id: "nd-100-2019:article-6", document_number: "Nghị định 100/2019/NĐ-CP", article: "Điều 6" }],
-          disclaimer: "This response is informational and not legal advice.",
-          trace_id: "trace-smoke-verified",
-        }),
-      });
+      expect(route.request().postDataJSON()).toEqual({ question: "Vượt đèn đỏ bị phạt thế nào?" });
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ status: "VERIFIED", answer: "Mức phạt được xác định theo quy định hiện hành.", claims: [{ claim: "Có căn cứ pháp lý", claim_type: "RULE" }], citations: [{ provision_id: "nd-100-2019:article-6", document_number: "Nghị định 100/2019/NĐ-CP", article: "Điều 6" }], disclaimer: "This response is informational and not legal advice.", trace_id: "trace-smoke-verified" }) });
     });
     await page.goto("/");
     await page.getByLabel("Câu hỏi").fill("Vượt đèn đỏ bị phạt thế nào?");
@@ -36,44 +24,17 @@ test.describe("Sprint 5 answer flow", () => {
     await expect(page.getByText("Nghị định 100/2019/NĐ-CP")).toBeVisible();
   });
 
-  test("submits query controls and renders applied temporal metadata", async ({ page }) => {
-    await page.route("**/api/v1/chat", async (route) => {
-      const request = route.request();
-      const body = request.postDataJSON();
-      expect(body).toMatchObject({ question: "So sánh quy định", query_date: "2025-01-01", vehicle: "Ô tô", comparison_date: "2024-01-01" });
-      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ status: "VERIFIED", answer: "Kết quả so sánh có căn cứ.", claims: [], citations: [], metadata: { query_date: "2025-01-01", comparison_date: "2024-01-01", vehicle: "Ô tô", comparison: true }, trace_id: "trace-m6-comparison" }) });
-    });
-    await page.goto("/");
-    await page.getByLabel("Câu hỏi").fill("So sánh quy định");
-    await page.getByLabel("Ngày áp dụng").fill("2025-01-01");
-    await page.getByLabel("Loại phương tiện").fill("Ô tô");
-    await page.getByLabel("So sánh với ngày").fill("2024-01-01");
-    await page.getByRole("button", { name: "Gửi câu hỏi" }).click();
-    await expect(page.getByText("Ngày áp dụng: 2025-01-01 · So sánh với: 2024-01-01")).toBeVisible();
-  });
-
   test("renders an API failure as an actionable alert", async ({ page }) => {
     await page.route("**/api/v1/chat", async (route) => route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: { message: "Dịch vụ tạm thời không khả dụng" } }) }));
     await page.goto("/");
     await page.getByLabel("Câu hỏi").fill("Câu hỏi kiểm tra lỗi");
     await page.getByRole("button", { name: "Gửi câu hỏi" }).click();
-    await expect(page.getByRole("alert")).toContainText("Dịch vụ tạm thời không khả dụng");
+    await expect(page.getByRole("alert", { name: "Lỗi truy vấn" })).toContainText("Dịch vụ tạm thời không khả dụng");
   });
 
   test("renders an abstention from the mock API boundary", async ({ page }) => {
     await page.route("**/api/v1/chat", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          status: "ABSTAINED",
-          answer: null,
-          claims: [],
-          citations: [],
-          abstention: { reason_code: "INSUFFICIENT_EVIDENCE" },
-          trace_id: "trace-smoke-abstained",
-        }),
-      });
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ status: "ABSTAINED", answer: null, claims: [], citations: [], abstention: { reason_code: "INSUFFICIENT_EVIDENCE" }, trace_id: "trace-smoke-abstained" }) });
     });
     await page.goto("/");
     await page.getByLabel("Câu hỏi").fill("Một tình huống chưa có đủ dữ kiện?");
@@ -82,5 +43,22 @@ test.describe("Sprint 5 answer flow", () => {
     await expect(page.getByText("Mã lý do:")).toBeVisible();
     await expect(page.getByText("INSUFFICIENT_EVIDENCE")).toBeVisible();
     await expect(page.getByText("Không thể đưa ra kết luận chắc chắn cho câu hỏi này.")).toBeVisible();
+  });
+});
+
+test.describe("Delayed response accessibility", () => {
+  test("shows neutral in-flight status while a chat response is pending", async ({ page }) => {
+    let releaseResponse!: () => void;
+    const responseReady = new Promise<void>((resolve) => { releaseResponse = resolve; });
+    await page.route("**/api/v1/chat", async (route) => { await responseReady; await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ status: "VERIFIED", answer: "Kết quả sau khi chờ.", claims: [], citations: [], trace_id: "trace-delayed" }) }); });
+    await page.goto("/");
+    await page.getByLabel("Câu hỏi").fill("Tra cứu khi phản hồi chậm");
+    await page.getByRole("button", { name: "Gửi câu hỏi" }).click();
+    const status = page.getByRole("status");
+    await expect(status).toContainText("Đang chuẩn bị tra cứu");
+    await expect(status).toHaveAttribute("aria-live", "polite");
+    await expect(page.getByRole("button", { name: "Đang tra cứu..." })).toBeDisabled();
+    releaseResponse();
+    await expect(page.getByText("Kết quả sau khi chờ.")).toBeVisible();
   });
 });

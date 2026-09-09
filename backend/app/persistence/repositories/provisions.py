@@ -86,11 +86,11 @@ class ProvisionRepository:
             .order_by(LegalProvision.clause, LegalProvision.point, LegalProvision.version)
         )
         if article is not None:
-            stmt = stmt.where(LegalProvision.article == article)
+            stmt = stmt.where(LegalProvision.article.in_((article, f"Điều {article}")))
         if clause is not None:
-            stmt = stmt.where(LegalProvision.clause == clause)
+            stmt = stmt.where(LegalProvision.clause.in_((clause, f"Khoản {clause}")))
         if point is not None:
-            stmt = stmt.where(LegalProvision.point == point)
+            stmt = stmt.where(LegalProvision.point.in_((point, f"Điểm {point}", f"Điểm {point})")))
         return list(self._session.scalars(stmt).unique())
 
     def list_provision_versions(self, provision_id: str) -> list[LegalProvision]:

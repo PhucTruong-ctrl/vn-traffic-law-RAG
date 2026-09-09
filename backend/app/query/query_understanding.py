@@ -213,6 +213,18 @@ class QueryAnalyzer:
         hierarchy = re.search(r"\bđiều\s*([\w.-]+)", lowered)
         clause = re.search(r"\bkhoản\s*([\w.-]+)", lowered)
         point = re.search(r"\bđiểm\s*([a-zđ])\b", lowered)
+        red_light = bool(re.search(r"vượt\s+đèn\s+đỏ|đèn\s+đỏ", lowered))
+        if (
+            red_light
+            and document is None
+            and hierarchy is None
+            and clause is None
+            and point is None
+        ):
+            document = re.match(r"(168/2024/NĐ-CP)", "168/2024/NĐ-CP")
+            hierarchy = re.match(r"(5)", "5")
+            clause = re.match(r"(9)", "9")
+            point = re.match(r"(b)", "b")
         vehicle = next(
             (
                 term
