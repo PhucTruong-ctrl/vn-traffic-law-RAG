@@ -117,8 +117,11 @@ async def chat(
         result = await graph.ainvoke(state)
     except (RuntimeError, ValueError) as exc:
         result = {
+            "status": "WORKFLOW_UNAVAILABLE",
+            "error_code": "WORKFLOW_UNAVAILABLE",
+            "error": str(exc),
             "verification_result": {
-                "status": "ABSTAIN",
+                "status": "ERROR",
                 "reason_code": "WORKFLOW_UNAVAILABLE",
                 "error": str(exc),
             },
@@ -192,16 +195,17 @@ def _response_payload(result: dict[str, Any], trace_id: str) -> dict[str, Any]:
     elif plan_status in {"GREETING", "OUT_OF_SCOPE", "CORPUS_NOT_COVERED"}:
         status = plan_status
     else:
-        status = "ABSTAINED" if verification.get("status") != "VALID" else "INSUFFICIENT_EVIDENCE"
+        status = "INSUFFICIENT_EVIDENCE"
     reason = verification.get("reason_code") or getattr(plan, "status_reason", None)
+    is_operational_error = status == "WORKFLOW_UNAVAILABLE"
     payload: dict[str, Any] = {
         "status": status,
         "answer": final.get("answer_summary") if status == "VERIFIED" else None,
         "claims": final.get("claims", []) if status == "VERIFIED" else [],
         "citations": citations if status == "VERIFIED" else [],
-        "metadata": {},
+        "metadata": {"error_code": result.get("error_code")} if is_operational_error else {},
         "abstention": None
-        if status == "VERIFIED"
+        if status in {"VERIFIED", "WORKFLOW_UNAVAILABLE"}
         else {"reason_code": reason or status, "evidence_gaps": result.get("evidence_gaps", [])},
         "disclaimer": DISCLAIMER,
         "trace_id": trace_id,
@@ -240,8 +244,11 @@ async def _run_workflow(
         )
     except (RuntimeError, ValueError) as exc:
         result = {
+            "status": "WORKFLOW_UNAVAILABLE",
+            "error_code": "WORKFLOW_UNAVAILABLE",
+            "error": str(exc),
             "verification_result": {
-                "status": "ABSTAIN",
+                "status": "ERROR",
                 "reason_code": "WORKFLOW_UNAVAILABLE",
                 "error": str(exc),
             },

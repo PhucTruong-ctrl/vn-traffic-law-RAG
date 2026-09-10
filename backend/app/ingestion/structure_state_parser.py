@@ -265,24 +265,15 @@ class LegalStructureStateParser:
                 label=_nonempty(match.group(2)),
             )
         match = _ARTICLE_RE.match(text)
-        if (
-            match
-            and (
-                _BARE_ARTICLE_MARKER_RE.match(text)
-                or re.match(
-                    r"^(?:Điều|Dièu|Dieu|Ðiều)\s+\d+[A-Za-z]?\s*[.:-]\s*\S",
-                    text,
-                    re.IGNORECASE,
-                )
-            )
-            and not re.match(
-                r"^(?:Điều|Dièu|Dieu|Ðiều)\s+\d+[A-Za-z]?\s*[.:]\s*[“\"]?Sửa\s+đổi\b",
+        if match and (
+            _BARE_ARTICLE_MARKER_RE.match(text)
+            or re.match(
+                r"^(?:Điều|Dièu|Dieu|Ðiều)\s+\d+[A-Za-z]?\s*[.:-]\s*\S",
                 text,
                 re.IGNORECASE,
             )
         ):
             number = match.group(1)
-            needs_review = not number.isdigit()
             needs_review = not number.isdigit()
             if match.group(0).split(None, 1)[0].casefold() != "điều":
                 element = element.model_copy(

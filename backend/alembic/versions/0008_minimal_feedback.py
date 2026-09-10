@@ -3,7 +3,7 @@
 from alembic import op
 
 revision = "0008_minimal_feedback"
-down_revision = "0007_conversations"
+down_revision = "0007"
 branch_labels = None
 depends_on = None
 

@@ -26,6 +26,7 @@ function ResponseMessage({
   onOpenSource: (citation: Citation) => void;
 }) {
   const verified = response.status === "VERIFIED";
+  const operational = response.status === "WORKFLOW_UNAVAILABLE";
   const citations = response.citations ?? [];
   return (
     <div className="assistant-message response-message">
@@ -33,9 +34,20 @@ function ResponseMessage({
       <div className="response-content">
         <div className="message-meta">
           <strong>Trợ lý Luật Giao thông</strong>
-          <span>{verified ? "Đã đối chiếu nguồn pháp luật" : "Chưa đủ căn cứ"}</span>
+          <span>
+            {verified
+              ? "Đã đối chiếu nguồn pháp luật"
+              : operational
+                ? "Dịch vụ tạm thời không khả dụng"
+                : "Chưa đủ căn cứ"}
+          </span>
         </div>
-        {verified ? (
+        {operational ? (
+          <section className="abstention-result alert error" role="alert">
+            <h2>Không thể xử lý yêu cầu lúc này</h2>
+            <p>{response.disclaimer ?? "Hệ thống gặp lỗi vận hành. Vui lòng thử lại sau."}</p>
+          </section>
+        ) : verified ? (
           <p className="assistant-answer">{response.answer}</p>
         ) : (
           <AbstentionResult

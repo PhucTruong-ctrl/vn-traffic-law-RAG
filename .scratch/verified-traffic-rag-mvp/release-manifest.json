@@ -1,57 +1,21 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "manifest_version": "release-manifest-v1",
-  "status": "TEMPLATE_UNVERIFIED",
-  "release": {
-    "version": null,
-    "code_commit": null,
-    "created_at": null
-  },
+  "status": "BLOCKED_UNVERIFIED",
+  "release": {"version": null, "code_commit": null, "created_at": "2026-09-10T00:00:00Z"},
   "corpus": {
     "source_allowlist": ["datafiles.chinhphu.vn"],
-    "snapshot_id": null,
-    "snapshot_sha256": null,
+    "snapshot_id": "candidate-corpus-14",
+    "snapshot_sha256": "613729aacc561748a11ef9736f01a2c374794fed35b053d86cb2e38cd61d82ed",
     "document_count": 14,
-    "accepted_document_ids": [],
+    "accepted_document_ids": ["nd-44-2024","nd-67-2023","nd-119-2024","nd-158-2024","nd-160-2024","nd-161-2024","nd-165-2024","nd-166-2024","nd-168-2024","tt-05-2024","tt-16-2024","tt-18-2024","tt-39-2024","tt-51-2024"],
     "rejected_document_ids": [],
     "identity_deduplication": "document_identity_or_file_hash",
-    "gate_report": null
+    "gate_report": "14-document serving snapshot only; expanded official documents remain auxiliary and are not promoted"
   },
-  "serving": {
-    "active_alias": null,
-    "collection": null,
-    "promotion_status": "UNVERIFIED",
-    "rollback_target": null
-  },
-  "embedding": {
-    "benchmark_artifact": null,
-    "selected_model": null,
-    "model_revision": null,
-    "dimensions": null,
-    "configuration": null,
-    "artifact_sha256": null
-  },
-  "gold": {
-    "dataset": "gold-v1",
-    "readiness": "UNVERIFIED",
-    "record_count": 200,
-    "splits": {"development": 40, "validation": 40, "final_test": 120},
-    "category_count": 17,
-    "dataset_sha256": null
-  },
-  "evaluation": {
-    "run_artifact": null,
-    "report_artifact": null,
-    "hard_gates": {
-      "all_questions_executed": false,
-      "invalid_citation_rate_zero": false,
-      "non_serving_exclusion": false
-    },
-    "feedback_gating": "NON_GATING"
-  },
-  "evidence": {
-    "ingestion_report": null,
-    "evaluation_report": null,
-    "runbook": "DEFENSE-RUNBOOK.md"
-  }
+  "serving": {"active_alias": "legal_provisions_active", "collection": "legal_provisions_v2", "promotion_status": "UNVERIFIED", "rollback_target": null},
+  "embedding": {"benchmark_artifact": "data/models/multilingual-e5-base-paddle", "selected_model": "multilingual-e5-base-paddle", "model_revision": "paddle-e5-base-v1", "dimensions": 768, "configuration": {"provider": "local-paddle", "device": "cuda", "fallback": false}, "artifact_sha256": null},
+  "gold": {"dataset": "gold-v1", "readiness": "BLOCKED", "record_count": 200, "splits": {"development": 39, "validation": 53, "final_test": 108}, "category_count": 17, "dataset_sha256": "a7a9a1cb97cb7f73140172156eb0354b41272a38ffb216e66ed4ac97c784b094"},
+  "evaluation": {"run_artifact": null, "report_artifact": null, "hard_gates": {"all_questions_executed": false, "invalid_citation_rate_zero": false, "non_serving_exclusion": false}, "feedback_gating": "NON_GATING"},
+  "evidence": {"ingestion_report": "data/ingestion/per-document", "evaluation_report": null, "runbook": "DEFENSE-RUNBOOK.md"}
 }

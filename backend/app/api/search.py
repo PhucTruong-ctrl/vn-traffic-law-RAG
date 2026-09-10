@@ -103,32 +103,16 @@ def _build_retriever(mode: str) -> Any:
 
 
 def _serving_sparse_encoder() -> SparseEncoder:
-    """Load the immutable vocabulary used by the active serving rebuild."""
-    from sqlalchemy import select
-
+    """Load the persisted vocabulary using the active accepted corpus."""
     from app.config import get_sparse_settings
     from app.ingestion.actors._state import new_session
     from app.ingestion.actors.index import load_or_fit_sparse_encoder
-    from app.persistence.models import LegalProvision
+    from app.retrieval.reconcile import accepted_retrieval_texts
 
     with new_session() as session:
-        from app.persistence.models import DocumentVersion, LegalProvision
-
-        active = session.scalar(
-            select(DocumentVersion)
-            .where(DocumentVersion.review_status == "ACCEPTED")
-            .order_by(DocumentVersion.id.desc())
-        )
-        if active is None:
-            raise RuntimeError("no active accepted document version for sparse serving")
-        texts = list(
-            session.scalars(
-                select(LegalProvision.retrieval_text).where(
-                    LegalProvision.document_version_id == active.id,
-                    LegalProvision.review_status == "ACCEPTED",
-                )
-            )
-        )
+        texts = accepted_retrieval_texts(session)
+    if not texts:
+        raise RuntimeError("no accepted provisions for sparse serving")
     return load_or_fit_sparse_encoder(texts, version=get_sparse_settings().encoder_version)
 
 

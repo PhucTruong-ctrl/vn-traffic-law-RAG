@@ -332,42 +332,22 @@ def index_accepted_provisions(
     effective_from_required: bool = True,
     batch_size: int = 32,
     collection: str | None = None,
+    document_version_id: uuid.UUID | None = None,
     **payload_kwargs: Any,
 ) -> IndexResult:
-    """Index every ACCEPTED provision from PostgreSQL into Qdrant.
+    """Index accepted provisions, optionally scoped to one document version.
 
-    Selects ``LegalProvision`` rows with ``review_status == 'ACCEPTED'``
-    (doc 00 §8.6, FR-09 — PENDING/NEEDS_REVIEW/REJECTED/DROPPED are never
-    selected, so they never enter the index), maps each row to a retrieval
-    unit via :func:`provision_row_to_unit` (the persisted row already carries
-    the final enriched ``retrieval_text``), embeds + sparse-encodes it, and
-    upserts one point per row into ``PROVISION_ALIAS`` (or ``collection``)
-    with the deterministic point id :func:`point_id_for` ``(row.id)``.
-
-    Payload inputs: per-row values (``effective_from``/``effective_to``,
-    ``chapter``/``section``/``article``/``clause``/``point``/``heading``,
-    ``content_hash``, ``review_status='ACCEPTED'``) come from the row;
-    everything else (``parser_version``, ``legal_parser_version``,
-    ``content_version``, ``relations``, ``vehicle_types``, document
-    metadata, ...) is passed via ``payload_kwargs`` and applies to all rows —
-    see :func:`build_point` for the full provenance map.
-
-    ``effective_from_required=True`` (default): ACCEPTED rows without an
-    ``effective_from`` are skipped and counted in
-    ``skipped_no_effective_from``. This is a defensive guard — the PG check
-    constraint ``legal_provisions_effective_from_accepted_check`` already
-    guarantees ACCEPTED rows carry an interval — so out-of-band writes cannot
-    leak interval-less points into the temporal index. Set ``False`` to index
-    them anyway (documented escape hatch).
-
-    Idempotent: re-running (or resuming after a killed worker) upserts the
-    same deterministic point ids, replacing rather than duplicating points.
+    When ``document_version_id`` is supplied, only that document's accepted
+    rows are selected. Deterministic point ids keep retries idempotent and
+    avoid re-embedding the already-indexed corpus on per-document ingestion.
     """
     stmt = (
         select(LegalProvision)
         .where(LegalProvision.review_status == ACCEPTED_REVIEW_STATUS)
         .order_by(LegalProvision.id)
     )
+    if document_version_id is not None:
+        stmt = stmt.where(LegalProvision.document_version_id == document_version_id)
     rows = list(session.scalars(stmt))
 
     units: list[RetrievalUnit] = []

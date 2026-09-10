@@ -373,3 +373,17 @@ def test_single_case_keeps_compatibility_and_records_uncertainty() -> None:
 def test_case_spec_forbids_unknown_fields() -> None:
     with pytest.raises(ValidationError):
         CaseSpec(case_id="case-1", query_text="q", unexpected="x")
+
+
+def test_ordinary_concept_query_without_document_is_not_corpus_miss() -> None:
+    plan = QueryAnalyzer().analyze("Vượt đèn đỏ bị phạt thế nào?", current_date=TODAY)
+    assert plan.status != "CORPUS_NOT_COVERED"
+    assert plan.document_number is None
+
+
+def test_explicit_unknown_document_remains_corpus_miss() -> None:
+    plan = QueryAnalyzer().analyze(
+        "Điều 1 Nghị định 999/2099/NĐ-CP quy định gì?",
+        current_date=TODAY,
+    )
+    assert plan.status == "CORPUS_NOT_COVERED"

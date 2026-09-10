@@ -326,18 +326,6 @@ class QueryAnalyzer:
             plan.missing_query_information = []
             plan._original_query = text
             return plan
-        red_light = bool(re.search(r"vượt\s+đèn\s+đỏ|đèn\s+đỏ|vuot\s+den\s+do|den\s+do", lowered))
-        if (
-            red_light
-            and document is None
-            and hierarchy is None
-            and clause is None
-            and point is None
-        ):
-            document = re.match(r"(168/2024/NĐ-CP)", "168/2024/NĐ-CP")
-            hierarchy = re.match(r"(5)", "5")
-            clause = re.match(r"(9)", "9")
-            point = re.match(r"(b)", "b")
         vehicle = next(
             (
                 canonical

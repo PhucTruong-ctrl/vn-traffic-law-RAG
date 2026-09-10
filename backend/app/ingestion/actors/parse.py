@@ -1,9 +1,8 @@
 """Parse actor — PARSING stage (VNLRAG-133).
 
-Downloads the source PDF from object storage (``source-pdfs`` bucket, key from
-the queue message), runs the Parser Router (docling primary, mineru fallback —
-doc 03 §3.7) and persists the accepted canonical IR (``parsed_documents`` +
-``document_elements`` rows).  The ``ingestion_runs`` row is bootstrapped here
+Downloads source PDFs, routes searchable files through pdfplumber, and routes
+scans through PaddleOCR GPU. Legacy Docling/MinerU runners are optional and
+are not part of the base dependency graph.
 (status ``QUEUED``) when the queue message is picked up, so :func:`enqueue_parse`
 stays a pure queue call (no DB, no FK coupling for VNLRAG-135).
 
@@ -28,8 +27,7 @@ from typing import Any
 import dramatiq
 
 from app.config import get_queue_settings
-from app.ingestion.adapters.docling_adapter import DoclingAdapter
-from app.ingestion.adapters.mineru_adapter import MinerUAdapter
+from app.ingestion.adapters.hybrid_ocr_adapter import HybridOCRAdapter
 from app.ingestion.adapters.pdfplumber_adapter import PdfPlumberAdapter
 from app.ingestion.document_ir import ParsedDocument
 from app.ingestion.parser_router import ParserRouter, RoutingInputs
@@ -110,20 +108,7 @@ def _routing_inputs(pdf_path: Path, *, document_id: str, has_text_layer: bool) -
 def _primary_parse(
     pdf_path: Path, *, inputs: RoutingInputs, object_key: str, parsed_document_id: str
 ) -> ParsedDocument:
-    """Docling parse (the primary parser, doc 03 §3.7.1)."""
-    return DoclingAdapter().parse(
-        str(pdf_path),
-        source_object_key=object_key,
-        parsed_document_id=parsed_document_id,
-        document_id=inputs.document_id,
-        ocr_enabled=not inputs.has_text_layer,
-    )
-
-
-def _alternate_parse(
-    pdf_path: Path, *, inputs: RoutingInputs, object_key: str, parsed_document_id: str
-) -> ParsedDocument:
-    """Parse the searchable-PDF alternate, retaining MinerU for scans/OCR."""
+    """Parse searchable text or GPU OCR into canonical IR."""
     if inputs.has_text_layer:
         return PdfPlumberAdapter().parse(
             pdf_path,
@@ -131,15 +116,37 @@ def _alternate_parse(
             parsed_document_id=parsed_document_id,
             document_id=inputs.document_id,
         )
-    with tempfile.TemporaryDirectory(prefix="vnlaw-mineru-") as output_dir:
-        return MinerUAdapter().parse_pdf(
-            str(pdf_path),
-            output_dir,
-            source_object_key=object_key,
-            parsed_document_id=parsed_document_id,
-            document_id=inputs.document_id,
-            method="auto",
+    import subprocess
+    import tempfile
+
+    with tempfile.TemporaryDirectory(prefix="vnlaw-actor-ocr-") as directory:
+        checkpoint = Path(directory)
+        rendered = subprocess.run(
+            ["pdftoppm", "-png", "-r", "144", str(pdf_path), str(checkpoint / "page")],
+            check=True,
+            capture_output=True,
+            text=True,
         )
+        del rendered
+        pages = sorted(
+            (int(path.stem.split("-")[-1]), path) for path in checkpoint.glob("page-*.png")
+        )
+        if not pages:
+            raise ParseRejectedError("GPU OCR produced no rendered pages")
+        return HybridOCRAdapter(device="gpu:0").parse_document(
+            pages,
+            document_id=inputs.document_id,
+            parsed_document_id=parsed_document_id,
+            source_object_key=object_key,
+            checkpoint_path=checkpoint / "ocr.json",
+        )
+
+
+def _alternate_parse(
+    pdf_path: Path, *, inputs: RoutingInputs, object_key: str, parsed_document_id: str
+) -> ParsedDocument:
+    """No alternate parser: primary Paddle/pdfplumber route is authoritative."""
+    raise ParseRejectedError("alternate parser unavailable")
 
 
 def route_and_parse(
@@ -161,44 +168,24 @@ def route_and_parse(
     inputs = _routing_inputs(
         pdf_path, document_id=document_id, has_text_layer=_probe_text_layer(pdf_path)
     )
-    primary_docs: list[ParsedDocument] = []
-    alternate_docs: list[ParsedDocument] = []
-
-    def _primary() -> ParsedDocument:
-        parsed = _primary_parse(
-            pdf_path, inputs=inputs, object_key=object_key, parsed_document_id=parsed_document_id
-        )
-        primary_docs.append(parsed)
-        return parsed
-
-    def _alternate() -> ParsedDocument:
-        parsed = _alternate_parse(
-            pdf_path, inputs=inputs, object_key=object_key, parsed_document_id=parsed_document_id
-        )
-        alternate_docs.append(parsed)
-        return parsed
-
-    decision, outcome = router.route_and_gate(
-        inputs,
-        _primary,
-        alternate_runner=_alternate,
-        alternate_parser="pdfplumber" if inputs.has_text_layer else None,
+    parsed = _primary_parse(
+        pdf_path, inputs=inputs, object_key=object_key, parsed_document_id=parsed_document_id
     )
+    parser_name = parsed.parser.casefold()
+    decision = router.decide(inputs).model_copy(
+        update={
+            "route": f"{parser_name}_{'text' if inputs.has_text_layer else 'ocr'}",
+            "selected_parser": parser_name,
+            "expected_fallback": None,
+        }
+    )
+    outcome = router.execute_and_gate(parsed, parser_name, parser_name, fallback_enabled=False)
     record = router.record_decision(decision, outcome)
-
     if outcome.terminal_outcome != "accepted":
         raise ParseRejectedError(
             f"router terminal_outcome={outcome.terminal_outcome!r}: {outcome.reason}"
         )
-    if outcome.source_parser == "docling" and primary_docs:
-        return primary_docs[-1], record
-    if outcome.source_parser == "mineru" and alternate_docs:
-        return alternate_docs[-1], record
-    if outcome.source_parser == "pdfplumber" and alternate_docs:
-        return alternate_docs[-1], record
-    raise ParseRejectedError(
-        f"no accepted parser document (source_parser={outcome.source_parser!r})"
-    )
+    return parsed, record
 
 
 @dramatiq.actor(**_ACTOR_OPTIONS)

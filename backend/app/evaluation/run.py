@@ -414,14 +414,8 @@ async def run_serving_evaluation(
     outcomes: list[dict[str, Any]] = []
     try:
         for record in records:
-            question_id = str(
-                getattr(record, "id", None)
-                or (record.get("id") if isinstance(record, Mapping) else "")
-            )
-            question = str(
-                getattr(record, "question", None)
-                or (record.get("question", "") if isinstance(record, Mapping) else "")
-            )
+            question_id = str(_field(record, "id", "") or "")
+            question = str(_field(record, "question", "") or "")
             started = __import__("time").perf_counter()
             try:
                 result = serving_runtime(question)
@@ -442,22 +436,10 @@ async def run_serving_evaluation(
                 "question_id": question_id,
                 "input": {
                     "question": question,
-                    "category": getattr(
-                        record, "category", record.get("category", "uncategorized")
-                    ),
-                    "query_date": str(
-                        getattr(record, "query_date", record.get("query_date", "")) or ""
-                    ),
-                    "expected_provision_ids": list(
-                        getattr(
-                            record,
-                            "expected_provision_ids",
-                            record.get("expected_provision_ids", []),
-                        )
-                    ),
-                    "required_evidence": list(
-                        getattr(record, "required_evidence", record.get("required_evidence", []))
-                    ),
+                    "category": _field(record, "category", "uncategorized"),
+                    "query_date": str(_field(record, "query_date", "") or ""),
+                    "expected_provision_ids": list(_field(record, "expected_provision_ids", [])),
+                    "required_evidence": list(_field(record, "required_evidence", [])),
                 },
                 "retrieval": {
                     "retrieved_ids": retrieved.get("retrieved_ids", result.get("retrieved_ids", []))

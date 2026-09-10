@@ -117,10 +117,13 @@ def _qdrant() -> None:
 
 def _provider() -> None:
     settings = get_embedding_settings()
-    if settings.provider not in {"gemini", "jina"}:
-        raise RuntimeError("unsupported provider")
-    if not (settings.gemini_api_key if settings.provider == "gemini" else settings.jina_api_key):
-        raise RuntimeError("provider not configured")
+    if settings.provider != "local":
+        raise RuntimeError("only local Paddle embedding provider is supported")
+    from app.retrieval.embedding import get_embedding_provider
+
+    provider = get_embedding_provider(settings)
+    if getattr(provider, "degraded", True):
+        raise RuntimeError("local embedding provider degraded")
 
 
 def readiness() -> dict[str, Any]:

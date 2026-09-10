@@ -1,26 +1,6 @@
-"""Embedding provider adapters (VNLRAG-41).
+"""Embedding provider adapters.
 
-Dense-embedding adapters for the Suite B candidates (doc 04 §4.8, ADR-013):
-
-- :class:`GeminiEmbeddingAdapter` — Gemini Embedding 2 via the Gemini REST
-  ``batchEmbedContents`` endpoint. The model's default output dimension is
-  3072; the adapter always *requests* the configured dimension (Suite B test
-  config: 768) through ``outputDimensionality`` and verifies the response.
-- :class:`JinaEmbeddingAdapter` — Jina Embeddings v5 via the Jina
-  ``/v1/embeddings`` REST endpoint: ``jina-embeddings-v5-text-nano`` is 768
-  dims and ``jina-embeddings-v5-text-small`` is 1024 dims (doc 04 §4.8.2).
-
-**No permanent model choice is claimed here.** The factory selects the adapter
-purely from configuration (``EMBEDDING_PROVIDER``/``EMBEDDING_MODEL``); Suite B
-(E1-E3) decides the production model from benchmark evidence, never beforehand
-(doc 00 §7, ADR-013). Changing the production model requires a collection
-rebuild + alias switch (doc 03 §3.11.7) — two embedding spaces are never mixed.
-
-Both adapters share the same HTTP plumbing: bounded retries with exponential
-backoff on 429/5xx (max ``max_retries`` retries, ``Retry-After`` respected),
-no unbounded loops, and per-call token usage logged and accumulated for cost
-tracking. API keys are read from configuration only (``GEMINI_API_KEY`` /
-``JINA_API_KEY``); a missing key raises :class:`ConfigError` at call time.
+Local Paddle GPU is production provider; HTTP adapters remain for legacy tests.
 """
 
 from __future__ import annotations
@@ -33,6 +13,7 @@ import time
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from collections.abc import Callable, Mapping, Sequence
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal, cast
 from urllib.parse import quote
@@ -467,16 +448,7 @@ class JinaEmbeddingAdapter(_HttpEmbeddingAdapter):
 
 
 class LocalE5EmbeddingAdapter(EmbeddingProvider):
-    """Local E5 encoder, with a deterministic stdlib fallback when unavailable.
-
-    The fallback is intentionally lexical rather than semantic.  It is used
-    only when SentenceTransformers cannot be imported (including a broken
-    optional torch installation), never downloads a model, and advertises its
-    own stable encoder version.
-    """
-
-    FALLBACK_PROVIDER = "local-hash"
-    FALLBACK_ENCODER_VERSION = "local-hash-v1"
+    """Local multilingual-E5 encoder running through Paddle GPU."""
 
     def __init__(
         self,
@@ -485,124 +457,69 @@ class LocalE5EmbeddingAdapter(EmbeddingProvider):
         cache: VersionedEmbeddingCache | None = None,
         encoder_version: str | None = None,
     ) -> None:
+        if settings.local_device == "cpu":
+            raise ConfigError("local embedding requires GPU device 'cuda'")
+        try:
+            import paddle
+            from paddlenlp.transformers import RobertaModel
+            from transformers import AutoTokenizer
+        except Exception as exc:
+            raise ConfigError("Paddle local embedding runtime unavailable") from exc
+        if not paddle.is_compiled_with_cuda() or paddle.device.cuda.device_count() < 1:
+            raise ConfigError("Paddle local embedding requires one CUDA device")
+        model_path = Path(settings.model).expanduser()
+        if not model_path.is_absolute():
+            model_path = Path(__file__).resolve().parents[3] / model_path
+        if not (model_path / "model_state.pdparams").is_file():
+            raise ConfigError(f"local embedding model missing: {model_path}")
+        paddle.set_device("gpu:0")
         self.name = settings.model
         self.dims = settings.dimensions
         self.batch_size = settings.batch_size
         self._cache = cache
-        self._encoder_version = encoder_version
+        self._encoder_version = encoder_version or "paddle-e5-base-v1"
         self.total_tokens = 0
         self.requests = 0
-        self.provider = "local-sentence-transformer"
-        self.device = "cpu"
-        self._model: Any | None = None
-        try:
-            from sentence_transformers import SentenceTransformer
-        except Exception as exc:
-            logger.warning(
-                "SentenceTransformers unavailable; using deterministic %s fallback: %s",
-                self.FALLBACK_PROVIDER,
-                exc,
-            )
-            self.provider = self.FALLBACK_PROVIDER
-            self._encoder_version = encoder_version or self.FALLBACK_ENCODER_VERSION
-            return
-        try:
-            import torch
-
-            device: Literal["cpu", "cuda"]
-            if settings.local_device == "auto":
-                device = "cuda" if torch.cuda.is_available() else "cpu"
-            else:
-                device = settings.local_device
-        except Exception:
-            device = "cpu"
-        try:
-            self.device = device
-            self._model = SentenceTransformer(self.name, device=device)
-        except Exception as exc:
-            logger.warning(
-                "SentenceTransformers model unavailable; using deterministic %s fallback: %s",
-                self.FALLBACK_PROVIDER,
-                exc,
-            )
-            self.provider = self.FALLBACK_PROVIDER
-            self.device = "cpu"
-            self._encoder_version = encoder_version or self.FALLBACK_ENCODER_VERSION
-
-    @staticmethod
-    def _fallback_vector(text: str, dimensions: int) -> list[float]:
-        normalized = " ".join(text.casefold().split())
-        features = normalized.split()
-        features.extend(
-            normalized[index : index + 3] for index in range(max(0, len(normalized) - 2))
-        )
-        vector = [0.0] * dimensions
-        for feature in features or [""]:
-            digest = hashlib.blake2b(feature.encode("utf-8"), digest_size=16).digest()
-            bucket = int.from_bytes(digest[:8], "big") % dimensions
-            sign = 1.0 if digest[8] & 1 else -1.0
-            vector[bucket] += sign * (1.0 + digest[9] / 255.0)
-        norm = sum(value * value for value in vector) ** 0.5
-        return [value / norm for value in vector] if norm else vector
+        self.provider = "local-paddle"
+        self.degraded = False
+        self.device = "cuda"
+        self._tokenizer = AutoTokenizer.from_pretrained(str(model_path))
+        self._model = RobertaModel.from_pretrained(str(model_path))
+        self._model.eval()
 
     def _encode(self, texts: list[str], prefix: str) -> list[list[float]]:
+        import paddle
+
         prepared = [text if text.startswith(prefix) else prefix + text for text in texts]
-        if self._model is None:
-            out = [self._fallback_vector(text, self.dims) for text in prepared]
-            self.requests += 1
-            return out
-        vectors = self._model.encode(
-            prepared, batch_size=self.batch_size, convert_to_numpy=True, normalize_embeddings=True
+        batch = self._tokenizer(
+            prepared, padding=True, truncation=True, max_length=512, return_tensors="np"
         )
-        out = [vector.tolist() if hasattr(vector, "tolist") else list(vector) for vector in vectors]
-        if any(len(vector) != self.dims for vector in out):
+        tensors = {name: paddle.to_tensor(value) for name, value in batch.items()}
+        with paddle.no_grad():
+            hidden = self._model(**tensors)[0]
+        mask = tensors["attention_mask"].unsqueeze(-1).astype("float32")
+        vectors = (hidden * mask).sum(axis=1) / paddle.clip(mask.sum(axis=1), min=1.0)
+        vectors = vectors / (paddle.linalg.norm(vectors, axis=1, keepdim=True) + 1e-12)
+        self.requests += 1
+        output = vectors.numpy().tolist()
+        if any(len(vector) != self.dims for vector in output):
             raise EmbeddingDimensionError(
                 f"{self.name} returned a dimension different from {self.dims}"
             )
-        self.requests += 1
-        return out
+        return output
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
-        if self._cache is None or self._encoder_version is None:
-            return self._encode(texts, "query: ")
-        keys = [
-            embedding_cache_key(self.name, self._encoder_version, text, mode="query")
-            for text in texts
-        ]
-        vectors: list[list[float] | None] = [self._cache.get(key) for key in keys]
-        missing = [index for index, vector in enumerate(vectors) if vector is None]
-        if missing:
-            fresh = self._encode([texts[index] for index in missing], "query: ")
-            for index, vector in zip(missing, fresh, strict=True):
-                vectors[index] = vector
-                self._cache.set(keys[index], vector)
-        return [vector for vector in vectors if vector is not None]
+        return self._encode(texts, "query: ")
 
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
-        out: list[list[float]] = []
+        output: list[list[float]] = []
         for start in range(0, len(texts), self.batch_size):
-            out.extend(self._embed_cached(texts[start : start + self.batch_size], "passage: "))
-        return out
-
-    def _embed_cached(self, texts: list[str], prefix: str) -> list[list[float]]:
-        if self._cache is None or self._encoder_version is None:
-            return self._encode(texts, prefix)
-        keys = [
-            embedding_cache_key(self.name, self._encoder_version, text, mode="passage")
-            for text in texts
-        ]
-        vectors: list[list[float] | None] = [self._cache.get(key) for key in keys]
-        missing = [index for index, vector in enumerate(vectors) if vector is None]
-        if missing:
-            fresh = self._encode([texts[index] for index in missing], prefix)
-            for index, vector in zip(missing, fresh, strict=True):
-                vectors[index] = vector
-                self._cache.set(keys[index], vector)
-        return [vector for vector in vectors if vector is not None]
+            output.extend(self._encode(texts[start : start + self.batch_size], "passage: "))
+        return output
 
 
 class EmbeddingSelectionManifest(BaseModel):
@@ -643,21 +560,17 @@ def _artifact_hash(records: Sequence[object]) -> str:
 def benchmark_local_embeddings(
     records: Sequence[Mapping[str, object]],
     *,
-    candidates: Sequence[str] = ("intfloat/multilingual-e5-small",),
+    candidates: Sequence[str] | None = None,
     sparse_vocabulary_version: str = "bm25-v1",
-    device: str = "cpu",
+    device: str = "cuda",
     max_candidates: int = 3,
     max_records: int = 40,
     provider_factory: Callable[[EmbeddingSettings], EmbeddingProvider] | None = None,
 ) -> list[EmbeddingSelectionManifest]:
-    """Benchmark only bounded local candidates already available to SentenceTransformers.
-
-    Candidates are intentionally explicit: discovery never downloads models.  A
-    candidate is usable only when its local adapter can be instantiated.
-    """
+    """Benchmark bounded local Paddle candidates already present on disk."""
     if max_candidates < 1 or max_records < 1:
         raise ValueError("benchmark bounds must be positive")
-    selected = sorted(set(candidates))[:max_candidates]
+    selected = sorted(set(candidates or (EmbeddingSettings().model,)))[:max_candidates]
     sample = list(records)[:max_records]
     texts = [str(row.get("text", row.get("query", ""))) for row in sample]
     artifact_hash = _artifact_hash(sample)
@@ -672,9 +585,9 @@ def benchmark_local_embeddings(
         try:
             provider = (provider_factory or get_embedding_provider)(settings)
             provider_name = getattr(provider, "provider", None)
-            if provider_name != "local-sentence-transformer":
+            if provider_name != "local-paddle" or getattr(provider, "degraded", False):
                 logger.warning(
-                    "skipping %s benchmark candidate: provider %r is not SentenceTransformer E5",
+                    "skipping %s benchmark candidate: provider %r is not healthy local Paddle",
                     model,
                     provider_name,
                 )
@@ -686,17 +599,8 @@ def benchmark_local_embeddings(
             continue
         if not vectors:
             continue
-        model_obj = getattr(provider, "_model", None)
-        model_config = getattr(model_obj, "config", None)
-        if not isinstance(model_config, Mapping):
-            continue
-        actual_model = str(model_config.get("_name_or_path", "")).strip()
-        actual_revision = str(
-            model_config.get("_commit_hash", model_config.get("revision", ""))
-        ).strip()
-        if not actual_model or not actual_revision:
-            logger.warning("skipping %s benchmark candidate: missing provider metadata", model)
-            continue
+        actual_model = str(getattr(provider, "name", model))
+        actual_revision = str(getattr(provider, "_encoder_version", "paddle-e5-base-v1"))
         quality_records = [
             {
                 "id": str(row.get("id", index)),
@@ -812,23 +716,31 @@ class VersionedEmbeddingCache:
             self._entries.clear()
 
 
+@lru_cache(maxsize=1)
+def _cached_local_provider(
+    model: str, dimensions: int, batch_size: int, device: str
+) -> EmbeddingProvider:
+    config = EmbeddingSettings(
+        provider="local",
+        model=model,
+        dimensions=dimensions,
+        batch_size=batch_size,
+        local_device=device,
+    )
+    return LocalE5EmbeddingAdapter(config)
+
+
 def get_embedding_provider(
     config: EmbeddingSettings,
     *,
     cache: VersionedEmbeddingCache | None = None,
     encoder_version: str | None = None,
 ) -> EmbeddingProvider:
-    """Instantiate the embedding provider selected by ``config`` (VNLRAG-41).
-
-    Selection is configuration-only; no model is permanently chosen here —
-    Suite B (E1-E3) benchmarks decide the production model from evidence,
-    never beforehand (doc 00 §7, ADR-013).
-
-    ``cache``/``encoder_version`` enable the versioned embedding cache: vectors
-    are reused only for the exact ``(model, encoder_version, text)`` triple
-    (doc 08 §8.5.2), so a rebuild with the same model+version re-embeds nothing
-    and a model/encoder change never reads stale vectors.
-    """
+    """Instantiate configured embedding adapter; cache local model weights."""
+    if config.provider == "local" and cache is None and encoder_version is None:
+        return _cached_local_provider(
+            config.model, config.dimensions, config.batch_size, config.local_device
+        )
     if config.provider == "gemini":
         return GeminiEmbeddingAdapter(config, cache=cache, encoder_version=encoder_version)
     if config.provider == "jina":

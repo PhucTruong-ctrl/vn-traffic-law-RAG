@@ -108,19 +108,7 @@ class QdrantSettings(BaseSettings):
 
 
 class EmbeddingSettings(BaseSettings):
-    """Dense embedding provider configuration (doc 03 §3.11, doc 04 §4.8, doc 07 §7.3.3).
-
-    Read from ``EMBEDDING_*`` environment variables, then the repo-root ``.env``
-    file (doc 07 §7.3.3): ``EMBEDDING_PROVIDER``, ``EMBEDDING_MODEL``,
-    ``EMBEDDING_DIMENSIONS``, ``EMBEDDING_BATCH_SIZE``. Provider API keys are
-    read from the bare ``GEMINI_API_KEY`` / ``JINA_API_KEY`` variables (doc 07
-    §7.3.3); the prefixed spellings are accepted as fallbacks.
-
-    The embedding model is deliberately NOT pinned permanently: Suite B (E1-E3)
-    benchmarks decide the production model from evidence (ADR-013). This config
-    only selects what :func:`app.retrieval.embedding.get_embedding_provider`
-    instantiates; model IDs live here, never hardcoded in domain logic.
-    """
+    """Local Paddle GPU embedding configuration."""
 
     model_config = SettingsConfigDict(
         env_prefix="EMBEDDING_",
@@ -131,23 +119,15 @@ class EmbeddingSettings(BaseSettings):
         populate_by_name=True,
     )
 
-    provider: Literal["gemini", "jina", "local"] = "gemini"
-    model: str = "gemini-embedding-2"
-    #: Suite B test dimension (E1/E2: 768, E3 text-small: 1024). Gemini's model
-    #: default is 3072; the adapter requests this value via ``outputDimensionality``.
+    provider: str = "local"
+    model: str = "data/models/multilingual-e5-base-paddle"
     dimensions: int = 768
     batch_size: int = 32
-    max_retries: int = 3
-    timeout_seconds: float = 60.0
-    gemini_api_key: str = Field(
-        default="",
-        validation_alias=AliasChoices("GEMINI_API_KEY", "EMBEDDING_GEMINI_API_KEY"),
-    )
-    local_device: Literal["auto", "cpu", "cuda"] = "auto"
-    jina_api_key: str = Field(
-        default="",
-        validation_alias=AliasChoices("JINA_API_KEY", "EMBEDDING_JINA_API_KEY"),
-    )
+    max_retries: int = 0
+    timeout_seconds: float = 0.0
+    local_device: str = "cuda"
+    gemini_api_key: str = ""
+    jina_api_key: str = ""
 
 
 class SparseSettings(BaseSettings):

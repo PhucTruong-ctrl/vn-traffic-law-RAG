@@ -798,6 +798,7 @@ def rebuild_index(
         or (getattr(sparse_encoder, "version", None) if sparse_encoder else None),
         CHUNKING_VERSION_PAYLOAD_KEY: chunking_version,
     }
+    _ensure_named_collection(client, new_name)
     indexer = (
         _resolve_index_provision_units() if index_provision_units is None else index_provision_units
     )

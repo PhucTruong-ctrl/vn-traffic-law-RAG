@@ -21,7 +21,6 @@ from app.retrieval.embedding import (
     EmbeddingProviderError,
     GeminiEmbeddingAdapter,
     JinaEmbeddingAdapter,
-    LocalE5EmbeddingAdapter,
     VersionedEmbeddingCache,
     embedding_cache_key,
     get_embedding_provider,
@@ -45,7 +44,7 @@ def _settings(**overrides: Any) -> EmbeddingSettings:
         "jina_api_key": "test-jina-key",
     }
     values.update(overrides)
-    return EmbeddingSettings(**values)
+    return EmbeddingSettings(_env_file=None, **values)
 
 
 def _client(handler: Any) -> httpx.Client:
@@ -374,28 +373,6 @@ def test_adapter_cache_version_change_reembeds() -> None:
 # ---------------------------------------------------------------------------
 # Factory and config
 # ---------------------------------------------------------------------------
-
-
-def test_local_e5_prefixes_query_and_passage(monkeypatch: pytest.MonkeyPatch) -> None:
-    class FakeModel:
-        def __init__(self, name: str, device: str) -> None:
-            self.device = device
-
-        def encode(self, texts: list[str], **kwargs: Any) -> list[Any]:
-            if texts == ["query: q"]:
-                return [[0.0] * DIMS]
-            assert texts == ["passage: p"]
-            return [[1.0] * DIMS]
-
-    monkeypatch.setitem(
-        __import__("sys").modules,
-        "sentence_transformers",
-        type("M", (), {"SentenceTransformer": FakeModel}),
-    )
-    settings = _settings(provider="local", model="intfloat/e5-small", local_device="cpu")
-    adapter = LocalE5EmbeddingAdapter(settings)
-    assert adapter.embed(["q"])[0] == [0.0] * DIMS
-    assert adapter.embed_batch(["p"])[0] == [1.0] * DIMS
 
 
 def test_factory_selects_gemini_from_config() -> None:
