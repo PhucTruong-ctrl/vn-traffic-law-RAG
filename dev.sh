@@ -31,8 +31,12 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   fi
   export "$key=$value"
 done < "$ENV_FILE"
+BACKEND_INTERNAL_URL="${BACKEND_INTERNAL_URL:-http://127.0.0.1:8000}"
+NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://localhost:8000}"
+export BACKEND_INTERNAL_URL NEXT_PUBLIC_API_URL
 
-required_env=(SUPABASE_URL OPENROUTER_API_KEY QDRANT_PATH BACKEND_INTERNAL_URL NEXT_PUBLIC_API_URL)
+
+required_env=(SUPABASE_URL OPENROUTER_API_KEY QDRANT_PATH)
 for key in "${required_env[@]}"; do
   if [[ -z "${!key:-}" ]]; then
     echo "Missing required environment variable: $key" >&2
