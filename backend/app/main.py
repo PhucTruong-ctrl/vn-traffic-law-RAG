@@ -4,6 +4,7 @@ import os
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth.api import router as auth_router
 from app.chats.api import router as chats_router
@@ -11,6 +12,13 @@ from app.legal.api import router as legal_router
 from app.rag.api import router as rag_router
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(rag_router)
 app.include_router(auth_router)
 app.include_router(chats_router)

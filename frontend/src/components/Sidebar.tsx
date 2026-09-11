@@ -2,12 +2,13 @@
 
 import { createPortal } from "react-dom";
 import type { CSSProperties } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { BookIcon, PanelIcon, PlusIcon, SearchIcon } from "./Icons";
 import LegalMark from "./LegalMark";
 import Modal from "./Modal";
 import type { Conversation } from "./chat-types";
+import { createClient } from "../../utils/supabase/client";
 
 type ConversationActivity = { id: string; nonce: number } | null;
 
@@ -28,6 +29,17 @@ export default function Sidebar({
   onCollapsedChange,
   onConversationActivity,
 }: SidebarProps) {
+  const supabase = useMemo(() => createClient(), []);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  useEffect(() => {
+    void supabase.auth
+      .getSession()
+      .then(({ data }) => setAccessToken(data.session?.access_token ?? null));
+    const { data } = supabase.auth.onAuthStateChange((_event, session) =>
+      setAccessToken(session?.access_token ?? null),
+    );
+    return () => data.subscription.unsubscribe();
+  }, [supabase]);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -53,7 +65,9 @@ export default function Sidebar({
     if (query.trim()) params.set("search", query.trim());
     if (nextCursor) params.set("cursor", nextCursor);
     try {
-      const result = await fetch(`/api/v1/conversations?${params}`);
+      const result = await fetch(`/api/v1/chats?${params}`, {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      });
       if (!result.ok) return;
       const payload = (await result.json()) as {
         conversations?: Conversation[];
@@ -65,10 +79,9 @@ export default function Sidebar({
       setConversations((previous) => (nextCursor ? [...previous, ...items] : items));
       setCursor(payload.next_cursor ?? payload.cursor ?? null);
     } catch {
-      // History remains non-blocking when API is unavailable.
-    } finally {
       setConversationsLoading(false);
     }
+    setConversationsLoading(false);
   }
   useEffect(() => {
     const activity = onConversationActivity;
@@ -205,10 +218,12 @@ export default function Sidebar({
   async function rename(id: string) {
     const next = title.trim();
     if (!next) return;
-    const result = await fetch(`/api/v1/conversations/${encodeURIComponent(id)}`, {
+    const result = await fetch(`/api/v1/chats/${encodeURIComponent(id)}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: next }),
+      headers: {
+        "Content-Type": "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
     });
     if (result.ok) {
       setConversations((items) =>
@@ -221,8 +236,9 @@ export default function Sidebar({
 
   async function remove(id: string) {
     if (!window.confirm("Xóa cuộc trò chuyện này?")) return;
-    const result = await fetch(`/api/v1/conversations/${encodeURIComponent(id)}`, {
+    const result = await fetch(`/api/v1/chats/${encodeURIComponent(id)}`, {
       method: "DELETE",
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });
     if (result.ok) setConversations((items) => items.filter((item) => item.id !== id));
   }

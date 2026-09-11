@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
+import { createClient } from "../../utils/supabase/client";
 
 type FeedbackValue = "LIKE" | "DISLIKE";
 type SubmissionState = "idle" | "submitting" | "success" | "error";
@@ -14,8 +15,9 @@ export type FeedbackWidgetProps = {
 export default function FeedbackWidget({
   traceId,
   messageId,
-  endpoint = "/api/v1/feedback",
+  endpoint = "/api/v1/chats/feedback",
 }: FeedbackWidgetProps) {
+  const supabase = useRef(createClient()).current;
   const [value, setValue] = useState<FeedbackValue | null>(null);
   const [state, setState] = useState<SubmissionState>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -24,11 +26,16 @@ export default function FeedbackWidget({
     event.preventDefault();
     if (!value || !traceId || state === "submitting") return;
     setState("submitting");
-    setError(null);
+    const { data } = await supabase.auth.getSession();
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "X-Trace-ID": traceId,
+    };
+    if (data.session?.access_token) headers.Authorization = `Bearer ${data.session.access_token}`;
     try {
       const response = await fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Trace-ID": traceId },
+        headers,
         body: JSON.stringify({ trace_id: traceId, message_id: messageId, rating: value }),
       });
       if (!response.ok) {

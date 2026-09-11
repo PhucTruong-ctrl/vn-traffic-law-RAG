@@ -1,36 +1,26 @@
-"""Supabase JWT verification and Bearer token helpers."""
+"""Bearer token validation through Supabase Auth, not locally guessed JWT secrets."""
 
 from __future__ import annotations
 
-import base64
-import hashlib
-import hmac
-import json
-import os
-import time
+from fastapi import HTTPException
 
-_SECRET = os.getenv("SUPABASE_JWT_SECRET", "")
+from app.database.session import SupabaseClient
 
 
-def _decode(value: str) -> bytes:
-    return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
-
-
-def decode_access_token(token: str) -> dict[str, object]:
+def decode_access_token(client: SupabaseClient, token: str) -> dict[str, object]:
+    if not token.strip():
+        raise ValueError("invalid token")
     try:
-        header, payload, signature = token.split(".")
-        claims = json.loads(_decode(payload))
-        if not _SECRET or claims.get("exp", 0) <= time.time():
-            raise ValueError("expired token")
-        expected = (
-            base64.urlsafe_b64encode(
-                hmac.new(_SECRET.encode(), f"{header}.{payload}".encode(), hashlib.sha256).digest()
-            )
-            .rstrip(b"=")
-            .decode()
-        )
-        if not hmac.compare_digest(signature, expected):
-            raise ValueError("invalid signature")
-        return claims
-    except (ValueError, TypeError, KeyError, json.JSONDecodeError):
-        raise ValueError("invalid token") from None
+        user = client.auth_request("GET", "user", token=token)
+    except Exception as exc:
+        raise ValueError("invalid token") from exc
+    if not isinstance(user, dict) or not user.get("id"):
+        raise ValueError("invalid token")
+    return user
+
+
+def require_access_token(client: SupabaseClient, token: str) -> dict[str, object]:
+    try:
+        return decode_access_token(client, token)
+    except (RuntimeError, ValueError):
+        raise HTTPException(status_code=401, detail="Invalid or expired token") from None

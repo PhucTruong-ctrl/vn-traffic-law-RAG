@@ -10,15 +10,71 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
-set -a
-source "$ENV_FILE"
-set +a
-export QDRANT_URL="${QDRANT_URL/http:\/\/qdrant/http:\/\/127.0.0.1}"
+# Import KEY=VALUE entries without executing arbitrary shell from .env.
+# Values may be quoted and may contain `=`; comments are only recognized when
+# they begin a line, so URL fragments and keys containing `#` remain intact.
+while IFS= read -r line || [[ -n "$line" ]]; do
+  line="${line%$'\r'}"
+  [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+  if [[ ! "$line" =~ ^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+    echo "Invalid .env entry (expected KEY=VALUE): $line" >&2
+    exit 1
+  fi
+  key="${BASH_REMATCH[1]}"
+  value="${BASH_REMATCH[2]}"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+    value="${value:1:${#value}-2}"
+  elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
+    value="${value:1:${#value}-2}"
+  fi
+  export "$key=$value"
+done < "$ENV_FILE"
 
+required_env=(SUPABASE_URL OPENROUTER_API_KEY QDRANT_PATH)
+for key in "${required_env[@]}"; do
+  if [[ -z "${!key:-}" ]]; then
+    echo "Missing required environment variable: $key" >&2
+    exit 1
+  fi
+done
+if [[ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" && -z "${SUPABASE_ANON_KEY:-}" && -z "${SUPABASE_PUBLISHABLE_KEY:-}" ]]; then
+  echo "Missing required environment variable: SUPABASE_ANON_KEY or SUPABASE_PUBLISHABLE_KEY or SUPABASE_SERVICE_ROLE_KEY" >&2
+  exit 1
+fi
+if [[ -z "${SUPABASE_ANON_KEY:-}" ]]; then
+  export SUPABASE_ANON_KEY="${SUPABASE_PUBLISHABLE_KEY:-}"
+fi
+
+# Next.js reads frontend/.env.local for direct launches. Keep the generated
+# file restricted and preserve a user-managed nonempty file unless the root
+# .env explicitly supplied the public values.
+NEXT_PUBLIC_SUPABASE_URL="${NEXT_PUBLIC_SUPABASE_URL:-$SUPABASE_URL}"
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-${SUPABASE_PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-}}}"
+frontend_env="$ROOT/frontend/.env.local"
+if [[ ! -s "$frontend_env" || -n "${SUPABASE_URL:-}" || -n "${SUPABASE_PUBLISHABLE_KEY:-}" || -n "${SUPABASE_ANON_KEY:-}" ]]; then
+  umask 077
+  printf 'NEXT_PUBLIC_SUPABASE_URL=%s\nNEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=%s\n' \
+    "$NEXT_PUBLIC_SUPABASE_URL" "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" > "$frontend_env"
+  chmod 600 "$frontend_env"
+fi
+
+# Pass the validated values explicitly so child processes cannot fall back to
+# unrelated environment files or inherited values.
+export NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+for key in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; do
+  if [[ -z "${!key:-}" ]]; then
+    echo "Missing required environment variable: $key" >&2
+    exit 1
+  fi
+done
+export QDRANT_PATH="$ROOT/${QDRANT_PATH#"$ROOT/"}"
 if [[ "${1:-}" == "test" ]]; then
   shift
   exec uv run --directory "$ROOT/backend" pytest "$@"
 fi
+
 
 stale_patterns=("$ROOT/backend.*uvicorn" "$ROOT/frontend.*next dev")
 stale_pids() { local pattern; for pattern in "${stale_patterns[@]}"; do pgrep -f "$pattern" || true; done | sort -u; }
@@ -34,28 +90,25 @@ fuser -k 8000/tcp 3000/tcp 2>/dev/null || true
 for _ in $(seq 1 25); do leftovers=$(stale_pids); [[ -z "$leftovers" ]] && break; sleep 0.2; done
 if [[ -n "$leftovers" ]]; then echo "Could not stop stale processes; refusing to serve older code:" >&2; exit 1; fi
 
-docker compose --env-file "$ENV_FILE" up -d postgres qdrant
-for _ in $(seq 1 60); do
-  postgres_state=$(docker compose --env-file "$ENV_FILE" ps --format '{{.State}}' postgres 2>/dev/null || true)
-  qdrant_state=$(docker compose --env-file "$ENV_FILE" ps --format '{{.State}}' qdrant 2>/dev/null || true)
-  [[ "$postgres_state" == running* && "$qdrant_state" == running* ]] && break
-  sleep 1
-done
-if [[ "$postgres_state" != running* ]]; then echo "PostgreSQL did not become ready: ${postgres_state:-not found}" >&2; exit 1; fi
-if [[ "$qdrant_state" != running* ]]; then echo "Qdrant did not become ready: ${qdrant_state:-not found}" >&2; exit 1; fi
 
 child_pids=()
 cleanup() { trap - INT TERM EXIT; ((${#child_pids[@]})) && kill "${child_pids[@]}" 2>/dev/null || true; wait "${child_pids[@]}" 2>/dev/null || true; }
 trap cleanup INT TERM EXIT
 (
-  exec env PYTHONPATH=. DATABASE_URL="${DATABASE_URL:-}" QDRANT_URL="$QDRANT_URL" QDRANT_API_KEY="${QDRANT_API_KEY:-}" \
-    OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}" \
+  exec env PYTHONPATH=. \
+    SUPABASE_URL="$SUPABASE_URL" SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}" SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY:-}" \
+    QDRANT_PATH="$QDRANT_PATH" QDRANT_COLLECTION="${QDRANT_COLLECTION:-traffic_law}" \
+    OPENROUTER_API_KEY="$OPENROUTER_API_KEY" OPENROUTER_BASE_URL="${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}" \
+    GENERATION_MODEL="${GENERATION_MODEL:-deepseek/deepseek-v4-flash-0731}" EMBEDDING_MODEL="${EMBEDDING_MODEL:-openai/text-embedding-3-small}" \
     uv run --env-file /dev/null --project "$ROOT/backend" python -m uvicorn app.main:app --reload --reload-dir "$ROOT/backend/app" --app-dir "$ROOT/backend" --host 127.0.0.1 --port 8000
 ) > >(sed -u 's/^/[api] /') 2>&1 &
 child_pids+=("$!")
 (
   cd "$ROOT/frontend"
-  exec env NEXT_PUBLIC_API_URL="http://localhost:8000" npm run dev -- --hostname 127.0.0.1 --port 3000
+  exec env NEXT_PUBLIC_API_URL="http://localhost:8000" \
+    NEXT_PUBLIC_SUPABASE_URL="$NEXT_PUBLIC_SUPABASE_URL" \
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" \
+    npm run dev -- --hostname 127.0.0.1 --port 3000
 ) > >(sed -u 's/^/[frontend] /') 2>&1 &
 child_pids+=("$!")
 

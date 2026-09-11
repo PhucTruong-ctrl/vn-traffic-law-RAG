@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import AppHeader from "./AppHeader";
@@ -12,6 +12,8 @@ import Welcome from "./Welcome";
 import type { ChatResponse, ConversationTurn } from "./chat-types";
 import type { ProgressEvent } from "./ProgressEvents";
 import type { Citation } from "./CitationCard";
+import type { Session } from "@supabase/supabase-js";
+import { createClient } from "../../utils/supabase/client";
 
 const API_PATH = "/api/v1/chat";
 const isCitation = (value: unknown): value is Citation => {
@@ -117,7 +119,6 @@ function turnsFromConversation(value: unknown): ConversationTurn[] {
   }
   return turns;
 }
-
 export default function ChatPage({ conversationId }: { conversationId?: string }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -130,21 +131,50 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [progressEvents, setProgressEvents] = useState<ProgressEvent[]>([]);
   const [activeId, setActiveId] = useState(conversationId);
+  const [session, setSession] = useState<Session | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authError, setAuthError] = useState("");
   const abortControllerRef = useRef<AbortController | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const supabase = useMemo(() => createClient(), []);
+  const authHeaders = useCallback(async (): Promise<Record<string, string>> => {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token
+      ? { Authorization: `Bearer ${data.session.access_token}` }
+      : {};
+  }, [supabase]);
+  useEffect(() => {
+    let mounted = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (mounted) {
+        setSession(data.session);
+        setAuthReady(true);
+      }
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, next) => {
+      setSession(next);
+      setAuthReady(true);
+    });
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
+  }, [supabase]);
   useEffect(() => {
     const controller = new AbortController();
-    if (!conversationId) {
-      return () => controller.abort();
-    }
-    void Promise.resolve().then(() => {
-      if (!controller.signal.aborted) setLoading(true);
-    });
-    fetch(`/api/v1/conversations/${encodeURIComponent(conversationId)}`, {
-      signal: controller.signal,
-    })
+    if (!conversationId || !session) return () => controller.abort();
+    void authHeaders()
+      .then((headers) =>
+        fetch(`/api/v1/chats/${encodeURIComponent(conversationId)}`, {
+          headers,
+          signal: controller.signal,
+        }),
+      )
       .then((result) => {
-        if (!result.ok) throw new Error("Không thể tải cuộc trò chuyện.");
+        if (!result?.ok) throw new Error("Không thể tải cuộc trò chuyện.");
         return result.json();
       })
       .then((payload) => {
@@ -164,7 +194,7 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
         }
       });
     return () => controller.abort();
-  }, [conversationId]);
+  }, [conversationId, session, authHeaders]);
 
   const navigateTo = useCallback(
     (id?: string) => {
@@ -174,10 +204,22 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
     [pathname, router],
   );
 
+  async function authenticate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setAuthError("");
+    const result =
+      authMode === "login"
+        ? await supabase.auth.signInWithPassword({ email, password })
+        : await supabase.auth.signUp({ email, password });
+    if (result.error) setAuthError(result.error.message);
+    else if (authMode === "register" && !result.data.session)
+      setAuthError("Vui lòng xác nhận email trước khi đăng nhập.");
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const submitted = question.trim();
-    if (!submitted || loading) return;
+    if (!submitted || loading || !session) return;
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
     setProgressEvents([]);
@@ -187,40 +229,16 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
     try {
       const result = await fetch(API_PATH, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: submitted,
-          ...(activeId ? { conversation_id: activeId } : {}),
-        }),
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify({ question: submitted }),
         signal: abortController.signal,
       });
       const payload = await result.json().catch(() => null);
-      if (!result.ok) {
-        const message =
-          payload &&
-          typeof payload === "object" &&
-          "error" in payload &&
-          payload.error &&
-          typeof payload.error === "object" &&
-          "message" in payload.error &&
-          typeof payload.error.message === "string"
-            ? payload.error.message
-            : "Không thể xử lý câu hỏi.";
-        throw new Error(message);
-      }
+      if (!result.ok)
+        throw new Error(payload?.detail || payload?.error?.message || "Không thể xử lý câu hỏi.");
       const nextResponse = validateChatResponse(payload);
       setTurns((previous) => [...previous, { question: submitted, response: nextResponse }]);
       setQuestion("");
-      const returnedId =
-        payload &&
-        typeof payload === "object" &&
-        typeof (payload as Record<string, unknown>).conversation_id === "string"
-          ? (payload as Record<string, string>).conversation_id
-          : activeId;
-      if (returnedId && returnedId !== activeId) {
-        setActiveId(returnedId);
-        navigateTo(returnedId);
-      }
     } catch (submissionError) {
       if (submissionError instanceof DOMException && submissionError.name === "AbortError") return;
       setError(
@@ -253,6 +271,51 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
     "Đi xe máy không đội mũ bảo hiểm bị phạt thế nào?",
     "Có được dùng điện thoại khi đang lái xe không?",
   ];
+  if (!authReady)
+    return (
+      <main className="app-shell">
+        <p role="status">Đang kiểm tra phiên đăng nhập…</p>
+      </main>
+    );
+  if (!session)
+    return (
+      <main className="app-shell">
+        <section className="main-panel auth-gate">
+          <AppHeader />
+          <form onSubmit={authenticate}>
+            <h1>Đăng nhập để tra cứu</h1>
+            <p>Vui lòng đăng nhập hoặc tạo tài khoản để sử dụng chat.</p>
+            <label>
+              Email
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+              />
+            </label>
+            <label>
+              Mật khẩu
+              <input
+                type="password"
+                minLength={8}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+              />
+            </label>
+            {authError && <p role="alert">{authError}</p>}
+            <button type="submit">{authMode === "login" ? "Đăng nhập" : "Đăng ký"}</button>
+            <button
+              type="button"
+              onClick={() => setAuthMode(authMode === "login" ? "register" : "login")}
+            >
+              {authMode === "login" ? "Tạo tài khoản" : "Đã có tài khoản"}
+            </button>
+          </form>
+        </section>
+      </main>
+    );
   return (
     <main className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
       <Sidebar
