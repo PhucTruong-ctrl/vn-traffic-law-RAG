@@ -8,6 +8,7 @@ dependencies = [
     "uvicorn[standard]",
     "pydantic[email]>=2.7.4",
     "pydantic-settings",
+    "langchain-openai>=1,<2",
     "langchain-openrouter>=0.1,<1",
     "langchain-qdrant>=1,<2",
     "openai>=2,<3",
