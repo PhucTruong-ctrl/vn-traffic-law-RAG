@@ -36,13 +36,13 @@ services:
       context: ../..
       dockerfile: frontend/Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
         APP_VERSION: ${APP_VERSION:-dev}
     image: vnlaw-frontend:${APP_VERSION:-dev}
     restart: unless-stopped
     environment:
       BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL:-http://backend:8000}
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
       APP_VERSION: ${APP_VERSION:-dev}
     ports: ["${FRONTEND_PORT:-3000}:3000"]
     depends_on:

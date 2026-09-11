@@ -22,7 +22,7 @@ export default function FeedbackWidget({
   const [state, setState] = useState<SubmissionState>("idle");
   const [error, setError] = useState<string | null>(null);
 
-  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

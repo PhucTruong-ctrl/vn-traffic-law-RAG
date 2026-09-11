@@ -32,7 +32,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   export "$key=$value"
 done < "$ENV_FILE"
 BACKEND_INTERNAL_URL="${BACKEND_INTERNAL_URL:-http://127.0.0.1:8000}"
-NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://localhost:8000}"
+NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-}"
 export BACKEND_INTERNAL_URL NEXT_PUBLIC_API_URL
 
 
@@ -67,7 +67,7 @@ fi
 # Pass the validated values explicitly so child processes cannot fall back to
 # unrelated environment files or inherited values.
 export NEXT_PUBLIC_API_URL NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY BACKEND_INTERNAL_URL
-for key in NEXT_PUBLIC_API_URL NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY BACKEND_INTERNAL_URL; do
+for key in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY BACKEND_INTERNAL_URL; do
   if [[ -z "${!key:-}" ]]; then
     echo "Missing required environment variable: $key" >&2
     exit 1

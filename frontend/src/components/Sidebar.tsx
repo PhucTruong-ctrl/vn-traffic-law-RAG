@@ -9,7 +9,7 @@ import LegalMark from "./LegalMark";
 import Modal from "./Modal";
 import type { Conversation } from "./chat-types";
 import { createClient } from "../../utils/supabase/client";
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 type ConversationActivity = { id: string; nonce: number } | null;
 
 type SidebarProps = {

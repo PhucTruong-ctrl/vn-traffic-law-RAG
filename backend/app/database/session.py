@@ -43,7 +43,13 @@ class SupabaseClient:
             headers=request_headers,
             timeout=15,
         )
-        response.raise_for_status()
+        if response.is_error:
+            detail = response.text.strip()
+            raise httpx.HTTPStatusError(
+                f"Supabase REST request failed ({response.status_code}): {detail}",
+                request=response.request,
+                response=response,
+            )
         return response.json() if response.content else None
 
     def auth_request(
@@ -64,7 +70,13 @@ class SupabaseClient:
             headers=headers,
             timeout=15,
         )
-        response.raise_for_status()
+        if response.is_error:
+            detail = response.text.strip()
+            raise httpx.HTTPStatusError(
+                f"Supabase Auth request failed ({response.status_code}): {detail}",
+                request=response.request,
+                response=response,
+            )
         return response.json() if response.content else None
 
 

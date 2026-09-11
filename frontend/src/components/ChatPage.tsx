@@ -15,7 +15,7 @@ import type { Citation } from "./CitationCard";
 import type { Session } from "@supabase/supabase-js";
 import { createClient } from "../../utils/supabase/client";
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 const API_PATH = `${API_BASE}/api/v1/chat`;
 const isCitation = (value: unknown): value is Citation => {
   if (typeof value !== "object" || value === null) return false;
