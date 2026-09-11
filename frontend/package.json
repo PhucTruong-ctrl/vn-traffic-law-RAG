@@ -19,6 +19,8 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.116.0",
     "motion": "^12.23.24",
     "next": "^16.0.0",
     "pdfjs-dist": "^6.3.289",

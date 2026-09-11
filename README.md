@@ -1,17 +1,10 @@
 # VN Traffic Law RAG (VNLRAG)
 
-Runnable thesis MVP for Vietnamese traffic-law question answering. The active path is intentionally small and local-first: PDFs are parsed into legal metadata chunks, retrieved lexically, and answered with grounded metadata-only citations.
+Runnable MVP for Vietnamese traffic-law questions. The active pipeline is:
 
-## Active MVP path
-
-1. Place source PDFs under the canonical `data/corpus/pdfs/` directory (the ingest script searches recursively).
-   For GPU-accelerated OCR ingestion, explicitly enable CUDA:
-   `OCR_USE_CUDA=1 uv run --project backend python backend/scripts/ingest.py --pdf-dir data/corpus/pdfs/`
-2. `backend/scripts/ingest.py` extracts pages with **PyMuPDF4LLM**, splits legal provisions, and writes deterministic JSONL chunks containing document/article/clause/point/page/source metadata.
-3. `backend/scripts/index.py` builds the persistent local lexical index. Ranking is BM25-compatible and requires no external service. Qdrant is an optional deployment backend; OpenRouter is optional for hosted embeddings/generation.
-4. The API retrieves top chunks, sends only their text to the configured generator (default **Gemini 2.5 Flash** through OpenRouter), and constructs citations from chunk metadata. The model is not trusted to invent citation fields.
-
-Generated files are disposable: `data/processed/`, `data/index/`, and local Qdrant data are not source corpus and should not be committed.
+```text
+Markdown manifest -> LangChain Documents -> local Qdrant HYBRID -> ChatOpenRouter -> citations
+```
 
 ## Quick start
 
@@ -19,47 +12,67 @@ Generated files are disposable: `data/processed/`, `data/index/`, and local Qdra
 cp .env.example .env
 uv sync --project backend
 
-# From the repository root:
-uv run --project backend python backend/scripts/ingest.py
-uv run --project backend python backend/scripts/index.py
-uv run --project backend python backend/scripts/smoke.py
+# Build chunks from the Markdown manifest.
+uv run --project backend python backend/scripts/fetch_sources.py
 
+# Build the local hybrid retrieval collection.
+uv run --project backend python backend/scripts/index.py
+
+# Start the API.
 uv run --project backend uvicorn app.main:app --reload
 ```
 
-The default chunk output is `data/processed/chunks.jsonl`; the default local index is `backend/data/qdrant`. Override either path with `--output`, `--chunks`, or `--index-path`. Set `OPENROUTER_API_KEY` (and, optionally, `GENERATION_MODEL`) for hosted generation; without a key the deterministic local fallback still returns retrieved context.
+`fetch_sources.py` reads `data/sources/manifest.json`, resolves each entry to a Markdown file under `data/corpus/mds/`, and writes `data/processed/chunks.jsonl`. Use `--manifest`, `--local-dir`, and `--output` to override those paths.
 
-## Request flow and API
+`index.py` creates a fresh local Qdrant collection from that JSONL. Retrieval combines dense 768-dimensional OpenRouter embeddings with sparse FastEmbed BM25 (`Qdrant/bm25`) using LangChain Qdrant `HYBRID` mode. Qdrant path and collection are configured by `QDRANT_PATH` and `QDRANT_COLLECTION`.
 
-- `GET /api/v1/health` — lightweight health response.
-- `GET /api/v1/health/live` and `GET /api/v1/health/ready` — liveness/readiness probes.
-- `POST /api/v1/chat` — JSON body `{ "question": "...", "top_k": 5, "effective_date": null }`.
+## Generation and grounded answers
 
-A chat request is validated, retrieved against the local index, generated from retrieved context, and returned with citations containing only stored metadata such as document identity, article/clause/point, page, source file, and excerpt. No query-time web search is performed.
+Set `OPENROUTER_API_KEY` and optionally `OPENROUTER_BASE_URL` in `.env`. `GENERATION_MODEL` selects the ChatOpenRouter model; its default is `deepseek/deepseek-v4-flash-0731`.
 
-## Evaluation
+Chat requests retrieve legal chunks, apply deterministic reference and evidence checks, then send the question and retrieved documents to the configured model. Citations are assembled from document metadata (identity, article/clause/point, source, and effective-date information). When evidence is insufficient, the service abstains rather than inventing facts or performing web retrieval.
+
+Active legal intelligence includes structured Vietnamese legal locations, source provenance, explicit effective-date queries, metadata filtering/search, grounded generation, and evidence-aware abstention.
+
+## Application persistence
+
+Supabase stores application data: profiles/authentication, chat sessions, messages, feedback, and bookmarks. The Markdown manifest is the ingestion input, and local Qdrant is derived retrieval data; neither is replaced by Supabase application tables.
+
+## API routes
+
+- `GET /api/v1/health`
+- `GET /api/v1/health/live`
+- `GET /api/v1/health/ready`
+- `POST /api/v1/chat`
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `GET /api/v1/auth/me`
+- `GET/POST /api/v1/chats`
+- `GET/PATCH/DELETE /api/v1/chats/{session_id}`
+- `POST /api/v1/chats/{session_id}/messages`
+- `POST /api/v1/chats/{session_id}/messages/{message_id}/feedback`
+- `POST /api/v1/chats/{session_id}/bookmarks`
+- `GET /api/v1/legal-documents`
+- `GET /api/v1/legal-documents/{document_id}`
+- `GET /api/v1/legal-documents/{document_id}/provisions`
+- `GET /api/v1/legal-search`
+
+Chat payload:
+
+```json
+{"question":"...", "top_k":5, "effective_date":null}
+```
+
+## Checks and evaluation
 
 ```bash
+uv run --project backend python backend/scripts/smoke.py
 uv run --project backend python backend/scripts/run_release_evaluation.py --help
 ```
 
-Use the evaluation script with the repository's configured gold set and output directory when those artifacts are available. `backend/scripts/smoke.py` is the quick runnable check for retrieval, generation, and citation shape.
+## P2 paused scope
 
-## Historical design documents
-
-The detailed v2 design and ADRs remain useful historical context, but are not the active MVP contract:
-
-- [ARCHITECTURE.md](ARCHITECTURE.md)
-- [SCOPE.md](SCOPE.md)
-- [docs/](docs/)
-- [docs/adr/](docs/adr/)
-
-## References
-
-- [PyMuPDF4LLM](https://pymupdf.readthedocs.io/en/latest/pymupdf4llm/)
-- [Qdrant](https://qdrant.tech/documentation/)
-- [OpenRouter](https://openrouter.ai/docs)
-- [Gemini API](https://ai.google.dev/gemini-api/docs)
+P2 is paused and is not an active runtime dependency. This MVP does not promise additional ingestion orchestration, external retrieval, autonomous agents, or a broader review platform. The supported path is the Markdown manifest, LangChain Documents, local Qdrant HYBRID retrieval, configured ChatOpenRouter generation, and Supabase application persistence.
 
 ## License
 

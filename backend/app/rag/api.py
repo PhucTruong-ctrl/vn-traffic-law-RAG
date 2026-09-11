@@ -1,39 +1,28 @@
-"""Small rescue API with no session or database state."""
+"""HTTP interface for the hybrid RAG chat module."""
 
 from __future__ import annotations
 
-import os
-from datetime import date
 from typing import Any
 
-from fastapi import APIRouter
-from pydantic import BaseModel, ConfigDict, Field
+from fastapi import APIRouter, HTTPException
 
-from .retrieval import Retriever
-from .service import RescueService
+from .schemas import ChatRequest, ChatResponse
+from .service import RAGService
 
-router = APIRouter(prefix="/api/v1", tags=["rescue"])
-service = RescueService(
-    Retriever(
-        chunks_path=os.getenv("RESCUE_CHUNKS", "data/processed/markdown-chunks.jsonl"),
-        index_path=os.getenv("RESCUE_INDEX_PATH", "data/processed/index"),
-    )
-)
+router = APIRouter(prefix="/api/v1", tags=["rag"])
+service = RAGService()
 
 
-class ChatRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    question: str = Field(min_length=1)
-    top_k: int = Field(default=5, ge=1, le=50)
-    effective_date: date | None = None
-
-
-@router.post("/chat")
+@router.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest) -> dict[str, Any]:
-    return service.answer(
-        request.question, top_k=request.top_k, effective_date=request.effective_date
-    )
+    try:
+        return service.answer(
+            request.question,
+            top_k=request.top_k,
+            effective_date=request.effective_date,
+        )
+    except (RuntimeError, ValueError) as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.get("/health")

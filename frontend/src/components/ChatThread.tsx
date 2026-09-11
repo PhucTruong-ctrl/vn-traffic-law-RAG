@@ -28,6 +28,7 @@ function ResponseMessage({
   const verified = response.status === "VERIFIED";
   const operational = response.status === "WORKFLOW_UNAVAILABLE";
   const citations = response.citations ?? [];
+  const comparison = response.comparison;
   return (
     <div className="assistant-message response-message">
       <LegalMark />
@@ -62,12 +63,18 @@ function ResponseMessage({
             <div className="citation-list">
               {citations.map((citation, index) => (
                 <CitationCard
-                  key={`${citation.provision_id}-${index}`}
+                  key={`${citation.provision_id ?? citation.document_id ?? "citation"}-${index}`}
                   citation={citation}
                   onOpenSource={onOpenSource}
                 />
               ))}
             </div>
+          </section>
+        )}
+        {comparison?.answer && (
+          <section className="comparison-result" aria-label="So sánh nguồn">
+            <h3>{comparison.label ?? "So sánh nguồn"}</h3>
+            <p>{comparison.answer}</p>
           </section>
         )}
         {verified && response.trace_id && (

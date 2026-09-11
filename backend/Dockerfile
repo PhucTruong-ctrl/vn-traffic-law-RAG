@@ -13,9 +13,8 @@ RUN pip install --no-cache-dir uv \
     && uv sync --frozen --no-dev --no-install-project
 
 COPY backend/app ./app
-COPY backend/alembic ./alembic
-COPY backend/alembic.ini ./
-COPY backend/scripts ./scripts
+COPY data ./data
+COPY prompts ./prompts
 
 RUN useradd --create-home --uid 10001 appuser \
     && chown -R appuser:appuser /app

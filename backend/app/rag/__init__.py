@@ -1,4 +1,4 @@
-"""Minimal rescue chat contracts."""
+"""RAG chat contracts."""
 
 from contextlib import suppress
 

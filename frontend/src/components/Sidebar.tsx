@@ -48,9 +48,9 @@ export default function Sidebar({
   const [animatingConversationId, setAnimatingConversationId] = useState<string | null>(null);
   const animationTimerRef = useRef<number | null>(null);
 
-  async function fetchConversations(nextCursor?: string | null) {
+  async function fetchConversations(nextCursor?: string | null, query = search) {
     const params = new URLSearchParams({ limit: "30" });
-    if (search.trim()) params.set("search", search.trim());
+    if (query.trim()) params.set("search", query.trim());
     if (nextCursor) params.set("cursor", nextCursor);
     try {
       const result = await fetch(`/api/v1/conversations?${params}`);
@@ -95,6 +95,15 @@ export default function Sidebar({
     const timer = window.setTimeout(() => void fetchConversations(), 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    const timer = window.setTimeout(() => {
+      setCursor(null);
+      void fetchConversations(null, search);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [search, searchOpen]);
 
   useEffect(() => {
     if (!mobileOpen) {

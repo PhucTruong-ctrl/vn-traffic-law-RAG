@@ -23,7 +23,6 @@ export default function Composer({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [resizing, setResizing] = useState(false);
   const resizePulseRef = useRef<number | null>(null);
-  const resizeTargetRef = useRef<number | null>(null);
   const resizeTextarea = (textarea: HTMLTextAreaElement) => {
     textarea.style.transition = "none";
     textarea.style.height = "0px";

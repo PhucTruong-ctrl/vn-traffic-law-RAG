@@ -1,4 +1,4 @@
-"""Evaluate local retrieval against JSON or JSONL question records."""
+"""Evaluate real Qdrant HYBRID retrieval against question records."""
 
 from __future__ import annotations
 
@@ -9,75 +9,68 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT / "backend") not in sys.path:
-    sys.path.insert(0, str(ROOT / "backend"))
+sys.path.insert(0, str(ROOT / "backend"))
 
-from app.rag.retrieval import Retriever  # noqa: E402
+from langchain_openai import OpenAIEmbeddings  # noqa: E402
+from langchain_qdrant import FastEmbedSparse, QdrantVectorStore, RetrievalMode  # noqa: E402
+
+from app.config import get_embedding_settings, get_qdrant_settings  # noqa: E402
 
 
 def _records(path: Path) -> list[dict[str, Any]]:
     text = path.read_text(encoding="utf-8")
-    if path.suffix.lower() == ".json":
-        payload = json.loads(text)
-        if isinstance(payload, list):
-            values = payload
-        elif isinstance(payload, dict) and isinstance(payload.get("questions"), list):
-            values = payload["questions"]
-        else:
-            values = [payload]
-    else:
-        values = [json.loads(line) for line in text.splitlines() if line.strip()]
-    return [value for value in values if isinstance(value, dict)]
-
-
-def _value(item: Any, name: str) -> Any:
-    if isinstance(item, dict):
-        metadata = item.get("metadata")
-        if isinstance(metadata, dict) and name in metadata:
-            return metadata[name]
-        return item.get(name)
-    return getattr(item, name, None)
-
-
-def _matches(item: Any, record: dict[str, Any]) -> bool:
-    expected_document = record.get("expected_document")
-    expected_article = record.get("expected_article")
-    document = _value(item, "document_name") or _value(item, "document")
-    article = _value(item, "article")
-    doc_match = (
-        expected_document is None
-        or str(expected_document).casefold() in str(document or "").casefold()
+    values = (
+        json.loads(text)
+        if path.suffix.lower() == ".json"
+        else [json.loads(line) for line in text.splitlines() if line.strip()]
     )
-    article_match = expected_article is None or str(expected_article) == str(article)
-    return doc_match and article_match
+    if isinstance(values, dict):
+        values = values.get("questions", [values])
+    return [item for item in values if isinstance(item, dict)]
 
 
-def run(questions_path: Path, chunks_path: Path, top_k: int = 8) -> None:
-    retriever = Retriever(chunks_path=chunks_path)
-    records = _records(questions_path)
-    hits = citation_matches = 0
-    for record in records:
-        question = str(record.get("question", ""))
-        results = retriever.search(question, k=top_k)
-        hit = any(_matches(item, record) for item in results)
-        citation_match = any(_matches(item, record) for item in results)
-        hits += int(hit)
-        citation_matches += int(citation_match)
-    total = len(records)
-    denominator = total or 1
-    print(f"QUESTIONS: {total}")
-    print(f"HIT@{top_k}: {hits}/{total} ({hits / denominator:.1%})")
-    print(f"CITATION MATCHES: {citation_matches}/{total} ({citation_matches / denominator:.1%})")
-
-
-def main() -> None:
+def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("questions", type=Path, help="JSON or JSONL question file")
-    parser.add_argument("--chunks", type=Path, default=ROOT / "data/processed/chunks.jsonl")
+    parser.add_argument("questions", type=Path)
     parser.add_argument("--top-k", type=int, default=8)
     args = parser.parse_args()
-    run(args.questions, args.chunks, args.top_k)
+    settings, qdrant = get_embedding_settings(), get_qdrant_settings()
+    if not settings.openrouter_api_key:
+        raise SystemExit("evaluation requires OPENROUTER_API_KEY")
+    try:
+        store = QdrantVectorStore.from_existing_collection(
+            collection_name=qdrant.collection,
+            embedding=OpenAIEmbeddings(
+                model=settings.model,
+                api_key=settings.openrouter_api_key,
+                base_url=settings.openrouter_base_url,
+            ),
+            sparse_embedding=FastEmbedSparse("Qdrant/bm25"),
+            retrieval_mode=RetrievalMode.HYBRID,
+            url=qdrant.url,
+            api_key=qdrant.api_key or None,
+        )
+        records = _records(args.questions)
+        hits = 0
+        for record in records:
+            docs = store.similarity_search(record.get("question", ""), k=args.top_k)
+            expected = str(record.get("expected_document", "")).casefold()
+            hits += int(
+                not expected
+                or any(
+                    expected in str(doc.metadata.get("document_id", "")).casefold()
+                    for doc in docs
+                )
+            )
+        print(
+            f"QUESTIONS: {len(records)}\n"
+            f"HIT@{args.top_k}: {hits}/{len(records)} "
+            f"({hits / (len(records) or 1):.1%})"
+        )
+    except Exception as exc:
+        raise SystemExit(f"evaluation failed: {exc}") from exc
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

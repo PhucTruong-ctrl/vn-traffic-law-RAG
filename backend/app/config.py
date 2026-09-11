@@ -1,444 +1,79 @@
-"""Application configuration.
+"""Configuration for the OpenRouter and local Qdrant RAG pipeline."""
 
-Settings are loaded from the real environment first, then from the repository
-root ``.env`` file (``env_file``), matching doc 07 §7.3.3. Langfuse credentials
-are read exclusively through pydantic-settings from the environment — never
-hardcoded or logged.
-"""
+from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated, Literal
 
-from pydantic import AliasChoices, Field, field_validator
-from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-_ENV_FILE = _REPO_ROOT / ".env"
-
-PromptSource = Literal["LANGFUSE", "CACHE", "RELEASE_FALLBACK"]
+_ROOT = Path(__file__).resolve().parents[2]
 
 
-class Settings(BaseSettings):
-    """Runtime configuration for the VNLaw backend."""
-
-    model_config = SettingsConfigDict(
-        env_file=str(_ENV_FILE),
-        env_file_encoding="utf-8",
-        extra="ignore",
-        case_sensitive=False,
-    )
-
-    # Core application
-    app_env: str = "development"
-    log_level: str = "INFO"
-    timezone: str = "UTC"
-
-    # Langfuse observability (off the correctness path, doc 00 §4.11)
-    langfuse_enabled: bool = True
-    langfuse_public_key: str = ""
-    langfuse_secret_key: str = ""
-    langfuse_host: str = "https://cloud.langfuse.com"
-
-    # Prompt management — W1 scope: local fallback loader + trace skeleton
-    # only. The full LANGFUSE -> CACHE -> RELEASE_FALLBACK resolver
-    # (client.get_prompt, cache, source selection) ships with the
-    # prompt-management ticket (doc 03 §3.27.3).
-    prompt_source: PromptSource = "LANGFUSE"
-    fallback_prompts_dir: str = "/app/prompts/fallback"
-    fallback_prompt_version_query_analyzer: str = ""
-    fallback_prompt_version_query_rewriter: str = ""
-    fallback_prompt_version_hyde: str = ""
-    fallback_prompt_version_generator: str = ""
-    fallback_prompt_version_claim_verifier: str = ""
-
-    # Workflow repair bound (doc 03 §3.5.2, FR-24).
-    max_repair_attempts: int = Field(
-        default=3,
-        ge=0,
-        validation_alias=AliasChoices("MAX_REPAIR_ATTEMPTS"),
-    )
-
-    # Ingestion
-    max_ingestion_workers: int = 1
+class _Env(BaseSettings):
+    model_config = SettingsConfigDict(env_file=None, extra="ignore", case_sensitive=False)
 
 
-class GenerationSettings(BaseSettings):
-    """Structured OpenRouter generation settings used by query fallback."""
-
-    model_config = SettingsConfigDict(
-        env_file=str(_ENV_FILE),
-        env_file_encoding="utf-8",
-        dotenv_filtering="only_existing",
-        extra="forbid",
-        case_sensitive=False,
-        populate_by_name=True,
-    )
-
-    model: str = Field(
-        default="google/gemini-2.5-flash",
-        validation_alias=AliasChoices("GENERATION_MODEL", "LLM_MODEL"),
-    )
-    openrouter_api_key: str = Field(
-        default="",
-        validation_alias=AliasChoices("OPENROUTER_API_KEY", "GENERATION_OPENROUTER_API_KEY"),
-    )
+class GenerationSettings(_Env):
+    model: str = Field("deepseek/deepseek-v4-flash-0731", validation_alias="GENERATION_MODEL")
+    openrouter_api_key: str = Field("", validation_alias="OPENROUTER_API_KEY")
     openrouter_base_url: str = Field(
-        default="https://openrouter.ai/api/v1",
-        validation_alias=AliasChoices("OPENROUTER_BASE_URL", "GENERATION_OPENROUTER_BASE_URL"),
+        "https://openrouter.ai/api/v1", validation_alias="OPENROUTER_BASE_URL"
     )
 
 
-class QdrantSettings(BaseSettings):
-    """Qdrant retrieval-index connection and collection naming (doc 03 §3.11).
-
-    Read from ``QDRANT_*`` environment variables, then the repo-root ``.env``
-    file (doc 07 §7.3.3). ``url`` defaults to localhost for local development;
-    the docker-compose ``vnlaw-qdrant`` service is reachable via
-    ``QDRANT_URL=http://qdrant:6333`` in the compose environment.
-    """
-
-    model_config = SettingsConfigDict(
-        env_prefix="QDRANT_",
-        env_file=str(_ENV_FILE),
-        env_file_encoding="utf-8",
-        extra="ignore",
-        case_sensitive=False,
-    )
-
-    url: str = "http://localhost:6333"
-    api_key: str = ""
-    collection_alias: str = "legal_provisions_active"
-    collection_prefix: str = "legal_provisions"
-    local_path: str = Field(
-        default="./data/qdrant",
-        validation_alias=AliasChoices("QDRANT_LOCAL_PATH", "QDRANT_PATH"),
-    )
-    collection: str = Field(
-        default="legal_provisions",
-        validation_alias=AliasChoices("QDRANT_COLLECTION", "QDRANT_COLLECTION_NAME"),
-    )
-
-
-class EmbeddingSettings(BaseSettings):
-    """Dense embedding provider configuration."""
-
-    model_config = SettingsConfigDict(
-        env_prefix="EMBEDDING_",
-        env_file=str(_ENV_FILE),
-        env_file_encoding="utf-8",
-        extra="ignore",
-        case_sensitive=False,
-        populate_by_name=True,
-    )
-
-    provider: str = "openrouter"
-    model: str = "openai/text-embedding-3-small"
-    dimensions: int = 768
-    batch_size: int = 32
-    max_retries: int = 3
-    timeout_seconds: float = 60.0
-    local_device: str = "cuda"
-    gemini_api_key: str = ""
-    jina_api_key: str = ""
-    openrouter_api_key: str = Field(
-        default="",
-        validation_alias=AliasChoices("OPENROUTER_API_KEY", "EMBEDDING_OPENROUTER_API_KEY"),
-    )
+class EmbeddingSettings(_Env):
+    model: str = Field("openai/text-embedding-3-small", validation_alias="EMBEDDING_MODEL")
+    openrouter_api_key: str = Field("", validation_alias="OPENROUTER_API_KEY")
     openrouter_base_url: str = Field(
-        default="https://openrouter.ai/api/v1",
-        validation_alias=AliasChoices("OPENROUTER_BASE_URL", "EMBEDDING_OPENROUTER_BASE_URL"),
-    )
-
-    @field_validator("model", mode="before")
-    @classmethod
-    def _openrouter_default_model(cls, value: str, info: object) -> str:
-        if str(getattr(info, "data", {}).get("provider", "")) == "openrouter" and (
-            not value or value == "data/models/multilingual-e5-base-paddle"
-        ):
-            return "openai/text-embedding-3-small"
-        return value
-
-
-class SparseSettings(BaseSettings):
-    """Sparse-encoder configuration (doc 03 §3.11.2).
-
-    Read from ``SPARSE_*`` environment variables, then the repo-root ``.env``
-    file (doc 07 §7.3.3). ``encoder_version`` is the id recorded in every
-    indexed point's ``sparse_encoder_version`` payload key; changing the
-    encoder means a collection rebuild + alias switch, never mixing two sparse
-    spaces in one collection. ``tokenizer`` names the tokenizer the
-    ``BM25SparseEncoder`` implements (only ``"unicode-word"`` exists today;
-    Suite C tokenizer verification may add variants).
-    """
-
-    model_config = SettingsConfigDict(
-        env_prefix="SPARSE_",
-        env_file=str(_ENV_FILE),
-        env_file_encoding="utf-8",
-        extra="ignore",
-        case_sensitive=False,
-    )
-
-    encoder_version: str = "bm25-v2"
-    tokenizer: str = "unicode-word"
-
-
-class RetrievalSettings(BaseSettings):
-    """Configuration for the multi-channel retrieval pipeline."""
-
-    model_config = SettingsConfigDict(
-        env_file=str(_ENV_FILE),
-        env_file_encoding="utf-8",
-        extra="ignore",
-        case_sensitive=False,
-        populate_by_name=True,
-    )
-
-    exact_lookup_enabled: bool = Field(
-        default=True,
-        validation_alias=AliasChoices("EXACT_LOOKUP_ENABLED", "RETRIEVAL_EXACT_LOOKUP_ENABLED"),
-    )
-    dense_prefetch: int = Field(
-        default=30, validation_alias=AliasChoices("DENSE_PREFETCH", "RETRIEVAL_DENSE_PREFETCH")
-    )
-    sparse_prefetch: int = Field(
-        default=30, validation_alias=AliasChoices("SPARSE_PREFETCH", "RETRIEVAL_SPARSE_PREFETCH")
-    )
-    rrf_k: int = Field(default=60, validation_alias=AliasChoices("RRF_K", "RETRIEVAL_RRF_K"))
-    dense_weight: float = Field(
-        default=1.0, validation_alias=AliasChoices("DENSE_WEIGHT", "RETRIEVAL_DENSE_WEIGHT")
-    )
-    sparse_weight: float = Field(
-        default=1.0, validation_alias=AliasChoices("SPARSE_WEIGHT", "RETRIEVAL_SPARSE_WEIGHT")
-    )
-    fusion_limit: int = Field(
-        default=20, validation_alias=AliasChoices("FUSION_LIMIT", "RETRIEVAL_FUSION_LIMIT")
-    )
-    final_top_k: int = Field(
-        default=8,
-        validation_alias=AliasChoices("RETRIEVAL_TOP_K", "FINAL_TOP_K", "RETRIEVAL_FINAL_TOP_K"),
-    )
-    temporal_filter_enabled: bool = Field(
-        default=True,
-        validation_alias=AliasChoices(
-            "TEMPORAL_FILTER", "TEMPORAL_FILTER_ENABLED", "RETRIEVAL_TEMPORAL_FILTER"
-        ),
-    )
-    reranker_model: str = Field(
-        default="jina-reranker-v3",
-        validation_alias=AliasChoices("RERANKER_MODEL", "RETRIEVAL_RERANKER_MODEL"),
-    )
-    reranker_buffer: int = Field(
-        default=4,
-        ge=0,
-        validation_alias=AliasChoices("RERANKER_BUFFER", "RETRIEVAL_RERANKER_BUFFER"),
+        "https://openrouter.ai/api/v1", validation_alias="OPENROUTER_BASE_URL"
     )
 
 
-#: Canonical object-storage buckets (doc 03 §3.12.1, FR-08). Kept in sync with
-#: ``app.storage.BUCKETS`` (pinned by tests/test_object_storage.py) and the
-#: docker-compose ``MINIO_BUCKETS`` bootstrap list.
-_DEFAULT_OBJECT_STORAGE_BUCKETS = (
-    "source-pdfs",
-    "parser-outputs",
-    "page-images",
-    "ingestion-artifacts",
-    "review-artifacts",
-    "evaluation-artifacts",
-)
+class QdrantSettings(_Env):
+    path: Path = Field(_ROOT / "data/processed/qdrant", validation_alias="QDRANT_PATH")
+    collection: str = Field("traffic_law", validation_alias="QDRANT_COLLECTION")
+
+    def model_post_init(self, __context: object) -> None:
+        path = self.path.expanduser()
+        if not path.is_absolute():
+            path = _ROOT / path
+        self.path = path.resolve()
 
 
-class ObjectStorageSettings(BaseSettings):
-    """S3-compatible object storage configuration (doc 03 §3.12, doc 04 §4.15).
-
-    Read from ``MINIO_*`` environment variables, then the repo-root ``.env``
-    file (doc 07 §7.3.3): ``MINIO_ENDPOINT``, ``MINIO_USE_SSL``,
-    ``MINIO_BUCKETS`` (comma-separated list). Credentials accept the MinIO
-    server spellings ``MINIO_ROOT_USER`` / ``MINIO_ROOT_PASSWORD`` (used by
-    docker-compose), the S3 SDK spellings ``MINIO_ACCESS_KEY`` /
-    ``MINIO_SECRET_KEY``, and the repository's ``MINIO_ACCESS`` /
-    ``MINIO_SECRET`` forms (see the ``AliasChoices`` on ``access_key`` /
-    ``secret_key``). ``endpoint`` is ``host[:port]`` with no scheme; a scheme
-    is tolerated and stripped by :class:`app.storage.S3ObjectStorage`.
-    """
-
-    model_config = SettingsConfigDict(
-        env_prefix="MINIO_",
-        env_file=str(_ENV_FILE),
-        env_file_encoding="utf-8",
-        extra="ignore",
-        case_sensitive=False,
-        populate_by_name=True,
-    )
-
-    endpoint: str = "localhost:9000"
-    access_key: str = Field(
-        default="",
-        validation_alias=AliasChoices("MINIO_ROOT_USER", "MINIO_ACCESS_KEY", "MINIO_ACCESS"),
-    )
-    secret_key: str = Field(
-        default="",
-        validation_alias=AliasChoices("MINIO_ROOT_PASSWORD", "MINIO_SECRET_KEY", "MINIO_SECRET"),
-    )
-    use_ssl: bool = False
-    buckets: Annotated[list[str], NoDecode] = Field(
-        default_factory=lambda: list(_DEFAULT_OBJECT_STORAGE_BUCKETS)
-    )
-
-    @field_validator("buckets", mode="before")
-    @classmethod
-    def _parse_buckets(cls, value: object) -> object:
-        """Accept the docker-compose/bootstrap form ``MINIO_BUCKETS=a,b,c``."""
-        if isinstance(value, str):
-            return [part.strip() for part in value.split(",") if part.strip()]
-        return value
-
-
-class UploadSettings(BaseSettings):
-    """Upload API limits (doc 03 §3.28.3, FR-07).
-
-    Read from ``UPLOAD_*`` environment variables, then the repo-root ``.env``
-    file (doc 07 §7.3.3): ``UPLOAD_MAX_SIZE_MB`` caps the source-PDF size
-    accepted by ``POST /api/v1/documents`` (rejected with 413 when exceeded).
-    """
-
-    model_config = SettingsConfigDict(
-        env_prefix="UPLOAD_",
-        env_file=str(_ENV_FILE),
-        env_file_encoding="utf-8",
-        extra="ignore",
-        case_sensitive=False,
-    )
-
-    max_size_mb: int = 50
-
-
-@lru_cache(maxsize=1)
-def get_upload_settings() -> UploadSettings:
-    """Return the process-wide upload settings singleton (cached until cleared)."""
-    return UploadSettings()
-
-
-@lru_cache(maxsize=1)
-def get_retrieval_settings() -> RetrievalSettings:
-    """Return the process-wide retrieval settings singleton."""
-    return RetrievalSettings()
-
-
-@lru_cache(maxsize=1)
-def get_embedding_settings() -> EmbeddingSettings:
-    """Return the process-wide embedding settings singleton (cached until cleared)."""
-    return EmbeddingSettings()
-
-
-@lru_cache(maxsize=1)
-def get_sparse_settings() -> SparseSettings:
-    """Return the process-wide sparse settings singleton (cached until cleared)."""
-    return SparseSettings()
-
-
-class RedisSettings(BaseSettings):
-    """Redis broker connection for the ingestion queue (doc 03 §3.13.1, ADR-011).
-
-    Read from ``REDIS_*`` environment variables, then the repo-root ``.env``
-    file (doc 07 §7.3.3). ``url`` is the full ``redis://`` URL consumed by
-    :class:`dramatiq.brokers.redis.RedisBroker`; the docker-compose
-    ``vnlaw-redis`` service is reachable via ``REDIS_URL=redis://redis:6379/0``
-    in the compose environment.
-    """
-
-    model_config = SettingsConfigDict(
-        env_prefix="REDIS_",
-        env_file=str(_ENV_FILE),
-        env_file_encoding="utf-8",
-        extra="ignore",
-        case_sensitive=False,
-    )
-
-    url: str = "redis://localhost:6379/0"
-
-
-#: Per-actor time limits in seconds (doc 03 §3.13.5, NFR-02) — the parse step
-#: is the only long step; every other actor stays well under the 10-minute
-#: Dramatiq default. Keys are the actor queue names (``app.ingestion.actors``).
-DEFAULT_ACTOR_TIME_LIMITS_SECONDS: dict[str, int] = {
-    "parse": 1200,
-    "normalize": 300,
-    "extract": 600,
-    "resolve_refs": 300,
-    "resolve_temporal": 300,
-    "quality_gate": 300,
-    "embed": 600,
-    "index": 300,
-}
-
-
-class QueueSettings(BaseSettings):
-    """Ingestion queue / Dramatiq policy (doc 03 §3.13.4-3.13.6, ADR-011).
-
-    Read from ``QUEUE_*`` environment variables, then the repo-root ``.env``
-    file (doc 07 §7.3.3). Retry policy is deliberately bounded (doc 03
-    §3.13.4: ``max_retries`` 5 for transient errors, backoff 15s -> 1h — NOT
-    the Dramatiq 20-retry / 7-day-backoff defaults); ``actor_timeouts_seconds``
-    mirrors doc 03 §3.13.5 and can be overridden with a JSON object in
-    ``QUEUE_ACTOR_TIMEOUTS_SECONDS``.
-    """
-
-    model_config = SettingsConfigDict(
-        env_prefix="QUEUE_",
-        env_file=str(_ENV_FILE),
-        env_file_encoding="utf-8",
-        extra="ignore",
-        case_sensitive=False,
-        populate_by_name=True,
-    )
-
-    #: Maximum retries per message before it is dead-lettered (bounded).
-    max_retries: int = 3
-    #: Minimum backoff between retries (doc 03 §3.13.4).
-    min_backoff_ms: int = 15_000
-    #: Maximum backoff between retries (doc 03 §3.13.4 — 1h, not 7 days).
-    max_backoff_ms: int = 3_600_000
-    #: Queue receiving messages that exhausted their retries (doc 03 §3.13.6).
-    dlq_queue: str = "default.DLQ"
-    #: Per-actor time limits (seconds); keys are the actor queue names.
-    actor_timeouts_seconds: dict[str, int] = Field(
-        default_factory=lambda: dict(DEFAULT_ACTOR_TIME_LIMITS_SECONDS)
-    )
-
-
-@lru_cache(maxsize=1)
-def get_redis_settings() -> RedisSettings:
-    """Return the process-wide Redis settings singleton (cached until cleared)."""
-    return RedisSettings()
-
-
-@lru_cache(maxsize=1)
-def get_queue_settings() -> QueueSettings:
-    """Return the process-wide queue settings singleton (cached until cleared)."""
-    return QueueSettings()
-
-
-@lru_cache(maxsize=1)
-def get_settings() -> Settings:
-    """Return the process-wide settings singleton (cached until cleared)."""
-    return Settings()
+class ChunkSettings(_Env):
+    size: int = Field(1200, validation_alias="CHUNK_SIZE")
+    overlap: int = Field(120, validation_alias="CHUNK_OVERLAP")
 
 
 @lru_cache(maxsize=1)
 def get_generation_settings() -> GenerationSettings:
-    """Return the process-wide generation settings singleton."""
     return GenerationSettings()
 
 
 @lru_cache(maxsize=1)
+def get_embedding_settings() -> EmbeddingSettings:
+    return EmbeddingSettings()
+
+
+@lru_cache(maxsize=1)
 def get_qdrant_settings() -> QdrantSettings:
-    """Return the process-wide Qdrant settings singleton (cached until cleared)."""
     return QdrantSettings()
 
 
 @lru_cache(maxsize=1)
-def get_object_storage_settings() -> ObjectStorageSettings:
-    """Return the process-wide object-storage settings singleton (cached until cleared)."""
-    return ObjectStorageSettings()
+def get_chunk_settings() -> ChunkSettings:
+    return ChunkSettings()
+
+
+__all__ = [
+    "ChunkSettings",
+    "EmbeddingSettings",
+    "GenerationSettings",
+    "QdrantSettings",
+    "get_chunk_settings",
+    "get_embedding_settings",
+    "get_generation_settings",
+    "get_qdrant_settings",
+]

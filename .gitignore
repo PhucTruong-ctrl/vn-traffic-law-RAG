@@ -1,94 +1,64 @@
-# ─────────────────────────────────────────────
 # Environment and secrets
-# ─────────────────────────────────────────────
 .env
 .env.*
 !.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Python
 .venv/
 venv/
-
-# ─────────────────────────────────────────────
-# Python
-# ─────────────────────────────────────────────
 __pycache__/
 *.py[cod]
+*.egg-info/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
 .coverage
 htmlcov/
-*.egg-info/
 dist/
 build/
 
-# ─────────────────────────────────────────────
 # Node
-# ─────────────────────────────────────────────
 node_modules/
 frontend/.next/
 frontend/out/
 *.tsbuildinfo
-
-# ─────────────────────────────────────────────
-# Docker / local data
-# ─────────────────────────────────────────────
-data/*
-!data/corpus/
-!data/corpus/pdfs/
-!data/corpus/pdfs/**
-!data/manifests/
-!data/ingestion/
-minio-backup*/
-
-# Generated pipeline artifacts
-data/processed/
-data/index/
-data/evaluation/
-data/results/
-
-# Frontend test artifacts
 frontend/test-results/
 frontend/playwright-report/
 frontend/coverage/
 
-# ─────────────────────────────────────────────
-# LaTeX auxiliary files
-# ─────────────────────────────────────────────
-*.aux
-*.lof
-*.log
-*.lot
-*.out
-*.toc
-*.fls
-*.fdb_latexmk
-*.synctex.gz
-*.bbl
-*.bcf
-*.blg
-*.run.xml
-*.blx.bib
-texput.log
+# Local vector store and generated corpus artifacts
+data/qdrant/
+data/processed/
+data/index/
+data/results/
+data/evaluation/
+data/ingestion/
+data/models/
+backend/data/
 
-# ─────────────────────────────────────────────
-# OS files
-# ─────────────────────────────────────────────
+# Generated source downloads, indexes, and caches
+data/corpus/pdfs/
+data/corpus/mds/*.md
+!data/corpus/mds/README.md
+data/sources/ocr-fallback.json
+data/**/*.index
+data/**/*.idx
+data/**/*.faiss
+data/**/*.sqlite
+data/**/*.sqlite3
+**/.cache/
+**/page-cache/
+**/checkpoints/
+
+# OS/editor/tool files
 .DS_Store
 Thumbs.db
-texput.pdf
-
-# ─────────────────────────────────────────────
-# Tooling
-# ─────────────────────────────────────────────
 .idea/
 .vscode/
 .hive/
 .hive
-
-# ─────────────────────────────────────────────
-# Runtime
-# ─────────────────────────────────────────────
 *.pid
 *.sock
-data/corpus/mds/*.md
-!data/corpus/mds/README.md

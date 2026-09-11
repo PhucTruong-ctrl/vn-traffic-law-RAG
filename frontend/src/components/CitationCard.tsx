@@ -116,6 +116,12 @@ export default function CitationCard({ citation, onOpenSource }: CitationCardPro
             <dd>{citation.snapshot_at}</dd>
           </div>
         )}
+        {citation.content_hash && (
+          <div>
+            <dt>Mã kiểm chứng</dt>
+            <dd title={citation.content_hash}>{citation.content_hash.slice(0, 16)}…</dd>
+          </div>
+        )}
       </dl>
       {(page != null || citation.bbox != null) && (
         <p className="citation-card__meta">

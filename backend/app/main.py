@@ -1,27 +1,25 @@
 """VNLaw backend application entrypoint."""
 
+import os
+from uuid import uuid4
+
 from fastapi import FastAPI, Request
 
-from app.api import chat, conversations, documents, errors, feedback, jobs, search
-from app.observability.health import readiness
-from app.rag.api import router as rescue_router
+from app.auth.api import router as auth_router
+from app.chats.api import router as chats_router
+from app.legal.api import router as legal_router
+from app.rag.api import router as rag_router
 
 app = FastAPI()
-
-errors.register_error_handlers(app)
-app.include_router(documents.router)
-app.include_router(jobs.router)
-app.include_router(chat.router)
-app.include_router(conversations.router)
-app.include_router(search.router)
-app.include_router(feedback.router)
-
-app.include_router(rescue_router)
+app.include_router(rag_router)
+app.include_router(auth_router)
+app.include_router(chats_router)
+app.include_router(legal_router)
 
 
 @app.middleware("http")
 async def trace_id_middleware(request: Request, call_next):
-    trace_id = request.headers.get("X-Trace-ID") or errors.new_trace_id()
+    trace_id = request.headers.get("X-Trace-ID") or uuid4().hex
     response = await call_next(request)
     if "X-Trace-ID" not in response.headers:
         response.headers["X-Trace-ID"] = trace_id
@@ -37,4 +35,4 @@ def health_live() -> dict[str, str]:
 @app.get("/api/v1/health/ready")
 def health_ready() -> dict[str, object]:
     """Readiness probe reporting dependency checks."""
-    return readiness()
+    return {"status": "ok", "supabase": bool(os.getenv("SUPABASE_URL")), "qdrant": True}

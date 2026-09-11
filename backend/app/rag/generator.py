@@ -1,67 +1,51 @@
-"""Prompt construction and optional OpenAI-compatible generation."""
+"""Grounded answer generation through LangChain ChatOpenRouter."""
 
 from __future__ import annotations
 
-import json
-import os
-import urllib.error
-import urllib.request
+from collections.abc import Sequence
 from typing import Any
 
+from langchain_core.documents import Document
 
-def build_prompt(question: str, context: str) -> list[dict[str, str]]:
-    """Build a grounded chat prompt; the model is never trusted for citations."""
-    return [
-        {
-            "role": "system",
-            "content": (
-                "Bạn là trợ lý tra cứu pháp luật giao thông Việt Nam. "
-                "Chỉ trả lời dựa trên CONTEXT; nếu thiếu căn cứ, nói rõ chưa đủ thông tin. "
-                "Không tự tạo số điều, nguồn hoặc trích dẫn."
-            ),
-        },
-        {"role": "user", "content": f"QUESTION:\n{question}\n\nCONTEXT:\n{context}"},
-    ]
+from app.config import get_generation_settings
+
+_SYSTEM_PROMPT = (
+    "Bạn là trợ lý tra cứu pháp luật giao thông Việt Nam. "
+    "Chỉ trả lời dựa trên các tài liệu được cung cấp; nếu thiếu căn cứ, "
+    "nói rõ chưa đủ thông tin. Không tự tạo số điều, nguồn hoặc trích dẫn."
+)
 
 
-def _fallback(question: str, context: str) -> str:
-    if not context.strip():
+def build_prompt(question: str, documents: Sequence[Document]) -> list[tuple[str, str]]:
+    context = "\n\n".join(document.page_content for document in documents)
+    return [("system", _SYSTEM_PROMPT), ("human", f"QUESTION:\n{question}\n\nCONTEXT:\n{context}")]
+
+
+def generate_answer(question: str, documents: Sequence[Document]) -> str:
+    """Generate only from retrieved documents; provider failures are explicit."""
+    if not documents:
         return "Chưa tìm thấy quy định phù hợp trong dữ liệu pháp luật được truy xuất."
-    return (
-        "Dựa trên các quy định được truy xuất, câu hỏi của bạn được trả lời bằng "
-        "nội dung sau:\n\n" + context
-    )
-
-
-def generate_answer(question: str, context: str, *, settings: Any = None) -> str:
-    """Call OpenRouter when configured, otherwise fall back."""
-    api_key = getattr(settings, "api_key", None) if settings is not None else None
-    base_url = getattr(settings, "base_url", None) if settings is not None else None
-    model = getattr(settings, "model", None) if settings is not None else None
-    api_key = api_key or os.getenv("OPENROUTER_API_KEY")
-    base_url = base_url or os.getenv("OPENROUTER_BASE_URL")
-    model = model or os.getenv("LLM_MODEL") or "google/gemini-2.5-flash"
-    if not api_key:
-        return _fallback(question, context)
-    base_url = (base_url or "https://openrouter.ai/api/v1").rstrip("/")
-    payload = json.dumps({"model": model, "messages": build_prompt(question, context)}).encode()
-    request = urllib.request.Request(
-        f"{base_url}/chat/completions",
-        data=payload,
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-        method="POST",
-    )
+    settings = get_generation_settings()
+    if not settings.openrouter_api_key:
+        raise RuntimeError("OpenRouter provider is unavailable")
     try:
-        with urllib.request.urlopen(request, timeout=20) as response:
-            body = json.loads(response.read().decode())
-        answer = body["choices"][0]["message"]["content"]
-        return (
-            answer.strip()
-            if isinstance(answer, str) and answer.strip()
-            else _fallback(question, context)
+        from langchain_openrouter import ChatOpenRouter
+
+        model = ChatOpenRouter(
+            model=settings.model,
+            temperature=0,
+            api_key=settings.openrouter_api_key,
+            base_url=settings.openrouter_base_url,
         )
-    except (OSError, ValueError, KeyError, IndexError, TypeError, urllib.error.URLError):
-        return _fallback(question, context)
+        response = model.invoke(build_prompt(question, documents))
+        content: Any = response.content
+        if not isinstance(content, str) or not content.strip():
+            raise RuntimeError("OpenRouter returned an empty answer")
+        return content.strip()
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        raise RuntimeError("OpenRouter provider is unavailable") from exc
 
 
 __all__ = ["build_prompt", "generate_answer"]
