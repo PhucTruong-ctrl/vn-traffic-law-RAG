@@ -46,7 +46,7 @@ create table if not exists public.feedback (
   id uuid primary key default gen_random_uuid(),
   message_id uuid not null references public.messages (id) on delete cascade,
   user_id uuid not null references auth.users (id) on delete cascade,
-  rating integer not null check (rating between 1 and 5),
+  rating integer not null check (rating in (0, 1)),
   comment text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),

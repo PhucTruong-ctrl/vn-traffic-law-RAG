@@ -136,8 +136,8 @@ def feedback_alias(
     token: str = Depends(deps),  # noqa: B008
 ):
     data = payload.model_dump()
-    message_id = str(data.pop("message_id", ""))
-    session_id = str(data.pop("session_id", ""))
+    message_id = data.pop("message_id")
+    session_id = data.pop("session_id")
     return add_feedback(client, uid(user), session_id, message_id, data, token)
 
 

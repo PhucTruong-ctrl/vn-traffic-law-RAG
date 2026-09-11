@@ -11,6 +11,8 @@ from typing import Any
 
 from langchain_core.documents import Document
 
+from .source import normalize_source_kind
+
 _FRONT_MATTER = re.compile(r"\A---\s*\n(.*?)(?:\n---\s*\n|\Z)", re.DOTALL)
 _KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*$")
 _HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
@@ -114,6 +116,7 @@ def load_markdown(
     document_name: str | None = None,
     source_url: str | None = None,
     source_type: str | None = None,
+    source_kind: str | None = None,
     retrieved_at: str | None = None,
 ) -> list[Document]:
     source = Path(path)
@@ -121,12 +124,18 @@ def load_markdown(
     front, body = parse_front_matter(raw)
     doc_id = _document_id(source, front, document_id)
     digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    effective_type = source_type or front.get("source_type") or "markdown"
     common = {
         "document_id": doc_id,
         "document_name": str(document_name or front.get("document_name") or source.stem),
         "source_file": source.as_posix(),
         "source_url": source_url or front.get("source_url") or "",
-        "source_type": source_type or front.get("source_type") or "markdown",
+        "source_type": effective_type,
+        "source_kind": normalize_source_kind(
+            source_file=source,
+            source_kind=source_kind or front.get("source_kind"),
+            source_type=effective_type,
+        ),
         "retrieved_at": retrieved_at or front.get("retrieved_at") or "",
     }
     if document_number or front.get("document_number"):
@@ -174,11 +183,10 @@ def load_manifest(
         loaded.extend(
             load_markdown(
                 candidate,
-                document_number=entry.get("document_number"),
-                document_name=entry.get("document_name"),
                 document_id=entry.get("document_id"),
                 source_url=entry.get("source_url"),
                 source_type=entry.get("source_type"),
+                source_kind=entry.get("source_kind"),
             )
         )
     return loaded

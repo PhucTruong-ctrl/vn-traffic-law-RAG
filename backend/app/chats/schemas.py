@@ -25,10 +25,10 @@ class MessageCreate(BaseModel):
 
 class FeedbackCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    rating: int = Field(ge=1, le=5)
+    rating: int = Field(ge=0, le=1)
     comment: str | None = None
-    message_id: str | None = None
-    session_id: str | None = None
+    message_id: str = Field(min_length=1)
+    session_id: str = Field(min_length=1)
 
 
 class BookmarkCreate(BaseModel):

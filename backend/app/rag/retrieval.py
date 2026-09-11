@@ -1,16 +1,19 @@
 """Local persistent LangChain Qdrant hybrid retrieval."""
 
 import re
-import unicodedata
 from collections.abc import Mapping
 from datetime import date
 from typing import Any
 
 from langchain_core.documents import Document
+from pydantic import SecretStr
 from qdrant_client import QdrantClient
-from qdrant_client.models import FieldCondition, Filter, MatchValue
+from qdrant_client.models import Condition, FieldCondition, Filter, MatchValue
 
 from app.config import get_embedding_settings, get_qdrant_settings
+
+from .cross_refs import expand_cross_references, expand_sibling_completions
+from .references import LegalReference, metadata_matches
 
 _REFERENCE_RE = re.compile(
     r"(?:(?:điểm\s+(?P<point>[a-zđ])\s+)?"
@@ -20,26 +23,26 @@ _REFERENCE_RE = re.compile(
     re.IGNORECASE,
 )
 
-_DOCUMENT_NUMBER_RE = re.compile(
-    r"(?P<number>\d+\s*/\s*\d{4}(?:\s*/\s*[a-zđ0-9-]+)?)",
+_SANCTION_COMPLETION_RE = re.compile(
+    r"(?:phạt\s+tiền|trừ\s+điểm|tước\s+quyền|tịch\s+thu|tạm\s+giữ)",
     re.IGNORECASE,
 )
 
 
+class RetrievalProviderError(RuntimeError):
+    """Raised when the configured retrieval provider cannot be used."""
+
+
 def _normalize_document_number(value: Any) -> str:
-    normalized = unicodedata.normalize("NFKC", str(value or "")).casefold()
-    normalized = normalized.replace("\u0111", "d")
-    return re.sub(r"\s+", "", normalized)
+    """Normalize a document number for comparison while preserving separators."""
+    return re.sub(r"\s+", "", str(value or "")).casefold().replace("đ", "d")
 
 
 def _normalize_metadata_number(value: Any) -> str:
-    value = unicodedata.normalize("NFKC", str(value or ""))
-    match = _DOCUMENT_NUMBER_RE.search(value)
-    return _normalize_document_number(match.group("number") if match else value)
-
-
-class RetrievalProviderError(RuntimeError):
-    """Raised when the configured Qdrant or embedding provider is unavailable."""
+    """Normalize metadata document names/numbers to their bare number."""
+    normalized = _normalize_document_number(value)
+    match = re.search(r"\d+(?:/\d{4})?(?:/[a-z0-9-]+)?", normalized)
+    return match.group(0) if match else normalized
 
 
 def extract_reference(question: str) -> dict[str, str]:
@@ -94,7 +97,7 @@ def _reference_score(doc: Document, reference: Mapping[str, str]) -> int:
 def _reference_filter(reference: Mapping[str, str]) -> Filter | None:
     if not reference:
         return None
-    conditions = [
+    conditions: list[Condition] = [
         FieldCondition(
             key="metadata.article",
             match=MatchValue(value=reference["article"]),
@@ -132,7 +135,7 @@ def _exact_qdrant_documents(store: Any, reference: Mapping[str, str], limit: int
     if client is None or not collection:
         return []
 
-    structural = [
+    structural: list[Condition] = [
         FieldCondition(
             key=f"metadata.{key}",
             match=MatchValue(value=reference[key]),
@@ -194,6 +197,76 @@ def _exact_qdrant_documents(store: Any, reference: Mapping[str, str], limit: int
     return documents
 
 
+def _sibling_completion_documents(store: Any, original: Document, limit: int) -> list[Document]:
+    """Scroll exact document/article metadata for bounded sanction completions."""
+    if limit < 1:
+        return []
+    metadata = _metadata(original)
+    document_key = next(
+        (
+            key
+            for key in ("document_id", "document_number", "document_name", "source_file")
+            if str(metadata.get(key, "")).strip()
+        ),
+        "",
+    )
+    document_id = str(metadata.get(document_key, "")).strip()
+    article = str(metadata.get("article", "")).strip()
+    if not document_key or not document_id or not article:
+        return []
+    client = getattr(store, "client", None)
+    collection = getattr(store, "collection_name", None)
+    if client is None or not collection:
+        return []
+    query_filter = Filter(
+        must=[
+            FieldCondition(key=f"metadata.{document_key}", match=MatchValue(value=document_id)),
+            FieldCondition(key="metadata.article", match=MatchValue(value=article)),
+        ]
+    )
+    try:
+        points, _ = client.scroll(
+            collection_name=collection,
+            scroll_filter=query_filter,
+            limit=max(limit * 4, limit),
+            with_payload=True,
+        )
+    except Exception:
+        return []
+    result: list[Document] = []
+    seen = {_identity(original)}
+    for point in points:
+        payload = getattr(point, "payload", None)
+        if not isinstance(payload, Mapping):
+            continue
+        document = _payload_document(payload)
+        if document is None:
+            continue
+        candidate_metadata = _metadata(document)
+        if (
+            str(candidate_metadata.get(document_key, "")).strip() != document_id
+            or str(candidate_metadata.get("article", "")).strip() != article
+            or not _SANCTION_COMPLETION_RE.search(document.page_content)
+        ):
+            continue
+        identity = _identity(document)
+        if identity in seen:
+            continue
+        seen.add(identity)
+        result.append(document)
+        if len(result) >= limit:
+            break
+    return result
+
+
+def _identity(document: Document) -> tuple[str, str]:
+    metadata = _metadata(document)
+    chunk_id = str(metadata.get("chunk_id", "")).strip()
+    if chunk_id:
+        return "chunk_id", chunk_id
+    return str(metadata.get("source_file") or metadata.get("source") or ""), document.page_content
+
+
 class Retriever:
     """Deep module over a persistent local Qdrant hybrid vector store."""
 
@@ -220,11 +293,15 @@ class Retriever:
             dense = OpenAIEmbeddings(
                 model=embedding.model,
                 dimensions=768,
-                api_key=embedding.openrouter_api_key,
+                api_key=SecretStr(embedding.openrouter_api_key),
                 base_url=embedding.openrouter_base_url,
             )
             sparse = FastEmbedSparse("Qdrant/bm25")
-            client = QdrantClient(path=str(qdrant.path))
+            client = (
+                QdrantClient(url=qdrant.url, timeout=qdrant.timeout)
+                if qdrant.url
+                else QdrantClient(path=str(qdrant.path), timeout=qdrant.timeout)
+            )
             self._store = QdrantVectorStore(
                 client=client,
                 collection_name=qdrant.collection,
@@ -239,6 +316,22 @@ class Retriever:
             raise
         except Exception as exc:
             raise RetrievalProviderError("Qdrant or embedding provider is unavailable") from exc
+
+    def resolve_reference(
+        self,
+        reference: LegalReference,
+        *,
+        limit: int | None = None,
+    ) -> list[Document]:
+        """Resolve an explicit reference through exact metadata/Qdrant matching."""
+        reference_data = reference.as_dict()
+        if not reference_data.get("article"):
+            return []
+        store = self._store_for_query()
+        documents = _exact_qdrant_documents(store, reference_data, limit or self.top_k)
+        return [
+            document for document in documents if metadata_matches(document.metadata, reference)
+        ]
 
     def retrieve(
         self,
@@ -294,7 +387,18 @@ class Retriever:
                         existing.add(key)
                     if len(ranked) >= limit:
                         break
-        return [doc for _, doc in ranked[:limit]]
+        originals = [doc for _, doc in ranked[:limit]]
+        with_siblings = expand_sibling_completions(
+            originals,
+            lambda document, limit: _sibling_completion_documents(store, document, limit),
+            max_documents=limit,
+            max_siblings=2,
+        )
+        return expand_cross_references(
+            with_siblings,
+            self.resolve_reference,
+            max_documents=limit,
+        )
 
 
 __all__ = ["Retriever", "RetrievalProviderError", "extract_reference"]

@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import type { Citation } from "./CitationCard";
 import Modal from "./Modal";
-import PdfCitationViewer from "./PdfCitationViewer";
+import LegalSourceViewer from "./LegalSourceViewer";
 
 export default function SourceDrawer({
   citation,
@@ -59,7 +59,7 @@ export default function SourceDrawer({
         </div>
       </header>
       <div className="source-drawer__body">
-        <PdfCitationViewer citation={citation} />
+        <LegalSourceViewer citation={citation} mode="chat" />
         <details className="source-excerpt">
           <summary>Đọc đoạn trích nguyên văn</summary>
           <blockquote>{excerpt || "Nguồn không cung cấp nội dung đoạn trích."}</blockquote>

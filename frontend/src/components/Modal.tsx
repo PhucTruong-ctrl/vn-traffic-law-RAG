@@ -1,5 +1,5 @@
 "use client";
-
+import { createPortal } from "react-dom";
 import { useEffect, useRef } from "react";
 
 type ModalProps = {
@@ -50,8 +50,8 @@ export default function Modal({ open, onClose, label, className = "", children }
     };
   }, [open, onClose]);
 
-  if (!open) return null;
-  return (
+  if (!open || typeof document === "undefined") return null;
+  return createPortal(
     <div
       className="modal-backdrop"
       role="presentation"
@@ -77,6 +77,7 @@ export default function Modal({ open, onClose, label, className = "", children }
         </button>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

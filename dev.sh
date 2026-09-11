@@ -32,7 +32,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   export "$key=$value"
 done < "$ENV_FILE"
 BACKEND_INTERNAL_URL="${BACKEND_INTERNAL_URL:-http://127.0.0.1:8000}"
-NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-}"
+NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://127.0.0.1:8000}"
 export BACKEND_INTERNAL_URL NEXT_PUBLIC_API_URL
 
 
@@ -53,7 +53,8 @@ fi
 
 # Next.js reads frontend/.env.local for direct launches. Keep the generated
 # file restricted and preserve a user-managed nonempty file unless the root
-# .env explicitly supplied the public values.
+# .env explicitly supplied the public values. Local dev defaults to the host
+# FastAPI URL; set NEXT_PUBLIC_API_URL to intentionally override it.
 NEXT_PUBLIC_SUPABASE_URL="${NEXT_PUBLIC_SUPABASE_URL:-$SUPABASE_URL}"
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-${SUPABASE_PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-}}}"
 frontend_env="$ROOT/frontend/.env.local"
@@ -117,6 +118,19 @@ child_pids+=("$!")
 ) > >(sed -u 's/^/[frontend] /') 2>&1 &
 child_pids+=("$!")
 
-echo "==> http://localhost:3000"
-echo "==> API http://localhost:8000"
-wait
+for _ in $(seq 1 100); do
+  if curl --fail --silent --max-time 1 http://127.0.0.1:8000/api/v1/health/live >/dev/null &&
+    curl --fail --silent --max-time 1 http://127.0.0.1:3000/ >/dev/null; then
+    echo "==> http://localhost:3000"
+    echo "==> API http://localhost:8000"
+    wait -n "${child_pids[@]}"
+    exit $?
+  fi
+  kill -0 "${child_pids[0]}" "${child_pids[1]}" 2>/dev/null || {
+    echo "A development service exited before readiness." >&2
+    exit 1
+  }
+  sleep 0.1
+done
+echo "Development services did not become ready within 10 seconds." >&2
+exit 1
