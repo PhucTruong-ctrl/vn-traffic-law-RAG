@@ -36,6 +36,24 @@ const validateChatResponse = (payload: unknown): ChatResponse => {
     INSUFFICIENT_EVIDENCE: true,
     WORKFLOW_UNAVAILABLE: true,
   };
+  if (value.status === "CLARIFICATION_REQUIRED") {
+    const options = value.options;
+    const validAnswer = typeof value.answer === "string" && Boolean(value.answer.trim());
+    const validOptions =
+      Array.isArray(options) &&
+      options.length > 0 &&
+      options.every((option) => typeof option === "string" && Boolean(option.trim()));
+    if (!validAnswer || !validOptions) {
+      throw new Error("Phản hồi từ máy chủ không hợp lệ. Vui lòng thử lại.");
+    }
+    return {
+      ...value,
+      answer: value.answer,
+      options: options as string[],
+      citations: [],
+      claims: [],
+    } as ChatResponse;
+  }
   if (typeof value.status === "string" && NON_VERIFIED_STATUS[value.status]) {
     return payload as ChatResponse;
   }
@@ -80,12 +98,35 @@ const validateChatResponse = (payload: unknown): ChatResponse => {
 
 function responseFromMessage(message: Record<string, unknown>): ChatResponse | null {
   const candidate = message.response ?? message.payload ?? message;
+  const enrich = (response: ChatResponse): ChatResponse => ({
+    ...response,
+    ...(typeof message.id === "string" ? { assistant_message_id: message.id } : {}),
+    ...(typeof message.session_id === "string" ? { conversation_id: message.session_id } : {}),
+  });
+  if (typeof candidate === "string") {
+    const citations = Array.isArray(message.citations) ? message.citations.filter(isCitation) : [];
+    const answer = candidate.trim();
+    if (!answer) return null;
+    return enrich({
+      status: message.status === "insufficient_evidence" ? "INSUFFICIENT_EVIDENCE" : "VERIFIED",
+      answer,
+      citations,
+      claims: citations.map((citation) => ({
+        claim:
+          (typeof citation.excerpt === "string" && citation.excerpt) ||
+          (typeof citation.source_text === "string" && citation.source_text) ||
+          (typeof citation.snippet === "string" && citation.snippet) ||
+          answer,
+      })),
+    });
+  }
   try {
-    return validateChatResponse(candidate);
+    return enrich(validateChatResponse(candidate));
   } catch {
     return null;
   }
 }
+
 function turnsFromConversation(value: unknown): ConversationTurn[] {
   if (!value || typeof value !== "object") return [];
   const raw = value as Record<string, unknown>;
@@ -95,13 +136,13 @@ function turnsFromConversation(value: unknown): ConversationTurn[] {
       ? raw.turns
       : [];
   const turns: ConversationTurn[] = [];
-  for (const item of messages) {
+  for (let index = 0; index < messages.length; index += 1) {
+    const item = messages[index];
     if (!item || typeof item !== "object") continue;
     const message = item as Record<string, unknown>;
     if (
       typeof message.question === "string" &&
-      message.response &&
-      typeof message.response === "object"
+      (message.response !== undefined || message.payload !== undefined)
     ) {
       const response = responseFromMessage(message);
       if (response) turns.push({ question: message.question, response });
@@ -111,24 +152,47 @@ function turnsFromConversation(value: unknown): ConversationTurn[] {
       (message.role === "user" || message.type === "user") &&
       typeof message.content === "string"
     ) {
-      const next = messages[turns.length + 1];
-      if (next && typeof next === "object") {
-        const response = responseFromMessage(next as Record<string, unknown>);
+      const next = messages[index + 1];
+      if (
+        next &&
+        typeof next === "object" &&
+        ((next as Record<string, unknown>).role === "assistant" ||
+          (next as Record<string, unknown>).type === "assistant")
+      ) {
+        const nextMessage = next as Record<string, unknown>;
+        const response = responseFromMessage({
+          ...nextMessage,
+          session_id: typeof nextMessage.session_id === "string" ? nextMessage.session_id : raw.id,
+        });
         if (response) turns.push({ question: message.content, response });
       }
     }
   }
   return turns;
 }
-export default function ChatPage({ conversationId }: { conversationId?: string }) {
+export default function ChatPage({
+  conversationId: initialConversationId,
+}: {
+  conversationId?: string;
+}) {
   const router = useRouter();
   const pathname = usePathname();
+  const routeConversationId = pathname.startsWith("/chat/")
+    ? decodeURIComponent(pathname.slice("/chat/".length).split("/")[0])
+    : undefined;
+  const conversationId = routeConversationId || initialConversationId;
+  const activeConversationId = conversationId;
   const [question, setQuestion] = useState("");
   const [drawerCitation, setDrawerCitation] = useState<Citation | null>(null);
   const [turns, setTurns] = useState<ConversationTurn[]>([]);
   const [submittedQuestion, setSubmittedQuestion] = useState("");
+  const [conversationActivity, setConversationActivity] = useState<{
+    id: string;
+    nonce: number;
+  } | null>(null);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(Boolean(conversationId));
+  const [loading, setLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(Boolean(conversationId));
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [progressEvents, setProgressEvents] = useState<ProgressEvent[]>([]);
   const [activeId, setActiveId] = useState(conversationId);
@@ -170,7 +234,17 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
   }, [supabase]);
   useEffect(() => {
     const controller = new AbortController();
-    if (!conversationId || !session) return () => controller.abort();
+    if (!conversationId || !session) {
+      if (!conversationId) {
+        void Promise.resolve().then(() => {
+          if (!controller.signal.aborted) setHistoryLoading(false);
+        });
+      }
+      return () => controller.abort();
+    }
+    void Promise.resolve().then(() => {
+      if (!controller.signal.aborted) setHistoryLoading(true);
+    });
     void authHeaders()
       .then((headers) =>
         fetch(`${API_BASE}/api/v1/chats/${encodeURIComponent(conversationId)}`, {
@@ -188,14 +262,14 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
         setQuestion("");
         setSubmittedQuestion("");
         setError("");
-        setLoading(false);
+        setHistoryLoading(false);
       })
       .catch((loadError) => {
         if (loadError.name !== "AbortError") {
           setError(
             loadError instanceof Error ? loadError.message : "Không thể tải cuộc trò chuyện.",
           );
-          setLoading(false);
+          setHistoryLoading(false);
         }
       });
     return () => controller.abort();
@@ -225,10 +299,8 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
       setAuthError("Vui lòng xác nhận email trước khi đăng nhập.");
   }
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const submitted = question.trim();
-    if (!submitted || loading || !session) return;
+  async function submitQuestion(submitted: string) {
+    if (!submitted || loading || historyLoading || !session) return;
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
     setProgressEvents([]);
@@ -260,6 +332,7 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
         navigateTo(responseId);
       }
       setTurns((previous) => [...previous, { question: submitted, response: nextResponse }]);
+      if (responseId) setConversationActivity({ id: responseId, nonce: Date.now() });
       setQuestion("");
     } catch (submissionError) {
       if (submissionError instanceof DOMException && submissionError.name === "AbortError") return;
@@ -272,6 +345,11 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
         setLoading(false);
       }
     }
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await submitQuestion(question.trim());
   }
   function stopSubmission() {
     eventSourceRef.current?.close();
@@ -388,16 +466,19 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
         onNewChat={resetConversation}
         onSelectConversation={(id) => navigateTo(id)}
         onCollapsedChange={setSidebarCollapsed}
+        onConversationActivity={conversationActivity}
       />
       <section className="main-panel" aria-label="Khu vực tra cứu">
         <AppHeader />
         <div
           className={
-            turns.length || loading || error ? "conversation has-messages" : "conversation"
+            turns.length || loading || historyLoading || error
+              ? "conversation has-messages"
+              : "conversation"
           }
-          aria-busy={loading}
+          aria-busy={loading || historyLoading}
         >
-          {!conversationId && !turns.length && !loading && !error ? (
+          {!conversationId && !turns.length && !loading && !historyLoading && !error ? (
             <Welcome
               question={question}
               suggestions={suggestions}
@@ -407,14 +488,17 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
           ) : (
             <ChatThread
               turns={turns}
-              question={submittedQuestion}
+              question={historyLoading ? "" : submittedQuestion}
               loading={loading}
+              historyLoading={historyLoading}
               error={error}
               progressEvents={progressEvents}
+              sessionId={activeId}
               onOpenSource={setDrawerCitation}
+              onClarificationOption={(option) => void submitQuestion(option)}
             />
           )}
-          {(conversationId || turns.length > 0 || loading || error) && (
+          {(conversationId || turns.length > 0 || loading || historyLoading || error) && (
             <div className="sticky-composer">
               <Composer
                 id="question"

@@ -9,7 +9,7 @@ import LegalMark from "./LegalMark";
 import Modal from "./Modal";
 import type { Conversation } from "./chat-types";
 import { createClient } from "../../utils/supabase/client";
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
 type ConversationActivity = { id: string; nonce: number } | null;
 
 type SidebarProps = {
@@ -71,6 +71,15 @@ export default function Sidebar({
   const renameInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLSpanElement>(null);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [userMenuPosition, setUserMenuPosition] = useState({ top: 0, left: 0 });
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const userMenuRef = useRef<HTMLSpanElement>(null);
+  const userMenuTriggerRef = useRef<HTMLButtonElement>(null);
   async function fetchConversations(nextCursor?: string | null, query = search) {
     if (!authReady || !accessToken) {
       setConversationsLoading(false);
@@ -101,23 +110,8 @@ export default function Sidebar({
   useEffect(() => {
     const activity = onConversationActivity;
     if (!activity) return;
-    const reorder = window.setTimeout(() => {
-      setConversations((items) => {
-        const index = items.findIndex((item) => item.id === activity.id);
-        if (index <= 0) return items;
-        const item = items[index];
-        return [item, ...items.slice(0, index), ...items.slice(index + 1)];
-      });
-      setAnimatingConversationId(activity.id);
-      if (animationTimerRef.current !== null) {
-        window.clearTimeout(animationTimerRef.current);
-      }
-      animationTimerRef.current = window.setTimeout(() => {
-        setAnimatingConversationId(null);
-        animationTimerRef.current = null;
-      }, 320);
-    }, 0);
-    return () => window.clearTimeout(reorder);
+    const refresh = window.setTimeout(() => void fetchConversations(), 0);
+    return () => window.clearTimeout(refresh);
   }, [onConversationActivity]);
   useEffect(() => {
     if (!authReady) return;
@@ -230,6 +224,71 @@ export default function Sidebar({
       document.removeEventListener("keydown", closeOnEscape);
     };
   }, [actionMenu]);
+  const updateUserMenuPosition = () => {
+    const trigger = userMenuTriggerRef.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const menuWidth = 132;
+    const menuHeight = 90;
+    const gutter = 8;
+    const left = Math.min(
+      Math.max(gutter, rect.right - menuWidth),
+      window.innerWidth - menuWidth - gutter,
+    );
+    const top =
+      rect.top - menuHeight - gutter >= gutter ? rect.top - menuHeight - 4 : rect.bottom + 4;
+    setUserMenuPosition({ top, left });
+  };
+
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    updateUserMenuPosition();
+    const reposition = () => updateUserMenuPosition();
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target;
+      if (
+        target instanceof Node &&
+        !userMenuTriggerRef.current?.contains(target) &&
+        !userMenuRef.current?.contains(target)
+      ) {
+        setUserMenuOpen(false);
+      }
+    };
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    return () => {
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+    };
+  }, [userMenuOpen]);
+
+  async function changePassword(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPasswordError("");
+    setPasswordMessage("");
+    if (newPassword.length < 8) {
+      setPasswordError("Mật khẩu phải có ít nhất 8 ký tự.");
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError("Mật khẩu xác nhận không khớp.");
+      return;
+    }
+    const result = await supabase.auth.updateUser({ password: newPassword });
+    if (result.error) setPasswordError(result.error.message);
+    else {
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setPasswordMessage("Đổi mật khẩu thành công.");
+    }
+  }
+
+  async function signOut() {
+    await supabase.auth.signOut();
+    setUserMenuOpen(false);
+  }
 
   async function rename(id: string) {
     if (!authReady || !accessToken) return;
@@ -503,10 +562,77 @@ export default function Sidebar({
             <b>{userEmail ?? "Người dùng"}</b>
             <small>Trợ lý pháp luật</small>
           </span>
-          <span className="sidebar-user__menu" aria-hidden="true">
-            •••
-          </span>
+          <button
+            ref={userMenuTriggerRef}
+            type="button"
+            className="sidebar-user__menu"
+            aria-label="Mở tùy chọn tài khoản"
+            aria-expanded={userMenuOpen}
+            onClick={() => setUserMenuOpen((open) => !open)}
+          >
+            <span aria-hidden="true">•••</span>
+          </button>
+          {userMenuOpen &&
+            typeof document !== "undefined" &&
+            createPortal(
+              <span
+                ref={userMenuRef}
+                className="chat-list__menu sidebar-user__popover"
+                role="menu"
+                style={{ top: userMenuPosition.top, left: userMenuPosition.left }}
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setPasswordError("");
+                    setPasswordMessage("");
+                    setPasswordOpen(true);
+                    setUserMenuOpen(false);
+                  }}
+                >
+                  Đổi mật khẩu
+                </button>
+                <button type="button" role="menuitem" onClick={() => void signOut()}>
+                  Đăng xuất
+                </button>
+              </span>,
+              document.body,
+            )}
         </div>
+        <Modal
+          open={passwordOpen}
+          onClose={() => setPasswordOpen(false)}
+          label="Đổi mật khẩu"
+          className="account-dialog"
+        >
+          <form className="account-dialog__form" onSubmit={(event) => void changePassword(event)}>
+            <h2>Đổi mật khẩu</h2>
+            <label>
+              Mật khẩu mới
+              <input
+                type="password"
+                minLength={8}
+                required
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+              />
+            </label>
+            <label>
+              Nhập lại mật khẩu mới
+              <input
+                type="password"
+                minLength={8}
+                required
+                value={confirmNewPassword}
+                onChange={(event) => setConfirmNewPassword(event.target.value)}
+              />
+            </label>
+            {passwordError && <p role="alert">{passwordError}</p>}
+            {passwordMessage && <p className="account-dialog__success">{passwordMessage}</p>}
+            <button type="submit">Lưu mật khẩu</button>
+          </form>
+        </Modal>
       </aside>
     </>
   );

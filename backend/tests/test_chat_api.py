@@ -7,6 +7,29 @@ import pytest
 from app.chats.service import add_feedback
 from app.legal import api as legal_api
 from app.rag.schemas import ChatResponse, Citation
+from app.rag.service import RAGService
+
+
+def test_chitchat_does_not_call_retriever() -> None:
+    class NeverRetriever:
+        def retrieve(self, *args, **kwargs):
+            raise AssertionError("chitchat must not retrieve")
+
+    result = RAGService(NeverRetriever()).answer("hi")
+    assert result["answer"]
+    assert result["status"] == "chitchat"
+
+
+def test_clarification_response_skips_retrieval() -> None:
+    class NeverRetriever:
+        def retrieve(self, *args, **kwargs):
+            raise AssertionError("clarification must not retrieve")
+
+    result = RAGService(NeverRetriever()).answer("Vượt đèn đỏ thì mức phạt bao nhiêu?")
+
+    assert result["status"] == "clarification_required"
+    assert result["citations"] == []
+    assert result["options"] == ["ô tô", "xe mô tô, xe gắn máy", "xe thô sơ"]
 
 
 @dataclass
@@ -18,7 +41,7 @@ class Chunk:
 def test_feedback_checks_message_ownership_before_insert(supabase_client) -> None:
     supabase_client.responses.append([])
     with pytest.raises(Exception) as exc:
-        add_feedback(supabase_client, "owner-1", "session-1", "message-1", {"rating": 5})
+        add_feedback(supabase_client, "owner-1", "session-1", "message-1", {"rating": 1})
     assert getattr(exc.value, "status_code", None) == 404
     assert len(supabase_client.calls) == 1
     assert supabase_client.calls[0]["params"] == {
@@ -86,7 +109,16 @@ def test_authenticated_chat_creates_session_and_persists_snapshots(
     assert message_inserts["user"]["session_id"] == "session-1"
     assert message_inserts["assistant"]["role"] == "assistant"
     assert message_inserts["assistant"]["content"] == "Được đi tối đa 50 km/h."
-    assert message_inserts["assistant"]["response"] == "Được đi tối đa 50 km/h."
+    assert message_inserts["assistant"]["response"] == {
+        "answer": "Được đi tối đa 50 km/h.",
+        "citations": [
+            {
+                "document": "Nghị định 100",
+                "source_file": "nd100.md",
+                "excerpt": "Tốc độ tối đa...",
+            }
+        ],
+    }
     assert message_inserts["assistant"]["citations"] == [
         {
             "document": "Nghị định 100",
@@ -167,6 +199,45 @@ def test_session_reload_returns_owner_messages(client, supabase_client) -> None:
     )
     assert response.status_code == 200
     assert [message["id"] for message in response.json()["messages"]] == ["m1", "m2"]
+
+
+def test_session_reload_preserves_assistant_response_contract(client, supabase_client) -> None:
+    supabase_client.auth_response = {"id": "user-1"}
+    assistant_response = {
+        "status": "VERIFIED",
+        "answer": "Không được dùng điện thoại khi điều khiển xe.",
+        "claims": [{"claim": "Dùng tay cầm và sử dụng điện thoại..."}],
+        "citations": [
+            {
+                "document": "Nghị định 168/2024/NĐ-CP",
+                "excerpt": "Dùng tay cầm và sử dụng điện thoại...",
+            }
+        ],
+    }
+    supabase_client.responses.extend(
+        [
+            [{"id": "user-1"}],
+            [{"id": "session-1", "user_id": "user-1", "deleted": False}],
+            [
+                {"id": "m1", "role": "user", "content": "Có được dùng điện thoại không?"},
+                {
+                    "id": "m2",
+                    "role": "assistant",
+                    "content": assistant_response["answer"],
+                    "response": assistant_response,
+                    "citations": assistant_response["citations"],
+                },
+            ],
+        ]
+    )
+
+    response = client.get(
+        "/api/v1/chats/session-1",
+        headers={"Authorization": "Bearer user-token"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["messages"][1]["response"] == assistant_response
 
 
 def test_cross_owner_session_is_not_visible(client, supabase_client) -> None:

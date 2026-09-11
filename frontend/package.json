@@ -12,7 +12,6 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test:e2e": "playwright test",
     "prepare": "husky",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -25,12 +24,12 @@
     "next": "^16.0.0",
     "pdfjs-dist": "^6.3.289",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-markdown": "^10.1.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.1",
     "@commitlint/config-conventional": "^21.2.0",
-    "@playwright/test": "^1.51.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

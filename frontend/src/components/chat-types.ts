@@ -8,6 +8,7 @@ export type Claim = {
 };
 export type ChatStatus =
   | "VERIFIED"
+  | "CLARIFICATION_REQUIRED"
   | "GREETING"
   | "OUT_OF_SCOPE"
   | "CORPUS_NOT_COVERED"
@@ -16,6 +17,7 @@ export type ChatStatus =
 export type ChatResponse = {
   status?: ChatStatus;
   answer?: string | null;
+  options?: string[];
   claims?: Claim[];
   citations?: Citation[];
   abstention?: { reason?: string; reason_code?: string; evidence_gaps?: string[] } | null;

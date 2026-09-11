@@ -55,12 +55,9 @@ def main() -> int:
         for record in records:
             docs = store.similarity_search(record.get("question", ""), k=args.top_k)
             expected = str(record.get("expected_document", "")).casefold()
+            document_ids = (str(doc.metadata.get("document_id", "")).casefold() for doc in docs)
             hits += int(
-                not expected
-                or any(
-                    expected in str(doc.metadata.get("document_id", "")).casefold()
-                    for doc in docs
-                )
+                not expected or any(expected in document_id for document_id in document_ids)
             )
         print(
             f"QUESTIONS: {len(records)}\n"

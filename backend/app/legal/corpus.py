@@ -41,9 +41,11 @@ class Chunk:
 
 
 def _path(value: str | Path | None, default: Path) -> Path:
-    return Path(
-        value or os.getenv("LEGAL_" + ("MANIFEST" if default == _MANIFEST else "CHUNKS"), default)
-    )
+    if value is not None:
+        return Path(value)
+    env_name = "LEGAL_MANIFEST" if default == _MANIFEST else "LEGAL_CHUNKS"
+    env_value = os.getenv(env_name)
+    return Path(env_value) if env_value is not None else default
 
 
 def _read_processed(path: Path) -> list[Chunk]:
@@ -73,10 +75,11 @@ def _read_processed(path: Path) -> list[Chunk]:
 def chunks(
     *, manifest: str | Path | None = None, processed: str | Path | None = None
 ) -> list[Chunk]:
-    selected = _read_processed(Path(processed or os.getenv("LEGAL_CHUNKS", _PROCESSED)))
+    selected = _read_processed(_path(processed, _PROCESSED))
     if selected:
         return selected
-    docs = load_manifest(manifest or os.getenv("LEGAL_MANIFEST", _MANIFEST), local_dir=_LOCAL_DIR)
+    manifest_path = _path(manifest, _MANIFEST)
+    docs = load_manifest(manifest_path, local_dir=_LOCAL_DIR)
     return [Chunk(text=d.page_content, metadata=dict(d.metadata)) for d in docs]
 
 

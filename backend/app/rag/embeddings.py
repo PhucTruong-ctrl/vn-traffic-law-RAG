@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from langchain_openai import OpenAIEmbeddings
+from pydantic import SecretStr
 
 from app.config import get_embedding_settings
 
@@ -23,9 +24,9 @@ class OpenRouterEmbeddingClient:
         if not settings.openrouter_api_key:
             raise EmbeddingError("OpenRouter provider is unavailable")
         self.client = OpenAIEmbeddings(
-            model="openai/text-embedding-3-small",
-            dimensions=768,
-            api_key=settings.openrouter_api_key,
+            model=settings.model,
+            dimensions=settings.dimensions,
+            api_key=SecretStr(settings.openrouter_api_key),
             base_url=settings.openrouter_base_url,
         )
 

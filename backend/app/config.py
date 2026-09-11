@@ -16,24 +16,29 @@ class _Env(BaseSettings):
 
 
 class GenerationSettings(_Env):
-    model: str = Field("deepseek/deepseek-v4-flash-0731", validation_alias="GENERATION_MODEL")
-    openrouter_api_key: str = Field("", validation_alias="OPENROUTER_API_KEY")
+    model: str = Field(
+        default="deepseek/deepseek-v4-flash-0731", validation_alias="GENERATION_MODEL"
+    )
+    openrouter_api_key: str = Field(default="", validation_alias="OPENROUTER_API_KEY")
     openrouter_base_url: str = Field(
-        "https://openrouter.ai/api/v1", validation_alias="OPENROUTER_BASE_URL"
+        default="https://openrouter.ai/api/v1", validation_alias="OPENROUTER_BASE_URL"
     )
 
 
 class EmbeddingSettings(_Env):
-    model: str = Field("openai/text-embedding-3-small", validation_alias="EMBEDDING_MODEL")
-    openrouter_api_key: str = Field("", validation_alias="OPENROUTER_API_KEY")
+    model: str = Field(default="openai/text-embedding-3-small", validation_alias="EMBEDDING_MODEL")
+    dimensions: int = Field(default=768, validation_alias="EMBEDDING_DIMENSIONS")
+    openrouter_api_key: str = Field(default="", validation_alias="OPENROUTER_API_KEY")
     openrouter_base_url: str = Field(
-        "https://openrouter.ai/api/v1", validation_alias="OPENROUTER_BASE_URL"
+        default="https://openrouter.ai/api/v1", validation_alias="OPENROUTER_BASE_URL"
     )
 
 
 class QdrantSettings(_Env):
-    path: Path = Field(_ROOT / "data/processed/qdrant", validation_alias="QDRANT_PATH")
-    collection: str = Field("traffic_law", validation_alias="QDRANT_COLLECTION")
+    path: Path = Field(
+        default_factory=lambda: _ROOT / "data/processed/qdrant", validation_alias="QDRANT_PATH"
+    )
+    collection: str = Field(default="traffic_law", validation_alias="QDRANT_COLLECTION")
 
     def model_post_init(self, __context: object) -> None:
         path = self.path.expanduser()
@@ -43,8 +48,8 @@ class QdrantSettings(_Env):
 
 
 class ChunkSettings(_Env):
-    size: int = Field(1200, validation_alias="CHUNK_SIZE")
-    overlap: int = Field(120, validation_alias="CHUNK_OVERLAP")
+    size: int = Field(default=1200, validation_alias="CHUNK_SIZE")
+    overlap: int = Field(default=120, validation_alias="CHUNK_OVERLAP")
 
 
 @lru_cache(maxsize=1)

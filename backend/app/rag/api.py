@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+from time import perf_counter
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -18,8 +20,10 @@ from app.chats.service import (
 )
 from app.database.session import SupabaseClient, get_db
 
+from .analyzer import resolve_vehicle_followup
 from .schemas import ChatRequest
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["rag"])
 rag_service = chats_api.rag_service
 service = rag_service
@@ -52,10 +56,12 @@ def _frontend_response(result: dict[str, Any]) -> dict[str, Any]:
             "claims": [],
             "abstention": {"reason_code": "INSUFFICIENT_EVIDENCE"},
         }
+    if result.get("status") == "clarification_required":
+        return {**result, "status": "CLARIFICATION_REQUIRED", "claims": []}
     return result
 
 
-@router.post("/chat", response_model=dict[str, Any])
+@router.post("/chat")
 def chat(
     request: ChatRequest,
     user: dict = Depends(get_current_user),  # noqa: B008
@@ -63,16 +69,24 @@ def chat(
     credentials: HTTPAuthorizationCredentials = Depends(bearer),  # noqa: B008
 ) -> dict[str, Any]:
     token = _token(credentials)
-    user_id = str(user.get("id") or user.get("user_id") or user["sub"])
+    started = perf_counter()
+    stages: dict[str, float] = {}
     try:
+        stage_started = perf_counter()
+        user_id = str(user.get("id") or user.get("user_id") or user["sub"])
         session = (
             touch_session(client, user_id, request.session_id, token)
             if request.session_id
             else create_session(client, user_id, request.title or request.question[:80], token)
         )
         session_id = str(session["id"])
+        stages["session_ms"] = round((perf_counter() - stage_started) * 1000, 2)
+
         history = recent_messages(client, user_id, session_id, token) if request.session_id else []
-        query = build_followup_query(request.question, history)
+        query = resolve_vehicle_followup(build_followup_query(request.question, history), history)
+        stages["history_ms"] = round((perf_counter() - stage_started) * 1000, 2)
+
+        stage_started = perf_counter()
         user_message = add_message(
             client,
             user_id,
@@ -80,11 +94,16 @@ def chat(
             {"content": request.question, "role": "user", "status": "pending"},
             token,
         )
+        stages["persistence_ms"] = round((perf_counter() - stage_started) * 1000, 2)
+
+        stage_started = perf_counter()
         result = _frontend_response(
             chats_api.rag_service.answer(
                 query, top_k=request.top_k, effective_date=request.effective_date, history=history
             )
         )
+        stages["rag_ms"] = round((perf_counter() - stage_started) * 1000, 2)
+
         assistant_message = add_message(
             client,
             user_id,
@@ -93,13 +112,15 @@ def chat(
                 "content": result["answer"],
                 "role": "assistant",
                 "status": result.get("status", "complete"),
-                "response": result["answer"],
+                "response": result,
                 "citations": result.get("citations", []),
                 "metadata": {"citations": result.get("citations", [])},
             },
             token,
         )
         touch_session(client, user_id, session_id, token)
+        stages["total_ms"] = round((perf_counter() - started) * 1000, 2)
+        logger.info("chat_stage_timings %s", stages)
         return {
             **result,
             "session_id": session_id,
