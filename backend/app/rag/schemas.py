@@ -12,15 +12,19 @@ class ChatRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     question: str = Field(min_length=1, max_length=10_000)
+    session_id: str | None = Field(default=None, min_length=1)
+    title: str | None = Field(default=None, min_length=1, max_length=200)
     top_k: int = Field(default=5, ge=1, le=50)
     effective_date: date | None = None
 
-    @field_validator("question")
+    @field_validator("question", "title")
     @classmethod
-    def non_blank(cls, value: str) -> str:
+    def non_blank(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
         value = value.strip()
         if not value:
-            raise ValueError("question must not be blank")
+            raise ValueError("question and title must not be blank")
         return value
 
 

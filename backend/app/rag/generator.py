@@ -32,7 +32,7 @@ def generate_answer(question: str, documents: Sequence[Document]) -> str:
         from langchain_openrouter import ChatOpenRouter
     except ImportError as exc:
         raise RuntimeError(
-            "OpenRouter integration is not installed (add langchain-openrouter)"
+            "OpenRouter integration is not installed; run `uv sync --project backend`"
         ) from exc
 
     try:

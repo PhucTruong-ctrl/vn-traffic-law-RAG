@@ -48,6 +48,7 @@ class RAGService:
         chunks: Iterable[Document] | None = None,
         top_k: int = 5,
         effective_date: date | None = None,
+        history: Iterable[dict[str, Any]] = (),
     ) -> dict[str, Any]:
         documents = (
             list(chunks)
@@ -56,9 +57,17 @@ class RAGService:
         )
         decision = assess_evidence(documents)
         if not decision.allowed:
-            return {"answer": decision.message or "", "citations": []}
+            return {
+                "answer": decision.message or "",
+                "citations": [],
+                "status": "insufficient_evidence",
+            }
         answer = generate_answer(question, documents)
-        return {"answer": answer, "citations": [_citation(document) for document in documents]}
+        return {
+            "answer": answer,
+            "citations": [_citation(document) for document in documents],
+            "status": "complete",
+        }
 
 
 __all__ = ["RAGService"]

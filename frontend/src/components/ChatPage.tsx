@@ -15,7 +15,8 @@ import type { Citation } from "./CitationCard";
 import type { Session } from "@supabase/supabase-js";
 import { createClient } from "../../utils/supabase/client";
 
-const API_PATH = "/api/v1/chat";
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+const API_PATH = `${API_BASE}/api/v1/chat`;
 const isCitation = (value: unknown): value is Citation => {
   if (typeof value !== "object" || value === null) return false;
   const citation = value as Record<string, unknown>;
@@ -158,6 +159,7 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
       }
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, next) => {
+      if (!mounted) return;
       setSession(next);
       setAuthReady(true);
     });
@@ -171,7 +173,7 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
     if (!conversationId || !session) return () => controller.abort();
     void authHeaders()
       .then((headers) =>
-        fetch(`/api/v1/chats/${encodeURIComponent(conversationId)}`, {
+        fetch(`${API_BASE}/api/v1/chats/${encodeURIComponent(conversationId)}`, {
           headers,
           signal: controller.signal,
         }),
@@ -231,19 +233,32 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
     abortControllerRef.current = abortController;
     setProgressEvents([]);
     setLoading(true);
-    setError("");
-    setSubmittedQuestion(submitted);
     try {
       const result = await fetch(API_PATH, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-        body: JSON.stringify({ question: submitted }),
+        body: JSON.stringify({
+          question: submitted,
+          ...(activeId ? { session_id: activeId } : {}),
+        }),
         signal: abortController.signal,
       });
       const payload = await result.json().catch(() => null);
       if (!result.ok)
         throw new Error(payload?.detail || payload?.error?.message || "Không thể xử lý câu hỏi.");
       const nextResponse = validateChatResponse(payload);
+      const responseId =
+        typeof payload?.session_id === "string"
+          ? payload.session_id
+          : typeof payload?.conversation_id === "string"
+            ? payload.conversation_id
+            : typeof payload?.chat_id === "string"
+              ? payload.chat_id
+              : activeId;
+      if (responseId && responseId !== activeId) {
+        setActiveId(responseId);
+        navigateTo(responseId);
+      }
       setTurns((previous) => [...previous, { question: submitted, response: nextResponse }]);
       setQuestion("");
     } catch (submissionError) {

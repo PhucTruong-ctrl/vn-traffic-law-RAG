@@ -29,6 +29,112 @@ def test_feedback_checks_message_ownership_before_insert(supabase_client) -> Non
     }
 
 
+def test_authenticated_chat_creates_session_and_persists_snapshots(
+    client, supabase_client, monkeypatch
+) -> None:
+    supabase_client.auth_response = {"id": "user-1", "email": "person@example.com"}
+    monkeypatch.setattr(
+        "app.chats.api.rag_service.answer",
+        lambda question, **kwargs: {
+            "answer": "Được đi tối đa 50 km/h.",
+            "citations": [
+                {
+                    "document": "Nghị định 100",
+                    "source_file": "nd100.md",
+                    "excerpt": "Tốc độ tối đa...",
+                }
+            ],
+        },
+    )
+    supabase_client.responses.extend(
+        [
+            [{"id": "user-1", "email": "person@example.com"}],
+            [{"id": "session-1", "user_id": "user-1", "title": "New chat"}],
+            [{"id": "session-1", "user_id": "user-1", "deleted": False}],
+            [{"id": "user-message", "role": "user", "content": "Tốc độ?"}],
+            [{"id": "session-1", "user_id": "user-1", "deleted": False}],
+            [
+                {
+                    "id": "assistant-message",
+                    "role": "assistant",
+                    "content": "Được đi tối đa 50 km/h.",
+                    "response": "Được đi tối đa 50 km/h.",
+                    "citations": [{"document": "Nghị định 100"}],
+                    "metadata": {"source": "rag"},
+                }
+            ],
+        ]
+    )
+    response = client.post(
+        "/api/v1/chat",
+        json={"question": "Tốc độ?", "title": "New chat"},
+        headers={"Authorization": "Bearer user-token"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["session_id"] == "session-1"
+    assert body["answer"] == "Được đi tối đa 50 km/h."
+    assert body["citations"][0]["document"] == "Nghị định 100"
+    inserts = [call for call in supabase_client.calls if call["method"] == "POST"]
+    message_inserts = {
+        call["data"]["role"]: call["data"]
+        for call in inserts
+        if call["data"].get("role") in {"user", "assistant"}
+    }
+    assert message_inserts["user"]["role"] == "user"
+    assert message_inserts["user"]["content"] == "Tốc độ?"
+    assert message_inserts["user"]["session_id"] == "session-1"
+    assert message_inserts["assistant"]["role"] == "assistant"
+    assert message_inserts["assistant"]["content"] == "Được đi tối đa 50 km/h."
+    assert message_inserts["assistant"]["response"] == "Được đi tối đa 50 km/h."
+    assert message_inserts["assistant"]["citations"] == [
+        {
+            "document": "Nghị định 100",
+            "source_file": "nd100.md",
+            "excerpt": "Tốc độ tối đa...",
+        }
+    ]
+    assert message_inserts["assistant"]["metadata"] == {
+        "citations": [
+            {
+                "document": "Nghị định 100",
+                "source_file": "nd100.md",
+                "excerpt": "Tốc độ tối đa...",
+            }
+        ]
+    }
+
+
+def test_session_reload_returns_owner_messages(client, supabase_client) -> None:
+    supabase_client.auth_response = {"id": "user-1"}
+    supabase_client.responses.extend(
+        [
+            [{"id": "user-1"}],
+            [{"id": "session-1", "user_id": "user-1", "deleted": False}],
+            [
+                {"id": "m1", "role": "user", "content": "Tốc độ?"},
+                {"id": "m2", "role": "assistant", "content": "50 km/h", "citations": []},
+            ],
+        ]
+    )
+    response = client.get(
+        "/api/v1/chats/session-1",
+        headers={"Authorization": "Bearer user-token"},
+    )
+    assert response.status_code == 200
+    assert [message["id"] for message in response.json()["messages"]] == ["m1", "m2"]
+
+
+def test_cross_owner_session_is_not_visible(client, supabase_client) -> None:
+    supabase_client.auth_response = {"id": "user-2"}
+    supabase_client.responses.extend([[{"id": "user-2"}], []])
+    response = client.get(
+        "/api/v1/chats/session-1",
+        headers={"Authorization": "Bearer user-token"},
+    )
+    assert response.status_code == 404
+
+
 def test_chat_response_preserves_citation_metadata_shape() -> None:
     citation = Citation(
         document="Nghị định 100/2019/NĐ-CP",
@@ -47,6 +153,18 @@ def test_chat_response_preserves_citation_metadata_shape() -> None:
         "status": None,
         "debug": None,
     }
+
+
+def test_unauthenticated_chat_is_rejected(client) -> None:
+    response = client.post("/api/v1/chat", json={"question": "Tốc độ tối đa là bao nhiêu?"})
+    assert response.status_code == 401
+
+
+def test_rename_requires_non_blank_title(client) -> None:
+    response = client.patch(
+        "/api/v1/chats/session-1", json={"title": "   "}, headers={"Authorization": "Bearer token"}
+    )
+    assert response.status_code == 401
 
 
 def test_legal_explorer_route_returns_document_provisions(client, monkeypatch) -> None:

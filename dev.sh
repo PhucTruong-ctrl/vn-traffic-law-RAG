@@ -32,7 +32,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   export "$key=$value"
 done < "$ENV_FILE"
 
-required_env=(SUPABASE_URL OPENROUTER_API_KEY QDRANT_PATH)
+required_env=(SUPABASE_URL OPENROUTER_API_KEY QDRANT_PATH BACKEND_INTERNAL_URL NEXT_PUBLIC_API_URL)
 for key in "${required_env[@]}"; do
   if [[ -z "${!key:-}" ]]; then
     echo "Missing required environment variable: $key" >&2
@@ -53,17 +53,17 @@ fi
 NEXT_PUBLIC_SUPABASE_URL="${NEXT_PUBLIC_SUPABASE_URL:-$SUPABASE_URL}"
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-${SUPABASE_PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-}}}"
 frontend_env="$ROOT/frontend/.env.local"
-if [[ ! -s "$frontend_env" || -n "${SUPABASE_URL:-}" || -n "${SUPABASE_PUBLISHABLE_KEY:-}" || -n "${SUPABASE_ANON_KEY:-}" ]]; then
+if [[ ! -s "$frontend_env" || -n "${SUPABASE_URL:-}" || -n "${SUPABASE_PUBLISHABLE_KEY:-}" || -n "${SUPABASE_ANON_KEY:-}" || -n "${NEXT_PUBLIC_API_URL:-}" ]]; then
   umask 077
-  printf 'NEXT_PUBLIC_SUPABASE_URL=%s\nNEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=%s\n' \
-    "$NEXT_PUBLIC_SUPABASE_URL" "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" > "$frontend_env"
+  printf 'NEXT_PUBLIC_API_URL=%s\nNEXT_PUBLIC_SUPABASE_URL=%s\nNEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=%s\n' \
+    "$NEXT_PUBLIC_API_URL" "$NEXT_PUBLIC_SUPABASE_URL" "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" > "$frontend_env"
   chmod 600 "$frontend_env"
 fi
 
 # Pass the validated values explicitly so child processes cannot fall back to
 # unrelated environment files or inherited values.
-export NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-for key in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; do
+export NEXT_PUBLIC_API_URL NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY BACKEND_INTERNAL_URL
+for key in NEXT_PUBLIC_API_URL NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY BACKEND_INTERNAL_URL; do
   if [[ -z "${!key:-}" ]]; then
     echo "Missing required environment variable: $key" >&2
     exit 1
@@ -95,17 +95,18 @@ child_pids=()
 cleanup() { trap - INT TERM EXIT; ((${#child_pids[@]})) && kill "${child_pids[@]}" 2>/dev/null || true; wait "${child_pids[@]}" 2>/dev/null || true; }
 trap cleanup INT TERM EXIT
 (
+  cd "$ROOT/backend"
   exec env PYTHONPATH=. \
     SUPABASE_URL="$SUPABASE_URL" SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}" SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY:-}" \
     QDRANT_PATH="$QDRANT_PATH" QDRANT_COLLECTION="${QDRANT_COLLECTION:-traffic_law}" \
     OPENROUTER_API_KEY="$OPENROUTER_API_KEY" OPENROUTER_BASE_URL="${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}" \
     GENERATION_MODEL="${GENERATION_MODEL:-deepseek/deepseek-v4-flash-0731}" EMBEDDING_MODEL="${EMBEDDING_MODEL:-openai/text-embedding-3-small}" \
-    uv run --env-file /dev/null --project "$ROOT/backend" python -m uvicorn app.main:app --reload --reload-dir "$ROOT/backend/app" --app-dir "$ROOT/backend" --host 127.0.0.1 --port 8000
+    uv run --env-file /dev/null --directory "$ROOT/backend" python -m uvicorn app.main:app --reload --reload-dir "$ROOT/backend/app" --app-dir "$ROOT/backend" --host 127.0.0.1 --port 8000
 ) > >(sed -u 's/^/[api] /') 2>&1 &
 child_pids+=("$!")
 (
   cd "$ROOT/frontend"
-  exec env NEXT_PUBLIC_API_URL="http://localhost:8000" \
+  exec env BACKEND_INTERNAL_URL="$BACKEND_INTERNAL_URL" NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" \
     NEXT_PUBLIC_SUPABASE_URL="$NEXT_PUBLIC_SUPABASE_URL" \
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" \
     npm run dev -- --hostname 127.0.0.1 --port 3000

@@ -9,7 +9,7 @@ import LegalMark from "./LegalMark";
 import Modal from "./Modal";
 import type { Conversation } from "./chat-types";
 import { createClient } from "../../utils/supabase/client";
-
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
 type ConversationActivity = { id: string; nonce: number } | null;
 
 type SidebarProps = {
@@ -32,16 +32,25 @@ export default function Sidebar({
   const supabase = useMemo(() => createClient(), []);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   useEffect(() => {
+    let mounted = true;
     void supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return;
       setUserEmail(data.session?.user.email ?? null);
       setAccessToken(data.session?.access_token ?? null);
+      setAuthReady(true);
     });
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
       setUserEmail(session?.user.email ?? null);
       setAccessToken(session?.access_token ?? null);
+      setAuthReady(true);
     });
-    return () => data.subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      data.subscription.unsubscribe();
+    };
   }, [supabase]);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -53,23 +62,26 @@ export default function Sidebar({
   const [editing, setEditing] = useState<string | null>(null);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
-  const menuTriggerRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLSpanElement>(null);
-  const renameInputRef = useRef<HTMLInputElement>(null);
-  const [title, setTitle] = useState("");
-  const mobileToggleRef = useRef<HTMLButtonElement>(null);
-  const sidebarRef = useRef<HTMLElement>(null);
-  const wasMobileOpen = useRef(false);
   const [animatingConversationId, setAnimatingConversationId] = useState<string | null>(null);
   const animationTimerRef = useRef<number | null>(null);
-
+  const wasMobileOpen = useRef(false);
+  const mobileToggleRef = useRef<HTMLButtonElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const [title, setTitle] = useState("");
+  const renameInputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLSpanElement>(null);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
   async function fetchConversations(nextCursor?: string | null, query = search) {
+    if (!authReady || !accessToken) {
+      setConversationsLoading(false);
+      return;
+    }
     const params = new URLSearchParams({ limit: "30" });
     if (query.trim()) params.set("search", query.trim());
     if (nextCursor) params.set("cursor", nextCursor);
     try {
-      const result = await fetch(`/api/v1/chats?${params}`, {
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      const result = await fetch(`${API_BASE}/api/v1/chats?${params}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (!result.ok) return;
       const payload = (await result.json()) as {
@@ -108,18 +120,19 @@ export default function Sidebar({
     return () => window.clearTimeout(reorder);
   }, [onConversationActivity]);
   useEffect(() => {
+    if (!authReady) return;
     const timer = window.setTimeout(() => void fetchConversations(), 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [authReady, accessToken]);
 
   useEffect(() => {
-    if (!searchOpen) return;
+    if (!searchOpen || !authReady || !accessToken) return;
     const timer = window.setTimeout(() => {
       setCursor(null);
       void fetchConversations(null, search);
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [search, searchOpen]);
+  }, [search, searchOpen, authReady, accessToken]);
 
   useEffect(() => {
     if (!mobileOpen) {
@@ -219,14 +232,16 @@ export default function Sidebar({
   }, [actionMenu]);
 
   async function rename(id: string) {
+    if (!authReady || !accessToken) return;
     const next = title.trim();
     if (!next) return;
-    const result = await fetch(`/api/v1/chats/${encodeURIComponent(id)}`, {
+    const result = await fetch(`${API_BASE}/api/v1/chats/${encodeURIComponent(id)}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        Authorization: `Bearer ${accessToken}`,
       },
+      body: JSON.stringify({ title: next }),
     });
     if (result.ok) {
       setConversations((items) =>
@@ -238,10 +253,11 @@ export default function Sidebar({
   }
 
   async function remove(id: string) {
+    if (!authReady || !accessToken) return;
     if (!window.confirm("Xóa cuộc trò chuyện này?")) return;
-    const result = await fetch(`/api/v1/chats/${encodeURIComponent(id)}`, {
+    const result = await fetch(`${API_BASE}/api/v1/chats/${encodeURIComponent(id)}`, {
       method: "DELETE",
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (result.ok) setConversations((items) => items.filter((item) => item.id !== id));
   }

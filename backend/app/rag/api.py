@@ -4,23 +4,84 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials
 
-from .schemas import ChatRequest, ChatResponse
-from .service import RAGService
+from app.auth.api import bearer, get_current_user
+from app.chats import api as chats_api
+from app.chats.followup import build_followup_query
+from app.chats.service import (
+    add_message,
+    create_session,
+    recent_messages,
+    touch_session,
+)
+from app.database.session import SupabaseClient, get_db
+
+from .schemas import ChatRequest
 
 router = APIRouter(prefix="/api/v1", tags=["rag"])
-service = RAGService()
+rag_service = chats_api.rag_service
+service = rag_service
 
 
-@router.post("/chat", response_model=ChatResponse)
-def chat(request: ChatRequest) -> dict[str, Any]:
+def _token(credentials: HTTPAuthorizationCredentials) -> str:
+    return credentials.credentials
+
+
+@router.post("/chat", response_model=dict[str, Any])
+def chat(
+    request: ChatRequest,
+    user: dict = Depends(get_current_user),  # noqa: B008
+    client: SupabaseClient = Depends(get_db),  # noqa: B008
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),  # noqa: B008
+) -> dict[str, Any]:
+    token = _token(credentials)
+    user_id = str(user.get("id") or user.get("user_id") or user["sub"])
     try:
-        return service.answer(
-            request.question,
-            top_k=request.top_k,
-            effective_date=request.effective_date,
+        session = (
+            touch_session(client, user_id, request.session_id, token)
+            if request.session_id
+            else create_session(client, user_id, request.title or request.question[:80], token)
         )
+        session_id = str(session["id"])
+        history = recent_messages(client, user_id, session_id, token) if request.session_id else []
+        query = build_followup_query(request.question, history)
+        user_message = add_message(
+            client,
+            user_id,
+            session_id,
+            {"content": request.question, "role": "user", "status": "pending"},
+            token,
+        )
+        result = chats_api.rag_service.answer(
+            query, top_k=request.top_k, effective_date=request.effective_date, history=history
+        )
+        assistant_message = add_message(
+            client,
+            user_id,
+            session_id,
+            {
+                "content": result["answer"],
+                "role": "assistant",
+                "status": result.get("status", "complete"),
+                "response": result["answer"],
+                "citations": result.get("citations", []),
+                "metadata": {"citations": result.get("citations", [])},
+            },
+            token,
+        )
+        touch_session(client, user_id, session_id, token)
+        return {
+            **result,
+            "session_id": session_id,
+            "conversation_id": session_id,
+            "chat_id": session_id,
+            "user_message_id": user_message.get("id"),
+            "assistant_message_id": assistant_message.get("id"),
+        }
+    except HTTPException:
+        raise
     except (RuntimeError, ValueError) as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 

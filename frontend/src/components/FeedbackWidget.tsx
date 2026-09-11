@@ -22,6 +22,8 @@ export default function FeedbackWidget({
   const [state, setState] = useState<SubmissionState>("idle");
   const [error, setError] = useState<string | null>(null);
 
+  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!value || !traceId || state === "submitting") return;
@@ -33,7 +35,7 @@ export default function FeedbackWidget({
     };
     if (data.session?.access_token) headers.Authorization = `Bearer ${data.session.access_token}`;
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetch(`${apiUrl}${endpoint}`, {
         method: "POST",
         headers,
         body: JSON.stringify({ trace_id: traceId, message_id: messageId, rating: value }),

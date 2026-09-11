@@ -30,6 +30,45 @@ def list_sessions(
     return client.request("GET", SESSIONS_TABLE, params=params, headers=_headers(token))
 
 
+def list_messages(
+    client: SupabaseClient, user_id: str, session_id: str, token: str | None = None
+) -> list[dict]:
+    return client.request(
+        "GET",
+        MESSAGES_TABLE,
+        params={
+            "user_id": f"eq.{user_id}",
+            "session_id": f"eq.{session_id}",
+            "order": "created_at.asc",
+            "select": "*",
+        },
+        headers=_headers(token),
+    )
+
+
+def recent_messages(
+    client: SupabaseClient,
+    user_id: str,
+    session_id: str,
+    token: str | None = None,
+    limit: int = 6,
+) -> list[dict]:
+    get_session(client, user_id, session_id, token)
+    rows = client.request(
+        "GET",
+        MESSAGES_TABLE,
+        params={
+            "user_id": f"eq.{user_id}",
+            "session_id": f"eq.{session_id}",
+            "order": "created_at.desc",
+            "limit": str(limit),
+            "select": "role,content",
+        },
+        headers=_headers(token),
+    )
+    return list(reversed(rows or []))
+
+
 def create_session(
     client: SupabaseClient, user_id: str, title: str, token: str | None = None
 ) -> dict:
@@ -42,15 +81,30 @@ def create_session(
     return rows[0]
 
 
+def touch_session(
+    client: SupabaseClient, user_id: str, session_id: str, token: str | None = None
+) -> dict:
+    rows = client.request(
+        "PATCH",
+        SESSIONS_TABLE,
+        params={"id": f"eq.{session_id}", "user_id": f"eq.{user_id}", "deleted": "eq.false"},
+        data={"updated_at": "now()"},
+        headers={**_headers(token), "Prefer": "return=representation"},
+    )
+    return rows[0]
+
+
 def get_session(
     client: SupabaseClient, user_id: str, session_id: str, token: str | None = None
 ) -> dict:
-    return _one(
+    session = _one(
         client,
         SESSIONS_TABLE,
         {"id": f"eq.{session_id}", "user_id": f"eq.{user_id}", "deleted": "eq.false"},
         token,
     )
+    session["messages"] = list_messages(client, user_id, session_id, token)
+    return session
 
 
 def rename_session(
@@ -83,11 +137,20 @@ def delete_session(
 def add_message(
     client: SupabaseClient, user_id: str, session_id: str, data: dict, token: str | None = None
 ) -> dict:
-    get_session(client, user_id, session_id, token)
+    snapshot = {
+        "content": data["content"],
+        "role": data.get("role", "user"),
+        "status": data.get("status", "complete"),
+        "response": data.get("response"),
+        "citations": data.get("citations", []),
+        "metadata": data.get("metadata", {}),
+        "session_id": session_id,
+        "user_id": user_id,
+    }
     rows = client.request(
         "POST",
         MESSAGES_TABLE,
-        data={**data, "session_id": session_id, "user_id": user_id},
+        data=snapshot,
         headers={**_headers(token), "Prefer": "return=representation"},
     )
     return rows[0]

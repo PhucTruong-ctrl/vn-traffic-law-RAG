@@ -22,6 +22,14 @@ from app.chats.service import (
     rename_session,
 )
 from app.database.session import SupabaseClient, get_db
+from app.rag.service import RAGService
+
+rag_service = RAGService()
+
+
+def _answer(question: str, **kwargs):
+    return rag_service.answer(question, **kwargs)
+
 
 router = APIRouter(prefix="/api/v1", tags=["chats"])
 

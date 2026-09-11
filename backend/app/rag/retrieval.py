@@ -209,10 +209,14 @@ class Retriever:
         try:
             from langchain_openai import OpenAIEmbeddings
             from langchain_qdrant import FastEmbedSparse, QdrantVectorStore, RetrievalMode
+        except ImportError as exc:
+            raise RetrievalProviderError(
+                "Retrieval integration is not installed; run `uv sync --project backend`"
+            ) from exc
 
+        try:
             qdrant = get_qdrant_settings()
             embedding = get_embedding_settings()
-
             dense = OpenAIEmbeddings(
                 model=embedding.model,
                 dimensions=768,
@@ -234,7 +238,7 @@ class Retriever:
         except RetrievalProviderError:
             raise
         except Exception as exc:
-            raise RetrievalProviderError("hybrid retrieval provider is unavailable") from exc
+            raise RetrievalProviderError("Qdrant or embedding provider is unavailable") from exc
 
     def retrieve(
         self,

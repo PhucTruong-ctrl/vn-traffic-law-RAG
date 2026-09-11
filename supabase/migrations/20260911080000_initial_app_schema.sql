@@ -29,11 +29,18 @@ create table if not exists public.messages (
   role text not null default 'user' check (role in ('user', 'assistant')),
   content text not null check (char_length(btrim(content)) > 0),
   status text not null default 'complete' check (char_length(btrim(status)) between 1 and 30),
+  response jsonb,
+  citations jsonb not null default '[]'::jsonb,
+  metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint messages_session_user_fk foreign key (session_id, user_id)
     references public.chat_sessions (id, user_id) on delete cascade
 );
+
+alter table public.messages add column if not exists response jsonb;
+alter table public.messages add column if not exists citations jsonb not null default '[]'::jsonb;
+alter table public.messages add column if not exists metadata jsonb not null default '{}'::jsonb;
 
 create table if not exists public.feedback (
   id uuid primary key default gen_random_uuid(),
@@ -56,6 +63,8 @@ create table if not exists public.bookmarks (
 
 create index if not exists chat_sessions_user_updated_idx
   on public.chat_sessions (user_id, updated_at desc) where deleted = false;
+create index if not exists chat_sessions_user_title_idx
+  on public.chat_sessions (user_id, lower(title)) where deleted = false;
 create index if not exists messages_session_created_idx
   on public.messages (session_id, created_at);
 create index if not exists messages_user_created_idx
@@ -84,6 +93,25 @@ for each row execute function public.set_updated_at();
 drop trigger if exists messages_set_updated_at on public.messages;
 create trigger messages_set_updated_at before update on public.messages
 for each row execute function public.set_updated_at();
+
+create or replace function public.touch_chat_session_on_message()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  update public.chat_sessions
+     set updated_at = now()
+   where id = new.session_id
+     and user_id = new.user_id;
+  return new;
+end;
+$$;
+
+drop trigger if exists messages_touch_chat_session on public.messages;
+create trigger messages_touch_chat_session
+after insert or update on public.messages
+for each row execute function public.touch_chat_session_on_message();
 drop trigger if exists feedback_set_updated_at on public.feedback;
 create trigger feedback_set_updated_at before update on public.feedback
 for each row execute function public.set_updated_at();
@@ -115,11 +143,43 @@ drop policy if exists chat_sessions_delete_own on public.chat_sessions;
 create policy chat_sessions_delete_own on public.chat_sessions for delete using (user_id = auth.uid());
 
 drop policy if exists messages_select_own on public.messages;
-create policy messages_select_own on public.messages for select using (user_id = auth.uid());
+create policy messages_select_own on public.messages for select
+using (
+  user_id = auth.uid()
+  and exists (
+    select 1 from public.chat_sessions s
+    where s.id = messages.session_id
+      and s.user_id = auth.uid()
+  )
+);
 drop policy if exists messages_insert_own on public.messages;
-create policy messages_insert_own on public.messages for insert with check (user_id = auth.uid());
+create policy messages_insert_own on public.messages for insert
+with check (
+  user_id = auth.uid()
+  and exists (
+    select 1 from public.chat_sessions s
+    where s.id = messages.session_id
+      and s.user_id = auth.uid()
+  )
+);
 drop policy if exists messages_update_own on public.messages;
-create policy messages_update_own on public.messages for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy messages_update_own on public.messages for update
+using (
+  user_id = auth.uid()
+  and exists (
+    select 1 from public.chat_sessions s
+    where s.id = messages.session_id
+      and s.user_id = auth.uid()
+  )
+)
+with check (
+  user_id = auth.uid()
+  and exists (
+    select 1 from public.chat_sessions s
+    where s.id = messages.session_id
+      and s.user_id = auth.uid()
+  )
+);
 drop policy if exists messages_delete_own on public.messages;
 create policy messages_delete_own on public.messages for delete using (user_id = auth.uid());
 
