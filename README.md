@@ -1,111 +1,66 @@
-> **Superseded historical note (06/09/2026; no longer active)**: The defense release was previously described as a fixed 5–10-document corpus and 30–50 evaluation questions. That claim is replaced by the active 14-PDF / 200-question contract above.
->
-> **Model policy**: Local embedding candidates are selected only after a bounded benchmark on the gold/regression data; the selected model/version, dimensions and configuration are recorded in the embedding manifest. No benchmark result is claimed here until an artifact records it.
->
-> **Superseded historical note**: Earlier provider/model claims in this README are retained only as historical context; consult the active release manifest for the serving configuration.
-# 🏛️ VN Traffic Law RAG (VNLRAG) — Khóa Luận Tốt Nghiệp 2026
+# VN Traffic Law RAG (VNLRAG)
 
-> **Đề tài**: Hệ thống RAG nhận biết cấu trúc và thời gian hiệu lực (structure-aware + temporal) cho pháp luật giao thông Việt Nam, với trích dẫn chính xác (Điều/Khoản/Điểm) và cơ chế **verified-or-abstain** — chỉ trả lời khi mọi bằng chứng đã được kiểm chứng.
+Runnable thesis MVP for Vietnamese traffic-law question answering. The active path is intentionally small and local-first: PDFs are parsed into legal metadata chunks, retrieved lexically, and answered with grounded metadata-only citations.
 
-## 📅 Timeline
+## Active MVP path
 
-- **Bắt đầu**: 16/06/2026
-- **M0 — Scope Freeze**: 19/07/2026
-- **Triển khai v2**: 8 tuần (W1–W8)
-- **Báo cáo / bảo vệ**: 16/09/2026
+1. Place source PDFs under the canonical `data/corpus/pdfs/` directory (the ingest script searches recursively).
+   For GPU-accelerated OCR ingestion, explicitly enable CUDA:
+   `OCR_USE_CUDA=1 uv run --project backend python backend/scripts/ingest.py --pdf-dir data/corpus/pdfs/`
+2. `backend/scripts/ingest.py` extracts pages with **PyMuPDF4LLM**, splits legal provisions, and writes deterministic JSONL chunks containing document/article/clause/point/page/source metadata.
+3. `backend/scripts/index.py` builds the persistent local lexical index. Ranking is BM25-compatible and requires no external service. Qdrant is an optional deployment backend; OpenRouter is optional for hosted embeddings/generation.
+4. The API retrieves top chunks, sends only their text to the configured generator (default **Gemini 2.5 Flash** through OpenRouter), and constructs citations from chunk metadata. The model is not trusted to invent citation fields.
 
-## 📚 Tài liệu thiết kế
+Generated files are disposable: `data/processed/`, `data/index/`, and local Qdrant data are not source corpus and should not be committed.
 
-| # | File | Nội dung |
-|---|------|----------|
-| 00 | [00-scope-and-decisions.md](docs/00-scope-and-decisions.md) | Phạm vi & quyết định thiết kế — **nguồn quyết định cao nhất** |
-| 01 | [01-phan-tich-kha-thi.md](docs/01-phan-tich-kha-thi.md) | Phân tích tính khả thi |
-| 02 | [02-yeu-cau-he-thong.md](docs/02-yeu-cau-he-thong.md) | Đặc tả yêu cầu + Use Case |
-| 03 | [03-thiet-ke-he-thong.md](docs/03-thiet-ke-he-thong.md) | Thiết kế hệ thống (kiến trúc, ADR §3.32) |
-| 04 | [04-tech-stack-llm-research.md](docs/04-tech-stack-llm-research.md) | Tech stack + nghiên cứu LLM |
-| 05 | [05-ke-hoach-trien-khai.md](docs/05-ke-hoach-trien-khai.md) | Kế hoạch triển khai + gate M0–M8 |
-| 06 | [06-test-evaluation.md](docs/06-test-evaluation.md) | Test plan + evaluation (Ragas + metric xác định) |
-| 07 | [07-deployment.md](docs/07-deployment.md) | Triển khai Docker + CI/CD |
-| 08 | [08-bao-tri.md](docs/08-bao-tri.md) | Bảo trì + cập nhật corpus |
-
-## 🎯 Scope & Architecture
-
-- [SCOPE.md](SCOPE.md) — baseline phạm vi v2
-- [ARCHITECTURE.md](ARCHITECTURE.md) — kiến trúc tổng quan
-- [docs/parser_router.yaml](docs/parser_router.yaml) — cấu hình Parser Router
-- [docs/canonical-document-ir-design.md](docs/canonical-document-ir-design.md) — contract Canonical Document IR
-- [docs/adr/](docs/adr/) — **20 ADR** đã chốt ([ADR-001](docs/adr/ADR-001.md)..[ADR-020](docs/adr/ADR-020.md))
-
-**M0 — Scope Freeze (19/07/2026)**: scope, kiến trúc, tech stack và kế hoạch được chốt ở mức scope-baseline freeze; các cập nhật nghiên cứu sau freeze có kiểm soát và phải ghi vào change log, không làm thay đổi phạm vi đã chốt. Doc 00 là nguồn quyết định cao nhất; danh mục ADR-001..020 được tài liệu hóa tại `docs/adr/`.
-
-**Mục tiêu chính**:
-- Release artifacts: [manifest template](.scratch/verified-traffic-rag-mvp/release-manifest.json) and [defense runbook](.scratch/verified-traffic-rag-mvp/DEFENSE-RUNBOOK.md). The manifest remains explicitly unverified until measured corpus, embedding, gold and evaluation evidence is recorded.
-- Cơ chế **verified-or-abstain**: verification sáu tầng (L1–L6) với bất biến Returned Invalid Citation Rate = 0; thiếu bằng chứng thì từ chối (abstain) thay vì bịa đặt.
-- Không dùng open-web search và không có query-time HITL (ADR-015) — câu trả lời chỉ dựa trên corpus đã kiểm chứng.
-- Evaluation bằng **Ragas + deterministic metrics** (Recall@k, MRR, nDCG, Citation P/R/F1, Temporal Validity Accuracy, Numeric Grounding Accuracy, Evidence Set Recall, Abstention P/R/F1) trên gold set 200 câu.
-- So sánh các chiến lược retrieval (dense / sparse BM25 / RRF hybrid, reranking) qua bốn suite thí nghiệm A–D, kèm RAGFlow baseline bên ngoài.
-
-## 🛠️ Tech Stack
-
-| Thành phần | Công nghệ |
-|------------|-----------|
-| Ngôn ngữ / env | Python 3.11 + uv |
-| API / validation | FastAPI + Pydantic v2 |
-| Workflow | LangGraph 1.x (controlled workflow, **không phải** autonomous agent) |
-| Parser | Docling 2.x (chính) / MinerU 3.4.x (phụ/fallback) qua **Parser Router** |
-| IR trung gian | Canonical Document IR (`document-ir-v1`) |
-| Database | PostgreSQL 18 (nguồn chân lý) + SQLAlchemy 2 + Alembic |
-| Vector DB | Qdrant v1.19 (index dẫn xuất, dense + sparse + RRF fusion) |
-| LLM | Gemini 3.7 Flash (generator) + Gemini 3.5 Flash Lite (independent judge) |
-| Object storage | ObjectStoragePort (S3-compatible); MinIO là ứng viên hiện tại |
-| Observability | Langfuse (ngoài đường tới hạn) |
-| LLM | Gemini 3.7 Flash (generator) + Gemini 3.5 Flash Lite (independent judge) + Jina Reranker v3 |
-| Frontend | Next.js 16 App Router + TypeScript + Tailwind + shadcn/ui |
-| Evaluation | Ragas 0.4.x + deterministic metrics |
-| Testing | pytest + Playwright |
-| Deploy | Docker Compose + GitHub Actions |
-
-> Embedding và reranker chưa được chốt vĩnh viễn cho tới khi có bằng chứng thực nghiệm (ADR-013, ADR-014); Jina Reranker v3 là ứng viên chính.
-
-## 🏃 Quick Start
-
-> Trạng thái W1: tooling + compose skeleton đã sẵn sàng; app code đang được triển khai theo [doc 05](docs/05-ke-hoach-trien-khai.md).
+## Quick start
 
 ```bash
-# 1. Sao chép cấu hình môi trường
 cp .env.example .env
+uv sync --project backend
 
-# 2. Backend — cài dependency bằng uv
-cd backend && uv sync
+# From the repository root:
+uv run --project backend python backend/scripts/ingest.py
+uv run --project backend python backend/scripts/index.py
+uv run --project backend python backend/scripts/smoke.py
 
-# 3. Hạ tầng: PostgreSQL, Qdrant, Redis, MinIO (kèm health checks)
-docker compose --env-file .env.example up -d
-docker compose ps   # chờ cả 4 service đạt healthy
-
-# 4. Chạy backend
-uv run uvicorn app.main:app --reload
-
-# 5. Frontend
-cd frontend && npm install && npm run dev
+uv run --project backend uvicorn app.main:app --reload
 ```
 
-> **Note**: `MAX_INGESTION_WORKERS=1` được enforce trên máy cá nhân (doc 03 §3.2.5) — không chạy song song nhiều job parse.
+The default chunk output is `data/processed/chunks.jsonl`; the default local index is `backend/data/qdrant`. Override either path with `--output`, `--chunks`, or `--index-path`. Set `OPENROUTER_API_KEY` (and, optionally, `GENERATION_MODEL`) for hosted generation; without a key the deterministic local fallback still returns retrieved context.
 
-## 📊 Tài liệu tham khảo chính
+## Request flow and API
 
-1. **CTU-LinguTechies/VN-Law-Advisor** (91⭐) — github.com/CTU-LinguTechies/VN-Law-Advisor
-   - Tham khảo: cấu trúc microservices, schema CSDL, PDF crawler
+- `GET /api/v1/health` — lightweight health response.
+- `GET /api/v1/health/live` and `GET /api/v1/health/ready` — liveness/readiness probes.
+- `POST /api/v1/chat` — JSON body `{ "question": "...", "top_k": 5, "effective_date": null }`.
 
-2. **Viblo - RAG Pháp luật Giao thông** — viblo.asia/p/xay-dung-he-thong-agentic-rag-phap-luat-giao-thong
-   - Tham khảo: LangGraph state machine, Hybrid Retrieval, đánh giá RAG
+A chat request is validated, retrieved against the local index, generated from retrieved context, and returned with citations containing only stored metadata such as document identity, article/clause/point, page, source file, and excerpt. No query-time web search is performed.
 
-## 📋 Project Management
+## Evaluation
 
-**Jira**: truongphucwork.atlassian.net — project VNLRAG (8 sprint W1–W8, gate M1→M8)
+```bash
+uv run --project backend python backend/scripts/run_release_evaluation.py --help
+```
 
-- Backlog: 8 sprint W1–W8, gate path **M1→M8** (labels `gate-M1`..`gate-M8`)
-- 20 ADR đã chốt (ADR-001..ADR-020) tại `docs/adr/`
+Use the evaluation script with the repository's configured gold set and output directory when those artifacts are available. `backend/scripts/smoke.py` is the quick runnable check for retrieval, generation, and citation shape.
 
-## 📝 License
+## Historical design documents
 
-MIT License — Open source cho mục đích học thuật.
+The detailed v2 design and ADRs remain useful historical context, but are not the active MVP contract:
+
+- [ARCHITECTURE.md](ARCHITECTURE.md)
+- [SCOPE.md](SCOPE.md)
+- [docs/](docs/)
+- [docs/adr/](docs/adr/)
+
+## References
+
+- [PyMuPDF4LLM](https://pymupdf.readthedocs.io/en/latest/pymupdf4llm/)
+- [Qdrant](https://qdrant.tech/documentation/)
+- [OpenRouter](https://openrouter.ai/docs)
+- [Gemini API](https://ai.google.dev/gemini-api/docs)
+
+## License
+
+MIT License — open source for academic use.

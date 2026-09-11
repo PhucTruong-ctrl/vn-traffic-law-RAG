@@ -76,7 +76,7 @@ class GenerationSettings(BaseSettings):
     )
 
     model: str = Field(
-        default="google/gemini-2.5-flash-lite",
+        default="google/gemini-2.5-flash",
         validation_alias=AliasChoices("GENERATION_MODEL", "LLM_MODEL"),
     )
     openrouter_api_key: str = Field(
@@ -110,6 +110,14 @@ class QdrantSettings(BaseSettings):
     api_key: str = ""
     collection_alias: str = "legal_provisions_active"
     collection_prefix: str = "legal_provisions"
+    local_path: str = Field(
+        default="./data/qdrant",
+        validation_alias=AliasChoices("QDRANT_LOCAL_PATH", "QDRANT_PATH"),
+    )
+    collection: str = Field(
+        default="legal_provisions",
+        validation_alias=AliasChoices("QDRANT_COLLECTION", "QDRANT_COLLECTION_NAME"),
+    )
 
 
 class EmbeddingSettings(BaseSettings):

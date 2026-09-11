@@ -14,10 +14,14 @@ import type { ProgressEvent } from "./ProgressEvents";
 import type { Citation } from "./CitationCard";
 
 const API_PATH = "/api/v1/chat";
-const isCitation = (value: unknown): value is Citation =>
-  typeof value === "object" &&
-  value !== null &&
-  typeof (value as Citation).provision_id === "string";
+const isCitation = (value: unknown): value is Citation => {
+  if (typeof value !== "object" || value === null) return false;
+  const citation = value as Record<string, unknown>;
+  return (
+    (typeof citation.provision_id === "string" && Boolean(citation.provision_id.trim())) ||
+    (typeof citation.document === "string" && Boolean(citation.document.trim()))
+  );
+};
 const validateChatResponse = (payload: unknown): ChatResponse => {
   if (typeof payload !== "object" || payload === null)
     throw new Error("Phản hồi từ máy chủ không hợp lệ. Vui lòng thử lại.");
@@ -32,12 +36,13 @@ const validateChatResponse = (payload: unknown): ChatResponse => {
   if (typeof value.status === "string" && NON_VERIFIED_STATUS[value.status]) {
     return payload as ChatResponse;
   }
-  const claims = value.claims;
+  const answer = value.answer;
   const citations = value.citations;
-  if (
-    value.status === "VERIFIED" &&
-    typeof value.answer === "string" &&
-    Boolean(value.answer.trim()) &&
+  const validAnswer = typeof answer === "string" && Boolean(answer.trim());
+  const validCitations =
+    Array.isArray(citations) && citations.length > 0 && citations.every(isCitation);
+  const claims = value.claims;
+  const validClaims =
     Array.isArray(claims) &&
     claims.length > 0 &&
     claims.every(
@@ -46,12 +51,27 @@ const validateChatResponse = (payload: unknown): ChatResponse => {
         claim !== null &&
         typeof (claim as { claim?: unknown }).claim === "string" &&
         Boolean((claim as { claim: string }).claim.trim()),
-    ) &&
-    Array.isArray(citations) &&
-    citations.length > 0 &&
-    citations.every(isCitation)
-  )
-    return payload as ChatResponse;
+    );
+  if (
+    (value.status === "VERIFIED" && validAnswer && validClaims && validCitations) ||
+    (value.status === undefined && validAnswer && validCitations)
+  ) {
+    const normalizedClaims = validClaims
+      ? (claims as ChatResponse["claims"])
+      : (citations as Array<Record<string, unknown>>).map((citation) => ({
+          claim:
+            (typeof citation.excerpt === "string" && citation.excerpt) ||
+            (typeof citation.source_text === "string" && citation.source_text) ||
+            (typeof citation.snippet === "string" && citation.snippet) ||
+            (typeof answer === "string" ? answer : ""),
+        }));
+    return {
+      ...value,
+      status: "VERIFIED",
+      claims: normalizedClaims,
+      citations: citations as Citation[],
+    } as ChatResponse;
+  }
   throw new Error("Phản hồi từ máy chủ không hợp lệ. Vui lòng thử lại.");
 };
 

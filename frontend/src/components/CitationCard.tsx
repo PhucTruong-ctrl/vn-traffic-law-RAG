@@ -1,15 +1,20 @@
 "use client";
 
 export type Citation = {
-  provision_id: string;
+  provision_id?: string;
   document_id?: string;
   document_number?: string;
+  document?: string;
   article?: string;
   parent_context?: string;
   legal_context?: string;
   source_url?: string;
   source_text?: string;
+  excerpt?: string;
   page_number?: number | string;
+  page?: number | string;
+  source_file?: string;
+  pdf_url?: string;
   bbox?: number[] | { left: number; top: number; right: number; bottom: number };
   document_title?: string;
   clause?: string;
@@ -35,25 +40,32 @@ function hasBbox(bbox: Citation["bbox"]): boolean {
 }
 
 export default function CitationCard({ citation, onOpenSource }: CitationCardProps) {
-  const sourceText = citation.legal_context || citation.source_text || citation.snippet;
+  const sourceText =
+    citation.excerpt || citation.legal_context || citation.source_text || citation.snippet;
+  const page = citation.page ?? citation.page_number;
   const interval = citation.interval || {
     from: citation.effective_from,
     to: citation.effective_to,
   };
   const sourceUrl = (() => {
-    if (!citation.source_url) return undefined;
+    const candidate = citation.pdf_url || citation.source_url;
+    if (!candidate) return undefined;
     try {
-      const url = new URL(citation.source_url);
-      return url.protocol === "https:" && url.hostname.toLowerCase().endsWith(".chinhphu.vn")
-        ? url.toString()
-        : undefined;
+      const url = new URL(candidate, window.location.origin);
+      const isLocalPdf = Boolean(citation.pdf_url) && url.origin === window.location.origin;
+      const isAllowedExternal =
+        url.protocol === "https:" && url.hostname.toLowerCase().endsWith(".chinhphu.vn");
+      if (!isLocalPdf && !isAllowedExternal) return undefined;
+      if (isLocalPdf && page != null) url.hash = `page=${encodeURIComponent(String(page))}`;
+      return url.toString();
     } catch {
       return undefined;
     }
   })();
-  const unavailable = !citation.document_id;
+  const unavailable = !sourceUrl;
   const title =
     citation.document_title ||
+    citation.document ||
     citation.document_number ||
     citation.provision_id ||
     "Quy định liên quan";
@@ -105,9 +117,9 @@ export default function CitationCard({ citation, onOpenSource }: CitationCardPro
           </div>
         )}
       </dl>
-      {(citation.page_number != null || citation.bbox != null) && (
+      {(page != null || citation.bbox != null) && (
         <p className="citation-card__meta">
-          {citation.page_number != null && <span>Trang {citation.page_number}</span>}
+          {page != null && <span>Trang {page}</span>}
           {hasBbox(citation.bbox) ? (
             <span>Đã xác định vị trí văn bản</span>
           ) : (
@@ -115,10 +127,10 @@ export default function CitationCard({ citation, onOpenSource }: CitationCardPro
           )}
         </p>
       )}
-      {citation.legal_context && (
+      {sourceText && (
         <section className="citation-card__context" aria-label="Ngữ cảnh pháp lý nguyên văn">
           <h4>Ngữ cảnh pháp lý (nguyên văn nguồn OCR)</h4>
-          <p>{citation.legal_context}</p>
+          <p>{sourceText}</p>
         </section>
       )}
       <div className="citation-card__actions">
@@ -131,9 +143,7 @@ export default function CitationCard({ citation, onOpenSource }: CitationCardPro
             Xem đoạn trích
           </button>
         )}
-        {unavailable && sourceText && (
-          <span role="note">Không thể mở PDF: chưa có mã tài liệu.</span>
-        )}
+        {unavailable && sourceText && <span role="note">Không thể mở PDF: chưa có nguồn PDF.</span>}
         {sourceUrl && (
           <a
             className="citation-card__external-link"

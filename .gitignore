@@ -33,10 +33,23 @@ frontend/out/
 # Docker / local data
 # ─────────────────────────────────────────────
 data/*
+!data/corpus/
+!data/corpus/pdfs/
+!data/corpus/pdfs/**
 !data/manifests/
 !data/ingestion/
-backups/
 minio-backup*/
+
+# Generated pipeline artifacts
+data/processed/
+data/index/
+data/evaluation/
+data/results/
+
+# Frontend test artifacts
+frontend/test-results/
+frontend/playwright-report/
+frontend/coverage/
 
 # ─────────────────────────────────────────────
 # LaTeX auxiliary files
@@ -77,3 +90,5 @@ texput.pdf
 # ─────────────────────────────────────────────
 *.pid
 *.sock
+data/corpus/mds/*.md
+!data/corpus/mds/README.md

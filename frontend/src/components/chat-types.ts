@@ -14,7 +14,7 @@ export type ChatStatus =
   | "INSUFFICIENT_EVIDENCE"
   | "WORKFLOW_UNAVAILABLE";
 export type ChatResponse = {
-  status: ChatStatus;
+  status?: ChatStatus;
   answer?: string | null;
   claims?: Claim[];
   citations?: Citation[];
