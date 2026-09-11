@@ -814,8 +814,98 @@ input::placeholder {
   display: flex;
   min-width: 0;
   min-height: 100vh;
+  flex: 1;
   flex-direction: column;
   background: transparent;
+}
+
+.auth-gate {
+  display: flex;
+  min-width: 0;
+  min-height: 100vh;
+  flex: 1;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: clamp(24px, 5vw, 56px);
+}
+
+.auth-gate > form {
+  width: min(520px, 100%);
+  margin: 0;
+  padding: clamp(24px, 5vw, 48px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--surface-primary);
+  box-shadow: var(--shadow-md);
+}
+.auth-gate h1 {
+  margin: 0;
+  color: var(--navy-950);
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 520;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.auth-gate p {
+  margin: 10px 0 24px;
+  color: var(--slate-600);
+}
+
+.auth-gate label {
+  display: grid;
+  gap: 7px;
+  margin-top: 16px;
+  color: var(--navy-900);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.auth-gate input {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  background: var(--surface-secondary);
+}
+
+.auth-gate form > button {
+  min-height: 44px;
+  margin-top: 24px;
+  padding: 9px 16px;
+  border: 1px solid var(--navy-900);
+  border-radius: var(--radius-sm);
+  color: var(--white);
+  background: var(--navy-900);
+  font-weight: 700;
+}
+
+.auth-gate form > button + button {
+  margin-left: 10px;
+  border-color: var(--border-strong);
+  color: var(--navy-900);
+  background: var(--surface-primary);
+}
+
+.auth-gate form > button:hover {
+  background: var(--brand-hover);
+}
+
+.auth-gate form > button + button:hover {
+  background: var(--surface-hover);
+}
+
+.auth-gate [role="alert"] {
+  margin: 14px 0 0;
+  color: var(--danger);
+  font-size: 14px;
 }
 
 .app-header {
@@ -1904,10 +1994,19 @@ input::placeholder {
   .modal-backdrop {
     padding: 10px;
   }
+  .auth-gate {
+    align-items: center;
+    justify-content: center;
+    padding: 28px 16px 36px;
+  }
 
-  .modal,
-  .modal.source-drawer {
-    max-height: calc(100dvh - 20px);
+  .auth-gate {
+    align-items: start;
+    padding: 28px 16px 36px;
+  }
+
+  .auth-gate > form {
+    width: min(520px, 100%);
   }
 
   .search-dialog {
