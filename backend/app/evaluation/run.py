@@ -301,6 +301,98 @@ def _citation_ids(value: object) -> list[str]:
     ]
 
 
+def _candidate_items(value: object) -> list[Any]:
+    """Flatten graph retrieval structures without losing candidate objects."""
+    if value is None:
+        return []
+    if isinstance(value, Mapping):
+        if "results" in value:
+            return _candidate_items(value["results"])
+        if "items" in value:
+            return _candidate_items(value["items"])
+        flattened: list[Any] = []
+        for nested in value.values():
+            flattened.extend(_candidate_items(nested))
+        return flattened
+    results = getattr(value, "results", None)
+    if results is not None:
+        return _candidate_items(results)
+    if isinstance(value, (list, tuple)):
+        return [item for nested in value for item in _candidate_items(nested)]
+    return [value]
+
+
+def build_evaluation_retrieval_envelope(result: object) -> dict[str, Any]:
+    """Serialize actual graph retrieval state into deterministic evaluation evidence."""
+    fields = ("recall_candidates", "fused", "reranked", "expanded_context", "context_package")
+    candidates: list[Any] = []
+    for name in fields:
+        candidates.extend(_candidate_items(_field(result, name)))
+    by_id: dict[str, dict[str, Any]] = {}
+    for order, item in enumerate(candidates, 1):
+        provision_id = _field(item, "provision_id") or _field(item, "id")
+        if not provision_id:
+            continue
+        provision_id = str(provision_id)
+        if provision_id in by_id:
+            continue
+        rank = _field(item, "rank")
+        score = _field(item, "fused_score", _field(item, "score"))
+        sources = _field(item, "retrieval_sources", _field(item, "sources", []))
+        if isinstance(sources, str):
+            sources = [sources]
+        elif not isinstance(sources, (list, tuple)):
+            sources = []
+        entry: dict[str, Any] = {
+            "provision_id": provision_id,
+            "document_id": _field(item, "document_id"),
+            "rank": int(rank) if isinstance(rank, (int, float)) else order,
+            "order": order,
+            "score": score,
+            "sources": [str(source) for source in sources],
+            "review_status": _field(item, "review_status"),
+            "effective_from": _field(item, "effective_from"),
+            "effective_to": _field(item, "effective_to"),
+            "source_url": _field(item, "source_url"),
+        }
+        for key in ("provision_version", "document_version_id", "snapshot_at", "content_hash"):
+            value = _field(item, key)
+            if value is not None:
+                entry[key] = value
+        for key, value in list(entry.items()):
+            if hasattr(value, "isoformat"):
+                entry[key] = value.isoformat()
+        by_id[provision_id] = entry
+    entries = sorted(
+        by_id.values(), key=lambda entry: (entry["rank"], entry["order"], entry["provision_id"])
+    )
+    for index, entry in enumerate(entries, 1):
+        entry["order"] = index
+    return {
+        "retrieved_ids": [entry["provision_id"] for entry in entries],
+        "candidates": entries,
+        "count": len(entries),
+    }
+
+
+def _expected_status(input_data: Mapping[str, Any]) -> str:
+    value = input_data.get("expected_status")
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError("missing expected_status contract")
+    return value.upper()
+
+
+def _expected_evidence(input_data: Mapping[str, Any]) -> list[Any]:
+    if "required_evidence" not in input_data:
+        if input_data.get("evidence_required") is False:
+            return []
+        raise ValueError("missing required_evidence contract")
+    value = input_data["required_evidence"]
+    if not isinstance(value, (list, tuple)):
+        raise ValueError("required_evidence must be a list")
+    return list(value)
+
+
 def evaluate_release_records(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     """Compute release metrics and fail closed on semantic outcome failures."""
     from app.evaluation.metrics import evaluate_evidence, evaluate_retrieval, evaluate_temporal
@@ -319,13 +411,10 @@ def evaluate_release_records(records: Sequence[Mapping[str, Any]]) -> dict[str, 
         retrieval = _mapping(_field(record, "retrieval", {}))
         output = _mapping(_field(record, "output", {}))
         metrics = _mapping(_field(record, "metrics", {}))
-        expected_status = str(input_data.get("expected_status", "VERIFIED")).upper()
-        evidence_required = bool(
-            input_data.get("evidence_required", bool(input_data.get("required_evidence")))
-        )
+        expected_status = _expected_status(input_data)
+        required = _expected_evidence(input_data)
+        evidence_required = bool(input_data.get("evidence_required", bool(required)))
         retrieved = [str(value) for value in _sequence(retrieval.get("retrieved_ids"))]
-        citations = _sequence(output.get("citations", _field(record, "citations")))
-        required = _sequence(input_data.get("required_evidence"))
         category = str(input_data.get("category", "uncategorized"))
         retrieval_records.append(
             {
@@ -333,6 +422,17 @@ def evaluate_release_records(records: Sequence[Mapping[str, Any]]) -> dict[str, 
                 "category": category,
                 "retrieved": retrieved,
                 "relevant": _sequence(input_data.get("expected_provision_ids")),
+            }
+        )
+        citations = _sequence(output.get("citations", _field(record, "citations")))
+        temporal_records.append(
+            {
+                "id": question_id,
+                "category": category,
+                "query_date": input_data.get("query_date"),
+                "citations": [item for item in citations if isinstance(item, Mapping)],
+                "comparison_dates": input_data.get("comparison_dates"),
+                "comparison_citations": metrics.get("comparison_citations"),
             }
         )
         covered = _sequence(metrics.get("covered_evidence", retrieved))
@@ -343,16 +443,6 @@ def evaluate_release_records(records: Sequence[Mapping[str, Any]]) -> dict[str, 
                 "required_evidence": required,
                 "covered_evidence": covered,
                 "retrieved_evidence": retrieved,
-            }
-        )
-        temporal_records.append(
-            {
-                "id": question_id,
-                "category": category,
-                "query_date": input_data.get("query_date"),
-                "citations": [item for item in citations if isinstance(item, Mapping)],
-                "comparison_dates": input_data.get("comparison_dates"),
-                "comparison_citations": metrics.get("comparison_citations"),
             }
         )
         status = str(output.get("status", _field(record, "status", ""))).upper()
@@ -561,6 +651,7 @@ async def run_serving_evaluation(
 __all__ = [
     "EvaluationRunManifest",
     "EvaluationRunWriter",
+    "build_evaluation_retrieval_envelope",
     "evaluate_release_records",
     "run_serving_evaluation",
 ]

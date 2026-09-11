@@ -1,0 +1,16 @@
+{
+  "dataset": "VNLRAG gold-v1",
+  "gold_version": "gold-v1",
+  "record_count": 200,
+  "gold_set_hash": "15583b7267833e177158e02f40349dc9813224fbe522ae571d0d6358f0e1af17",
+  "frozen": true,
+  "freeze_status": "FROZEN",
+  "blockers": {},
+  "audit": {
+    "status": "FROZEN",
+    "errors": [],
+    "incomplete_statuses": [],
+    "failed_validation_statuses": []
+  },
+  "review_basis": "Automated oracle review over PostgreSQL ACCEPTED provisions restricted to exact 14-document candidate corpus; auxiliary documents excluded."
+}

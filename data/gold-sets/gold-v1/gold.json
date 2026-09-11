@@ -31,7 +31,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "6b358b7c6e4a7b3cb3a7e96ebfbe2021cbd730e1f45d14728340b53ebae942e5"
+      "hash": "82c7ab21b2d99643a97f913251ac07f3f6002ea025a0d3208c0acde8af14926b",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000001",
@@ -63,7 +65,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "dd0cf9e4025ae01744d848897c182bcc18500c4fcc920facb5cfd347b7ae3bc3"
+      "hash": "02ad5de145da3483e987399abbf5865e3d3bcb33b7fa45f5bdaa24bf10b3748f",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000002",
@@ -100,7 +104,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "03ac26c38a7a9f79e5d96313aa8240655c43c5665d23d0789c00a3884178feb7"
+      "hash": "b9e249daf511211620332c7845eb7fdcae1674df90b71b0ea2f5f0bd085e6b9d",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000003",
@@ -132,7 +138,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "09df621b4a2c1811d8b9c42120a39af6ce01be59aa8995f5e559513336b7ddd5"
+      "hash": "fbd17e61bd21fb7adb775accc2414512a038d01d34a98bf03148aa35cd168c9a",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000004",
@@ -164,7 +172,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "19f78e87d4a6b2778f37e28262dd496e0780b522d29f00b95a8e8bfa7a1b063d"
+      "hash": "4e0d0dee9c3ef8527f1946041216d24f89677a9f92ecf231674062bb6e50ae1c",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000005",
@@ -196,7 +206,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "fe0f697296d1b4c79dfa68eaee947346a24a6ada67203b7ab79337d9e08caf67"
+      "hash": "1b17e8713f534e542241443cef4e78d76ae89efa98eb640eda8c77aa19adaf47",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000006",
@@ -228,7 +240,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "0c4f136661739a0841dddeb89eb62bd05b65355aed4e84708991becc601a4bd5"
+      "hash": "fdc51be55b69d30d6dc9e149d5955390bc2e305d4bdba7e7d2cec7711f5814e5",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000007",
@@ -260,7 +274,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "f65d466222247278b7b1528420524fe3150842ad2e1a0fd74c7f5a6454e47c3a"
+      "hash": "b899173834f7f281655ad9ad099d9af1975d626285549f759f772a47c3bc8519",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000008",
@@ -292,7 +308,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "3d68e0a18d69886358549f5639f097cd93d16fc4d54bf46a9a914f173438f424"
+      "hash": "882287fff72f83b7d47c0aa5d1a3bf84b528d042a2bbd4dc33cb7956065532ff",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000009",
@@ -324,7 +342,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "ebb710feb163e7e89c94810863e80fda840eee95bb5e9edac1a353d2dbdbd68a"
+      "hash": "f3fcccbe1fbf788f81f65e2eb7e021cee000c07ac13d8d7d2ea86db7005e3a56",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000010",
@@ -360,7 +380,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "c2a3a5062fdb436decd1bb2173d0ccc09b7ff50a4091f4bd4b63ee45b4374aa5"
+      "hash": "1d2047045f7ecfab11c2b63635cc6b233d55c1054d7cf18b591ba11ff3948abc",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000011",
@@ -396,7 +418,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "a7fd40ceab1cede5f345680fa6e1869ed04f3f81d38ce16b132aaa11a6801475"
+      "hash": "ebf2bdcd0cfdbffc6a0059309a99c1d09ba63d75e6a13518ac420b2efaa5c0c2",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000012",
@@ -409,9 +433,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-12__khoan-5"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-12__khoan-5"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-12__khoan-5"
       ],
@@ -428,7 +450,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "042d1165563d9222341c0e89c7f91ee23115bffd9ebaca7de93df931547f72a3"
+      "hash": "58639a97b3fe799f38a4d2ef8d8121546fbb4d2d5f818a0a132f0313e8b5d478",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000013",
@@ -441,9 +465,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-12__khoan-6"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-12__khoan-6"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-12__khoan-6"
       ],
@@ -460,7 +482,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "2ee2f1953a574cd1735cb042767c8b5c8202d2bb33cb199e94c391c98e916b30"
+      "hash": "32d06c356bd299f25d1c37130097a926d8533108e9e13e79c8ba36b399afe4b7",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000014",
@@ -473,9 +497,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-12__khoan-7"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-12__khoan-7"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-12__khoan-7"
       ],
@@ -492,7 +514,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "8889eddf37c3ce009bb818f942c162b7f104ba2f4b02962bae39e73d5fe7da2c"
+      "hash": "f3282679d79330d95681dddb24e8f1edc0ffba9b0addd2de05d9199953aecda0",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000015",
@@ -516,7 +540,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "c6d6ac371f7e35c4a73111aaddf57e364fd996326217086ca78682847ca351ed"
+      "hash": "7e6573e3fab0cd116ecdbc361d07e9bb6aafb2afe85ad283d69c354af690dc2f",
+      "expected_status": "OUT_OF_SCOPE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000016",
@@ -529,9 +555,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-13__khoan-2"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-13__khoan-2"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-13__khoan-2"
       ],
@@ -548,7 +572,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "ede66eaa10e2827d55d81cb1b8322b78b487f1138368687e510d2c88cba3185b"
+      "hash": "51285758ac6f65b613d65fbf40648596fbea59d04a0e45b77b1ee73830a6b59f",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000017",
@@ -580,7 +606,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "8f96f685394263b506a8d8b071fdf3807775a7a564149e11d8be45e760e4bfe3"
+      "hash": "ef3a1fdc0ec5aa3bed61189d8ef84ff6ff8b60a5ae887055063b02fb9613176b",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000018",
@@ -612,7 +640,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "6fc764b790b666510ed33aa38f862d6ffb31b1fb3391139c9c2af4a510cfdf7a"
+      "hash": "316d8f9421747e19d74c54844d297eac45eacdedebfac65b201b82a7224fb7bc",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000019",
@@ -649,7 +679,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "b53b55d545f02d270935b1b592623605cf97af6405951dc11a85a8fdf6020ce9"
+      "hash": "f7e9ac096d7136247dc7e2a23d1d00c659a414779192781665047c2b12945538",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000020",
@@ -681,7 +713,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "67c82b0d55b2d99c904b1f2bec2e075174fc66340190b12ad6a232c47316ffae"
+      "hash": "a123465fe17015dd00f315baa53aab988a17d1f5b2792aa98f92ec1c3b9a8668",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000021",
@@ -713,7 +747,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "d8ce35e08bd7d08c729b1bce9fd3a5af0838a603adef35f3fdf60dd1c0a5afab"
+      "hash": "6d76cbbbc98020bf3e682bcb288d598a2587b109c8d408b8c3053ce5935012be",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000022",
@@ -745,7 +781,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "2fef76e4c4b5b88fcdd2cb514a8d5c05f3bca28bdfc88f175c9e90736c4ca103"
+      "hash": "aabbe824bf7762954f0ce4f323c34145a6187fea7dd9340b3c34777383e61050",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000023",
@@ -777,7 +815,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "2b9856ce7642bfc4fe669357f101894b666cc72a7210426eb977a8b239384306"
+      "hash": "68913142d4dbc5d2887fece6586d0379c40cacc3dd190b8c7f150b757cc1581b",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000024",
@@ -809,7 +849,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "532c1bd2cffd67c839d3b1ac65a47f15f5130f2746197fa7e9dacb6ff9dc6df4"
+      "hash": "40579174b2c0d88600680869a81489e379d75908129c36d4e36b3bc2d85c8d8e",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000025",
@@ -841,7 +883,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "85671b046b9c5b0b6fa7b20dffc5985378930a7aa207e7234939167700a143f6"
+      "hash": "ab2b0cbbec3b6b1a84a12d224ade63dfb30d9a20c82ce71ed550a5fc023c0211",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000026",
@@ -873,7 +917,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "5cd4ec9da36b16d81cc521a4fa4ec47fa4652960e466d82f1998cc0d48cb2264"
+      "hash": "7b6e05ff9c1e785b28d7a6468b0be7872131b752c6f5607204f98ca33c4a81e3",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000027",
@@ -909,7 +955,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "d9215911af47afb8b5ead3dad2c4e598efe6149e768a708f5ff64dc20180969f"
+      "hash": "c6aaab901ee5c2a6807c16740cd2153484352f26e26d3fd1f42e5d3c6e62db04",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000028",
@@ -945,7 +993,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "56ab708f19511d4ebca3fa8bec1787ac0be194f30005ab85e6aa78954a67f6e0"
+      "hash": "a715d7df7db82106d9e078102fc7716207fd07a4f16d8fd288d44d87ffb0998f",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000029",
@@ -958,9 +1008,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-16__khoan-2"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-16__khoan-2"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-16__khoan-2"
       ],
@@ -977,7 +1025,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "a2576b79561dfb2e951c279917200968bd32c7507dc68a6b5ad9f3a6d9bbd770"
+      "hash": "69d6395abb91279b1c3e4ced8f7f5a7f681daa8069180d15b54022d49c44a525",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000030",
@@ -990,9 +1040,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-16__khoan-3"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-16__khoan-3"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-16__khoan-3"
       ],
@@ -1009,7 +1057,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "5ad347c9aa78e27bcd4ebdb8b6ac77c0459480d6e15f93fb6147d3f5e5a7cbcc"
+      "hash": "1ec6e4503e6d02bd8c3fd391eb6209bdef603a42c7683cc7dac555ffeec5ed95",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000031",
@@ -1022,9 +1072,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-16__khoan-4"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-16__khoan-4"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-16__khoan-4"
       ],
@@ -1041,7 +1089,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "3f38fca7ee8e9d9a52f157069c80d4c249b28b84c380cf8ee501823864266376"
+      "hash": "a1b9bb25bd5c9840537e2a9eba51290f087d7273e2a7090dbc5c361f218a930b",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000032",
@@ -1065,7 +1115,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "17dad1ce19b5001c336fc25e4e68646f5c2644debb3581cbeb61a2cb9d642768"
+      "hash": "713609fe64d335336c7143bed39bc25e081d1ca1dc7311c00ea0821438670493",
+      "expected_status": "OUT_OF_SCOPE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000033",
@@ -1078,9 +1130,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-17__khoan-2"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-17__khoan-2"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-17__khoan-2"
       ],
@@ -1097,7 +1147,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "4dbb03c4909c3f83f67957b405c4e543194e85bc23b099677f5b8bc2e34503e1"
+      "hash": "5e1082a74cc60416f155a04ad9502c2f97c57cbcd02bd6cb36ab84c61db07470",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000034",
@@ -1129,7 +1181,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "4d2d1b2dab14fa37c7e534adbd9dd9d94ec4ba568082a3325780dec6006587e7"
+      "hash": "0864f69f3f6a0610c4223223b3c66f3d95bb9bf7d6062ade963e75983d11b852",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000035",
@@ -1161,7 +1215,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "557163ea373f57576fc0b72e147929b277a77fa9a5d9fe2cafccb7b55a9b0354"
+      "hash": "cc39a89f414fd2acafec9c89cd54cef661455596abdb980e7519593536784ce8",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000036",
@@ -1198,7 +1254,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "12749cf4b3d885801ea1beaf13486cc314aa02bef324d834ac35414841ebf9e7"
+      "hash": "e4f05020e70541303a8f32ebc8ac2ccfa93b272db44207ac7f2b3f37bda569a1",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000037",
@@ -1230,7 +1288,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "9d86855543a813b633c9685867745e82cf36b079894d1d6a8e196c346b641419"
+      "hash": "359e9b2a68493946f92fb25d915b133df13a78dfd8bbc9e9a0a721fd5abdcc19",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000038",
@@ -1262,7 +1322,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "3a0dc19036ee74dffc27e21d2165576c9965efb3650c17189df6bc49908a2fc4"
+      "hash": "4ebbdee9d8f3f7f18c4f99688ac116ca6f0a582f9a172ed3d55b87265488b996",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000039",
@@ -1294,7 +1356,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "0c19b0abb22552caec6d574f71227ff52ae0d8a08ed1cea32fe45abb29ceecc2"
+      "hash": "fa5a3c68d7f04f1808de9d130c4837897f43682867cbc1dcd8862c014b675638",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000040",
@@ -1326,7 +1390,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "60be36df1a3e9f23fd0632dec5457ef69d1cb424fef60b4a415e1c140c39134d"
+      "hash": "d43162bdd240e7c2857e00cb832abad6e7184cc70a9ad901148c51ee5d2de049",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000041",
@@ -1358,7 +1424,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "472d20f30a92339582e1331ff89693d3d8da749768780a5eca6c57df9ede285a"
+      "hash": "d990225815f0b61fb0a0659f1f1fe1480f11799775947e54f28d3d34517118d4",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000042",
@@ -1390,7 +1458,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "6df72b8944ad709a8008fccf07a3b1b5b1fb309e779acb48c756b31f0d683585"
+      "hash": "fd459e4cbfa43f61205a9076d0b91886a5cb8ffd37191b633e8e3a00e52fd6e5",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000043",
@@ -1422,7 +1492,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "8fe49cfd6d2d6d3f29f94c131612156faaf732f6b3da5f2f2eda3d1f2d8b518d"
+      "hash": "bd55e33ac264cd6c6a42624dbd9a96fb3c3b156cd5235f1c807ba4dd4e4b0bbe",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000044",
@@ -1458,7 +1530,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "2c813fa873796c82a656df1db2e1a1a8d2e4815017a31f754f461abf297229ce"
+      "hash": "e36696aef912beaeb6773fc65067916573bcff0e92d7d39cc4857fa6b8b262d0",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000045",
@@ -1494,7 +1568,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "0ec60a4b678cf372924cc9e225b1008ff7844665b1f2dc0f0803fcdb712d0ac1"
+      "hash": "9e9e86000fe5a919ed71a91d6a4ea3e9cab90baecbb2413ac4fd9b0888090e76",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000046",
@@ -1507,9 +1583,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-21__khoan-2"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-21__khoan-2"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-21__khoan-2"
       ],
@@ -1526,7 +1600,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "82f981ea6a73c398c4850adeebc228215a67ee1708d8b297a7d1c26f839ea425"
+      "hash": "9e5671722b170ef16590f7a48dc1541b418de85f01e3a72dfd78787e7040107b",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000047",
@@ -1539,9 +1615,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-21__khoan-3"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-21__khoan-3"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-21__khoan-3"
       ],
@@ -1558,7 +1632,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "8942a27e68a76bd920785250080f732dacdc102d5d4f937a791a33bfefc173d2"
+      "hash": "a78228abd9e8bed93de052b139a79c6ba9c5cb76eb7d300ed6c54bc473aec532",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000048",
@@ -1571,9 +1647,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-21__khoan-4"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-21__khoan-4"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-21__khoan-4"
       ],
@@ -1590,7 +1664,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "c4216756bf240be5dbdca2eaf51a3f1481d45b9276f63922971ab43fb88dcd68"
+      "hash": "221ee7f4c08bc65f6280b4d462c4700bcc9d89b019e3ad36ecff0fada5c1bf93",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000049",
@@ -1614,7 +1690,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "678b11c52fffe307ca78a71bbcb982cd21353f651328b55dfc4e4ae2020b59c4"
+      "hash": "3daa18d28c506df6fbd327a7ae5b8d4a8e98913040f347516888e2478b35ec9a",
+      "expected_status": "OUT_OF_SCOPE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000050",
@@ -1627,9 +1705,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-22__khoan-2"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-22__khoan-2"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-22__khoan-2"
       ],
@@ -1646,7 +1722,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "dea1f41b180414292454f953b27dd37c12f96ced445da88268b8b387c8dc0ba8"
+      "hash": "c30d13e523c62f57effb549edd999471ab23bbf814794b1e037a54dd8d5c1e9b",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000051",
@@ -1678,7 +1756,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "4006a2a2a2441654e887e6362c2bbe8d3db96cd6bfd515990f91dced4868f845"
+      "hash": "7725bdcd9a260bf976666b309cb6ea5364db4496597e47a462ba9d8de8681863",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000052",
@@ -1710,7 +1790,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "a2043db03e7a8c8b7674d03d6c9a66029d68f381cd4071b2dfc75eef39e29dd7"
+      "hash": "59460a613257dd3a1712786a186ca89b9d1bc28f18d11a274f8721fe7a19f4b7",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000053",
@@ -1747,7 +1829,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "f374452f12e30ca5daf7cb3c35c17dddd13d2cd8b0794bad3ed4669673b96650"
+      "hash": "ee771205fd2a5bf1a07221904c9723e61e5ac6d55de3f44018a1d8480e6aa449",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000054",
@@ -1779,7 +1863,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "c9bc6be3211f7de6c7dfb107b1bed789e636b4849a445fee7240a2fa8b8c70af"
+      "hash": "4e7f6c3a2d4ffc0b802a18e79bc59555ff169054d5ecd799bcc6bade88d89183",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000055",
@@ -1811,7 +1897,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "4e98001d926595dfd5d08d8af0fb513760e48a608aeb7d512193cfe0c86f1d30"
+      "hash": "7ad4877055c39ad0b1965f361d9c417fc7d98a15179914bfea33881d386254fd",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000056",
@@ -1843,7 +1931,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "b7787ca46fa295de0d2d782c020539466e79bf3ea2adf01af6c7331fc331f91c"
+      "hash": "f000f95613cd81328e2aa43bd12cf2130fd2863d2d1f1f9dfaaa75e7aff3cf7a",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000057",
@@ -1875,7 +1965,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "cf7bc838d35dde6842980e1d76acb502ab0384570e4e37b0627657aa6a57b9ef"
+      "hash": "a8197cf6e8b028da18a9d637baa4c7b992d5745d41b656d095bb3d38d54152c7",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000058",
@@ -1907,7 +1999,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "b82f8e7442b3c23058118863be28c19046ed69807f8d3bebefc9ec1ac0a4701b"
+      "hash": "05c30c8916bd43ef9580e1b3f3b806c7a2d422e0a5ec6b4d3f30861f684fbf31",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000059",
@@ -1939,7 +2033,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "e72ea22bf6566d216ae4c0ce60bf62e159ce29995b7a571cd6d37724cb02d122"
+      "hash": "a5b427d9fe5b0845602c846cd482a68ef846f02a38b35be7832c5d00ca7f9dc4",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000060",
@@ -1971,7 +2067,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "d058b348137501ceb405db420512bc83ce7a3d6c07935dd4a3676f3ab9a5d73a"
+      "hash": "e1ce947dbbf06d7ccc34bcb2729716c3bbdc28d8280911c7c83d8460d9bb154d",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000061",
@@ -2007,7 +2105,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "eb69e1549ff974703d099f8151068c2dbe2afb4c2bba9543995a9ea990cc2182"
+      "hash": "f9b88e4acedd0c576dbd6d3c04b67b1b92d994f716664bf852761562571faff6",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000062",
@@ -2043,7 +2143,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "9f5ff8ee3a2302ad08bd210d1a42efe0d1c1bf40764b2a4ead44cf088e728727"
+      "hash": "0ae2c6da391504975be96958a58dc6528e1217883ef78663a9e8d486358093b6",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000063",
@@ -2056,9 +2158,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-27__khoan-3"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-27__khoan-3"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-27__khoan-3"
       ],
@@ -2075,7 +2175,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "5d13acd0550e4d23aad4aea049f0756122f2b829cf2bb2142b9b9f2b80844989"
+      "hash": "506b56e6a4978f17ec1b4bcb544522181659987354bb4db456dcd191314ecbc1",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000064",
@@ -2088,9 +2190,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-28"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-28"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-28"
       ],
@@ -2107,7 +2207,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "eb99bc8605863d64401fcc21221161f12cd8d3a56035690fabeac55cf0db8c77"
+      "hash": "9c9bd8cbdb6cb26e874abb2295598d33d8675d22b9ec55cf5ccafa3c4ea597b6",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000065",
@@ -2120,9 +2222,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-28__khoan-2"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-28__khoan-2"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-28__khoan-2"
       ],
@@ -2139,7 +2239,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "90f5ca06ad223e66acd0cbe039b49ff59ec97648eaf476a18343622b1b972656"
+      "hash": "2f2337f3aba34a80b31daa427df1161b5052507422c18402258c24738c8944e9",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000066",
@@ -2163,7 +2265,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "a76599144a2d82daa69e99b2a6249bdabf0056aa9dbc04553e757641c257a906"
+      "hash": "e24676b8ff1f49bfb600099aec6b31c201f01d2872cb9f6b42b0bf70620e800e",
+      "expected_status": "OUT_OF_SCOPE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000067",
@@ -2176,9 +2280,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-28__khoan-4"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-28__khoan-4"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-28__khoan-4"
       ],
@@ -2195,7 +2297,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "3250419b5f3195f12330f615a92e2f3e17f2248daea5791568911cbdde79bd7a"
+      "hash": "f71c372382c88ab0c1ba5728bc043a9131c400a3eda5180c968e1ff0393455f6",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000068",
@@ -2227,7 +2331,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "b74e69af34d916e575919b094dec7b12a104a5ced31021f0ad1579b19d23286b"
+      "hash": "35d761c9402c6075008e1639809017aed2295d65a224342ca0f416b914c7632e",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000069",
@@ -2259,7 +2365,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "b32b6fd49ace0e99834f338e24a74672b69fca5d9d72f563c000f54a294e4b58"
+      "hash": "d5f07dec0242e672e2c7bfe79d13a3f17864fdc2e9995056a0ecf101c750874a",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000070",
@@ -2296,7 +2404,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "987bfb68c47bded438988b05cd0937012d4b3fb9a32ed99e397ce603fdc62ba7"
+      "hash": "4a3e4414890f96c7606db40d0f1c2a071ced44ca8c378742a6321f360f704a12",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000071",
@@ -2328,7 +2438,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "b844293a0af3acc8b4328d2fcfe35372cbcdcda3750353adb82ad52452239c58"
+      "hash": "ec161af5ae5ddab9a02a6c99181cac4a283b3e493b7c4b2c5aede3d5ef4daa44",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000072",
@@ -2360,7 +2472,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "7dbc6963ea8824cacd77ad97e15e71cffee436750bc7c660f774e08d26d82f1d"
+      "hash": "340464ce31208a93bacb8e8ed8189e7a44f42581e4c75cacd9a7537c13d18291",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000073",
@@ -2392,7 +2506,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "012b737d26772fc1888f7a7812d324cf6e035fc44ecb7845ddb3ba221b999671"
+      "hash": "ff5a8b5f51e94cf63c2fcee4d545308541dfdfc6cd1646d1f4f2e54469103ff0",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000074",
@@ -2424,7 +2540,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "5a350eb5abea706babd82a4733d2f0fbc055cf12f975ed80529b642db0b861c0"
+      "hash": "0b015e043fb1554bfd02c846a57bc401361d771cb29ea0fde400ae853050593a",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000075",
@@ -2456,7 +2574,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "47689eeb03e9020f74ec8ead925790a78401a10ca91c0c2a4963c78ae2fe33b7"
+      "hash": "abba9d5bfb54f3ff1e20da328ea88201ed04f2456e126c90bde70e482b021d52",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000076",
@@ -2488,7 +2608,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "87464b7841d03b206128e37210d8c9572558873c0a587fc6c91e215d110af65f"
+      "hash": "393b9bb7605cffeff99e785bca45fb631f338df21900fda2eef6e5a2e0d702b4",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000077",
@@ -2520,7 +2642,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "125243cf660a2ae09a7da428edddb941985baee21af738459400a7f675297f14"
+      "hash": "3244892dfb496682b5f755f140097ef5c1b2ce73dc242e648ecfbf13115b0401",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000078",
@@ -2556,7 +2680,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "07cf31136005f5663be2b51e3fc29aa3e37ee355be6173cfe4c79bdee3fec961"
+      "hash": "8699e5d0424071a423941ed8681bacf7288d724107f7953eac7a7b399a458717",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000079",
@@ -2592,7 +2718,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "8ded02ced97abbd43f668c9d19b6c0502b316ac9619a33aa8f353770e7763349"
+      "hash": "3f3ebdfe35eb2150e25f6c755ab35e379254b930f39ddb9669b5c612efd51dfa",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000080",
@@ -2605,9 +2733,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-2__khoan-5__diem-a"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-2__khoan-5__diem-a"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-2__khoan-5__diem-a"
       ],
@@ -2624,7 +2750,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "5b5e6d2c7778d72195ea502498d2eaa2b27bc52c35c52e4418bd8dac2d748b99"
+      "hash": "2afec3d629202dfa1d670c7c707d4f3c57f87634589074a198045154cbc578ca",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000081",
@@ -2637,9 +2765,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-2__khoan-5__diem-b"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-2__khoan-5__diem-b"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-2__khoan-5__diem-b"
       ],
@@ -2656,7 +2782,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "a76640300c9dd66b2f1d63aad411d47b9adb7d60ea90a997112800436ddf2645"
+      "hash": "a29b8bc9afacd2999e174b5ab87c2b35eba50870aebb995529064a881b26551e",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000082",
@@ -2669,9 +2797,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-2__khoan-5__diem-c"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-2__khoan-5__diem-c"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-2__khoan-5__diem-c"
       ],
@@ -2688,7 +2814,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "c2e31b56639d96dfc8cb0f150d89cfb3246ac5f12bad973d74495556d9ca6060"
+      "hash": "8870e7bb39f62ccaf343b5223268754b91f3313350099a26e8d4c0e876a9e6b9",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000083",
@@ -2712,7 +2840,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "b3827a0913f45c8d2c0c0714aaa1b9c960d271c37c08df2133fc24af63882bb5"
+      "hash": "c6cd81902566f9a9b41f3579fa6097f4e47cc8c93af1f982387cd299c48c184b",
+      "expected_status": "OUT_OF_SCOPE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000084",
@@ -2725,9 +2855,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-2__khoan-7"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-2__khoan-7"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-2__khoan-7"
       ],
@@ -2744,7 +2872,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "3eee674e3628005e63badcb16d578eedff5205be8793ee10c7f92f7e941bbb76"
+      "hash": "8c24641b83ba5f18874c354d993cf26c8b6de5ffd1e2b79db3e3832e789a879b",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000085",
@@ -2776,7 +2906,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "8498c2f7f489e52e58e3078dde9f5031585ebb85e573dbed73e3da191079ebe0"
+      "hash": "85fbec17ad94ed0662f2fdb2da1eacbad9424d306c6415c6e518972ebd13d6ed",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000086",
@@ -2808,7 +2940,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "3f031c7714fa9718a7d1cf734546bc6f6cb736494a003d893c3f1fef2b4ae53b"
+      "hash": "0754e232200c3dfc3076f99cd68e68e78dc25239a224c7761d55fb5d33006743",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000087",
@@ -2845,7 +2979,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "22bf9fee01214f0c86d9713727de57da6752e5b052325f283b87ca9e73029912"
+      "hash": "7b98e4e5c540f1759b69c3972762ecf247c4f827c532d04dd0eead20f77f6f67",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000088",
@@ -2877,7 +3013,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "287d498f29adeaebae270d06a3744718d27333641d419915cf7431294c17897c"
+      "hash": "a6b820a2fc1ad47361ce5181eeed374bcc733bc93ae4b0b2417f0d5bfecd72e5",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000089",
@@ -2909,7 +3047,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "f3865c1ad6281ba6237397840fc82bd1f6c3e5600487d12a009b926562163b5f"
+      "hash": "8118a10b30cc9f60bc4b5c913650219420186b49ffacd1e7b6f51fade2610b8e",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000090",
@@ -2941,7 +3081,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "e4eac99a0b113ccb634cc36d2ed1256dbf9f2d2eb35ca1e3e086ffae74cfa6d1"
+      "hash": "3173c9706af1672ffa5a4062d131a5c19ee511b594a884763330264127fdb2ff",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000091",
@@ -2973,7 +3115,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "ab808b142913a50f6dfe817d1a80d4aecee5477cdb7dcf735eca0940bf0f2d06"
+      "hash": "78c5e89b054a43f8e5fef644c9646f275eeb003b81efbe39c53913cab1178e69",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000092",
@@ -3005,7 +3149,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "cee075c0dcef12ef8abfa19d9d6c4bb60531fffd633171e2553d9a684702197f"
+      "hash": "b7d6887d5fa66cddf2acd8b4ff3b48d345b424c69ff8d33c3739386ce4df33fe",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000093",
@@ -3037,7 +3183,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "98a01169117da858236554acd1d15c81f4cbd2050aa124eec7f6aad7e6636566"
+      "hash": "249e7435d70d2533b9fb8fd8683558500a0f46ce42221b673e7e30da7307e917",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000094",
@@ -3069,7 +3217,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "e579e6bbe378d26b809fb239d1232953779f346ed3c30e10878e882ba526ae5b"
+      "hash": "ff2ad1065b300e2ca30a0a60fc1fefb0f1cc3d949d043cca8cb01f21a539ffb3",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000095",
@@ -3105,7 +3255,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "9003676b8df4eeb5647e1607db1f4787d6d1d586d9661e0fac897b9e0f3522b8"
+      "hash": "04890417a5f9be16b362ec3f3e02b1e94a1dda73a4ec4e9003894799b12f0a13",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000096",
@@ -3141,7 +3293,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "538cfebd74a1acfa211b71458c0b1546b0ea0f90c6cd8ece4e167f7af04f1466"
+      "hash": "f06b4722f5d0724b6f2220db457794d17143abf9d7a22c0a769145e65c8293e5",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000097",
@@ -3154,9 +3308,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-31__khoan-2"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-31__khoan-2"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-31__khoan-2"
       ],
@@ -3173,7 +3325,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "2e4a8504a183f481af4fe7d2b63537b2dc05d5aa90a028848f38be2a104a60a1"
+      "hash": "220fc69308c532aa613ab1058f0184f117c375c96854628330b47eda9034e5f0",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000098",
@@ -3186,9 +3340,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-31__khoan-4"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-31__khoan-4"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-31__khoan-4"
       ],
@@ -3205,7 +3357,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "752d686c595c991fe202072258bde598f83b5bf3f79dc0afae06da159ded0001"
+      "hash": "5076317207ed905250fdd4c349853459109df0e0a81299203d95306da6ff5ae7",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000099",
@@ -3218,9 +3372,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-31__khoan-5"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-31__khoan-5"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-31__khoan-5"
       ],
@@ -3237,7 +3389,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "0a457665882870acd3bd3c104a9f66eae48cac32b9d3b4cd652fd51188fc06f0"
+      "hash": "3489d4918e943f82d3b6d9e3e2ae9aafd854229df0828a97eca69313d88c9785",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000100",
@@ -3261,7 +3415,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "a612aed462077ef17fb7db2c353e6d07e405403e811f4fcbdbe0598031df0d97"
+      "hash": "5a7a3d961a0f5206f73ac13fc2781f83fecbc8b8bec043db781b65332821d2e2",
+      "expected_status": "OUT_OF_SCOPE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000101",
@@ -3274,9 +3430,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-31__khoan-7"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-31__khoan-7"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-31__khoan-7"
       ],
@@ -3293,7 +3447,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "a4c439df9a19eb2374d64dc0a09584ac63ccace76752ce23a029e392fe0b0b02"
+      "hash": "cb790ee5ef8242c8dc9121240904c076b91058ab925fbeb5e82ba40d38a622d9",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000102",
@@ -3325,7 +3481,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "795cf172913952e38904a5d13553fb925a6bacaa9900ecf93c318ebec7e0f028"
+      "hash": "1e1f760cbd353d592820b98dbc200875e7956b39ed698608774f2fd80a95322f",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000103",
@@ -3357,7 +3515,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "f76300944ea73d4fb2bf1f8fcc96fe823e17f8b35d60be4432a9d8eaca02d298"
+      "hash": "81139753c7b729ef7f67ba33370f5e62251f4a48306565521859d5e226101ca0",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000104",
@@ -3394,7 +3554,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "a0e851e6ec7a9f441007fbe10b04948ef88525e60297e2d1dcc217879e3f9135"
+      "hash": "5a5a1ea190c4810cbee5da0a06a745f88ec1e5a3339d467ba27504920fbf1858",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000105",
@@ -3426,7 +3588,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "27965e452e05ba29eb0db58513e9a6cff4f87e4bb87e792a7029697275238a0c"
+      "hash": "fcf36ef066d9bc6f27ea38f72ba077355fb44b816bbfa2923b36d5bb5782d212",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000106",
@@ -3458,7 +3622,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "e99f6307ffbb7fbda1b536e8c602e3d1bea444e2555c31bd4d59c7662f4e9584"
+      "hash": "a57b3c38066099b99dae3e1b5fac4cf5159d6e41f9d34fb2f51ec1eab546a4e0",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000107",
@@ -3490,7 +3656,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "01ff1a4bca618386b14412976c1be3afaa53bfacede539a83801db4101b54cbd"
+      "hash": "9f52614799cda8790d32d22f51aa60f043fd0522a5e1e5282c3ba0060ec24079",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000108",
@@ -3522,7 +3690,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "7d31c876ad19937051caaa7a5c02ca20c81bb4ca6fc7f7adf0ac979378b36779"
+      "hash": "4b51a465d887be1f43feb637041c457ae85087077097a1f181e9d0d4e666436c",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000109",
@@ -3554,7 +3724,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "873eb0d415ad23aa09fbca607f7f10ea90bab7ed10bd1bb9038158caa190cb01"
+      "hash": "fb01bc21499475f2fad0e41ceca6dfca7201a89feea917452e6521706fd41e76",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000110",
@@ -3586,7 +3758,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "b00ce91862a1f3121b501776c37e13ba68575146fd746ac9ba9b4be4bed6f95a"
+      "hash": "de6b3ed3260c8d2a562b09b32187a1cb6c7c8b2951ee675560203e2436b54367",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000111",
@@ -3618,7 +3792,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "5bb5ac573db75833cc2e4c3ee32a42ba5d3b0c857b9964cc93658c266a9f5590"
+      "hash": "8687a8ff250946e740831c12ca777056870241188a4f6963cd74436ebbf9ea8b",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000112",
@@ -3654,7 +3830,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "3f76af778f8c7d3f85777fabee5424f0d3e8cc733e81958c4a532a691f9f69d0"
+      "hash": "1fdf1abc2c5b264c943ed5258727c8ed1de61538475319af85116019ff1a4817",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000113",
@@ -3690,7 +3868,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "9a58f4b41ae28488b402c1ceb5d771c35f2e9de87a7ad53af7e5aec3ca20805d"
+      "hash": "44bc99badb9cad5d6e78b00022d716a4c13e0a4da993c4bbfb5ae886fbb010c1",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000114",
@@ -3703,9 +3883,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-32__khoan-9__diem-b"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-32__khoan-9__diem-b"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-32__khoan-9__diem-b"
       ],
@@ -3722,7 +3900,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "85377cfd19fd3b2f667fbd9a72097ef6c9d98e4f209c17ee15390abe51e8fb37"
+      "hash": "e587a91a843d0e0dbeafa325bb7cf9a314a43ea9af2a0827d47788eb5ed9eedb",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000115",
@@ -3735,9 +3915,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-34"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-34"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-34"
       ],
@@ -3754,7 +3932,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "76c5adf6ad53ccee332d2cd04f45862745a2b115b7dfc93f0f5cdbb47337a375"
+      "hash": "4821430b77a1ce68b7bc8d717e7cd1c58ed3e357b1c6d81cc7ae7096146b8652",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000116",
@@ -3767,9 +3947,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-34__khoan-2"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-34__khoan-2"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-34__khoan-2"
       ],
@@ -3786,7 +3964,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "696e01e6234b4e71372e7f0885dea33a0ca4dd6d7f8642c1e464b3c5eccb544d"
+      "hash": "0700fe1fe89af689d574bff4a2e3bdea0b8b50842f6e9d1d0fb2c148a55ac66c",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000117",
@@ -3810,7 +3990,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "8a6238dc94aa333a1bbad1c67a87a5cc358601e3ffd660c6c004ce437048a009"
+      "hash": "93a3dcf9f70f4f1a79cc4ec14b652b39d0fdc2382d1d9f6237aacc49fa37b02f",
+      "expected_status": "OUT_OF_SCOPE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000118",
@@ -3823,9 +4005,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-34__khoan-4"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-34__khoan-4"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-34__khoan-4"
       ],
@@ -3842,7 +4022,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "a25694d3fcef60ff1a2b51aa233e7e4533cd79aef98e9fb992ca76235fbf653d"
+      "hash": "3e6d8ebae64c710fe081a8f2acde2bd969437a09ce33e7e54ba6f8589c5830bf",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000119",
@@ -3874,7 +4056,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "77586c24926bf864200c2b8b75a48ed4fba00ece6fa2f5a8345a76f4261b95ac"
+      "hash": "a359baf7d8b55e8acb26c803806d122c45bd6285ca2998620150bdb682413bf5",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000120",
@@ -3906,7 +4090,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "2dddb68f9448fb957b34ea4e2d4a617961807d708149a0799a4f9d5df22eb3f3"
+      "hash": "54063042bdd2e8fe165af6d00f1601b8e4de36548159c96a2b77cf0e34b87a11",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000121",
@@ -3943,7 +4129,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "ed8f2c868b5639f4e5e36319a7610df1df9d4d380385a5d957da9ffb1c79a460"
+      "hash": "4d7cd4c917621a6660215d78f3c76536c18a645c84141100d9483f838e8ded77",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000122",
@@ -3975,7 +4163,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "a1a9f6d593fa1887b91f6e8e92697d62544b4e291770955b93756d7d0384c4fd"
+      "hash": "ccd738a98385c83b5c632b72886a55eaf1869456375054594acf49a8957ce7fb",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000123",
@@ -4007,7 +4197,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "fa82fc397bb4d155832b240339d34e02bf86852fbf2c1f5224230461d8fbfad5"
+      "hash": "173ed112f85332d41cb4d4f0f51b96c8c41418121fc185fa445708f1a8160fe7",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000124",
@@ -4039,7 +4231,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "f3cd85dbae71541c479bdd1bf7c731d08c5934ad8a2e91097a433f30a452dc3d"
+      "hash": "75a70ef1d5bb3d77c9efe872c67e1385a883e46d08b9f6922cdbb0cdb11fae29",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000125",
@@ -4071,7 +4265,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "beeccb5011afe58c83d27e2a653ae803f025ff01a85fb839c4f60dfa6303ab97"
+      "hash": "c2934b7f763467777f657b3e9b1f25ab75abceae91bcd5d80e884065a2b262ec",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000126",
@@ -4103,7 +4299,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "1d22288363724a50463999ea8f352e645add7e06be57a73ad5866e445e566c9f"
+      "hash": "7e3cfa9ae07857c37259742f8529c731ddec7c5cd134d4564f5a1b8a479192c5",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000127",
@@ -4135,7 +4333,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "184b56eaf1d6e1f8a3159fb4c1a408186dbb4cccac7614b99bf0f7b4434abec3"
+      "hash": "0c083046c9f9e828acf399a69a99cc706109ecf529069f0fb5f40cf3e712eb2f",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000128",
@@ -4167,7 +4367,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "12c6e5d7de95a6251606db02dfe0fae913e1f754a8db9067a7ec6072f004f79e"
+      "hash": "8c840c621d5af014c962b5da41cab71bcb28d8fb9a5d4a9be6093ef797e83224",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000129",
@@ -4203,7 +4405,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "55ae0b56ca6ddd09ab8311a44e7ab6d5c920e1480f371c84a39b92380065e6d9"
+      "hash": "2338cb2f65896a1583a9f9607d8114f0188e388e4a2655e22328c59871f4b395",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000130",
@@ -4239,7 +4443,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "172a5c452ca85df289b0aa0873f27ec17dc032761ad690a24c65b8c6b7fc9553"
+      "hash": "2294649578e041d98c8c6584b44a5ccfb7a190fe57f136ab9f57fae07fa7b38c",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000131",
@@ -4252,9 +4458,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-36__khoan-2026__diem-s"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-36__khoan-2026__diem-s"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-36__khoan-2026__diem-s"
       ],
@@ -4271,7 +4475,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "43b3c2e7be2374dd773a596155db983c1399c186cf7527b9c61087ae955ac75a"
+      "hash": "864a481332fb387405867c7821936af8a54e65c7065a3a74a39581dc63ebf2f5",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000132",
@@ -4284,9 +4490,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-36__khoan-3"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-36__khoan-3"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-36__khoan-3"
       ],
@@ -4303,7 +4507,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "9fa6cff9cc8f12044b2904429267e73f584dd39961daa86b3372a77315b9b701"
+      "hash": "53b05427eac2e55cc8a5cfd423f2b57c71efededce81b6c145e040a9741e4d85",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000133",
@@ -4316,9 +4522,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-36__khoan-4"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-36__khoan-4"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-36__khoan-4"
       ],
@@ -4335,7 +4539,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "e09c034be67aab16dcf8f0916a9ee076535432857179298bfdd972a7a0acdc87"
+      "hash": "fcd283ff9d8f0ef575c6e3e0a34ff2b11401ebe5eb7cc590e2a4ebc22935b96e",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000134",
@@ -4359,7 +4565,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "36e7f6d61b8f8e06585180bd93e8b75b5a32d5ddf17d5e16bf8f8b204dec7eac"
+      "hash": "52f994f96709e4bd22dab86a3f4e8e84bc4007a3ea87827ac9076e1687d79cc2",
+      "expected_status": "OUT_OF_SCOPE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000135",
@@ -4372,9 +4580,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-36__khoan-7"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-36__khoan-7"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-36__khoan-7"
       ],
@@ -4391,7 +4597,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "4c2b8cc9be8a432b6204e3419b7a4dd0aff1af4bc54e256a59a14169cac3cf2e"
+      "hash": "34e4212c2785572809e5ba288e05640401c1c6fefa7318aec5a230f16b9ece61",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000136",
@@ -4423,7 +4631,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "d9142f7bfb72dcebcacf8e364389d2bd6f27f54649c60b758882deda3e066941"
+      "hash": "d6ee5a59b1d51666e59f8b2fff647650ad26c514926eb540d109c8f022feeb63",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000137",
@@ -4455,7 +4665,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "9cb55f4d1028e48dceda16ee8061a0f61cdd0ffef0f5cc83190d24f222aeb5c2"
+      "hash": "f6dd22901dfb4a4cc17ad3fe0db6696a7b8c9d9ac7c4ff79b431a62902a3b7db",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000138",
@@ -4492,7 +4704,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "44d974d641cabf2370bceec7c63ac2c57967d47802324372d937e01200628f9c"
+      "hash": "434b552027b524be6c5ae9299c0c1ded95d4d14105ce3df06a2e1c2a934dafc9",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000139",
@@ -4524,7 +4738,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "7d258244f49401a70a2c4a4cef6d90c0fe20ea246196525f328dcd79bd183a99"
+      "hash": "5466610a0ec561925285a16cb98879a34822ee0c815d75ab1e602270389c5084",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000140",
@@ -4556,7 +4772,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "e96f1b4e1ab4dac36cc0e461a85750a85ac2aa11afe4c220c0644e5e69504b60"
+      "hash": "3510d86e24aba75e81c40e88df6ffafe33875ba83c9f96d2adaf4067ed98db28",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000141",
@@ -4588,7 +4806,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "ce9608b1a845d9e26357fee3e5df5d1112eab0f97497c85071dce2442d947e38"
+      "hash": "af6cd85293c9dc197304b9d1e405cfd1835c29e680b975bd551ff65554b14b56",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000142",
@@ -4620,7 +4840,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "a4a8965b6fccbc57a0a5f07ff705b907d0a2c45f1d3b1de400a9655e00699da6"
+      "hash": "f48f856bc182c30a08db6651bcc9d1ef051c57f0d891e37bfe48ef8c33bdbb90",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000143",
@@ -4652,7 +4874,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "41eb0bd1e07a4a035df6024690c22179db62b34041ce1ad5e22a185d82109b8d"
+      "hash": "c06a04d3e89e501ce439df514ec7ab53d682d6f1c397bb29c9accc45b86d835c",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000144",
@@ -4684,7 +4908,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "aafeb6a46e34426067c2a3654d977ad2ea87ea7125345f0d171f063f7a587f36"
+      "hash": "496eea24283a3ad9f958bf23aae6547f1e4442505ec51e0d2ad353f288d8642e",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000145",
@@ -4716,7 +4942,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "734e60258d3c756cf5f083fc7390273bcf0b898b7483771bde7f833ab9cf063c"
+      "hash": "e3c9ae3b5cef59d3c10e8b8f40c03cfbeca41ad2c3555c9f4d061ff43c068903",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000146",
@@ -4752,7 +4980,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "b45afdf052a7e5c9e908eefaf1ddc4376700cd461acdee0f5eb1c44c2e6b1330"
+      "hash": "0cdf1fcf9295cb89f916dbf72d67554f9c65539a3cb60d81385cf3dc5ce3d387",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000147",
@@ -4788,7 +5018,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "adfb14f4b566908df8db048c3539185d6c1360664fe06a0d99455f860161957d"
+      "hash": "6d26ebc2d95417364958daf2422c3b88a37c87c96e542056ad68f10f08ed975a",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000148",
@@ -4801,9 +5033,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-3__khoan-3"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-3__khoan-3"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-3__khoan-3"
       ],
@@ -4820,7 +5050,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "e534bc14fd7ec3ed81bce69708c9cd603abdeaa9e186745a3aec7a0fd76522b6"
+      "hash": "ad09b73b592b1e72dd2af5b5ea2fe3e75a745975c1cb59c60ef5ae31a381fc6b",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000149",
@@ -4833,9 +5065,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-3__khoan-4"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-3__khoan-4"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-3__khoan-4"
       ],
@@ -4852,7 +5082,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "75bf9d4fadb34902d7723d0e8441c61e76470fea409b3c7c85185b75803a1866"
+      "hash": "6065bf98e5c45c31d2514bb6ba6b1ef62d8e8e434134c0e153292b7627b2856f",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000150",
@@ -4865,9 +5097,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-3__khoan-4__diem-a"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-3__khoan-4__diem-a"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-3__khoan-4__diem-a"
       ],
@@ -4884,7 +5114,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "c20ccead34db2c41e979b754f46d746ff70c000fec54fb55e3d8a86d7533c25f"
+      "hash": "81c920bc781c672642e99cbe0591321b67d8b989988651f17a82f53e94603feb",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000151",
@@ -4908,7 +5140,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "a5e95561467ec31c38cff6b9192c0053189a7cac12aeddbeca6e21fc45dbf0eb"
+      "hash": "6a0045fa0e8db39e1d6fa9047b987b98d1772d77918b6483027ec59eefccb66a",
+      "expected_status": "OUT_OF_SCOPE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000152",
@@ -4921,9 +5155,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-3__khoan-4__diem-c"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-3__khoan-4__diem-c"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-3__khoan-4__diem-c"
       ],
@@ -4940,7 +5172,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "70c239bce3ae8517ab29611713f17b45dd57dd2ab34d05cfa2c6f235647831f5"
+      "hash": "9547a4cd8de879cb418d5f392e5605bb313b0f448d2a4b332dadd2f33ae83d70",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000153",
@@ -4972,7 +5206,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "9c14518d026303a30bed4bf302db71836f3d8bede1b49892a4e749168bd40736"
+      "hash": "d57b2d6fb5a3cd031b1bd4ffb0330960182a3ce8d892c5eb6c9c224eba63ebbb",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000154",
@@ -5004,7 +5240,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "77286cb8e1d10887cc858fc4bf78ef28025b96964e93ceb35b2196b77aba71be"
+      "hash": "0a78d15a0a7d4ac633195888bd0cb29b0f83bf0c4a2764d26175ec1d08582b6f",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000155",
@@ -5041,7 +5279,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "7ac0fae816f0e30ecd7890e07b68ed4e96bb0a727de8a256200415238bc34a3a"
+      "hash": "57c5552b013171734cc82b75c64fc7fc79619f7a69f09912296ca194bcb867b8",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000156",
@@ -5073,7 +5313,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "d708cc79a6c43502dea099dc45ba3c9b62c41b3e0ba5176435b5e935a53d0cc7"
+      "hash": "4abb051449250880652f2af6fb874512f3294b4491c017c5c08d6dbc15d078af",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000157",
@@ -5105,7 +5347,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "5ed5e3aa1cb683c6b1470f32a34332f06968ea49f9a03bbfa3ba22f77d4712bd"
+      "hash": "b41c39ec8fcd20b75d4e08f7711860e235e104b38007725953e8b2150213b644",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000158",
@@ -5137,7 +5381,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "25c36a5fa1332eea31417b91105fa7430cdc18e872b9969e4e3027d3c5b1428d"
+      "hash": "9fbbf9400ff4cf78d2d9a642cbc9131a3c20049b2017c121aa0c511b9a18f654",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000159",
@@ -5169,7 +5415,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "07358278038b1b65c9e9992b11f562dc05234138789fb32795b1b10f602eef02"
+      "hash": "ed9418f60958d78cd7dafc70b86a1268daa40530e2f043f665b0d9df07bfaad1",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000160",
@@ -5201,7 +5449,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "75615fa4587dd8490ee120a10569a482bcf355bc0d8496bec4ea68f9dc6affb6"
+      "hash": "5f28c424fc153614f77e0de27fad2dc9bb1398861ad0bbffb3e3508346a4844f",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000161",
@@ -5233,7 +5483,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "1d01e03c129f7582ae509106e8b8cc44edddba38766d6c830c1111809844a354"
+      "hash": "26a6ae4ed1b25d05d6b9d3782c7ae1aa60c6ca8669af5d264fcaca1166ab1fed",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000162",
@@ -5265,7 +5517,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "79aa67017d1a1c28f475583e94ee91363ec43991e64b99bc8c2b618aa2dde260"
+      "hash": "10e0460a1d76ce438f6661c77cca56b4830065bec8c89624ee523d70ee7f3af0",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000163",
@@ -5301,7 +5555,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "b25644ea9eec839761882cc670a8d3a90c8b9552eff7752016a6e2ba28872a2f"
+      "hash": "2012fe01ca30c1d2e8d59df32aba2c8fbd9483d1430f286788c6d7743e14a475",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000164",
@@ -5337,7 +5593,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "a13b60f59c5dde8f138c4f95032315366c29d91cbc64532c7f0b11fb7b1ad2fc"
+      "hash": "fe2f96f681cef9bbe438fe8e30d523ed449509423f00859851cd164333696898",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000165",
@@ -5350,9 +5608,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-5__khoan-2__diem-b"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-5__khoan-2__diem-b"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-5__khoan-2__diem-b"
       ],
@@ -5369,7 +5625,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "b41a1894e5fc59f2af0e100158706c3d473ca3fa4850fcf980ae0777fcd49e2a"
+      "hash": "044180e27583d2100ee472932074071578e841de71711ff9f9934c91793c876b",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000166",
@@ -5382,9 +5640,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-5__khoan-2__diem-c"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-5__khoan-2__diem-c"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-5__khoan-2__diem-c"
       ],
@@ -5401,7 +5657,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "d2e74692d0955faca7951d646f5c3568016856839e9216a9f93c2a03a6d352d6"
+      "hash": "5535167a986148e1734d9ac64e98bceb5ed70c9b9047d134098c3648416c4466",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000167",
@@ -5414,9 +5672,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-5__khoan-2__diem-d"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-5__khoan-2__diem-d"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-5__khoan-2__diem-d"
       ],
@@ -5433,7 +5689,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "66b5859eb18771d886a96fa5f436268f7d9cb2f660f57d00bb30badda6c9d125"
+      "hash": "0a26e641defce572a0d2a33c4de466351d7c07cd22b49f221eb271232ac36989",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000168",
@@ -5457,7 +5715,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "2d9b09a7e96ddb4fda3f66b2f1f8c6c0bd7dd41ffdf37f393630d5d9f14a4523"
+      "hash": "46e82b3396bf88fbb209740d4d21f143ce7c4dca78ace4a456fa600499c2920d",
+      "expected_status": "OUT_OF_SCOPE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000169",
@@ -5470,9 +5730,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-5__khoan-3"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-5__khoan-3"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-5__khoan-3"
       ],
@@ -5489,7 +5747,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "40804586c24de90a3fe8ee51d3ff248310bb364e9072e51e8ea8a27541bb3d5c"
+      "hash": "4700d95e2f087e6b5736e2b4558f28fc6b754339233234f8b2fb2f597acdc7b8",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000170",
@@ -5521,7 +5781,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "432e83dde5628a7598ea64a3096c5c26679d38f7df56f52127d2ab78db9c004a"
+      "hash": "2f6a9b64ba038293278b86d440214c329ca7156363bd9b63dfd083bbe4c3d7a8",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000171",
@@ -5553,7 +5815,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "63aa27127697122b275e932c6125366a145fe4f5d3c0a492d36dd5510a8d3b5b"
+      "hash": "47d0a640b3878f218a0a980bcc015bd754f6ee7ccac1931a8723e643f606a3ed",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000172",
@@ -5590,7 +5854,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "8d72f7a22d5fe07c6887a9bb96e4c1daee2bce88e7425f225fed36df98b169dc"
+      "hash": "a9bbb0a7d85da0c95d1a710039cab33539b64b267495032bdfa755538ff6982f",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000173",
@@ -5622,7 +5888,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "63bc5f83035234faf2351ecbbe185478b0df96f07adfa1e0d053a9989c89e2ca"
+      "hash": "eca3b95998d02c3ea23409b695319977904efcca4329b177393375dc87287974",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000174",
@@ -5654,7 +5922,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "ec2e003361ae8115ce1e63ff23ed10646dfa9b7eaad9979afe24374bc336659a"
+      "hash": "059702fd289b44c7087103712ba72070a308eea72cb71c5f843994e330143a47",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000176",
@@ -5686,7 +5956,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "8d5748040e9b2c425b1e338fc0a6868883ce404f299b2350cf66210ea3557112"
+      "hash": "997c658ae9e8bcbcd74526f13230b61494b9b4b35ab90b7ce46533dc5c8ba73e",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000177",
@@ -5718,7 +5990,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "083a66ba8f79cce12e0ef29d50c20ba0efbd86236a0bc9ad7602bc55b98a405e"
+      "hash": "150d9934ee0c286ec5404e06c172faca5c8db5b610c405087d8f506382592be1",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000178",
@@ -5750,7 +6024,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "77a891ad72b27ac922cc6a4372a42236a2c7f64115c172b1eace0bef039dc4b6"
+      "hash": "f26f6d376ced3dd08e6a827b08bde8e25d53be39eeb10ca1f3039401bf81c3d0",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000179",
@@ -5782,7 +6058,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "d0de3fd98f79ba269f62469e9071ff90ebb432a462c950b1836c30d7e4d59ed0"
+      "hash": "963053929076133a08e3c8bbc0101bfe01cd4229352d82ea2d3677880bda1ce0",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000180",
@@ -5814,7 +6092,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "58d159124ef77973b806a68f65c75eadd31bb0ed594b54abbb46e42517ce64c7"
+      "hash": "8aecc5f9c1e4b77f8dce1350157cfc4368e41ed1ae984784f5e40515d3c7b1f4",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000183",
@@ -5850,7 +6130,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "773885a1aa01a6ba9e9344c0910021dc2703876db933e71ecb2034e3240a257a"
+      "hash": "0c396138d62715350e6375e6bfd6d87705a80b9a76354b3c074c1e43165ea1c3",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000186",
@@ -5886,7 +6168,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "b82e80789630dc5b0253e18738955954ee7214c1eef3cba4f12d4530cf7934eb"
+      "hash": "c06bfc958d6e099e6f652bda1702548e975cdf5af32ca24e6fe9a14171e8a2e5",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000188",
@@ -5899,9 +6183,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-8__khoan-2"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-8__khoan-2"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-8__khoan-2"
       ],
@@ -5918,7 +6200,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "eecb6caa536f92c99aafbfffe11c48b25dd615a3663dd48f550b7e8e28c869b1"
+      "hash": "f7e387139ceba7e19f9f2efcb24b882e8ae7aafd2c81987fb658371fb7ebe746",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000189",
@@ -5931,9 +6215,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-8__khoan-2__diem-a"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-8__khoan-2__diem-a"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-8__khoan-2__diem-a"
       ],
@@ -5950,7 +6232,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "26f0012bac73a295184e258461390141bac2461bc1cbf77daeac9098b6e1a1fb"
+      "hash": "033a2ed0c24ba62eea0001364854ff79240cae02b7b3f2fcf6d51f72039ddc7a",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000190",
@@ -5963,9 +6247,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-8__khoan-2__diem-b"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-8__khoan-2__diem-b"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-8__khoan-2__diem-b"
       ],
@@ -5982,7 +6264,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "949dda19eb3bde09ae938025fb56763836b726776a2710edbfa1d50a735bb9fa"
+      "hash": "f910b91a6cdb6eedbd47ff956e4e1ffeb8173104a6918152aa6701a7b921e96d",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000194",
@@ -6006,7 +6290,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "7f7eacff67ffbc51a31f5eff2b33cc3885e95f27d739fa4d36a06b7dd3742707"
+      "hash": "8d77aac147f25b3eec2b61f1fddf87b9340962621837ec813a13562fe2e4c0de",
+      "expected_status": "OUT_OF_SCOPE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000195",
@@ -6019,9 +6305,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-8__khoan-4"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-8__khoan-4"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-8__khoan-4"
       ],
@@ -6038,7 +6322,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "a4820c99ea8297701b097f80d62bead1e9f0137286047512520eccb3ee0bdc6b"
+      "hash": "4eb9d6c450507c42452c9654b8151d567d6cf155c2c0a636916a3a4d0d89ee16",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     },
     {
       "id": "gold-v1-000198",
@@ -6070,7 +6356,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "64772bed9a0638f8e4a42aef3d17eb29137819d2dde768113a6cc220520d0f1b"
+      "hash": "430a36f7d90cb230eedffe322861916bc5ba7a7c64fe6a64d5f9c7f53cc5bab8",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000199",
@@ -6102,7 +6390,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "7ffe60dd8339e959a3f0e161050fcc35b5dc4489c91649531cd61e86ededab50"
+      "hash": "e21a6dc89b77cbbe7a3e7efd32495bd19e19d52ab4c3a1c74bce6d6076189cbb",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000201",
@@ -6139,7 +6429,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "e99705ff126617553121303fff957cfe8c0a962261b6b2d50e0dc65f3b48d0c0"
+      "hash": "29dc614df37d23ad5b27e13c94adc59dd52533af58b738f5850dacb2082760f3",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000202",
@@ -6171,7 +6463,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "1ee829852dd20f3f24d1e1bb7f6cd352d8ed8aed5b579da5edab8a6350f1dbdb"
+      "hash": "b9ff82a0bf735fe3f9e4053a7721548f9cde54f3628b3a95e5c1fa3f4045f316",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000203",
@@ -6203,7 +6497,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "5509175211d3f910d344ef5e3eb6a2cd9e7b0021d8859f55478a35fb3eabdcd7"
+      "hash": "d1fb3ca614f341ea9c4fbfa528ea39b9b2db73e2fe64d861333734c5505cf7f1",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000204",
@@ -6235,7 +6531,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "22cdf89c1a2ae54b89e31d35526d1b85d0e600e4116d9932ca5d1b684880e96d"
+      "hash": "326970c23e954b5dad7e13a8e3558c053119e2bdf52fbdf6eb84fa0ff89a6ed2",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000206",
@@ -6267,7 +6565,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "af75667ed1a0416e913cd7bebd7bb3af0e3185894b5860fecaacf92a77cb2673"
+      "hash": "90199d0f47ebea53013fa17fd23ac63076a4a1ed1d67e0d1826c64980f7a4878",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000207",
@@ -6299,7 +6599,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "ad12b0d8574b962387269b26e65da1941abe049f557e338b24394ddeb8e2bba4"
+      "hash": "6ae234c2abe9c95cb373c7fe870cb34e3c22a903aaf2c7780cbf266a7997272c",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000208",
@@ -6331,7 +6633,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "fcc04a799b24053c7d0781db8de4de2092962cf2f83717549fd998c543368ee9"
+      "hash": "043383af660dc11c64202afc0ace2ffed07c21c62a431e51fb1fe191fbc7da95",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000210",
@@ -6363,7 +6667,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "d1e78d422704f95bbe77482d5d6d92cc9708c93403717873b05a373cc7b6635c"
+      "hash": "524c0f0711a6b2b875bace94e78c5996322bd83aeb0cdc7a3d48b76b7bb8a386",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000211",
@@ -6399,7 +6705,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "e6e5f51782e4bf9cc4637d122ede7a78c3bb22d0d41b56a633551f3bb5e3c22d"
+      "hash": "cfbb91501041aa6c56c0e24e2cf3ab1d8813e4d8892e5b0194168f2aa9cd0d80",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000214",
@@ -6435,7 +6743,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "544d81f6765ee29d05a4bbd5a57dda519a2304d7ffbf5237cf9bc75778ad3d47"
+      "hash": "ef434d394da839ec888cbbb1141eb24ba19c5317f25673946998e320e3de9dae",
+      "expected_status": "VERIFIED",
+      "evidence_required": true
     },
     {
       "id": "gold-v1-000216",
@@ -6448,9 +6758,7 @@
       "acceptable_provision_ids": [
         "nd-119-2024__dieu-9__khoan-6"
       ],
-      "required_evidence": [
-        "nd-119-2024__dieu-9__khoan-6"
-      ],
+      "required_evidence": [],
       "must_include_facts": [
         "cite nd-119-2024__dieu-9__khoan-6"
       ],
@@ -6467,7 +6775,9 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "0b6638ed2ad954bd4a9709009faaf0868803e1c56a489fb4f2eaf9b66d3f4d55"
+      "hash": "6c9c88dd412b3941ad1df3c2dde125121d37f22ab32396977d29d1960b8785b0",
+      "expected_status": "INSUFFICIENT_EVIDENCE",
+      "evidence_required": false
     }
   ]
 }

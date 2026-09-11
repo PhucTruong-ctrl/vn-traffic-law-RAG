@@ -30,9 +30,11 @@ class QueryState(TypedDict, total=False):
     prompt_context: str
     draft_answer: Any
     verification_result: Any
+    retrieval: Any
     repair_attempts: int
     max_repair_attempts: int
     final_response: Any
+    trace_id: str
     error: str | None
 
 

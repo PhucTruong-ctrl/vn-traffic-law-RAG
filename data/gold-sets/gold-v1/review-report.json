@@ -8,7 +8,12 @@
     "Replaced all historical records with canonical approved provision references",
     "Added MULTI_DOCUMENT records spanning distinct approved documents",
     "Balanced deterministic splits to 40/40/120",
-    "Removed auxiliary and unsupported provision references"
+    "Removed auxiliary and unsupported provision references",
+    "Added explicit expected_status and evidence_required to all 200 records",
+    "Recomputed per-record hashes and full gold-set hash"
   ],
-  "approved_for_freeze": true
+  "approved_for_freeze": false,
+  "superseded": false,
+  "review_basis": "Outcome contract migration completed; semantic defects remain documented in local://gold-audit.md",
+  "unresolved_defects": "local://gold-audit.md"
 }

@@ -241,17 +241,47 @@ def _safe_route(state: QueryState) -> str:
     return "abstain" if _plan_date(state) is None else "expand_query"
 
 
+def _canonical_reference_query(question: str) -> str:
+    """Rewrite canonical provision IDs into syntax understood by QueryAnalyzer."""
+    import re
+
+    pattern = re.compile(
+        r"(?:điều\s+khoản\s+)?(?P<document>[a-z]+)-(?P<number>\d{1,4})"
+        r"-(?P<year>\d{4})(?:__dieu-(?P<article>[\w.-]+))?"
+        r"(?:__khoan-(?P<clause>[\w.-]+))?(?:__diem-(?P<point>[a-zđ]))?",
+        re.IGNORECASE,
+    )
+
+    def replace(match: re.Match[str]) -> str:
+        prefix = match.group("document").casefold()
+        suffix = {"nd": "NĐ-CP", "tt": "TT", "qd": "QĐ"}.get(prefix, prefix.upper())
+        document = f"{match.group('number')}/ {match.group('year')}/{suffix}".replace("/ ", "/")
+        parts = [f"Điều {match.group('article')}" if match.group("article") else document]
+        if match.group("article"):
+            parts.append(document)
+        if match.group("clause"):
+            parts.append(f"Khoản {match.group('clause')}")
+        if match.group("point"):
+            parts.append(f"Điểm {match.group('point')}")
+        return " ".join(parts)
+
+    return pattern.sub(replace, question)
+
+
 def _analyze(state: QueryState, services: GraphServices) -> QueryState:
-    return {
-        "query_understanding": _call(
-            services.analyzer or QueryAnalyzer(),
-            _question(state),
-            service_name="analyzer",
-            method_names=("analyze",),
-            current_date=_today(state),
-            effect_change_dates=state.get("effect_change_dates", ()),
-        )
-    }
+    question = _question(state)
+    analyzer = services.analyzer or QueryAnalyzer()
+    analyzed = _call(
+        analyzer,
+        _canonical_reference_query(question),
+        service_name="analyzer",
+        method_names=("analyze",),
+        current_date=_today(state),
+        effect_change_dates=state.get("effect_change_dates", ()),
+    )
+    if analyzed is not None and hasattr(analyzed, "_original_query"):
+        analyzed._original_query = question
+    return {"query_understanding": analyzed}
 
 
 def _resolve_temporal(state: QueryState, services: GraphServices) -> QueryState:

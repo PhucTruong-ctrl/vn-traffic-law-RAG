@@ -38,6 +38,26 @@ class ReviewStatus(StrEnum):
     APPROVED = "APPROVED"
 
 
+class GoldOutcome(StrEnum):
+    VERIFIED = "VERIFIED"
+    INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
+    OUT_OF_SCOPE = "OUT_OF_SCOPE"
+    UNSUPPORTED = "UNSUPPORTED"
+    INVALID = "INVALID"
+    COMPLETED = "COMPLETED"
+    VALID = "VALID"
+
+
+ABSTENTION_OUTCOMES = frozenset(
+    {
+        GoldOutcome.INSUFFICIENT_EVIDENCE,
+        GoldOutcome.OUT_OF_SCOPE,
+        GoldOutcome.UNSUPPORTED,
+        GoldOutcome.INVALID,
+    }
+)
+
+
 class DatasetSplit(StrEnum):
     DEVELOPMENT = "DEVELOPMENT"
     VALIDATION = "VALIDATION"
@@ -56,6 +76,8 @@ class GoldRecord(BaseModel):
         "expected_provision_ids",
         "acceptable_provision_ids",
         "required_evidence",
+        "evidence_required",
+        "expected_status",
         "must_include_facts",
         "must_not_include_facts",
         "temporal_metadata",
@@ -72,6 +94,8 @@ class GoldRecord(BaseModel):
     expected_provision_ids: list[str]
     acceptable_provision_ids: list[str]
     required_evidence: list[str]
+    evidence_required: bool
+    expected_status: GoldOutcome
     must_include_facts: list[str]
     must_not_include_facts: list[str]
     temporal_metadata: dict[str, Any]
@@ -99,8 +123,31 @@ class GoldRecord(BaseModel):
         acceptable = set(self.acceptable_provision_ids)
         if not expected <= acceptable:
             raise ValueError("expected_provision_ids must be a subset of acceptable_provision_ids")
-        if not self.required_evidence and self.category is not GoldCategory.OUT_OF_SCOPE:
-            raise ValueError("required_evidence must not be empty")
+        if self.category is GoldCategory.OUT_OF_SCOPE:
+            if self.expected_status is not GoldOutcome.OUT_OF_SCOPE:
+                raise ValueError("OUT_OF_SCOPE category requires OUT_OF_SCOPE expected_status")
+            if (
+                self.expected_provision_ids
+                or self.acceptable_provision_ids
+                or self.required_evidence
+            ):
+                raise ValueError("OUT_OF_SCOPE records cannot require corpus provisions")
+            if self.evidence_required:
+                raise ValueError("OUT_OF_SCOPE records cannot require evidence")
+        elif self.category in {
+            GoldCategory.MISSING_INFORMATION,
+            GoldCategory.AMBIGUOUS,
+            GoldCategory.COLLOQUIAL_QUERY,
+            GoldCategory.ADVERSARIAL_CITATION,
+        }:
+            if self.expected_status is not GoldOutcome.INSUFFICIENT_EVIDENCE:
+                raise ValueError(f"{self.category.value} category requires INSUFFICIENT_EVIDENCE")
+            if self.evidence_required or self.required_evidence:
+                raise ValueError("abstention records cannot require evidence")
+        elif self.expected_status in ABSTENTION_OUTCOMES:
+            raise ValueError("normal evidence-backed categories require a verified outcome")
+        if self.evidence_required != bool(self.required_evidence):
+            raise ValueError("evidence_required must match required_evidence presence")
         if not set(self.required_evidence) <= acceptable:
             raise ValueError("required_evidence must reference acceptable provision ids")
         referenced_facts = {
@@ -108,10 +155,6 @@ class GoldRecord(BaseModel):
         }
         if not referenced_facts <= acceptable:
             raise ValueError("must_include_facts must reference acceptable provision ids")
-        if self.category is GoldCategory.OUT_OF_SCOPE and (
-            self.expected_provision_ids or self.acceptable_provision_ids or self.required_evidence
-        ):
-            raise ValueError("OUT_OF_SCOPE records cannot require corpus provisions")
         if "basis" not in self.temporal_metadata:
             raise ValueError("temporal_metadata must include basis")
         if self.query_date is not None and self.temporal_metadata.get("basis") == "query_date":
@@ -128,6 +171,8 @@ class GoldRecord(BaseModel):
     def canonical_payload(self) -> dict[str, Any]:
         payload = self.model_dump(mode="json", exclude={"hash"})
         return payload
+
+    ("GoldOutcome",)
 
     def computed_hash(self) -> str:
         encoded = json.dumps(
@@ -166,8 +211,10 @@ def validate_record(payload: dict[str, Any], *, verify_hash: bool = True) -> Gol
 
 
 __all__ = [
+    "ABSTENTION_OUTCOMES",
     "DatasetSplit",
     "GoldCategory",
+    "GoldOutcome",
     "GoldRecord",
     "ReviewStatus",
     "assign_split",

@@ -18,7 +18,13 @@ from app.api import chat as chat_api
 from app.api.chat import _response_payload
 from app.api.db import get_db
 from app.evaluation.gold_set import validate_record
-from app.evaluation.run import EvaluationRunManifest, EvaluationRunWriter, evaluate_release_records
+from app.evaluation.run import (
+    EvaluationRunManifest,
+    EvaluationRunWriter,
+    build_evaluation_retrieval_envelope,
+    evaluate_release_records,
+)
+
 from app.storage.object_storage import ObjectStoragePort, get_object_storage
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -58,6 +64,7 @@ def _identity(gold_hash: str, corpus_hash: str) -> dict[str, str]:
     return {
         "schema": EVALUATION_SCHEMA,
         "git_commit": _git_commit(),
+        "code_hash": _sha256(ROOT / "backend/scripts/run_release_evaluation.py"),
         "gold_hash": gold_hash,
         "corpus_hash": corpus_hash,
         "active_alias": os.environ.get("QDRANT_ACTIVE_ALIAS", "legal_provisions_active"),
@@ -102,9 +109,10 @@ def _runtime(session: Any):
         result = await graph.ainvoke(state)
         trace_id = str(result.get("trace_id", "release-evaluation"))
         payload = _response_payload(result, trace_id)
-        # The evaluation runner consumes the public response and retrieval
-        # envelope, matching the actual production endpoint shape.
-        return {"payload": payload, "retrieval": result.get("retrieval", {})}
+        return {
+            "payload": payload,
+            "retrieval": build_evaluation_retrieval_envelope(result),
+        }
 
     return serve
 
@@ -122,15 +130,25 @@ async def run_release(*, output_dir: Path, checkpoint_path: Path | None = None) 
         raise RuntimeError("serving corpus must contain exactly 14 documents")
     identity = _identity(gold_hash, corpus_hash)
     checkpoint_path = checkpoint_path or output_dir / "working-checkpoint.json"
+    expected_ids = {str(item.id) for item in records}
     checkpoint: dict[str, Any] = {}
     if checkpoint_path.exists():
-        checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
-        if checkpoint.get("identity") != identity:
-            raise RuntimeError("checkpoint immutable identity mismatch; use a new checkpoint path")
-    completed = {str(item["question_id"]): item for item in checkpoint.get("outcomes", [])}
+        try:
+            loaded = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, TypeError):
+            loaded = {}
+        if isinstance(loaded, dict) and loaded.get("identity") == identity:
+            checkpoint = loaded
+    raw_outcomes = checkpoint.get("outcomes", [])
+    completed: dict[str, dict[str, Any]] = {}
+    if isinstance(raw_outcomes, list):
+        for item in raw_outcomes:
+            if not isinstance(item, dict):
+                continue
+            qid = str(item.get("question_id", ""))
+            if qid in expected_ids and qid not in completed:
+                completed[qid] = item
     ordered = sorted(records, key=lambda item: str(item.id))
-    if set(completed) - {str(item.id) for item in ordered}:
-        raise RuntimeError("checkpoint contains unknown question IDs")
     storage: ObjectStoragePort = get_object_storage()
     storage.ensure_buckets()
     session = _session()
@@ -168,29 +186,67 @@ async def run_release(*, output_dir: Path, checkpoint_path: Path | None = None) 
                 payload = _response_payload(
                     result, str(result.get("trace_id", "release-evaluation"))
                 )
+                expected_status = str(
+                    getattr(record, "expected_status", None)
+                    or (
+                        "OUT_OF_SCOPE"
+                        if str(record.category) == "OUT_OF_SCOPE"
+                        else "INSUFFICIENT_EVIDENCE"
+                        if str(record.category)
+                        in {
+                            "MISSING_INFORMATION",
+                            "AMBIGUOUS",
+                            "COLLOQUIAL_QUERY",
+                            "ADVERSARIAL_CITATION",
+                        }
+                        else "VERIFIED"
+                    )
+                )
+                expected_evidence = list(record.required_evidence)
                 outcome = {
                     "question_id": qid,
                     "input": {
                         "question": str(record.question),
-                        "category": record.category,
+                        "category": str(record.category),
                         "query_date": str(record.query_date),
                         "expected_provision_ids": list(record.expected_provision_ids),
-                        "required_evidence": list(record.required_evidence),
+                        "required_evidence": expected_evidence,
+                        "expected_status": expected_status,
+                        "evidence_required": bool(expected_evidence),
                     },
-                    "retrieval": result.get("retrieval", {}),
+                    "retrieval": build_evaluation_retrieval_envelope(result),
                     "output": payload,
                     "metrics": {"latency_ms": (time.perf_counter() - started) * 1000},
                 }
             except Exception as exc:
                 error = f"{type(exc).__name__}: {exc}"
+                expected_status = str(
+                    getattr(record, "expected_status", None)
+                    or (
+                        "OUT_OF_SCOPE"
+                        if str(record.category) == "OUT_OF_SCOPE"
+                        else "INSUFFICIENT_EVIDENCE"
+                        if str(record.category)
+                        in {
+                            "MISSING_INFORMATION",
+                            "AMBIGUOUS",
+                            "COLLOQUIAL_QUERY",
+                            "ADVERSARIAL_CITATION",
+                        }
+                        else "VERIFIED"
+                    )
+                )
+                expected_evidence = list(record.required_evidence)
                 outcome = {
                     "question_id": qid,
                     "input": {
                         "question": str(record.question),
-                        "category": record.category,
+                        "category": str(record.category),
                         "query_date": str(record.query_date),
                         "expected_provision_ids": list(record.expected_provision_ids),
-                        "required_evidence": list(record.required_evidence),
+                        "required_evidence": expected_evidence,
+                        "expected_status": expected_status,
+                        "evidence_required": bool(expected_evidence),
                     },
                     "retrieval": {},
                     "output": {
@@ -216,10 +272,11 @@ async def run_release(*, output_dir: Path, checkpoint_path: Path | None = None) 
                 + (f" error={error}" if error else ""),
                 flush=True,
             )
-        if len(outcomes) != 200 or {x["question_id"] for x in outcomes} != {
-            str(x.id) for x in ordered
-        }:
-            raise RuntimeError("cannot finalize incomplete evaluation")
+        expected_order = [str(item.id) for item in ordered]
+        if [str(x.get("question_id")) for x in outcomes] != expected_order:
+            raise RuntimeError(
+                "cannot finalize evaluation with incomplete or non-canonical outcomes"
+            )
         report = evaluate_release_records(outcomes)
         writer.finish(
             run_id,
