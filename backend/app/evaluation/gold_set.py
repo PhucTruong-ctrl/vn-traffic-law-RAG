@@ -172,8 +172,6 @@ class GoldRecord(BaseModel):
         payload = self.model_dump(mode="json", exclude={"hash"})
         return payload
 
-    ("GoldOutcome",)
-
     def computed_hash(self) -> str:
         encoded = json.dumps(
             self.canonical_payload(),

@@ -9,21 +9,22 @@ from typing import Any, cast
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
+from sqlalchemy import select
 
 from app.config import get_embedding_settings, get_retrieval_settings, get_settings
 from app.generation import GeminiStructuredGenerator, StructuredAnswer, StructuredGenerationError
 from app.generation.context_builder import build_context
-from sqlalchemy import select
+from app.ingestion.actors.index import load_or_fit_sparse_encoder
 from app.persistence.models import LegalProvision
 from app.persistence.repositories.provisions import ProvisionRepository
 from app.persistence.repositories.relations import RelationRepository
 from app.persistence.repositories.temporal import TemporalRepository
-from app.query.expansion import QueryExpander
 from app.query.evidence_gate import (
     EvidenceCompletenessGate,
     EvidenceStatus,
     targeted_query_for_gap,
 )
+from app.query.expansion import QueryExpander
 from app.query.query_understanding import QueryAnalyzer
 from app.query.temporal_verifier import verify_temporal
 from app.retrieval.comparison import ComparisonResult
@@ -34,7 +35,6 @@ from app.retrieval.filters import build_temporal_filter, deduplicate_results
 from app.retrieval.hybrid import HybridRetriever
 from app.retrieval.qdrant_store import _default_client
 from app.retrieval.sparse import BM25SparseEncoder
-from app.ingestion.actors.index import load_or_fit_sparse_encoder
 from app.verification.workflow import LegalVerificationBoundary
 
 from .repair import MAX_REPAIR_ATTEMPTS, repair_route

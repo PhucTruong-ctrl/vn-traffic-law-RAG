@@ -24,7 +24,6 @@ from app.evaluation.run import (
     build_evaluation_retrieval_envelope,
     evaluate_release_records,
 )
-
 from app.storage.object_storage import ObjectStoragePort, get_object_storage
 
 ROOT = Path(__file__).resolve().parents[2]
