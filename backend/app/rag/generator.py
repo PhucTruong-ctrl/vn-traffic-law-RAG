@@ -127,6 +127,8 @@ def generate_answer(
             model=settings.model,
             api_key=SecretStr(settings.openrouter_api_key),
             base_url=settings.openrouter_base_url,
+            timeout=120_000,
+            max_retries=0,
         )
         prompts = build_prompt(question, documents, evidence_groups=evidence_groups)
         response = model.invoke(prompts)

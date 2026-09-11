@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from typing import Any
 
 from langchain_core.documents import Document
 
-from .analyzer import analyze_question, detect_vehicle_type
+from .analyzer import analyze_question, detect_vehicle_types, vehicle_label
 from .evidence import assess_evidence
 from .generator import generate_answer
 from .retrieval import Retriever
@@ -58,9 +59,13 @@ def _citation(document: Document) -> dict[str, Any]:
 
 
 def _intent_groups(
-    question: str, documents: list[Document]
+    question: str,
+    documents: list[Document],
+    *,
+    analysis: Any | None = None,
 ) -> tuple[dict[str, list[Document]], list[Document]]:
-    intents = [intent for intent in analyze_question(question).intents if intent.kind == "legal"]
+    analysis = analysis or analyze_question(question)
+    intents = [intent for intent in analysis.intents if intent.kind == "legal"]
     if not intents:
         return {}, documents
     groups: dict[str, list[Document]] = {intent.text: [] for intent in intents}
@@ -85,34 +90,53 @@ class RAGService:
         self.retriever = retriever or Retriever()
 
     def retrieve(
-        self, question: str, *, top_k: int = 5, effective_date: date | None = None
+        self,
+        question: str,
+        *,
+        top_k: int = 5,
+        effective_date: date | None = None,
+        analysis: Any | None = None,
     ) -> list[Document]:
-        analysis = analyze_question(question)
+        analysis = analysis or analyze_question(question)
         intent_queries = [intent.text for intent in analysis.intents if intent.kind == "legal"] or [
             question
         ]
-        queries: list[tuple[str, str]] = [(query, query) for query in intent_queries]
-        if detect_vehicle_type(question) == "any" and _is_vehicle_penalty_question(question):
-            queries = [
-                (f"{query} đối với {category}", query)
-                for query, _ in queries
-                for category in _GENERIC_VEHICLE_CATEGORIES
-            ]
+        queries = [(query, query) for query in intent_queries]
+        vehicle_types = detect_vehicle_types(question)
+        if _is_vehicle_penalty_question(question):
+            if len(vehicle_types) > 1:
+                queries = [
+                    (f"{query} đối với {vehicle_label(vehicle_type)}", label)
+                    for query, label in queries
+                    for vehicle_type in vehicle_types
+                ]
+            elif not vehicle_types:
+                queries = [
+                    (f"{query} đối với {category}", label)
+                    for query, label in queries
+                    for category in _GENERIC_VEHICLE_CATEGORIES
+                ]
         per_query_k = max(1, top_k)
-        ranked_lists: list[list[Document]] = []
-        for query, label in queries:
+        ranked_lists: list[list[Document]] = [[] for _ in queries]
+
+        def retrieve_query(index_query: tuple[int, tuple[str, str]]) -> tuple[int, list[Document]]:
+            index, (query, label) = index_query
             retrieved = self.retriever.retrieve(
                 query, top_k=per_query_k, effective_date=effective_date
             )
-            ranked_lists.append(
-                [
-                    Document(
-                        page_content=document.page_content,
-                        metadata={**(document.metadata or {}), "intent": label},
-                    )
-                    for document in retrieved
-                ]
-            )
+            return index, [
+                Document(
+                    page_content=document.page_content,
+                    metadata={**(document.metadata or {}), "intent": label},
+                )
+                for document in retrieved
+            ]
+
+        worker_count = min(4, len(queries))
+        if worker_count:
+            with ThreadPoolExecutor(max_workers=worker_count) as executor:
+                for index, documents_for_query in executor.map(retrieve_query, enumerate(queries)):
+                    ranked_lists[index] = documents_for_query
 
         scores: dict[tuple[str, ...], float] = {}
         first_seen: dict[tuple[str, ...], tuple[int, int]] = {}
@@ -180,9 +204,18 @@ class RAGService:
         documents = (
             list(chunks)
             if chunks is not None
-            else self.retrieve(question, top_k=top_k, effective_date=effective_date)
+            else self.retrieve(
+                question,
+                top_k=top_k,
+                effective_date=effective_date,
+                analysis=analysis,
+            )
         )
-        evidence_groups, documents = _intent_groups(question, documents)
+        evidence_groups, documents = _intent_groups(
+            question,
+            documents,
+            analysis=analysis,
+        )
         supported_groups = {key: value for key, value in evidence_groups.items() if value}
         if not supported_groups:
             return {

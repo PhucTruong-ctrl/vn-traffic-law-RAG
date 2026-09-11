@@ -28,11 +28,28 @@ _VEHICLE_PATTERNS: tuple[tuple[str, str], ...] = (
     ("specialized", r"\b(?:xe chuyên dùng|máy kéo)\b"),
 )
 
+VEHICLE_LABELS: dict[str, str] = {
+    "car": "ô tô",
+    "motorcycle": "xe mô tô, xe gắn máy",
+    "bicycle": "xe thô sơ",
+    "specialized": "xe chuyên dùng",
+}
+
+
+def vehicle_label(vehicle_type: str) -> str:
+    """Map an internal vehicle category key to its canonical Vietnamese label."""
+    return VEHICLE_LABELS[vehicle_type]
+
+
+def detect_vehicle_types(text: str) -> tuple[str, ...]:
+    """Return explicitly named vehicle categories in stable pattern order."""
+    return tuple(kind for kind, pattern in _VEHICLE_PATTERNS if re.search(pattern, text, re.I))
+
 
 def detect_vehicle_type(text: str) -> str:
-    """Return the explicit vehicle category, or ``any`` when unspecified."""
-    found = {kind for kind, pattern in _VEHICLE_PATTERNS if re.search(pattern, text, re.I)}
-    return found.pop() if len(found) == 1 else "any"
+    """Return the explicit vehicle category, or ``any`` when unspecified/ambiguous."""
+    found = detect_vehicle_types(text)
+    return found[0] if len(found) == 1 else "any"
 
 
 def resolve_vehicle_followup(question: str, history: object = ()) -> str:
@@ -69,12 +86,7 @@ def resolve_vehicle_followup(question: str, history: object = ()) -> str:
     base = " ".join(base.split()).strip(" ,;:-?.")
     if not base:
         return current
-    label = {
-        "car": "ô tô",
-        "motorcycle": "xe mô tô",
-        "bicycle": "xe đạp",
-        "specialized": "xe chuyên dùng",
-    }[vehicle]
+    label = vehicle_label(vehicle)
     # Normalize the extracted violation into sentence position and remove
     # filler/copy of the prior question's copula.
     base = base[:1].lower() + base[1:] if base else base
@@ -206,8 +218,11 @@ def _from_model(value: object) -> list[Intent]:
 __all__ = [
     "Analysis",
     "Intent",
+    "VEHICLE_LABELS",
     "analyze_question",
     "classify_intent",
     "detect_vehicle_type",
+    "detect_vehicle_types",
     "resolve_vehicle_followup",
+    "vehicle_label",
 ]

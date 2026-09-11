@@ -37,6 +37,7 @@ def test_generator_mixed_output_retries_once(monkeypatch) -> None:
             )()
 
     model = Model()
+    constructor_kwargs = {}
     monkeypatch.setattr(
         generator,
         "get_generation_settings",
@@ -44,12 +45,19 @@ def test_generator_mixed_output_retries_once(monkeypatch) -> None:
             "S", (), {"openrouter_api_key": "x", "model": "m", "openrouter_base_url": "u"}
         )(),
     )
-    monkeypatch.setattr("langchain_openrouter.ChatOpenRouter", lambda **kwargs: model)
+
+    def fake_chat_openrouter(**kwargs):
+        constructor_kwargs.update(kwargs)
+        return model
+
+    monkeypatch.setattr("langchain_openrouter.ChatOpenRouter", fake_chat_openrouter)
     assert (
         generator.generate_answer("Vượt đèn đỏ?", [Document("Điều 6")])
         == "Mức phạt là 2 triệu đồng."
     )
     assert model.calls == 2
+    assert constructor_kwargs["timeout"] == 120_000
+    assert constructor_kwargs["max_retries"] == 0
 
 
 def test_generator_clean_vietnamese_does_not_retry(monkeypatch) -> None:
@@ -106,6 +114,72 @@ class FakeRetriever:
     def retrieve(self, query: str, **_: object) -> list[Document]:
         self.queries.append(query)
         return list(self.responses.get(query, []))
+
+
+def test_retrieve_query_fanout_is_bounded_and_preserves_vehicle_scopes() -> None:
+    cases = [
+        (
+            "Vượt đèn đỏ bị phạt thế nào?",
+            3,
+            ("vượt đèn đỏ",),
+            ("ô tô", "xe mô tô, xe gắn máy", "xe thô sơ"),
+        ),
+        (
+            "Xe máy và ô tô vượt đèn đỏ bị phạt thế nào?",
+            2,
+            ("vượt đèn đỏ",),
+            ("ô tô", "xe mô tô, xe gắn máy"),
+        ),
+        (
+            "Xe máy vượt đèn đỏ?",
+            1,
+            ("xe máy", "vượt đèn đỏ"),
+            (),
+        ),
+        (
+            "Vượt đèn đỏ và ko đội mũ bảo hiểm",
+            2,
+            ("vượt đèn đỏ", "không đội mũ bảo hiểm"),
+            (),
+        ),
+    ]
+
+    for question, expected_count, expected_tokens, expected_suffixes in cases:
+        retriever = FakeRetriever()
+        RAGService(retriever).retrieve(question)
+        assert len(retriever.queries) == expected_count
+        assert all(
+            any(token in query.casefold() for query in retriever.queries)
+            for token in expected_tokens
+        )
+        if expected_suffixes:
+            assert sorted(
+                query.casefold().rsplit(" đối với ", maxsplit=1)[-1] for query in retriever.queries
+            ) == sorted(expected_suffixes)
+        else:
+            assert all(" đối với " not in query.casefold() for query in retriever.queries)
+        assert len(retriever.queries) <= 12
+
+
+def test_answer_analyzes_question_once(monkeypatch) -> None:
+    import app.rag.service as service
+
+    calls = 0
+    original = service.analyze_question
+
+    def counting_analysis(question: str):
+        nonlocal calls
+        calls += 1
+        return original(question)
+
+    monkeypatch.setattr(service, "analyze_question", counting_analysis)
+    monkeypatch.setattr(service, "generate_answer", lambda *args, **kwargs: "Có căn cứ")
+    evidence = Document("Điều khoản", metadata={"chunk_id": "a"})
+
+    result = RAGService(FakeRetriever()).answer("Xe máy vượt đèn đỏ?", chunks=[evidence])
+
+    assert result["status"] == "complete"
+    assert calls == 1
 
 
 def test_speed_limit_road_traffic_questions_are_legal_but_general_questions_are_not() -> None:
