@@ -177,11 +177,7 @@ export default function ChatPage({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const routeConversationId = pathname.startsWith("/chat/")
-    ? decodeURIComponent(pathname.slice("/chat/".length).split("/")[0])
-    : undefined;
-  const conversationId = routeConversationId || initialConversationId;
-  const activeConversationId = conversationId;
+  const conversationId = initialConversationId;
   const [question, setQuestion] = useState("");
   const [drawerCitation, setDrawerCitation] = useState<Citation | null>(null);
   const [turns, setTurns] = useState<ConversationTurn[]>([]);

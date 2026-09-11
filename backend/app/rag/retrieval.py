@@ -297,7 +297,11 @@ class Retriever:
                 base_url=embedding.openrouter_base_url,
             )
             sparse = FastEmbedSparse("Qdrant/bm25")
-            client = QdrantClient(path=str(qdrant.path))
+            client = (
+                QdrantClient(url=qdrant.url, timeout=qdrant.timeout)
+                if qdrant.url
+                else QdrantClient(path=str(qdrant.path), timeout=qdrant.timeout)
+            )
             self._store = QdrantVectorStore(
                 client=client,
                 collection_name=qdrant.collection,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -39,12 +40,23 @@ class QdrantSettings(_Env):
         default_factory=lambda: _ROOT / "data/processed/qdrant", validation_alias="QDRANT_PATH"
     )
     collection: str = Field(default="traffic_law", validation_alias="QDRANT_COLLECTION")
+    url: str = Field(default="", validation_alias="QDRANT_URL")
+    timeout: int | None = Field(default=2, validation_alias="QDRANT_TIMEOUT")
 
     def model_post_init(self, __context: object) -> None:
         path = self.path.expanduser()
         if not path.is_absolute():
             path = _ROOT / path
         self.path = path.resolve()
+        self.url = self.url.rstrip("/")
+
+
+@lru_cache(maxsize=1)
+def get_supabase_settings() -> tuple[str, str]:
+    return (
+        os.getenv("SUPABASE_URL", "").rstrip("/"),
+        os.getenv("SUPABASE_SERVICE_ROLE_KEY", "") or os.getenv("SUPABASE_ANON_KEY", ""),
+    )
 
 
 class ChunkSettings(_Env):
@@ -81,4 +93,5 @@ __all__ = [
     "get_embedding_settings",
     "get_generation_settings",
     "get_qdrant_settings",
+    "get_supabase_settings",
 ]

@@ -51,6 +51,11 @@ def main(argv: list[str] | None = None) -> int:
             base_url=embedding.openrouter_base_url,
         )
         sparse = FastEmbedSparse("Qdrant/bm25")
+        client_options = (
+            {"url": qdrant.url, "timeout": qdrant.timeout}
+            if qdrant.url
+            else {"path": str(qdrant.path.resolve()), "timeout": qdrant.timeout}
+        )
 
         store = QdrantVectorStore.construct_instance(
             embedding=dense,
@@ -59,7 +64,7 @@ def main(argv: list[str] | None = None) -> int:
             collection_name=collection,
             vector_name="dense",
             sparse_vector_name="sparse",
-            client_options={"path": str(qdrant.path.resolve())},
+            client_options=client_options,
             force_recreate=True,
         )
         store.add_documents(documents)

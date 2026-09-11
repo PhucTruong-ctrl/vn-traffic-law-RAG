@@ -1,17 +1,26 @@
 """VNLaw backend application entrypoint."""
 
-import os
+import contextlib
+import logging
+import time
 from uuid import uuid4
 
+import httpx
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from qdrant_client import QdrantClient
 
 from app.auth.api import router as auth_router
 from app.chats.api import router as chats_router
+from app.config import get_qdrant_settings, get_supabase_settings
 from app.legal.api import router as legal_router
 from app.rag.api import router as rag_router
 
+logger = logging.getLogger(__name__)
+
 app = FastAPI()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
@@ -28,10 +37,67 @@ app.include_router(legal_router)
 @app.middleware("http")
 async def trace_id_middleware(request: Request, call_next):
     trace_id = request.headers.get("X-Trace-ID") or uuid4().hex
-    response = await call_next(request)
-    if "X-Trace-ID" not in response.headers:
-        response.headers["X-Trace-ID"] = trace_id
+    started = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        duration_ms = round((time.perf_counter() - started) * 1000, 2)
+        logger.exception(
+            "request completed",
+            extra={
+                "trace_id": trace_id,
+                "method": request.method,
+                "path": request.url.path,
+                "status": 500,
+                "duration_ms": duration_ms,
+            },
+        )
+        raise
+    response.headers["X-Trace-ID"] = trace_id
+    logger.info(
+        "request completed",
+        extra={
+            "trace_id": trace_id,
+            "method": request.method,
+            "path": request.url.path,
+            "status": response.status_code,
+            "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+        },
+    )
     return response
+
+
+def _supabase_ready() -> bool:
+    url, key = get_supabase_settings()
+    if not url or not key:
+        return False
+    try:
+        response = httpx.get(
+            f"{url}/rest/v1/",
+            headers={"apikey": key, "Authorization": f"Bearer {key}"},
+            timeout=2.0,
+        )
+        return response.status_code < 500
+    except Exception:
+        return False
+
+
+def _qdrant_ready() -> bool:
+    client = None
+    try:
+        settings = get_qdrant_settings()
+        if settings.url:
+            client = QdrantClient(url=settings.url, timeout=settings.timeout)
+        else:
+            client = QdrantClient(path=str(settings.path), timeout=settings.timeout)
+        client.get_collection(settings.collection)
+        return True
+    except Exception:
+        return False
+    finally:
+        if client is not None:
+            with contextlib.suppress(Exception):
+                client.close()
 
 
 @app.get("/api/v1/health/live")
@@ -41,6 +107,11 @@ def health_live() -> dict[str, str]:
 
 
 @app.get("/api/v1/health/ready")
-def health_ready() -> dict[str, object]:
-    """Readiness probe reporting dependency checks."""
-    return {"status": "ok", "supabase": bool(os.getenv("SUPABASE_URL")), "qdrant": True}
+def health_ready() -> JSONResponse:
+    """Readiness probe reporting dependency checks without exposing credentials."""
+    checks = {"supabase": _supabase_ready(), "qdrant": _qdrant_ready()}
+    status = "ok" if all(checks.values()) else "unavailable"
+    return JSONResponse(
+        status_code=200 if status == "ok" else 503,
+        content={"status": status, **checks},
+    )

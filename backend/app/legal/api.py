@@ -1,10 +1,11 @@
 """FastAPI routes for the Markdown-backed legal explorer."""
 
-from __future__ import annotations
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
 
-from .corpus import chunks, filter_chunks, search_chunks
+from ..ingestion.source import normalize_source_kind
+from .corpus import _LOCAL_DIR, chunks, filter_chunks, search_chunks
 from .schemas import (
     LegalDocumentSummary,
     LegalProvision,
@@ -17,9 +18,16 @@ router = APIRouter(prefix="/api/v1", tags=["legal"])
 
 
 def _source(md: dict) -> LegalSource:
+    source_kind = normalize_source_kind(
+        source_file=md.get("source_file"),
+        source_kind=md.get("source_kind"),
+        source_type=md.get("source_type"),
+    )
     return LegalSource(
         source_file=str(md.get("source_file", "unknown")),
         source_url=md.get("source_url") or None,
+        pdf_url=md.get("pdf_url") or (md.get("source_url") if source_kind == "pdf" else None),
+        source_kind=source_kind,
         source_type=str(md.get("source_type", "markdown")),
         retrieved_at=md.get("retrieved_at") or None,
     )
@@ -57,12 +65,30 @@ def list_documents() -> list[LegalDocumentSummary]:
     ]
 
 
+def _markdown_content(document_id: str, rows: list) -> str | None:
+    if not rows or _source(rows[0].metadata).source_kind != "markdown":
+        return None
+    candidate = Path(str(rows[0].metadata.get("source_file", ""))).resolve()
+    root = _LOCAL_DIR.resolve()
+    if candidate.suffix.casefold() == ".md" and root in candidate.parents and candidate.is_file():
+        return candidate.read_text(encoding="utf-8")
+    return "\n\n".join(row.text for row in rows).strip() or None
+
+
 @router.get("/legal-documents/{document_id}", response_model=LegalDocumentSummary)
 def get_document(document_id: str) -> LegalDocumentSummary:
-    matches = [d for d in list_documents() if d.document_id == document_id]
-    if not matches:
+    items = chunks()
+    rows = [item for item in items if str(item.metadata.get("document_id", "")) == document_id]
+    if not rows:
         raise HTTPException(status_code=404, detail="legal document not found")
-    return matches[0]
+    summary = LegalDocumentSummary(
+        document_id=document_id,
+        document_name=str(rows[0].metadata.get("document_name", document_id)),
+        source=_source(rows[0].metadata),
+        provision_count=len(rows),
+        content=_markdown_content(document_id, rows),
+    )
+    return summary
 
 
 @router.get("/legal-documents/{document_id}/provisions", response_model=list[LegalProvision])

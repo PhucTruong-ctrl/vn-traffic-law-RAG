@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
+from types import ModuleType
 
 import pytest
 
@@ -8,6 +10,62 @@ from app.chats.service import add_feedback
 from app.legal import api as legal_api
 from app.rag.schemas import ChatResponse, Citation
 from app.rag.service import RAGService
+
+
+def test_retriever_uses_remote_qdrant_settings(monkeypatch) -> None:
+    from app.rag import retrieval
+
+    class Settings:
+        url = "https://qdrant.example"
+        timeout = 17
+        collection = "legal_hybrid"
+        path = "/tmp/unused"
+
+    class EmbeddingSettings:
+        model = "embedding-model"
+        openrouter_api_key = "key"
+        openrouter_base_url = "https://openrouter.example"
+
+    class Client:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    class Store:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    class RetrievalMode:
+        HYBRID = "hybrid"
+
+    class Embeddings:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    class Sparse:
+        def __init__(self, name):
+            self.name = name
+
+    openai_module = ModuleType("langchain_openai")
+    openai_module.OpenAIEmbeddings = Embeddings
+    qdrant_module = ModuleType("langchain_qdrant")
+    qdrant_module.FastEmbedSparse = Sparse
+    qdrant_module.QdrantVectorStore = Store
+    qdrant_module.RetrievalMode = RetrievalMode
+
+    monkeypatch.setattr(retrieval, "get_qdrant_settings", lambda: Settings())
+    monkeypatch.setattr(retrieval, "get_embedding_settings", lambda: EmbeddingSettings())
+    monkeypatch.setattr(retrieval, "QdrantClient", Client)
+    monkeypatch.setitem(sys.modules, "langchain_openai", openai_module)
+    monkeypatch.setitem(sys.modules, "langchain_qdrant", qdrant_module)
+
+    store = retrieval.Retriever()._store_for_query()
+
+    assert store.kwargs["client"].kwargs == {
+        "url": "https://qdrant.example",
+        "timeout": 17,
+    }
+    assert store.kwargs["collection_name"] == "legal_hybrid"
+    assert store.kwargs["retrieval_mode"] == "hybrid"
 
 
 def test_chitchat_does_not_call_retriever() -> None:
@@ -314,7 +372,9 @@ def test_legal_explorer_route_returns_document_provisions(client, monkeypatch) -
             "source": {
                 "source_file": "nd100.md",
                 "source_url": None,
+                "source_kind": "markdown",
                 "source_type": "markdown",
+                "pdf_url": None,
                 "retrieved_at": None,
             },
         }

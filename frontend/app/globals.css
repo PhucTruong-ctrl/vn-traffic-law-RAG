@@ -1940,7 +1940,8 @@ input::placeholder {
 
 .source-drawer {
   width: min(680px, 100%);
-  height: 100%;
+  height: auto;
+  max-height: calc(100vh - 48px);
   overflow-y: auto;
   padding: 30px;
   border-left: 1px solid var(--border-subtle);
@@ -2143,12 +2144,12 @@ input::placeholder {
   background: #f3f5f4;
   box-shadow: var(--shadow-sm);
 }
-
 .pdf-viewer__toolbar,
 .pdf-viewer__pages,
 .pdf-viewer__zoom {
   display: flex;
   gap: 8px;
+  min-width: 0;
 }
 
 .pdf-viewer__toolbar {
@@ -2223,6 +2224,93 @@ input::placeholder {
   background: rgba(255, 255, 255, 0.68);
   font-size: 11px;
   text-align: left;
+}
+
+.markdown-viewer {
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--white);
+  box-shadow: var(--shadow-sm);
+}
+
+.markdown-viewer__toolbar {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.markdown-viewer__toolbar input {
+  min-width: 0;
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.markdown-viewer__toolbar button {
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--navy-900);
+  background: var(--surface-primary);
+}
+
+.markdown-viewer__outline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12px;
+}
+
+.markdown-viewer__outline a {
+  color: var(--navy-800);
+}
+
+.markdown-viewer__content {
+  max-height: 560px;
+  overflow: auto;
+  padding: 18px 20px;
+  color: var(--slate-800);
+  line-height: 1.7;
+}
+
+.markdown-viewer__content h1,
+.markdown-viewer__content h2,
+.markdown-viewer__content h3,
+.markdown-viewer__content h4,
+.markdown-viewer__content h5,
+.markdown-viewer__content h6 {
+  margin: 0 0 8px;
+  color: var(--navy-950);
+  font-family: var(--font-serif), Georgia, serif;
+}
+
+.markdown-viewer__content p {
+  margin: 0 0 14px;
+  white-space: pre-wrap;
+}
+
+.markdown-viewer__match,
+.markdown-viewer__citation {
+  padding: 3px 7px;
+  border-radius: 4px;
+}
+
+.markdown-viewer__match {
+  background: #fff7cf;
+}
+
+.markdown-viewer__citation {
+  outline: 2px solid rgba(186, 132, 0, 0.48);
+  background: rgba(255, 214, 64, 0.3);
+}
+
+.markdown-viewer__empty {
+  color: var(--slate-600);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -2453,5 +2541,116 @@ input::placeholder {
   .drawer-backdrop,
   .source-drawer {
     will-change: auto;
+  }
+}
+.legal-sources-page {
+  min-height: 100vh;
+  padding: clamp(28px, 5vw, 72px) clamp(18px, 5vw, 72px);
+  color: var(--text-primary, #17212b);
+  background: var(--bg-app, #f4f5f3);
+}
+.legal-sources-page__header {
+  max-width: 920px;
+  margin: 0 auto 28px;
+}
+.legal-sources-page__back {
+  color: #53677a;
+  text-decoration: none;
+}
+.legal-sources-page h1 {
+  margin: 12px 0 8px;
+  font-family: var(--font-source-serif);
+  font-size: clamp(34px, 5vw, 58px);
+}
+.legal-sources-page__header p:last-child {
+  color: #5c6873;
+}
+.legal-sources-page__filters,
+.legal-sources-page__results {
+  max-width: 920px;
+  margin: 0 auto;
+}
+.legal-sources-page__filters {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.legal-sources-page__filters label {
+  display: grid;
+  gap: 6px;
+  color: #455463;
+  font-size: 13px;
+  font-weight: 650;
+}
+.legal-sources-page__filters input {
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #ccd4da;
+  border-radius: 9px;
+  background: white;
+  color: inherit;
+}
+.legal-source-card {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+  min-height: 112px;
+  padding: 18px;
+  margin-bottom: 10px;
+  border: 1px solid #d8dedf;
+  border-radius: 13px;
+  color: inherit;
+  background: white;
+  text-align: left;
+  cursor: pointer;
+}
+.legal-source-card:hover,
+.legal-source-card:focus-visible {
+  border-color: #9a7841;
+  box-shadow: 0 5px 20px rgba(25, 38, 48, 0.08);
+}
+.legal-source-card__kind {
+  color: #86652d;
+  font: 11px var(--font-dm-mono);
+  letter-spacing: 0.08em;
+}
+.legal-source-card strong {
+  font-size: 17px;
+}
+.legal-source-card span:not(.legal-source-card__kind):not(.legal-source-card__open) {
+  color: #687681;
+  font-size: 13px;
+}
+.legal-source-card__open {
+  justify-self: end;
+  color: #536b7c;
+  font-size: 13px;
+}
+.legal-sources-page__state {
+  padding: 36px 18px;
+  border: 1px dashed #c8d0d2;
+  border-radius: 12px;
+  color: #56636e;
+  text-align: center;
+}
+.legal-sources-page__state button {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 8px;
+  color: white;
+  background: #243746;
+  cursor: pointer;
+}
+.legal-source-modal {
+  width: min(980px, 100%);
+}
+@media (max-width: 720px) {
+  .legal-sources-page__filters {
+    grid-template-columns: 1fr;
+  }
+  .legal-sources-page {
+    padding: 24px 14px;
   }
 }

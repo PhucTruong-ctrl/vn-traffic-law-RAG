@@ -440,10 +440,10 @@ export default function Sidebar({
           <span>Cuộc trò chuyện mới</span>
         </button>
         <nav className="sidebar-nav" aria-label="Điều hướng">
-          <span className="sidebar-nav__item">
+          <Link className="sidebar-nav__item" href="/legal-sources" onClick={closeMobile}>
             <BookIcon />
             <span>Nguồn pháp luật</span>
-          </span>
+          </Link>
         </nav>
         <div className="chat-list">
           <p>Gần đây</p>

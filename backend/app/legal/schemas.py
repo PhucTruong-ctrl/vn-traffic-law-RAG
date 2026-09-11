@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -10,6 +12,8 @@ class LegalSource(BaseModel):
 
     source_file: str = Field(min_length=1)
     source_url: str | None = None
+    pdf_url: str | None = None
+    source_kind: Literal["markdown", "pdf"]
     source_type: str = Field(min_length=1)
     retrieved_at: str | None = None
 
@@ -21,6 +25,7 @@ class LegalDocumentSummary(BaseModel):
     document_name: str = Field(min_length=1)
     source: LegalSource
     provision_count: int = Field(ge=0)
+    content: str | None = None
 
 
 class LegalProvision(BaseModel):
