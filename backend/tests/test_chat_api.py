@@ -105,6 +105,50 @@ def test_authenticated_chat_creates_session_and_persists_snapshots(
     }
 
 
+def test_authenticated_chat_normalizes_legacy_rag_result_for_frontend(
+    client, supabase_client, monkeypatch
+) -> None:
+    supabase_client.auth_response = {"id": "user-1"}
+    monkeypatch.setattr(
+        "app.chats.api.rag_service.answer",
+        lambda question, **kwargs: {
+            "answer": "Không được dùng điện thoại khi điều khiển xe.",
+            "citations": [
+                {
+                    "document": "Nghị định 168/2024/NĐ-CP",
+                    "source_file": "nd168.md",
+                    "excerpt": "Dùng tay cầm và sử dụng điện thoại...",
+                }
+            ],
+            "status": "complete",
+        },
+    )
+    supabase_client.responses.extend(
+        [
+            [{"id": "user-1"}],
+            [{"id": "session-1", "user_id": "user-1"}],
+            [{"id": "user-message"}],
+            [{"id": "assistant-message"}],
+            [{"id": "session-1", "user_id": "user-1"}],
+        ]
+    )
+
+    response = client.post(
+        "/api/v1/chat",
+        json={"question": "Có được dùng điện thoại khi đang lái xe không?"},
+        headers={"Authorization": "Bearer user-token"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "VERIFIED"
+    assert response.json()["claims"] == [
+        {
+            "claim": "Dùng tay cầm và sử dụng điện thoại...",
+            "provision_ids": [],
+        }
+    ]
+
+
 def test_session_reload_returns_owner_messages(client, supabase_client) -> None:
     supabase_client.auth_response = {"id": "user-1"}
     supabase_client.responses.extend(

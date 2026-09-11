@@ -29,6 +29,32 @@ def _token(credentials: HTTPAuthorizationCredentials) -> str:
     return credentials.credentials
 
 
+def _frontend_response(result: dict[str, Any]) -> dict[str, Any]:
+    citations = result.get("citations", [])
+    if result.get("status") == "complete":
+        return {
+            **result,
+            "status": "VERIFIED",
+            "claims": [
+                {
+                    "claim": citation.get("excerpt") or result["answer"],
+                    "provision_ids": (
+                        [citation["provision_id"]] if citation.get("provision_id") else []
+                    ),
+                }
+                for citation in citations
+            ],
+        }
+    if result.get("status") == "insufficient_evidence":
+        return {
+            **result,
+            "status": "INSUFFICIENT_EVIDENCE",
+            "claims": [],
+            "abstention": {"reason_code": "INSUFFICIENT_EVIDENCE"},
+        }
+    return result
+
+
 @router.post("/chat", response_model=dict[str, Any])
 def chat(
     request: ChatRequest,
@@ -54,8 +80,10 @@ def chat(
             {"content": request.question, "role": "user", "status": "pending"},
             token,
         )
-        result = chats_api.rag_service.answer(
-            query, top_k=request.top_k, effective_date=request.effective_date, history=history
+        result = _frontend_response(
+            chats_api.rag_service.answer(
+                query, top_k=request.top_k, effective_date=request.effective_date, history=history
+            )
         )
         assistant_message = add_message(
             client,
