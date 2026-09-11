@@ -284,8 +284,7 @@ def aggregate_routing(decisions: list[RoutingDecision]) -> dict:
     return {
         "provision_states": {
             "ACCEPTED": states.get("ACCEPTED", 0),
-            "NEEDS_REVIEW": states.get("NEEDS_REVIEW", 0),
-            "DROPPED": states.get("DROPPED", 0),
+            "REJECTED": states.get("REJECTED", 0),
         },
         "auto_accepted_count": sum(1 for decision in decisions if decision.auto_accepted),
         "reason_histogram": dict(sorted(reasons.items())),
@@ -301,28 +300,21 @@ def document_level_decision(
 ) -> dict:
     """Document-level routing decision + reason codes.
 
-    With provisions, mirrors the quality-gate actor job outcome: any
-    NEEDS_REVIEW -> NEEDS_REVIEW; else any DROPPED -> DROPPED; else all
-    ACCEPTED -> ACCEPTED. Without provisions (no extraction input) the
-    document routes NEEDS_REVIEW (LOW_OCR_COVERAGE) — a scan-only source with
-    no certified extraction can never auto-index.
+    With provisions, any rejected provision rejects the document; otherwise
+    all provisions are accepted. Without provisions, the document rejects
+    because no certified extraction can be indexed.
     """
 
     states = aggregated["provision_states"]
     if has_provisions:
-        if states["NEEDS_REVIEW"] > 0:
-            decision = "NEEDS_REVIEW"
-        elif states["DROPPED"] > 0:
-            decision = "DROPPED"
-        else:
-            decision = "ACCEPTED"
+        decision = "REJECTED" if states["REJECTED"] > 0 else "ACCEPTED"
         codes = sorted(
             set(aggregated["reason_histogram"]), key=lambda code: _REASON_ORDER.index(code)
         )
     else:
         # No extraction input: a scan-only source with no certified extraction
         # can never auto-index (scan-review policy).
-        decision = "NEEDS_REVIEW"
+        decision = "REJECTED"
         codes = [LOW_OCR_COVERAGE]
     return {"decision": decision, "reason_codes": codes}
 
@@ -502,14 +494,14 @@ def run_batch01_routing(manifests_dir: Path, repo_root: Path) -> dict:
             }
             document_entry["quality_stats"] = quality_stats_for(provisions, manifest, document_id)
             document_entry["review_backlog"] = {
-                "count": aggregated["provision_states"]["NEEDS_REVIEW"],
+                "count": aggregated["provision_states"]["REJECTED"],
                 "items": [
                     {
                         "provision_id": decision.provision_id,
                         "reason_codes": decision.reason_codes,
                     }
                     for decision in decisions
-                    if decision.status == "NEEDS_REVIEW"
+                    if decision.status == "REJECTED"
                 ],
             }
         else:
@@ -538,7 +530,7 @@ def run_batch01_routing(manifests_dir: Path, repo_root: Path) -> dict:
             }
             empty_aggregate = aggregate_routing([])
             document_entry["routing"] = {
-                "decision": "NEEDS_REVIEW",
+                "decision": "REJECTED",
                 "reason_codes": [LOW_OCR_COVERAGE],
                 "provision_states": empty_aggregate["provision_states"],
                 "auto_accepted_count": 0,
@@ -552,8 +544,7 @@ def run_batch01_routing(manifests_dir: Path, repo_root: Path) -> dict:
         total_states.update(
             {
                 "ACCEPTED": states["ACCEPTED"],
-                "NEEDS_REVIEW": states["NEEDS_REVIEW"],
-                "DROPPED": states["DROPPED"],
+                "REJECTED": states["REJECTED"],
             }
         )
         total_provisions += document_entry["quality_stats"]["provision_counts"]["total"]
@@ -590,13 +581,12 @@ def run_batch01_routing(manifests_dir: Path, repo_root: Path) -> dict:
                 decision: sum(
                     1 for entry in documents.values() if entry["routing"]["decision"] == decision
                 )
-                for decision in ("ACCEPTED", "NEEDS_REVIEW", "DROPPED")
+                for decision in ("ACCEPTED", "REJECTED")
             },
             "total_provisions": total_provisions,
             "provision_states": {
                 "ACCEPTED": total_states.get("ACCEPTED", 0),
-                "NEEDS_REVIEW": total_states.get("NEEDS_REVIEW", 0),
-                "DROPPED": total_states.get("DROPPED", 0),
+                "REJECTED": total_states.get("REJECTED", 0),
             },
         },
     }
@@ -687,7 +677,7 @@ def render_report(artifact: dict) -> str:
     add("")
     add(
         "| document_id | Group A (routing basis) | Group B | provisions | ACCEPTED "
-        "| NEEDS_REVIEW | DROPPED | decision | reason codes |"
+        "| REJECTED | decision | reason codes |"
     )
     add("|---|---|---|---|---|---|---|---|---|")
     for document_id in doc_order:
@@ -700,7 +690,7 @@ def render_report(artifact: dict) -> str:
         states = entry["routing"]["provision_states"]
         add(
             f"| `{document_id}` | {ga_verdict} | {gb_verdict} | {counts['total']} "
-            f"| {states['ACCEPTED']} | {states['NEEDS_REVIEW']} | {states['DROPPED']} "
+            f"| {states['ACCEPTED']} | {states['REJECTED']} "
             f"| **{entry['routing']['decision']}** | "
             f"{', '.join(entry['routing']['reason_codes']) or '—'} |"
         )
@@ -758,7 +748,7 @@ def render_report(artifact: dict) -> str:
     add(
         f"- `luat-36-2024-qh15` extracts cleanly from born-digital text "
         "(Group A passed, Group B passed); {luat_states['ACCEPTED']}/"
-        f"{luat_states['ACCEPTED'] + luat_states['NEEDS_REVIEW']} provisions route "
+        f"{luat_states['ACCEPTED'] + luat_states['REJECTED']} provisions route "
         "ACCEPTED (auto-accept), the exceptions being the d/đ-ambiguous bare `d)` "
         "labels (`D_D_AMBIGUITY`, "
         f"{luat['routing']['reason_histogram'].get('D_D_AMBIGUITY', 0)}) and the "
@@ -766,9 +756,9 @@ def render_report(artifact: dict) -> str:
         f"{luat['routing']['reason_histogram'].get('POINT_LABEL_AMBIGUOUS', 0)})."
     )
     add(
-        f"- `nd-168-2024` measures 1.0 on the fixture IR but the source is "
-        "scan-only: every provision routes NEEDS_REVIEW (`LOW_OCR_COVERAGE`, "
-        f"{nd_states['NEEDS_REVIEW']}; plus `D_D_AMBIGUITY` on the "
+        "- `nd-168-2024` measures 1.0 on the fixture IR but the source is "
+        "scan-only: every provision routes REJECTED (`LOW_OCR_COVERAGE`, "
+        f"{nd_states['REJECTED']}; plus `D_D_AMBIGUITY` on the "
         f"{nd['routing']['reason_histogram'].get('D_D_AMBIGUITY', 0)} bare `d)` points)."
     )
     add(

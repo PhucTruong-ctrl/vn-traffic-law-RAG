@@ -27,11 +27,9 @@ same output). There is no pickle index and no ``rank-bm25`` dependency
 
 ``idf`` requires ``fit()`` before ``encode``
 --------------------------------------------
-Calling ``encode`` on an unfitted encoder returns **term-frequency-only**
-weights with indices taken from the text's own sorted tokens — meaningful for
-a single text only. Always ``fit(documents)`` the corpus first so every
-document shares one vocabulary (and corpus idf); out-of-vocabulary tokens are
-skipped, matching the VNLRAG-42 spike baseline
+Calling ``encode`` before ``fit`` raises ``RuntimeError``. Always fit the
+corpus first so every document shares one vocabulary (and corpus idf);
+out-of-vocabulary tokens are skipped, matching the VNLRAG-42 spike baseline
 (``docs/evaluation/qdrant-bm25-rrf-validation.md`` §5).
 
 Collection modifier note
@@ -74,19 +72,22 @@ __all__ = [
 #: ``with_encoder_version`` at indexing time (VNLRAG-44).
 SPARSE_ENCODER_VERSION_PAYLOAD_KEY = "sparse_encoder_version"
 
+#: Hash of the immutable corpus snapshot used to fit the sparse vocabulary.
+SPARSE_VOCABULARY_HASH_PAYLOAD_KEY = "sparse_vocabulary_hash"
+
 #: Default encoder version (must match ``SparseSettings.encoder_version`` /
 #: ``SPARSE_ENCODER_VERSION`` env). The effective value is config-driven via
 #: ``get_sparse_settings()``; this constant is the documented default.
-SPARSE_ENCODER_VERSION = "bm25-v1"
+SPARSE_ENCODER_VERSION = "bm25-v2"
 
 #: Tokenizer id implemented by :class:`BM25SparseEncoder` (config
 #: ``SPARSE_TOKENIZER``); Suite C tokenizer verification may add variants.
 SPARSE_TOKENIZER = "unicode-word"
 
-#: Unicode word tokens only: letters (including Vietnamese ``đ`` and
-#: diacritics), no digits, no underscore — the VNLRAG-42 spike baseline
-#: (``docs/evaluation/qdrant-bm25-rrf-validation.md`` §5).
-_TOKEN_RE = re.compile(r"[^\W\d_]+")
+#: Unicode word tokens, including numeric legal clause markers; underscores
+#: remain excluded. NFC/lowercase normalization happens before matching.
+_TOKEN_RE = re.compile(r"[^\W_]+")
+
 
 #: Minimal connective/function-word list, opt-in via ``drop_stopwords``.
 #: Deliberately EXCLUDES semantically load-bearing words: Vietnamese legal
@@ -122,9 +123,10 @@ def tokenize_vietnamese(text: str, *, drop_stopwords: bool = False) -> list[str]
     Normalizes to NFC (composes decomposed diacritics), lowercases, then
     splits on any non-letter/digit character. Vietnamese letters are kept
     intact — ``đ`` and diacritics are preserved (FR-03 requires distinct
-    ``d``/``đ``, so no diacritic folding is ever applied). Digits are dropped
-    (amounts like ``800.000`` contribute no tokens), matching the spike
-    baseline. Optionally removes the minimal :data:`VIETNAMESE_STOPWORDS`.
+    ``d``/``đ``, so no diacritic folding is ever applied). Numeric tokens are
+    retained, including clause markers such as ``96`` and numeric-only text
+    such as ``96.`` (which tokenizes to ``["96"]``). Optionally removes the
+    minimal :data:`VIETNAMESE_STOPWORDS`.
     """
     normalized = unicodedata.normalize("NFC", text.lower())
     tokens = _TOKEN_RE.findall(normalized)
@@ -167,12 +169,11 @@ class BM25SparseEncoder:
       the minimal :data:`VIETNAMESE_STOPWORDS` list.
     - Weights: term frequency x corpus idf, ``idf(t) = ln(1 + (N - df(t) +
       0.5) / (df(t) + 0.5))`` (log idf with +0.5 smoothing, never negative;
-      same formula family as Qdrant's BM25 IDF modifier). Before ``fit`` the
-      idf term is absent, so ``encode`` returns term-frequency-only weights.
+      same formula family as Qdrant's BM25 IDF modifier). ``fit`` is required
+      before encoding so indexed and query vectors share one vocabulary.
     - Vocabulary: built by ``fit`` from the corpus tokens in sorted order with
       ids starting at 1, so it is deterministic across runs/processes.
     - Out-of-vocabulary tokens are skipped at encode time (spike baseline).
-
     ``version`` defaults to ``SparseSettings.encoder_version`` (env
     ``SPARSE_ENCODER_VERSION``) and ``tokenizer`` to
     ``SparseSettings.tokenizer`` (env ``SPARSE_TOKENIZER``); only
@@ -226,26 +227,16 @@ class BM25SparseEncoder:
         }
 
     def encode(self, text: str) -> dict[int, float]:
-        """Encode ``text`` into a ``{token_index: weight}`` dict.
-
-        Deterministic: the same text always produces the identical dict for a
-        given encoder state. After ``fit``, weights are tf x corpus idf and
-        indices come from the fitted vocabulary; without ``fit``, weights are
-        term-frequency-only with indices from the text's own sorted tokens
-        (meaningful for a single text — see the module docstring).
-        """
+        """Encode ``text`` using the fitted corpus vocabulary."""
+        if not self._vocabulary:
+            raise RuntimeError("BM25SparseEncoder must be fitted before encode")
         tokens = self._tokenize(text)
         tf = Counter(tokens)
-        if not self._idf:  # unfitted: tf-only weights, text-local sorted ids
-            return {
-                token_id: float(count)
-                for token_id, (_, count) in enumerate(sorted(tf.items()), start=1)
-            }
         weights: dict[int, float] = {}
         for token, count in tf.items():
             token_id = self._vocabulary.get(token)
             if token_id is None:
-                continue  # out-of-vocabulary: skip (spike baseline)
+                continue
             weights[token_id] = count * self._idf[token]
         return weights
 
@@ -273,16 +264,17 @@ def sparse_vector_dict(weights: dict[int, float]) -> SparseVectorDict:
     return {"indices": indices, "values": [weights[index] for index in indices]}
 
 
-def with_encoder_version(payload: dict, encoder: SparseEncoder) -> dict:
-    """Return ``payload`` plus the ``sparse_encoder_version`` key.
-
-    Payload contract (doc 03 §3.11.2/§3.11.3): every indexed point must carry
-    ``sparse_encoder_version`` = ``encoder.version``; changing the encoder
-    requires a rebuild + alias switch, never mixing two sparse spaces in one
-    collection. The input dict is not mutated (a new dict is returned).
-    """
+def with_encoder_version(
+    payload: dict,
+    encoder: SparseEncoder,
+    *,
+    vocabulary_hash: str | None = None,
+) -> dict:
+    """Return ``payload`` plus immutable sparse-space identity metadata."""
     updated = dict(payload)
     updated[SPARSE_ENCODER_VERSION_PAYLOAD_KEY] = encoder.version
+    if vocabulary_hash is not None:
+        updated[SPARSE_VOCABULARY_HASH_PAYLOAD_KEY] = vocabulary_hash
     return updated
 
 

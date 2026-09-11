@@ -199,7 +199,10 @@ def targeted_query_for_gap(gap: EvidenceType, plan: QueryPlan) -> str:
         EvidenceType.PROCEDURE: "thủ tục xử lý",
         EvidenceType.LEGAL_CONDITION: "điều kiện áp dụng",
     }
-    return f"{plan.normalized_query}; tìm {labels.get(gap, gap.value)}"
+    label = labels.get(gap)
+    if label is None:
+        label = labels.get(getattr(gap, "value", gap), str(gap))
+    return f"{plan.normalized_query}; tìm {label}"
 
 
 class EvidenceCompletenessGate:

@@ -79,7 +79,6 @@ DOCUMENTED_INDEXES = frozenset(
         "idx_outbox_events_pending",
     }
 )
-
 # Every named constraint of doc 03 §3.10.2/§3.10.4: PK/UNIQUE/CHECK/FK
 # auto-names follow PostgreSQL conventions (``<table>_pkey``,
 # ``<table>_<column>_key``, ``<table>_<column>_check``,
@@ -87,7 +86,6 @@ DOCUMENTED_INDEXES = frozenset(
 # (VNLRAG-37) so future autogenerate stays clean.
 DOCUMENTED_CONSTRAINTS = frozenset(
     {
-        # primary keys
         "legal_sources_pkey",
         "legal_documents_pkey",
         "document_versions_pkey",
@@ -143,7 +141,7 @@ DOCUMENTED_CONSTRAINTS = frozenset(
         "legal_effect_events_review_status_check",
         "provision_provenances_role_check",
         "review_items_status_check",
-        "query_feedback_category_check",
+        "query_feedback_rating_check",
         "evaluation_datasets_split_check",
         # exclusion constraint (temporal, doc 03 §3.10.4)
         "legal_provisions_no_overlap_accepted",
@@ -185,8 +183,7 @@ def test_upgrade_creates_complete_schema(upgraded_engine: Engine) -> None:
     """``alembic upgrade head`` from an empty database creates the complete schema."""
     tables = _public_tables(upgraded_engine)
     assert tables >= EXPECTED_TABLES
-    # plus the alembic version table, and nothing unexpected
-    assert tables == EXPECTED_TABLES | {"alembic_version"}
+    assert tables == EXPECTED_TABLES | {"alembic_version", "conversations", "messages"}
 
 
 def test_btree_gist_extension_installed(upgraded_engine: Engine) -> None:
@@ -235,7 +232,7 @@ def test_alembic_version_at_head(upgraded_engine: Engine) -> None:
     """The session scratch database sits exactly at the current head revision."""
     with upgraded_engine.connect() as conn:
         version = conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-    assert version == "0006"
+    assert version == "0012_restore_review_evidence"
 
 
 def test_upgrade_downgrade_roundtrip(cycle_db_url: str) -> None:
@@ -244,7 +241,11 @@ def test_upgrade_downgrade_roundtrip(cycle_db_url: str) -> None:
     command.upgrade(cfg, "head")
     engine = create_engine(cycle_db_url)
     try:
-        assert _public_tables(engine) == EXPECTED_TABLES | {"alembic_version"}
+        assert _public_tables(engine) == EXPECTED_TABLES | {
+            "alembic_version",
+            "conversations",
+            "messages",
+        }
 
         with engine.begin() as conn:
             conn.execute(

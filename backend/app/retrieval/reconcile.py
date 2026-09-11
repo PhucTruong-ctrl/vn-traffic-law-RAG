@@ -58,10 +58,13 @@ from app.persistence.models import (
 from app.retrieval.embedding import EmbeddingProvider
 from app.retrieval.qdrant_store import (
     CHUNKING_VERSION_PAYLOAD_KEY,
+    DENSE_VECTOR_NAME,
+    DENSE_VECTOR_SIZE,
     EMBEDDING_VERSION_PAYLOAD_KEY,
     PAYLOAD_INDEX_FIELDS,
     PROVISION_ALIAS,
     PROVISION_COLLECTION,
+    SPARSE_VECTOR_NAME,
     SPARSE_VOCABULARY_VERSION_PAYLOAD_KEY,
     build_collection_config,
     rebuild_alias,
@@ -70,13 +73,15 @@ from app.retrieval.sparse import SparseEncoder
 
 #: Payload metadata used to prove one immutable vector space was promoted.
 CORPUS_SNAPSHOT_VERSION_PAYLOAD_KEY = "corpus_snapshot_version"
+CORPUS_SNAPSHOT_HASH_PAYLOAD_KEY = "corpus_snapshot_hash"
+EMBEDDING_MODEL_HASH_PAYLOAD_KEY = "embedding_model_hash"
+SPARSE_VOCABULARY_HASH_PAYLOAD_KEY = "sparse_vocabulary_hash"
 
 logger = logging.getLogger(__name__)
 
 # Keep this mapping aligned with qdrant_store: serving temporal filters use
 # models.DatetimeRange, while every other indexed payload field is categorical.
 _DATETIME_PAYLOAD_FIELDS = frozenset({"effective_from", "effective_to"})
-
 __all__ = [
     "ACCEPTED_REVIEW_STATUS",
     "CONTENT_HASH_PAYLOAD_KEY",
@@ -92,6 +97,7 @@ __all__ = [
     "reconcile_index",
     "resolve_collection",
     "scroll_point_ids_and_content",
+    "validate_candidate_collection",
     "unit_payload_for_provision",
     "write_run_manifest",
 ]
@@ -428,6 +434,56 @@ def scroll_point_ids_and_content(
     return point_ids, content
 
 
+def validate_candidate_collection(
+    client: QdrantClient,
+    *,
+    collection: str,
+    expected_point_ids: set[str],
+    expected_metadata: Mapping[str, str],
+    expected_dense_dimensions: int = DENSE_VECTOR_SIZE,
+) -> None:
+    """Fail closed unless candidate points describe one complete vector space."""
+    info = client.get_collection(collection)
+    vectors = getattr(getattr(info, "config", info), "params", None)
+    dense = getattr(vectors, "vectors", None) if vectors is not None else None
+    if isinstance(dense, dict):
+        dense_params = dense.get(DENSE_VECTOR_NAME)
+        if dense_params is None or getattr(dense_params, "size", None) != expected_dense_dimensions:
+            raise ReconcileError("candidate dense vector configuration mismatch")
+    found: set[str] = set()
+    offset = None
+    while True:
+        points, offset = client.scroll(
+            collection_name=collection,
+            with_vectors=True,
+            with_payload=True,
+            limit=_SCROLL_PAGE_SIZE,
+            offset=offset,
+        )
+        for point in points:
+            point_id = str(point.id)
+            found.add(point_id)
+            payload = point.payload or {}
+            vector = point.vector or {}
+            dense_vector = vector.get(DENSE_VECTOR_NAME) if isinstance(vector, dict) else None
+            sparse_vector = vector.get(SPARSE_VECTOR_NAME) if isinstance(vector, dict) else None
+            if not isinstance(dense_vector, list) or len(dense_vector) != expected_dense_dimensions:
+                raise ReconcileError(f"candidate point {point_id} has invalid dense vector")
+            if sparse_vector is None or not getattr(sparse_vector, "indices", None):
+                raise ReconcileError(f"candidate point {point_id} has no sparse vector")
+            if payload.get("review_status") != ACCEPTED_REVIEW_STATUS:
+                raise ReconcileError(f"candidate point {point_id} is not ACCEPTED")
+            missing = [key for key, value in expected_metadata.items() if payload.get(key) != value]
+            if missing:
+                raise ReconcileError(f"candidate point {point_id} metadata mismatch: {missing}")
+        if offset is None:
+            break
+    if found != expected_point_ids:
+        raise ReconcileError(
+            f"candidate point IDs mismatch: expected {len(expected_point_ids)}, got {len(found)}"
+        )
+
+
 # ---------------------------------------------------------------------------
 # VNLRAG-44 wiring (lazy, so this module stays importable pre-merge)
 # ---------------------------------------------------------------------------
@@ -506,6 +562,7 @@ def _reindex_units(
     batch_size: int,
     embedder: EmbeddingProvider | None,
     sparse_encoder: SparseEncoder | None,
+    sparse_vocabulary_hash: str | None = None,
 ) -> tuple[int, list[str]]:
     """Call ``index_provision_units`` for one repair batch.
 
@@ -527,6 +584,7 @@ def _reindex_units(
         batch_size=batch_size,
         embedder=embedder,
         sparse_encoder=sparse_encoder,
+        sparse_vocabulary_hash=sparse_vocabulary_hash,
     )
     indexed = int(getattr(result, "indexed", len(units)))
     errors = list(getattr(result, "errors", []) or [])
@@ -724,8 +782,11 @@ def rebuild_index(
     batch_size: int = 32,
     dry_run: bool = False,
     corpus_snapshot_version: str | None = None,
+    corpus_snapshot_hash: str | None = None,
     embedding_version: str | None = None,
+    embedding_model_hash: str | None = None,
     sparse_vocabulary_version: str | None = None,
+    sparse_vocabulary_hash: str | None = None,
     chunking_version: str | None = None,
     retrieval_smoke: Callable[[QdrantClient, str], bool] | None = None,
     release_manifest_path: Path | None = None,
@@ -760,7 +821,6 @@ def rebuild_index(
     new_name = collection_name or next_collection_name(client)
     if collection_name is not None and client.collection_exists(collection_name):
         raise ReconcileError(f"rebuild collection override {collection_name!r} already exists")
-
     provisions = _select_provisions(session, effective_from_required=effective_from_required)
     document_metadata = _document_metadata(session, {p.document_version_id for p in provisions})
     units, unit_point_ids, unit_payloads, _ = _prepare_units(
@@ -768,9 +828,12 @@ def rebuild_index(
     )
     metadata = {
         CORPUS_SNAPSHOT_VERSION_PAYLOAD_KEY: corpus_snapshot_version,
+        CORPUS_SNAPSHOT_HASH_PAYLOAD_KEY: corpus_snapshot_hash,
         EMBEDDING_VERSION_PAYLOAD_KEY: embedding_version,
+        EMBEDDING_MODEL_HASH_PAYLOAD_KEY: embedding_model_hash,
         SPARSE_VOCABULARY_VERSION_PAYLOAD_KEY: sparse_vocabulary_version
         or (getattr(sparse_encoder, "version", None) if sparse_encoder else None),
+        SPARSE_VOCABULARY_HASH_PAYLOAD_KEY: sparse_vocabulary_hash,
         CHUNKING_VERSION_PAYLOAD_KEY: chunking_version,
     }
     for payload in unit_payloads.values():
@@ -778,9 +841,12 @@ def rebuild_index(
     if not dry_run:
         required = {
             CORPUS_SNAPSHOT_VERSION_PAYLOAD_KEY: corpus_snapshot_version,
+            CORPUS_SNAPSHOT_HASH_PAYLOAD_KEY: corpus_snapshot_hash,
             EMBEDDING_VERSION_PAYLOAD_KEY: embedding_version,
+            EMBEDDING_MODEL_HASH_PAYLOAD_KEY: embedding_model_hash,
             SPARSE_VOCABULARY_VERSION_PAYLOAD_KEY: sparse_vocabulary_version
             or (getattr(sparse_encoder, "version", None) if sparse_encoder else None),
+            SPARSE_VOCABULARY_HASH_PAYLOAD_KEY: sparse_vocabulary_hash,
             CHUNKING_VERSION_PAYLOAD_KEY: chunking_version,
         }
         missing = [name for name, value in required.items() if not value]
@@ -793,9 +859,12 @@ def rebuild_index(
         return None
     metadata = {
         CORPUS_SNAPSHOT_VERSION_PAYLOAD_KEY: corpus_snapshot_version,
+        CORPUS_SNAPSHOT_HASH_PAYLOAD_KEY: corpus_snapshot_hash,
         EMBEDDING_VERSION_PAYLOAD_KEY: embedding_version,
+        EMBEDDING_MODEL_HASH_PAYLOAD_KEY: embedding_model_hash,
         SPARSE_VOCABULARY_VERSION_PAYLOAD_KEY: sparse_vocabulary_version
         or (getattr(sparse_encoder, "version", None) if sparse_encoder else None),
+        SPARSE_VOCABULARY_HASH_PAYLOAD_KEY: sparse_vocabulary_hash,
         CHUNKING_VERSION_PAYLOAD_KEY: chunking_version,
     }
     _ensure_named_collection(client, new_name)
@@ -812,9 +881,16 @@ def rebuild_index(
         batch_size=batch_size,
         embedder=embedder,
         sparse_encoder=sparse_encoder,
+        sparse_vocabulary_hash=sparse_vocabulary_hash,
     )
     if errors or indexed != len(units):
         raise ReconcileError(f"rebuild into {new_name} incomplete ({indexed}/{len(units)})")
+    validate_candidate_collection(
+        client,
+        collection=new_name,
+        expected_point_ids={unit_point_ids[unit.unit_id] for unit in units},
+        expected_metadata=cast(dict[str, str], metadata),
+    )
     report = reconcile_index(
         client,
         session=session,

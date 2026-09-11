@@ -143,6 +143,8 @@ def test_extension_exclusion_objects_kept_out_of_models() -> None:
     assert not any("normalize_ref_text" in str(i.expressions) for i in provision_references.indexes)
     reference_constraints = {c.name for c in provision_references.constraints}
     assert "provision_references_target_resolution_check" in reference_constraints
+    feedback = Base.metadata.tables["query_feedback"]
+    assert "query_feedback_rating_check" in {c.name for c in feedback.constraints}
 
 
 def test_no_undocumented_tables_or_functions() -> None:

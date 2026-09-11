@@ -5,9 +5,12 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import json
+import os
+import tempfile
 import uuid
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -299,7 +302,7 @@ def _citation_ids(value: object) -> list[str]:
 
 
 def evaluate_release_records(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    """Compute release metrics and fail-closed gates from serving outcomes."""
+    """Compute release metrics and fail closed on semantic outcome failures."""
     from app.evaluation.metrics import evaluate_evidence, evaluate_retrieval, evaluate_temporal
 
     retrieval_records: list[dict[str, Any]] = []
@@ -307,13 +310,19 @@ def evaluate_release_records(records: Sequence[Mapping[str, Any]]) -> dict[str, 
     temporal_records: list[dict[str, Any]] = []
     abstentions: dict[str, int] = {}
     invalid_citations = non_serving = superseded = unsupported_numeric = workflow_failures = 0
+    semantic_failures = 0
     verified = 0
+    seen_ids: set[str] = set()
     for record in records:
         question_id = str(_field(record, "question_id", ""))
         input_data = _mapping(_field(record, "input", {}))
         retrieval = _mapping(_field(record, "retrieval", {}))
         output = _mapping(_field(record, "output", {}))
         metrics = _mapping(_field(record, "metrics", {}))
+        expected_status = str(input_data.get("expected_status", "VERIFIED")).upper()
+        evidence_required = bool(
+            input_data.get("evidence_required", bool(input_data.get("required_evidence")))
+        )
         retrieved = [str(value) for value in _sequence(retrieval.get("retrieved_ids"))]
         citations = _sequence(output.get("citations", _field(record, "citations")))
         required = _sequence(input_data.get("required_evidence"))
@@ -326,12 +335,13 @@ def evaluate_release_records(records: Sequence[Mapping[str, Any]]) -> dict[str, 
                 "relevant": _sequence(input_data.get("expected_provision_ids")),
             }
         )
+        covered = _sequence(metrics.get("covered_evidence", retrieved))
         evidence_records.append(
             {
                 "id": question_id,
                 "category": category,
                 "required_evidence": required,
-                "covered_evidence": _sequence(metrics.get("covered_evidence", retrieved)),
+                "covered_evidence": covered,
                 "retrieved_evidence": retrieved,
             }
         )
@@ -346,16 +356,42 @@ def evaluate_release_records(records: Sequence[Mapping[str, Any]]) -> dict[str, 
             }
         )
         status = str(output.get("status", _field(record, "status", ""))).upper()
-        if status in {"VERIFIED", "VALID", "COMPLETED"} and output.get("citations"):
-            verified += 1
+        abstention_reason = str(
+            output.get("abstention_reason")
+            or output.get("reason_code")
+            or _field(record, "error")
+            or "UNCLASSIFIED"
+        )
+        expected_abstention = expected_status in {
+            "INSUFFICIENT_EVIDENCE",
+            "UNSUPPORTED",
+            "INVALID",
+        }
+        status_matches = status == expected_status
+        has_evidence = bool(retrieved and citations and covered)
+        if status_matches and expected_abstention:
+            abstentions[abstention_reason] = abstentions.get(abstention_reason, 0) + 1
+        elif status_matches and status in {"VERIFIED", "VALID", "COMPLETED"}:
+            if evidence_required and not has_evidence:
+                semantic_failures += 1
+                abstentions["MISSING_EVIDENCE"] = abstentions.get("MISSING_EVIDENCE", 0) + 1
+            elif (
+                evidence_required
+                and required
+                and not set(map(str, required)).issubset(set(map(str, covered)))
+            ):
+                semantic_failures += 1
+                abstentions["INCOMPLETE_EVIDENCE"] = abstentions.get("INCOMPLETE_EVIDENCE", 0) + 1
+            else:
+                verified += 1
         else:
-            reason = str(
-                output.get("abstention_reason")
-                or output.get("reason_code")
-                or _field(record, "error")
-                or "UNCLASSIFIED"
-            )
-            abstentions[reason] = abstentions.get(reason, 0) + 1
+            semantic_failures += 1
+            abstentions[abstention_reason] = abstentions.get(abstention_reason, 0) + 1
+        if not question_id or question_id in seen_ids:
+            semantic_failures += 1
+        seen_ids.add(question_id)
+        if evidence_required and not retrieved:
+            semantic_failures += 1
         invalid_citations += int(metrics.get("invalid_citation", 0) or 0)
         non_serving += int(metrics.get("non_serving_evidence", 0) or 0)
         superseded += int(metrics.get("superseded_current_answer", 0) or 0)
@@ -367,7 +403,8 @@ def evaluate_release_records(records: Sequence[Mapping[str, Any]]) -> dict[str, 
     temporal_reports = evaluate_temporal(temporal_records)
     total = len(records)
     hard_gates = {
-        "all_questions_executed": total == 200,
+        "all_questions_executed": total == 200 and len(seen_ids) == 200,
+        "semantic_outcomes": total == 200 and semantic_failures == 0,
         "invalid_citation_rate_zero": total > 0 and invalid_citations == 0,
         "no_non_serving_evidence": non_serving == 0,
         "no_superseded_current_answer": superseded == 0,
@@ -379,7 +416,7 @@ def evaluate_release_records(records: Sequence[Mapping[str, Any]]) -> dict[str, 
         for name, passed in hard_gates.items()
         if not passed
     ]
-    reports = {
+    return {
         "retrieval": {name: _metric_report(value) for name, value in retrieval_reports.items()},
         "evidence": {name: _metric_report(value) for name, value in evidence_reports.items()},
         "temporal": {name: _metric_report(value) for name, value in temporal_reports.items()},
@@ -390,12 +427,40 @@ def evaluate_release_records(records: Sequence[Mapping[str, Any]]) -> dict[str, 
         "numeric": {"unsupported_numeric_claim_count": unsupported_numeric},
         "verified_answer_rate": verified / total if total else None,
         "abstention_taxonomy": abstentions,
+        "semantic_failure_count": semantic_failures,
         "hard_gates": hard_gates,
         "remediation_evidence": remediation,
         "feedback": {"gating": False, "note": "LIKE/DISLIKE telemetry is non-gating"},
+        "release_status": "RELEASED" if all(hard_gates.values()) else "BLOCKED",
     }
-    reports["release_status"] = "RELEASED" if all(hard_gates.values()) else "BLOCKED"
-    return reports
+
+
+def _atomic_checkpoint(path: Path, value: Mapping[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(value, handle, ensure_ascii=False, sort_keys=True)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(temporary)
+
+
+def _load_checkpoint(path: Path | None, inputs: Mapping[str, Any]) -> dict[str, Any]:
+    if path is None or not path.exists():
+        return {}
+    try:
+        checkpoint = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return {}
+    return (
+        checkpoint
+        if isinstance(checkpoint, dict) and checkpoint.get("inputs") == dict(inputs)
+        else {}
+    )
 
 
 async def run_serving_evaluation(
@@ -417,13 +482,17 @@ async def run_serving_evaluation(
             question_id = str(_field(record, "id", "") or "")
             question = str(_field(record, "question", "") or "")
             started = __import__("time").perf_counter()
+            result: dict[str, Any] | None = None
+            error: str | None = None
             try:
-                result = serving_runtime(question)
-                if hasattr(result, "__await__"):
-                    result = await result
-                result = dict(result)
+                value = serving_runtime(
+                    question,
+                    query_date=_field(record, "query_date", None),
+                )
+                if hasattr(value, "__await__"):
+                    value = await value
+                result = dict(value)
                 payload = _mapping(result.get("payload", result))
-                error = None
             except Exception as exc:
                 payload = {
                     "status": "ERROR",
@@ -431,7 +500,7 @@ async def run_serving_evaluation(
                 }
                 error = f"{type(exc).__name__}: {exc}"
             latency_ms = (__import__("time").perf_counter() - started) * 1000
-            retrieved = _mapping(result.get("retrieval")) if "result" in locals() else {}
+            retrieved = _mapping(result.get("retrieval")) if result is not None else {}
             outcome = {
                 "question_id": question_id,
                 "input": {
@@ -443,7 +512,7 @@ async def run_serving_evaluation(
                 },
                 "retrieval": {
                     "retrieved_ids": retrieved.get("retrieved_ids", result.get("retrieved_ids", []))
-                    if "result" in locals()
+                    if result is not None
                     else [],
                 },
                 "output": payload,
@@ -457,17 +526,13 @@ async def run_serving_evaluation(
                     "unsupported_numeric_claim": int(
                         payload.get("unsupported_numeric_claim", False)
                     ),
-                    "unclassified_workflow_failure": int(
-                        error is not None and not payload.get("abstention")
-                    ),
+                    "unclassified_workflow_failure": int(error is not None),
                 },
             }
             if error:
                 outcome["error"] = error
             outcomes.append(outcome)
             writer.append_result(run_id, outcome, session=session, storage=storage)
-            if "result" in locals():
-                del result
         report = evaluate_release_records(outcomes)
         writer.finish(
             run_id,

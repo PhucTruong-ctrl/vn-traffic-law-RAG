@@ -56,9 +56,14 @@ DOC_03_311_KEYS = frozenset(
         "parser_version",
         "legal_parser_version",
         "sparse_encoder_version",
+        "corpus_snapshot_version",
+        "corpus_snapshot_hash",
+        "embedding_version",
+        "embedding_model_hash",
+        "sparse_vocabulary_version",
+        "sparse_vocabulary_hash",
+        "chunking_version",
         "text",
-        "parent_context",
-        "relations",
     }
 )
 
@@ -74,6 +79,8 @@ PAYLOAD_KEYS = DOC_03_311_KEYS | frozenset(
         "document_version_id",
         "bbox",
         "source_url",
+        "parent_context",
+        "relations",
     }
 )
 

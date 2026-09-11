@@ -45,7 +45,7 @@ class ExtractedLegalProvision(BaseModel):
     source_element_ids: list[str] = Field(min_length=1)
     content_hash: str
     version: int = Field(default=1, ge=1)
-    review_status: str = "PENDING"
+    review_status: str = "REJECTED"
 
     # Structural metadata used before persistence.  They map directly to the
     # optional node_kind field in the JSON template and QA annotations.
@@ -380,7 +380,6 @@ class LegalStructureExtractor:
             bbox=_bbox(node),
             source_element_ids=list(node.source_element_ids),
             content_hash=_hash_text(source_text),
-            version=1,
             review_status="PENDING",
             node_kind=node_kind or node.kind.value,
             point_label=point.label if point else None,

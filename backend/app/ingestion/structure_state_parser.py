@@ -264,6 +264,14 @@ class LegalStructureStateParser:
                 number=match.group(1),
                 label=_nonempty(match.group(2)),
             )
+        # Amendment prose can begin with an article marker but is not an
+        # article boundary (for example: “Điều 2. Sửa đổi khoản 1 Điều 2”).
+        if re.match(
+            r"^(?:Điều|Dièu|Dieu|Ðiều)\s+\d+[A-Za-z]?\s*[.:-]\s*[“\"']?\s*Sửa\s+đổi\b",
+            text,
+            re.IGNORECASE,
+        ):
+            return None
         match = _ARTICLE_RE.match(text)
         if match and (
             _BARE_ARTICLE_MARKER_RE.match(text)

@@ -44,6 +44,8 @@ survive) and never switches the alias when the indexing pass is incomplete
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import os
 import sys
 from collections.abc import Iterator
@@ -56,14 +58,16 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 _BACKEND_DIR = Path(__file__).resolve().parents[1]
+_ROOT = _BACKEND_DIR.parent
 if str(_BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(_BACKEND_DIR))
 
-from app.config import get_qdrant_settings  # noqa: E402  (sys.path bootstrap above)
+from app.config import get_qdrant_settings  # noqa: E402
 from app.retrieval import reconcile  # noqa: E402
+from app.retrieval.embedding import aggregate_model_hash  # noqa: E402
 from app.retrieval.sparse import SparseEncoder  # noqa: E402
 
-if TYPE_CHECKING:  # pragma: no cover  (annotations only)
+if TYPE_CHECKING:
     from qdrant_client import QdrantClient
 
     from app.retrieval.embedding import EmbeddingProvider
@@ -85,6 +89,33 @@ def _resolve_database_url() -> str:
         "DATABASE_URL is not set: export the variable or provide a "
         "repository-root .env file (doc 07 §7.3.3)"
     )
+
+
+def _artifact_metadata() -> dict[str, str]:
+    manifest = json.loads((_ROOT / "data/candidate-corpus-manifest.json").read_text())
+    snapshot_hash = str(manifest["artifact_sha256"])
+    model_path = _ROOT / "data/models/multilingual-e5-base-paddle"
+    selection = json.loads((_ROOT / "data/evaluation/embedding-selection.json").read_text())
+    sparse_path = _ROOT / "data/sparse-vocab/bm25-v2.json"
+    return {
+        "corpus_snapshot_version": "candidate-corpus-14",
+        "corpus_snapshot_hash": snapshot_hash,
+        "embedding_version": str(selection["revision"]),
+        "embedding_model_hash": aggregate_model_hash(model_path),
+        "sparse_vocabulary_version": str(selection["sparse_vocabulary_version"]),
+        "sparse_vocabulary_hash": hashlib.sha256(sparse_path.read_bytes()).hexdigest(),
+        "chunking_version": "canonical-v1",
+    }
+
+
+def _retrieval_smoke(client: QdrantClient, collection: str) -> bool:
+    points, _ = client.scroll(
+        collection_name=collection,
+        with_vectors=True,
+        with_payload=True,
+        limit=1,
+    )
+    return bool(points and points[0].vector)
 
 
 def _connect() -> Session:
@@ -224,14 +255,24 @@ def _run(
             embedder, sparse_encoder = _resolve_encoders(
                 reconcile.accepted_retrieval_texts(session)
             )
+            metadata = _artifact_metadata()
             old = reconcile.rebuild_index(
                 client,
                 session=session,
                 embedder=embedder,
                 sparse_encoder=sparse_encoder,
                 collection_name=args.collection,
+                corpus_snapshot_version=metadata["corpus_snapshot_version"],
+                corpus_snapshot_hash=metadata["corpus_snapshot_hash"],
+                embedding_version=metadata["embedding_version"],
+                embedding_model_hash=metadata["embedding_model_hash"],
+                sparse_vocabulary_version=metadata["sparse_vocabulary_version"],
+                sparse_vocabulary_hash=metadata["sparse_vocabulary_hash"],
+                chunking_version=metadata["chunking_version"],
+                retrieval_smoke=_retrieval_smoke,
                 batch_size=args.batch_size,
                 dry_run=args.dry_run,
+                release_manifest_path=_ROOT / "data/evaluation/reconcile/promotion.json",
             )
             return 0, None, old
     finally:

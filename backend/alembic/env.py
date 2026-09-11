@@ -34,6 +34,17 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
+def include_object(
+    object_: object,
+    name: str | None,
+    type_: str,
+    reflected: bool,
+    compare_to: object | None,
+) -> bool:
+    """Exclude only intentional legacy bootstrap drift."""
+    return not (type_ == "index" and name == "provision_references_unresolved_pk" and reflected)
+
+
 def _database_url() -> str:
     """Resolve the database URL: config > DATABASE_URL env > repo-root .env."""
     configured = config.get_main_option("sqlalchemy.url")
@@ -61,7 +72,7 @@ def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode (emit SQL to stdout, no DB connection)."""
     context.configure(
         url=_database_url(),
-        target_metadata=target_metadata,
+        include_object=include_object,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
@@ -85,6 +96,7 @@ def run_migrations_online() -> None:
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
+            include_object=include_object,
             target_metadata=target_metadata,
             compare_type=True,
         )

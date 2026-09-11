@@ -8,7 +8,7 @@ import app.config as config
 
 from .schemas import StructuredAnswer
 
-MODEL_VERSION = "gemini-3.1-flash-lite"
+MODEL_VERSION = "gemini-3.7-flash"
 PROMPT_NAME = "legal-generator-v1"
 PROMPT_VERSION = "2"
 
@@ -47,7 +47,7 @@ class GeminiStructuredGenerator:
         model = self._model
         if client is None or model is None:
             settings = config.get_generation_settings()
-            model = model or settings.model
+            model = model or settings.model or MODEL_VERSION
             if client is None:
                 if not settings.gemini_api_key:
                     raise GenerationConfigurationError(

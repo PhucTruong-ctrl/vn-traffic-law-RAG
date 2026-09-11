@@ -29,12 +29,12 @@ from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import (
+    REAL,
     BigInteger,
     Boolean,
     CheckConstraint,
     Date,
     DateTime,
-    Float,
     ForeignKey,
     ForeignKeyConstraint,
     Index,
@@ -48,7 +48,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-_REVIEW_STATUS_VALUES = "'ACCEPTED', 'REJECTED'"
+_REVIEW_STATUS_VALUES = "'PENDING', 'ACCEPTED', 'REJECTED', 'DROPPED'"
 _RESOLUTION_STATUS_VALUES = "'RESOLVED', 'UNRESOLVED'"
 
 
@@ -190,7 +190,7 @@ class DocumentVersion(Base):
     effective_from: Mapped[date | None] = mapped_column(Date)
     effective_to: Mapped[date | None] = mapped_column(Date)
     review_status: Mapped[str] = mapped_column(
-        String, nullable=False, default="REJECTED", server_default=text("'REJECTED'")
+        String, nullable=False, default="PENDING", server_default=text("'PENDING'")
     )
     created_at: Mapped[datetime] = _created_at()
 
@@ -275,7 +275,7 @@ class LegalProvision(Base):
     content_hash: Mapped[str] = mapped_column(String, nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     review_status: Mapped[str] = mapped_column(
-        String, nullable=False, default="REJECTED", server_default=text("'REJECTED'")
+        String, nullable=False, default="PENDING", server_default=text("'PENDING'")
     )
     created_at: Mapped[datetime] = _created_at()
 
@@ -402,7 +402,7 @@ class ProvisionReference(Base):
     target_provision_id: Mapped[str | None] = mapped_column(String)
     target_provision_version_id: Mapped[str | None] = mapped_column(String)
     relation_type: Mapped[str] = mapped_column(String, nullable=False)
-    confidence: Mapped[float | None] = mapped_column(Float)
+    confidence: Mapped[float | None] = mapped_column(REAL)
     extraction_method: Mapped[str] = mapped_column(String, nullable=False)
     source_text: Mapped[str] = mapped_column(Text, nullable=False)
     resolution_status: Mapped[str] = mapped_column(
@@ -412,7 +412,7 @@ class ProvisionReference(Base):
         server_default=text("'UNRESOLVED'"),
     )
     review_status: Mapped[str] = mapped_column(
-        String, nullable=False, default="REJECTED", server_default=text("'REJECTED'")
+        String, nullable=False, default="PENDING", server_default=text("'PENDING'")
     )
     created_at: Mapped[datetime] = _created_at()
 
@@ -460,7 +460,7 @@ class DocumentRelation(Base):
     relation_type: Mapped[str] = mapped_column(String, nullable=False)
     effective_from: Mapped[date | None] = mapped_column(Date)
     source_note: Mapped[str | None] = mapped_column(Text)
-    confidence: Mapped[float | None] = mapped_column(Float)
+    confidence: Mapped[float | None] = mapped_column(REAL)
     source: Mapped[str] = mapped_column(String, nullable=False)
     resolution_status: Mapped[str] = mapped_column(
         String, nullable=False, default="RESOLVED", server_default=text("'RESOLVED'")
@@ -513,9 +513,9 @@ class LegalEffectEvent(Base):
     affected_provision_versions: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB, nullable=False, default=list, server_default=text("'[]'")
     )
-    confidence: Mapped[float | None] = mapped_column(Float)
+    confidence: Mapped[float | None] = mapped_column(REAL)
     review_status: Mapped[str] = mapped_column(
-        String, nullable=False, default="REJECTED", server_default=text("'REJECTED'")
+        String, nullable=False, default="PENDING", server_default=text("'PENDING'")
     )
     created_at: Mapped[datetime] = _created_at()
 
@@ -577,7 +577,7 @@ class DocumentElement(Base):
     table_html: Mapped[str | None] = mapped_column(Text)
     source_parser: Mapped[str] = mapped_column(String, nullable=False)
     parser_version: Mapped[str] = mapped_column(String, nullable=False)
-    parser_confidence: Mapped[float | None] = mapped_column(Float)
+    parser_confidence: Mapped[float | None] = mapped_column(REAL)
     raw_reference: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
     parsed_document: Mapped[ParsedDocument] = relationship(back_populates="elements")
@@ -672,8 +672,10 @@ class ReviewItem(Base):
     description: Mapped[str | None] = mapped_column(Text)
     evidence: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     status: Mapped[str] = mapped_column(
-        String, nullable=False, default="REJECTED", server_default=text("'REJECTED'")
+        String, nullable=False, default="PENDING", server_default=text("'PENDING'")
     )
+    reviewer: Mapped[str | None] = mapped_column(String)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = _created_at()
 
     ingestion_run: Mapped[IngestionRun] = relationship(back_populates="review_items")
@@ -714,7 +716,10 @@ class QueryFeedback(Base):
     """Minimal anonymous rating associated with a query trace."""
 
     __tablename__ = "query_feedback"
-    __table_args__ = (Index("idx_query_feedback_trace", "query_trace_id"),)
+    __table_args__ = (
+        CheckConstraint("rating IN ('LIKE', 'DISLIKE')", name="query_feedback_rating_check"),
+        Index("idx_query_feedback_trace", "query_trace_id"),
+    )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     query_trace_id: Mapped[uuid.UUID] = mapped_column(
@@ -724,7 +729,7 @@ class QueryFeedback(Base):
     rating: Mapped[str] = mapped_column(String(7), nullable=False)
     created_at: Mapped[datetime] = _created_at()
 
-    query_trace: Mapped[QueryTrace] = relationship(back_populates="feedback_items")
+    query_trace: Mapped[QueryTrace | None] = relationship(back_populates="feedback_items")
 
 
 class Conversation(Base):

@@ -60,22 +60,33 @@ class _RecordingClient:
 # ---------------------------------------------------------------------------
 
 
-def test_tokenize_vietnamese_keeps_diacritics_and_d() -> None:
+def test_tokenize_vietnamese_keeps_diacritics_and_numeric_markers() -> None:
     assert tokenize_vietnamese("xe ô tô phạt tiền") == ["xe", "ô", "tô", "phạt", "tiền"]
-    # đ (U+0111) and Đ are kept as letters; digits and punctuation are dropped/split.
-    assert tokenize_vietnamese("Điều 5, Khoản 4, Điểm đ") == ["điều", "khoản", "điểm", "đ"]
+    assert tokenize_vietnamese("Điều 5, Khoản 4, Điểm đ") == [
+        "điều",
+        "5",
+        "khoản",
+        "4",
+        "điểm",
+        "đ",
+    ]
 
-
-def test_tokenize_vietnamese_lowercases_and_normalizes_nfc() -> None:
     assert tokenize_vietnamese("XE Ô TÔ") == tokenize_vietnamese("xe ô tô")
     decomposed = "xe o\u0302 tô"  # 'ô' as 'o' + combining circumflex (NFD form)
     assert not unicodedata.is_normalized("NFC", decomposed)
     assert tokenize_vietnamese(decomposed) == ["xe", "ô", "tô"]
 
 
-def test_tokenize_vietnamese_splits_on_non_letters_and_drops_digits() -> None:
+def test_tokenize_vietnamese_splits_on_non_word_punctuation() -> None:
     assert tokenize_vietnamese("a) xe, ô-tô.") == ["a", "xe", "ô", "tô"]
-    assert tokenize_vietnamese("800.000 đồng (mức phạt)") == ["đồng", "mức", "phạt"]
+    assert tokenize_vietnamese("800.000 đồng (mức phạt)") == [
+        "800",
+        "000",
+        "đồng",
+        "mức",
+        "phạt",
+    ]
+    assert tokenize_vietnamese("96.") == ["96"]
     assert tokenize_vietnamese("") == []
 
 
@@ -100,15 +111,15 @@ def test_tokenize_vietnamese_stopwords_are_opt_in_and_minimal() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_encode_unfitted_is_term_frequency_only_and_deterministic() -> None:
+def test_encode_requires_fitted_vocabulary() -> None:
     encoder = BM25SparseEncoder()
-    assert encoder.encode("xe ô tô") == {1: 1.0, 2: 1.0, 3: 1.0}
-    assert encoder.encode("") == {}
-    assert encoder.encode("xe ô tô") == encoder.encode("xe ô tô")
+    with pytest.raises(RuntimeError, match="fitted"):
+        encoder.encode("xe ô tô")
 
 
 def test_fit_idf_changes_weights_and_is_deterministic() -> None:
     encoder = BM25SparseEncoder()
+    encoder.fit(["xe ô tô"])
     tf_only = encoder.encode("xe ô tô")
     encoder.fit(["xe ô tô", "ô tô"])
     # Corpus: N=2, df(xe)=1, df(ô)=df(tô)=2. Vocabulary sorted by codepoint:

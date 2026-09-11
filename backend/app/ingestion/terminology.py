@@ -52,8 +52,8 @@ TERMINOLOGY: dict[str, list[str]] = {
     ],
     # Canonical concepts bridge colloquial questions and statutory wording.
     "không chấp hành hiệu lệnh của đèn tín hiệu giao thông": [
-        "không chấp hành hiệu lệnh đèn tín hiệu giao thông",
         "không chấp hành hiệu lệnh của đèn tín hiệu giao thông",
+        "không chấp hành hiệu lệnh đèn tín hiệu giao thông",
         "vượt đèn đỏ",
         "vượt đèn đỏ",
         "vuot den do",
@@ -77,6 +77,7 @@ TERMINOLOGY: dict[str, list[str]] = {
     "mức phạt tiền": ["mức phạt tiền", "phạt bao nhiêu", "tiền phạt"],
     "điểm giấy phép lái xe": ["điểm giấy phép lái xe", "điểm GPLX", "điểm bị trừ", "trừ điểm"],
     "tước đình chỉ giấy phép lái xe": [
+        "tước đình chỉ giấy phép lái xe",
         "tước giấy phép lái xe",
         "đình chỉ giấy phép lái xe",
         "tước quyền sử dụng giấy phép lái xe",

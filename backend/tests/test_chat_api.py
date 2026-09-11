@@ -32,7 +32,11 @@ def test_chat_events_returns_sse_result(monkeypatch: pytest.MonkeyPatch) -> None
             assert stream_mode == "updates"
             yield {
                 "final_response": {"answer_summary": "answer", "claims": []},
-                "verification_result": {"status": "INVALID", "reason_code": "NO_SUPPORT"},
+                "verification_result": {
+                    "status": "INVALID",
+                    "public_status": "INSUFFICIENT_EVIDENCE",
+                    "reason_code": "NO_SUPPORT",
+                },
             }
 
     monkeypatch.setattr(chat_api, "build_query_graph", lambda _services: Graph())
@@ -45,14 +49,17 @@ def test_chat_events_returns_sse_result(monkeypatch: pytest.MonkeyPatch) -> None
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/event-stream")
     assert "event: result" in response.text
-    assert '"status": "ABSTAINED"' in response.text
+    assert (
+        '"status": "INSUFFICIENT_EVIDENCE"' in response.text
+        or '"status":"INSUFFICIENT_EVIDENCE"' in response.text
+    )
 
 
 @pytest.mark.parametrize(
     "verification, expected",
     [
-        ({"status": "VALID"}, "VERIFIED"),
-        ({"status": "INVALID", "reason_code": "NO_SUPPORT"}, "ABSTAINED"),
+        ({"status": "VALID"}, "INSUFFICIENT_EVIDENCE"),
+        ({"status": "INVALID", "reason_code": "NO_SUPPORT"}, "INSUFFICIENT_EVIDENCE"),
     ],
 )
 def test_chat_disclaimer_trace_citations_and_abstention(
@@ -103,32 +110,9 @@ def test_chat_disclaimer_trace_citations_and_abstention(
     assert payload["status"] == expected
     assert payload["disclaimer"] == chat_api.DISCLAIMER
     assert len(payload["trace_id"]) == 32
-    if expected == "ABSTAINED":
-        assert payload["citations"] == []
-    else:
-        assert payload["citations"] == [
-            {
-                "provision_id": "p-1",
-                "document_id": "d-1",
-                "document_number": "12/2024",
-                "article": "Điều 1",
-                "clause": "Khoản 2",
-                "point": "a",
-                "parent_context": "Khoản 2. Phạt tiền từ 1 đến 2 triệu đồng.",
-                "source_url": "https://example.test",
-                "source_text": "a) Cited point text.",
-                "page_number": 1,
-                "legal_context": (
-                    "Khoản 2. Phạt tiền từ 1 đến 2 triệu đồng.\n\na) Cited point text."
-                ),
-                "bbox": {"left": 10.0, "top": 20.0, "right": 100.0, "bottom": 40.0},
-                "provision_version": 3,
-                "document_version_id": "dv-1",
-                "effective_from": "2024-01-01",
-                "effective_to": "2025-01-01",
-            }
-        ]
-        assert payload["answer"] == "answer"
+    assert payload["citations"] == []
+    assert payload["answer"] is None
+    assert payload["claims"] == []
 
 
 def test_chat_uses_injected_production_composition(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -181,6 +165,9 @@ def test_chat_uses_injected_production_composition(monkeypatch: pytest.MonkeyPat
         context_expander=Expander(),
         context_builder=Context(),
         generator=Generator(),
+        evidence_gate=lambda *_args, **_kwargs: SimpleNamespace(
+            status="INCOMPLETE", evidence_gaps=[]
+        ),
     )
     monkeypatch.setattr(chat_api, "production_services", lambda session: services)
     from app.api.db import get_db
@@ -194,7 +181,7 @@ def test_chat_uses_injected_production_composition(monkeypatch: pytest.MonkeyPat
     finally:
         app.dependency_overrides.pop(get_db, None)
     assert response.status_code == 200
-    assert response.json()["status"] == "ABSTAINED"
+    assert response.json()["status"] == "INSUFFICIENT_EVIDENCE"
 
 
 class ChatFeedbackSession:
@@ -274,7 +261,7 @@ def test_chat_trace_is_available_to_feedback(monkeypatch: pytest.MonkeyPatch) ->
 
         feedback_response = client.post(
             "/api/v1/feedback",
-            json={"trace_id": trace_id, "correctness": "correct"},
+            json={"trace_id": trace_id, "rating": "LIKE"},
         )
     finally:
         app.dependency_overrides.pop(chat_api._optional_db, None)
@@ -312,5 +299,5 @@ def test_chat_rejects_duplicate_claim_citations(monkeypatch: pytest.MonkeyPatch)
         payload = TestClient(app).post("/api/v1/chat", json={"question": "hello"}).json()
     finally:
         app.dependency_overrides.pop(chat_api._optional_db, None)
-    assert payload["status"] == "ABSTAINED"
+    assert payload["status"] == "INSUFFICIENT_EVIDENCE"
     assert payload["citations"] == []

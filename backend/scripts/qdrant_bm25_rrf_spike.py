@@ -203,7 +203,7 @@ def build_spike_payload(
         "heading": provision.heading,
         "effective_from": provision.effective_from,
         "effective_to": provision.effective_to,
-        "review_status": provision.review_status,
+        "review_status": "PENDING",
         "status": provision.status,
         "parser_version": parser_version,
         "content_version": content_version,

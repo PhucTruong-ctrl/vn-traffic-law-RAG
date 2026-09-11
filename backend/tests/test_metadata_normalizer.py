@@ -366,7 +366,7 @@ def test_header_footer_leakage_detected_conservatively() -> None:
 
 
 def test_terminology_version_and_entries() -> None:
-    assert TERMINOLOGY_VERSION == "1.0.0"
+    assert TERMINOLOGY_VERSION == "1.1.0"
     assert "xe ô tô" in TERMINOLOGY
     assert "phạt tiền" in TERMINOLOGY
     assert "xử phạt vi phạm hành chính" in TERMINOLOGY
@@ -394,8 +394,8 @@ def test_canonical_term_maps_variants(term: str, expected: str) -> None:
 
 
 def test_canonical_term_versioning() -> None:
-    assert canonical_term("xe ôtô", version="1.0.0") == "xe ô tô"
-    with pytest.raises(ValueError, match="1.0.0"):
+    assert canonical_term("xe ôtô", version="1.1.0") == "xe ô tô"
+    with pytest.raises(ValueError, match="1.1.0"):
         canonical_term("xe ôtô", version="0.9.0")
 
 
@@ -518,7 +518,7 @@ def _extracted_provision(**overrides: object) -> ExtractedLegalProvision:
         "source_element_ids": ["e1"],
         "content_hash": hashlib.sha256(source_text.encode("utf-8")).hexdigest(),
         "version": 1,
-        "review_status": "PENDING",
+        "review_status": "REJECTED",
         "node_kind": "ARTICLE",
         "point_label": None,
         "short_point": False,
@@ -535,7 +535,7 @@ def _extracted_provision(**overrides: object) -> ExtractedLegalProvision:
 
 def test_leakage_provision_never_persisted_as_accepted() -> None:
     """Rulespec §9: header/footer chrome is not legal content — a leaked
-    provision is forced to PENDING review (never ACCEPTED) and the marker is
+    provision is forced to REJECTED (never ACCEPTED) and the marker is
     recorded on the extractor record so corpus QA can count it."""
     header = "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\nĐộc lập - Tự do - Hạnh phúc"
     leaked = _extracted_provision(
@@ -554,7 +554,7 @@ def test_leakage_provision_never_persisted_as_accepted() -> None:
 
     leaked_row = next(p for p in provisions if p.provision_id == "nd-168-2024__tieu-de-99")
     normal_row = next(p for p in provisions if p.provision_id == "nd-168-2024__dieu-99")
-    assert leaked_row.review_status == "PENDING"  # never auto-accepted
+    assert leaked_row.review_status == "REJECTED"  # never auto-accepted
     assert normal_row.review_status == "ACCEPTED"  # normal provision unaffected
     # marker recorded on the extractor record (existing needs_review convention)
     assert leaked.needs_review is True

@@ -128,12 +128,15 @@ def _primary_parse(
             text=True,
         )
         del rendered
-        pages = sorted(
-            (int(path.stem.split("-")[-1]), path) for path in checkpoint.glob("page-*.png")
-        )
+        pages: list[tuple[int, str | Path]] = [
+            (page, path)
+            for page, path in sorted(
+                (int(path.stem.split("-")[-1]), path) for path in checkpoint.glob("page-*.png")
+            )
+        ]
         if not pages:
-            raise ParseRejectedError("GPU OCR produced no rendered pages")
-        return HybridOCRAdapter(device="gpu:0").parse_document(
+            raise ParseRejectedError("OCR produced no rendered pages")
+        return HybridOCRAdapter().parse_document(
             pages,
             document_id=inputs.document_id,
             parsed_document_id=parsed_document_id,

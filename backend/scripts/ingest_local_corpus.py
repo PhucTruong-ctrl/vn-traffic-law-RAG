@@ -203,18 +203,23 @@ def _parse(path: Path, *, ocr_adapter: list[Any] | None = None) -> ParsedDocumen
         return _parse_scanned_in_worker(path, checkpoint)
 
 
-def _run_ocr_worker(path: Path, output: Path, checkpoint: Path) -> None:
+def _ocr_runtime() -> tuple[Any, Any]:
     import paddle
 
     from app.ingestion.adapters.hybrid_ocr_adapter import HybridOCRAdapter
 
+    return paddle, HybridOCRAdapter
+
+
+def _run_ocr_worker(path: Path, output: Path, checkpoint: Path) -> None:
+    paddle, adapter_class = _ocr_runtime()
     if not paddle.is_compiled_with_cuda() or paddle.device.cuda.device_count() < 1:
         raise RuntimeError("GPU OCR required: Paddle CUDA device unavailable")
     paddle.device.set_device("gpu:0")
     key = _source_object_key(path)
     checkpoint.mkdir(parents=True, exist_ok=True)
     images = _render_scanned_pdf(path, checkpoint)
-    adapter = HybridOCRAdapter(
+    adapter = adapter_class(
         device="gpu:0", recognition_mode=os.environ.get("OCR_RECOGNITION_MODE", "paddle")
     )
     parsed = adapter.parse_document(

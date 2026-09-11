@@ -110,6 +110,7 @@ def build_point(
     sparse_encoder: SparseEncoder | None = None,
     dense_vector: list[float] | None = None,
     sparse_weights: dict[int, float] | None = None,
+    sparse_vocabulary_hash: str | None = None,
     **payload_kwargs: Any,
 ) -> models.PointStruct:
     """Build one Qdrant point (payload + named vectors) for a retrieval unit.
@@ -158,10 +159,13 @@ def build_point(
         sparse_weights = sparse_encoder.encode(unit.retrieval_text)
 
     payload = payload_for_unit(unit, **payload_kwargs)
-    if sparse_encoder is not None:
-        payload = with_encoder_version(payload, sparse_encoder)
-
     vector: dict[str, Any] = {}
+    if sparse_encoder is not None:
+        payload = with_encoder_version(
+            payload,
+            sparse_encoder,
+            vocabulary_hash=sparse_vocabulary_hash,
+        )
     if dense_vector is not None:
         vector[DENSE_VECTOR_NAME] = dense_vector
     if sparse_weights:
@@ -212,6 +216,7 @@ def index_provision_units(
     effective_to: str | None = None,
     review_status: str = ACCEPTED_REVIEW_STATUS,
     unit_payloads: Mapping[str, Mapping[str, Any]] | None = None,
+    sparse_vocabulary_hash: str | None = None,
     **payload_kwargs: Any,
 ) -> IndexResult:
     """Upsert retrieval units into the provision collection (idempotent).
@@ -276,6 +281,8 @@ def index_provision_units(
             if unit_payloads is not None:
                 merged.update(unit_payloads.get(unit.unit_id, {}))
             try:
+                point_kwargs = dict(merged)
+                point_kwargs["sparse_vocabulary_hash"] = sparse_vocabulary_hash
                 points.append(
                     build_point(
                         unit,
@@ -284,7 +291,7 @@ def index_provision_units(
                         sparse_encoder=sparse_encoder,
                         dense_vector=dense_vectors[index] if dense_vectors is not None else None,
                         sparse_weights=sparse_batch[index] if sparse_batch is not None else None,
-                        **merged,
+                        **point_kwargs,
                     )
                 )
             except Exception as exc:

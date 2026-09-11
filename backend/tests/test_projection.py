@@ -228,7 +228,7 @@ def test_project_document_accepts_ir_without_extracted_number() -> None:
 def _projected_provisions(
     *,
     status: str = "UNKNOWN",
-    review_status: str = "PENDING",
+    review_status: str = "REJECTED",
 ) -> tuple[list[LegalProvision], list[ExtractedLegalProvision]]:
     extracted = _extracted(_nd_ir())
     version_id = uuid4()
@@ -359,9 +359,9 @@ def test_diem_d_and_diem_dd_ids_are_distinct() -> None:
 
 def test_status_and_review_status_are_independent() -> None:
     """status (legal lifecycle) never constrains review_status (corpus gate)."""
-    provisions, _ = _projected_provisions(status="EXPIRED", review_status="PENDING")
+    provisions, _ = _projected_provisions(status="EXPIRED", review_status="REJECTED")
     assert all(provision.status == "EXPIRED" for provision in provisions)
-    assert all(provision.review_status == "PENDING" for provision in provisions)
+    assert all(provision.review_status == "REJECTED" for provision in provisions)
     assert validate_provisions(provisions) == []
 
     provisions_accepted, _ = _projected_provisions(status="EFFECTIVE", review_status="ACCEPTED")
@@ -411,7 +411,7 @@ def _valid_provision(**overrides: object) -> LegalProvision:
         source_element_ids=["e1"],
         content_hash=hashlib.sha256(source_text.encode("utf-8")).hexdigest(),
         version=1,
-        review_status="PENDING",
+        review_status="REJECTED",
     )
     for name, value in overrides.items():
         setattr(provision, name, value)
@@ -490,7 +490,7 @@ def test_validation_allows_articleless_non_article_kinds() -> None:
 
 
 def test_validation_accepts_null_effective_dates_when_pending() -> None:
-    provision = _valid_provision(review_status="PENDING")
+    provision = _valid_provision(review_status="REJECTED")
     assert provision.effective_from is None and provision.effective_to is None
     assert validate_provisions([provision]) == []
 

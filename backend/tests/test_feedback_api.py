@@ -66,23 +66,22 @@ def _assert_error(response: object, status_code: int, code: str) -> None:
     assert isinstance(payload["error"]["trace_id"], str)
 
 
-def test_feedback_persists_and_returns_201(feedback_client: object) -> None:
+def test_feedback_persists_like_and_returns_201(feedback_client: object) -> None:
     client, session, trace = feedback_client
-
     response = client.post(
         "/api/v1/feedback",
-        json={"trace_id": trace.trace_id, "correctness": "correct", "comment": "Helpful"},
+        json={"trace_id": trace.trace_id, "rating": "LIKE", "message_id": "msg-1"},
     )
-
     assert response.status_code == 201
     payload = response.json()
     assert uuid.UUID(payload["feedback_id"])
     assert payload["trace_id"] == trace.trace_id
+    assert payload["message_id"] == "msg-1"
     assert uuid.UUID(payload["trace_id_request"])
     assert session.committed
     assert len(session.added) == 1
-    assert session.added[0].useful is True
-    assert session.added[0].comment == "Helpful"
+    assert session.added[0].rating == "LIKE"
+    assert session.added[0].message_id == "msg-1"
 
 
 def test_feedback_unknown_trace_returns_standard_404(feedback_client: object) -> None:
@@ -91,7 +90,7 @@ def test_feedback_unknown_trace_returns_standard_404(feedback_client: object) ->
 
     response = client.post(
         "/api/v1/feedback",
-        json={"trace_id": "missing-trace", "correctness": "incorrect"},
+        json={"trace_id": "missing-trace", "rating": "DISLIKE"},
     )
 
     _assert_error(response, 404, "NOT_FOUND")
@@ -99,33 +98,21 @@ def test_feedback_unknown_trace_returns_standard_404(feedback_client: object) ->
     assert not session.committed
 
 
-def test_feedback_rejects_sensitive_comment(feedback_client: object) -> None:
+def test_feedback_rejects_invalid_rating(feedback_client: object) -> None:
     client, session, trace = feedback_client
-
     response = client.post(
         "/api/v1/feedback",
-        json={
-            "trace_id": trace.trace_id,
-            "correctness": "incorrect",
-            "comment": "The API key was exposed",
-        },
+        json={"trace_id": trace.trace_id, "rating": "MAYBE"},
     )
-
     _assert_error(response, 422, "VALIDATION_ERROR")
     assert session.added == []
 
 
 def test_feedback_rejects_extra_fields(feedback_client: object) -> None:
     client, session, trace = feedback_client
-
     response = client.post(
         "/api/v1/feedback",
-        json={
-            "trace_id": trace.trace_id,
-            "correctness": "correct",
-            "answer": "unexpected payload",
-        },
+        json={"trace_id": trace.trace_id, "rating": "LIKE", "answer": "unexpected payload"},
     )
-
     _assert_error(response, 422, "VALIDATION_ERROR")
     assert session.added == []

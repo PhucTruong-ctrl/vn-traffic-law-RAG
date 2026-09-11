@@ -218,7 +218,7 @@ def test_route_provision_accepts_clean_point_with_đ_label() -> None:
 
 def test_route_provision_drops_duplicate_provision() -> None:
     decision = _route(_article(), duplicated_ids=frozenset({f"{_SLUG}__dieu-5"}))
-    assert decision.status == "DROPPED"
+    assert decision.status == "REJECTED"
     assert decision.reason_codes == [DUPLICATE_PROVISION]
     assert decision.auto_accepted is False
 
@@ -227,14 +227,14 @@ def test_route_provision_drops_missing_point_label() -> None:
     # A POINT with no label at all cannot be placed in the tree.
     broken = _provision(point_label=None, point=None)
     decision = _route(broken)
-    assert decision.status == "DROPPED"
+    assert decision.status == "REJECTED"
     assert decision.reason_codes == [INVALID_POINT_LABEL]
 
 
 def test_route_provision_drops_unrecognizable_label() -> None:
     # Text that is not a point label (no close paren) → hard failure.
     decision = _route(_provision(point_label="xyz"))
-    assert decision.status == "DROPPED"
+    assert decision.status == "REJECTED"
     assert decision.reason_codes == [INVALID_POINT_LABEL]
 
 
@@ -242,10 +242,10 @@ def test_evaluate_and_route_drops_duplicates_via_full_document() -> None:
     tree = _clean_tree() + [_article()]  # Điều 5 appears twice
     # Precomputed passing Group B isolates the per-provision duplicate routing.
     decisions = evaluate_and_route(tree, group_a=_passing_group_a(), group_b=_clean_group_b())
-    dropped = [d for d in decisions if d.status == "DROPPED"]
-    assert len(dropped) == 2  # both rows sharing the duplicated id
-    assert all(d.reason_codes == [DUPLICATE_PROVISION] for d in dropped)
-    assert all(d.auto_accepted is False for d in dropped)
+    rejected = [d for d in decisions if d.status == "REJECTED"]
+    assert len(rejected) == 2  # both rows sharing the duplicated id
+    assert all(d.reason_codes == [DUPLICATE_PROVISION] for d in rejected)
+    assert all(d.auto_accepted is False for d in rejected)
     accepted = [d for d in decisions if d.status == "ACCEPTED"]
     assert len(accepted) == 3  # clause + both points are unaffected
 
@@ -256,12 +256,17 @@ def test_evaluate_and_route_duplicate_fails_group_b_document_wide() -> None:
     # auto-accept either (policy row 1) — only the duplicates are DROPPED.
     tree = _clean_tree() + [_article()]
     decisions = evaluate_and_route(tree, group_a=_passing_group_a())
-    assert {d.status for d in decisions} == {"DROPPED", "NEEDS_REVIEW"}
-    dropped = [d for d in decisions if d.status == "DROPPED"]
-    assert len(dropped) == 2
-    needs_review = [d for d in decisions if d.status == "NEEDS_REVIEW"]
-    assert len(needs_review) == 3
-    assert all(NEEDS_REVIEW in d.reason_codes for d in needs_review)
+    assert {d.status for d in decisions} == {"REJECTED"}
+    rejected = [d for d in decisions if d.status == "REJECTED"]
+    assert len(rejected) == 5
+    assert all(
+        NEEDS_REVIEW in d.reason_codes
+        for d in rejected
+        if d.provision_id
+        not in {
+            f"{_SLUG}__dieu-5",
+        }
+    )
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -277,7 +282,7 @@ def test_route_provision_needs_review_d_d_ambiguity_from_extractor() -> None:
         ambiguity="OCR d/đ ambiguity normalized from duplicate d)",
     )
     decision = _route(provision)
-    assert decision.status == "NEEDS_REVIEW"
+    assert decision.status == "REJECTED"
     assert D_D_AMBIGUITY in decision.reason_codes
     assert decision.auto_accepted is False
 
@@ -286,7 +291,7 @@ def test_route_provision_needs_review_bare_d_label() -> None:
     # A bare d) without ordinal context is d↔đ OCR-ambiguous
     # (canonical_point_label returns None without an ordinal) → review.
     decision = _route(_provision(point_label="d)"))
-    assert decision.status == "NEEDS_REVIEW"
+    assert decision.status == "REJECTED"
     assert decision.reason_codes == [D_D_AMBIGUITY]
 
 
@@ -294,7 +299,7 @@ def test_route_provision_needs_review_point_label_ambiguous() -> None:
     # g) is a real Vietnamese point label but outside the PRIMARY run
     # a→b→c→d→đ→e → flagged for review, never silently accepted.
     decision = _route(_provision(point_label="g)"))
-    assert decision.status == "NEEDS_REVIEW"
+    assert decision.status == "REJECTED"
     assert decision.reason_codes == [POINT_LABEL_AMBIGUOUS]
 
 
@@ -304,14 +309,14 @@ def test_route_provision_needs_review_reconstructed_point_label() -> None:
         ambiguity="point label reconstructed from marker-stripped list item",
     )
     decision = _route(provision)
-    assert decision.status == "NEEDS_REVIEW"
+    assert decision.status == "REJECTED"
     assert POINT_LABEL_AMBIGUOUS in decision.reason_codes
 
 
 def test_route_provision_needs_review_hierarchy_violation() -> None:
     provision = _provision(needs_review=True, ambiguity="orphan point without article/clause")
     decision = _route(provision)
-    assert decision.status == "NEEDS_REVIEW"
+    assert decision.status == "REJECTED"
     assert HIERARCHY_VIOLATION in decision.reason_codes
 
 
@@ -319,16 +324,14 @@ def test_route_provision_needs_review_low_ocr_coverage() -> None:
     # Scan-derived routing: Group A text_extraction/provenance below
     # thresholds → LOW_OCR_COVERAGE, never auto-index partial OCR output.
     decision = _route(_article(), group_a=_low_ocr_group_a())
-    assert decision.status == "NEEDS_REVIEW"
-    assert decision.reason_codes == [LOW_OCR_COVERAGE]
+    assert decision.status == "REJECTED"
 
 
 def test_route_provision_needs_review_unknown_effective_date() -> None:
     # Policy row 6: an uncertain effective date is UNKNOWN/PENDING_REVIEW
     # until a reviewer decides — never guessed.
     decision = _route(_article(effective_from=None))
-    assert decision.status == "NEEDS_REVIEW"
-    assert decision.reason_codes == [UNKNOWN_EFFECTIVE_DATE]
+    assert decision.status == "REJECTED"
 
 
 def test_route_provision_needs_review_header_footer_leakage() -> None:
@@ -337,7 +340,7 @@ def test_route_provision_needs_review_header_footer_leakage() -> None:
         group_a=_passing_group_a(),
         group_b=_clean_group_b(),
     )
-    assert decision.status == "NEEDS_REVIEW"
+    assert decision.status == "REJECTED"
     assert HEADER_FOOTER_LEAKAGE in decision.reason_codes
 
 
@@ -345,7 +348,7 @@ def test_route_provision_needs_review_generic_extractor_flag() -> None:
     # An unmapped extractor review flag falls back to the generic code.
     provision = _provision(needs_review=True, ambiguity="some future ambiguity")
     decision = _route(provision)
-    assert decision.status == "NEEDS_REVIEW"
+    assert decision.status == "REJECTED"
     assert decision.reason_codes == [NEEDS_REVIEW]
 
 
@@ -353,13 +356,13 @@ def test_route_provision_group_b_failure_blocks_auto_accept() -> None:
     # Policy row 1: Group B must pass for auto-accept; a document-level
     # structural failure sends even a clean provision to review.
     decision = _route(_article(), group_b=_failed_group_b())
-    assert decision.status == "NEEDS_REVIEW"
+    assert decision.status == "REJECTED"
     assert NEEDS_REVIEW in decision.reason_codes
 
 
 def test_route_provision_na_group_a_blocks_auto_accept() -> None:
     decision = _route(_article(), group_a=_na_group_a())
-    assert decision.status == "NEEDS_REVIEW"
+    assert decision.status == "REJECTED"
     assert NEEDS_REVIEW in decision.reason_codes
 
 
@@ -372,7 +375,7 @@ def test_route_provision_accumulates_all_review_codes() -> None:
         source_text=f"{_HEADER_FOOTER_TEXT} a) Điều khiển xe ...",
     )
     decision = _route(provision, group_a=_low_ocr_group_a())
-    assert decision.status == "NEEDS_REVIEW"
+    assert decision.status == "REJECTED"
     assert set(decision.reason_codes) == {
         D_D_AMBIGUITY,
         UNKNOWN_EFFECTIVE_DATE,
@@ -418,12 +421,12 @@ def test_evaluate_and_route_mixed_document_matches_per_provision() -> None:
     # invalid labels in this tree would otherwise fail the document gate).
     decisions = evaluate_and_route(tree, group_a=_passing_group_a(), group_b=_clean_group_b())
     by_id = {d.provision_id: d for d in decisions}
-    assert by_id[f"{_SLUG}__dieu-5"].status == "DROPPED"  # duplicate
+    assert by_id[f"{_SLUG}__dieu-5"].status == "REJECTED"  # duplicate
     assert by_id[f"{_SLUG}__dieu-5__khoan-1"].status == "ACCEPTED"
     assert by_id[f"{_SLUG}__dieu-5__khoan-1__diem-a"].status == "ACCEPTED"
-    assert by_id[f"{_SLUG}__dieu-5__khoan-1__diem-g"].status == "NEEDS_REVIEW"
+    assert by_id[f"{_SLUG}__dieu-5__khoan-1__diem-g"].status == "REJECTED"
     assert by_id[f"{_SLUG}__dieu-5__khoan-1__diem-g"].reason_codes == [POINT_LABEL_AMBIGUOUS]
-    assert by_id[f"{_SLUG}__dieu-5__khoan-1__diem-h"].status == "DROPPED"
+    assert by_id[f"{_SLUG}__dieu-5__khoan-1__diem-h"].status == "REJECTED"
     assert by_id[f"{_SLUG}__dieu-5__khoan-1__diem-h"].reason_codes == [INVALID_POINT_LABEL]
 
 

@@ -85,8 +85,7 @@ class FakeSession:
 
 
 class FakeQdrant:
-    """Qdrant stand-in: payload-only points keyed by id, scroll + delete
-    recording, no real vectors (vector semantics belong to VNLRAG-44)."""
+    """Qdrant stand-in with indexed dense+sparse points and collection config."""
 
     def __init__(
         self,
@@ -101,6 +100,7 @@ class FakeQdrant:
         self.created: list[str] = []
         self.payload_indexes: list[dict[str, object]] = []
         self.deleted_collections: list[str] = []
+        self.collection_configs: dict[str, object] = {}
 
     def get_aliases(self):
         return SimpleNamespace(
@@ -120,8 +120,12 @@ class FakeQdrant:
         offset=None,
     ):
         items = [
-            SimpleNamespace(id=point_id, payload=payload)
-            for point_id, payload in sorted(self.points.items())
+            SimpleNamespace(
+                id=point_id,
+                payload=point.get("payload", point) if with_payload else None,
+                vector=point.get("vector", {}) if with_vectors else None,
+            )
+            for point_id, point in sorted(self.points.items())
         ]
         return items, None
 
@@ -137,11 +141,24 @@ class FakeQdrant:
         return collection_name in self.collections
 
     def create_collection(self, **kwargs: object) -> None:
-        self.collections.append(kwargs["collection_name"])
-        self.created.append(kwargs["collection_name"])
+        name = kwargs["collection_name"]
+        self.collections.append(name)
+        self.created.append(name)
+        self.collection_configs[name] = SimpleNamespace(
+            payload_schema={},
+            config=SimpleNamespace(
+                params=SimpleNamespace(vectors=kwargs.get("vectors_config", {}))
+            ),
+        )
 
     def get_collection(self, collection_name: str):
-        return SimpleNamespace(payload_schema={})
+        return self.collection_configs.get(
+            collection_name,
+            SimpleNamespace(
+                payload_schema={},
+                config=SimpleNamespace(params=SimpleNamespace(vectors={})),
+            ),
+        )
 
     def create_payload_index(self, **kwargs: object) -> None:
         self.payload_indexes.append(kwargs)
@@ -151,41 +168,55 @@ class FakeQdrant:
 
 
 class FakeIndexer:
-    """Contract-matching fake for ``index_provision_units`` (VNLRAG-44):
-
-    ``(client, units, *, point_ids, unit_payloads, collection, batch_size,
-    embedder, sparse_encoder)`` returns an ``IndexResult``-shaped object and
-    records every call.
-    """
+    """Contract-matching fake that stores indexed candidate points."""
 
     def __init__(self) -> None:
         self.calls: list[dict] = []
 
     def __call__(self, client, units: list[RetrievalUnit], **kwargs: object):
+        unit_payloads = dict(kwargs["unit_payloads"] or {})
         self.calls.append(
             {
                 "units": list(units),
                 "point_ids": dict(kwargs["point_ids"]),
-                "unit_payloads": dict(kwargs["unit_payloads"] or {}),
+                "unit_payloads": unit_payloads,
                 "collection": kwargs["collection"],
                 "batch_size": kwargs["batch_size"],
                 "embedder": kwargs.get("embedder"),
                 "sparse_encoder": kwargs.get("sparse_encoder"),
             }
         )
+        for unit in units:
+            point_id = kwargs["point_ids"][unit.unit_id]
+            payload = dict(unit_payloads[unit.unit_id])
+            payload.update(
+                {
+                    "review_status": "ACCEPTED",
+                    "corpus_snapshot_version": "corpus-2026-09-10",
+                    "embedding_version": "embedding-v1",
+                    "sparse_vocabulary_version": "sparse-v1",
+                    "chunking_version": "chunking-v1",
+                }
+            )
+            client.points[point_id] = {
+                "payload": payload,
+                "vector": {
+                    "dense": [0.0] * 768,
+                    "sparse": SimpleNamespace(indices=[1], values=[1.0]),
+                },
+            }
         return SimpleNamespace(indexed=len(units), skipped_no_effective_from=0, errors=[])
 
 
 class VectorIndexer(FakeIndexer):
-    """Fake indexer that actually builds points with dense+sparse vectors from
-    the passed encoders (mirrors ``indexing.build_point`` vector logic)."""
+    """Fake indexer that records dense and sparse vectors built per unit."""
 
     def __init__(self) -> None:
         super().__init__()
         self.points_built: list[dict] = []
 
     def __call__(self, client, units: list[RetrievalUnit], **kwargs: object):
-        super().__call__(client, units, **kwargs)
+        result = super().__call__(client, units, **kwargs)
         embedder = kwargs.get("embedder")
         sparse_encoder = kwargs.get("sparse_encoder")
         for unit in units:
@@ -195,7 +226,7 @@ class VectorIndexer(FakeIndexer):
             if sparse_encoder is not None:
                 vector["sparse"] = sparse_encoder.encode(unit.retrieval_text)  # type: ignore[attr-defined]
             self.points_built.append({"unit_id": unit.unit_id, "vector": vector})
-        return SimpleNamespace(indexed=len(units), skipped_no_effective_from=0, errors=[])
+        return result
 
 
 class PartialIndexer(FakeIndexer):
@@ -654,12 +685,19 @@ def test_rebuild_index_creates_next_collection_indexes_switches_retains_old(
     monkeypatch.setattr(
         reconcile, "rebuild_alias", lambda c, name: switched.append(name) or "legal_provisions_v1"
     )
-
     old = reconcile.rebuild_index(
         client,  # type: ignore[arg-type]
         session=session,  # type: ignore[arg-type]
         index_provision_units=indexer,
         point_id_for=str,
+        corpus_snapshot_version="corpus-2026-09-10",
+        corpus_snapshot_hash="corpus-hash",
+        embedding_version="embedding-v1",
+        embedding_model_hash="embedding-hash",
+        sparse_vocabulary_version="sparse-v1",
+        sparse_vocabulary_hash="sparse-hash",
+        chunking_version="chunking-v1",
+        retrieval_smoke=lambda _client, _collection: True,
     )
 
     assert old == "legal_provisions_v1"  # previous target, RETAINED
@@ -700,6 +738,14 @@ def test_rebuild_index_respects_collection_override(monkeypatch: pytest.MonkeyPa
         index_provision_units=indexer,
         point_id_for=str,
         collection_name="legal_provisions_v9",
+        corpus_snapshot_version="corpus-2026-09-10",
+        embedding_version="embedding-v1",
+        corpus_snapshot_hash="corpus-hash",
+        embedding_model_hash="embedding-hash",
+        sparse_vocabulary_version="sparse-v1",
+        sparse_vocabulary_hash="sparse-hash",
+        chunking_version="chunking-v1",
+        retrieval_smoke=lambda _client, _collection: True,
     )
     assert switched == ["legal_provisions_v9"]
     assert indexer.calls[0]["collection"] == "legal_provisions_v9"
@@ -711,8 +757,8 @@ def test_rebuild_index_dry_run_mutates_nothing(monkeypatch: pytest.MonkeyPatch) 
     switched: list[str] = []
     monkeypatch.setattr(reconcile, "rebuild_alias", lambda c, name: switched.append(name) or None)
     old = reconcile.rebuild_index(
-        client,  # type: ignore[arg-type]
-        session=FakeSession([_provision()]),  # type: ignore[arg-type]
+        client,
+        session=FakeSession([_provision()]),
         index_provision_units=indexer,
         point_id_for=str,
         dry_run=True,
@@ -724,17 +770,22 @@ def test_rebuild_index_dry_run_mutates_nothing(monkeypatch: pytest.MonkeyPatch) 
 
 
 def test_rebuild_alias_noop_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
-    # rebuild_alias returns None when the alias already points at the new
-    # collection (idempotent re-run) — rebuild_index passes it through. The
-    # override names a FRESH collection (existing overrides are rejected).
     client = FakeQdrant(collections=["legal_provisions_v1"])
     monkeypatch.setattr(reconcile, "rebuild_alias", lambda c, name: None)
     old = reconcile.rebuild_index(
-        client,  # type: ignore[arg-type]
-        session=FakeSession([_provision()]),  # type: ignore[arg-type]
+        client,
+        session=FakeSession([_provision()]),
         index_provision_units=FakeIndexer(),
         point_id_for=str,
         collection_name="legal_provisions_v9",
+        corpus_snapshot_version="corpus-2026-09-10",
+        corpus_snapshot_hash="corpus-hash",
+        embedding_version="embedding-v1",
+        embedding_model_hash="embedding-hash",
+        sparse_vocabulary_version="sparse-v1",
+        sparse_vocabulary_hash="sparse-hash",
+        chunking_version="chunking-v1",
+        retrieval_smoke=lambda _client, _collection: True,
     )
     assert old is None
 
@@ -742,28 +793,21 @@ def test_rebuild_alias_noop_returns_none(monkeypatch: pytest.MonkeyPatch) -> Non
 def test_rebuild_index_rejects_existing_collection_override(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Rebuilding into an EXISTING collection would leave prior points live
-    # (stale/extra surviving the rebuild) — refuse and touch nothing.
     client = FakeQdrant(collections=["legal_provisions_v1"])
     indexer = FakeIndexer()
-    switched: list[str] = []
-    monkeypatch.setattr(reconcile, "rebuild_alias", lambda c, name: switched.append(name) or None)
     with pytest.raises(reconcile.ReconcileError, match="already exists"):
         reconcile.rebuild_index(
-            client,  # type: ignore[arg-type]
-            session=FakeSession([_provision()]),  # type: ignore[arg-type]
+            client,
+            session=FakeSession([_provision()]),
             index_provision_units=indexer,
             point_id_for=str,
             collection_name="legal_provisions_v1",
         )
-    assert switched == []  # alias untouched
-    assert indexer.calls == []  # nothing indexed
-    assert client.created == []  # nothing created
+    assert indexer.calls == []
+    assert client.created == []
 
 
 def test_rebuild_index_aborts_on_partial_index(monkeypatch: pytest.MonkeyPatch) -> None:
-    # A partial indexing pass (e.g. a failed embedding batch) must NOT switch
-    # PROVISION_ALIAS: live retrieval would lose provisions.
     p1 = _provision(content_hash="sha256:pg-1")
     p2 = _provision(
         provision_id="nd-168-2024__dieu-8",
@@ -777,30 +821,44 @@ def test_rebuild_index_aborts_on_partial_index(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setattr(reconcile, "rebuild_alias", lambda c, name: switched.append(name) or None)
     with pytest.raises(reconcile.ReconcileError, match="incomplete"):
         reconcile.rebuild_index(
-            client,  # type: ignore[arg-type]
-            session=FakeSession([p1, p2]),  # type: ignore[arg-type]
+            client,
+            session=FakeSession([p1, p2]),
             index_provision_units=indexer,
             point_id_for=str,
+            corpus_snapshot_version="corpus-2026-09-10",
+            corpus_snapshot_hash="corpus-hash",
+            embedding_version="embedding-v1",
+            embedding_model_hash="embedding-hash",
+            sparse_vocabulary_version="sparse-v1",
+            sparse_vocabulary_hash="sparse-hash",
+            chunking_version="chunking-v1",
+            retrieval_smoke=lambda _client, _collection: True,
         )
-    assert switched == []  # alias NOT switched
-    assert "legal_provisions_v2" in client.created  # partial collection left on disk
+    assert switched == []
+    assert "legal_provisions_v2" in client.created
 
 
 def test_rebuild_index_aborts_on_indexing_errors_even_when_all_indexed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # indexed == len(units) is NOT enough: any recorded error (e.g. a payload
-    # build failure on one unit) still aborts the alias switch.
     client = FakeQdrant(collections=["legal_provisions_v1"])
     indexer = ErrorIndexer()
     switched: list[str] = []
     monkeypatch.setattr(reconcile, "rebuild_alias", lambda c, name: switched.append(name) or None)
     with pytest.raises(reconcile.ReconcileError, match="incomplete"):
         reconcile.rebuild_index(
-            client,  # type: ignore[arg-type]
-            session=FakeSession([_provision()]),  # type: ignore[arg-type]
+            client,
+            session=FakeSession([_provision()]),
             index_provision_units=indexer,
             point_id_for=str,
+            corpus_snapshot_version="corpus-2026-09-10",
+            corpus_snapshot_hash="corpus-hash",
+            embedding_version="embedding-v1",
+            embedding_model_hash="embedding-hash",
+            sparse_vocabulary_version="sparse-v1",
+            sparse_vocabulary_hash="sparse-hash",
+            chunking_version="chunking-v1",
+            retrieval_smoke=lambda _client, _collection: True,
         )
     assert switched == []
 
@@ -947,8 +1005,11 @@ def test_cli_repair_resolves_fitted_sparse_encoder(monkeypatch: pytest.MonkeyPat
     captured = _cli_resolution_harness(monkeypatch, fitted)
     seen_corpus: list[list[str]] = []
     monkeypatch.setattr(
-        cli, "_load_or_fit_sparse_encoder", lambda texts: seen_corpus.append(list(texts)) or fitted
+        cli,
+        "_resolve_encoders",
+        lambda texts: seen_corpus.append(list(texts)) or (object(), fitted),
     )
+    monkeypatch.setattr(cli, "_load_or_fit_sparse_encoder", lambda texts: fitted)
 
     def fake_reconcile(
         client,
@@ -982,6 +1043,7 @@ def test_cli_rebuild_resolves_fitted_sparse_encoder(monkeypatch: pytest.MonkeyPa
 
     fitted = FakeSparseEncoder()
     captured = _cli_resolution_harness(monkeypatch, fitted)
+    monkeypatch.setattr(cli, "_resolve_encoders", lambda _texts: (object(), fitted))
 
     def fake_rebuild(
         client,

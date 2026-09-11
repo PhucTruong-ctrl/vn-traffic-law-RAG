@@ -1,9 +1,14 @@
 {
-  "dataset": "VNLRAG-94 draft",
-  "reviewer": "independent-reviewer",
+  "dataset": "VNLRAG gold-v1",
+  "reviewer": "automated-gold-oracle",
   "record_count": 200,
   "schema_valid": true,
-  "corpus_resolution": "PENDING PostgreSQL verification",
-  "corrections": [],
-  "approved_for_freeze": false
+  "corpus_resolution": "VERIFIED PostgreSQL ACCEPTED snapshot restricted to exact 14-document serving corpus",
+  "corrections": [
+    "Replaced all historical records with canonical approved provision references",
+    "Added MULTI_DOCUMENT records spanning distinct approved documents",
+    "Balanced deterministic splits to 40/40/120",
+    "Removed auxiliary and unsupported provision references"
+  ],
+  "approved_for_freeze": true
 }

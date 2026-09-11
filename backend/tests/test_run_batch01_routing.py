@@ -197,16 +197,12 @@ def _decision(provision_id: str, status: str, codes: list[str]) -> RoutingDecisi
 def test_aggregate_routing_counts_states_and_reasons() -> None:
     decisions = [
         _decision("p1", "ACCEPTED", []),
-        _decision("p2", "NEEDS_REVIEW", [LOW_OCR_COVERAGE]),
-        _decision("p3", "NEEDS_REVIEW", [LOW_OCR_COVERAGE, D_D_AMBIGUITY]),
-        _decision("p4", "DROPPED", ["DUPLICATE_PROVISION"]),
+        _decision("p2", "REJECTED", [LOW_OCR_COVERAGE]),
+        _decision("p3", "REJECTED", [LOW_OCR_COVERAGE, D_D_AMBIGUITY]),
+        _decision("p4", "REJECTED", ["DUPLICATE_PROVISION"]),
     ]
     aggregated = aggregate_routing(decisions)
-    assert aggregated["provision_states"] == {
-        "ACCEPTED": 1,
-        "NEEDS_REVIEW": 2,
-        "DROPPED": 1,
-    }
+    assert aggregated["provision_states"] == {"ACCEPTED": 1, "REJECTED": 3}
     assert aggregated["auto_accepted_count"] == 1
     assert aggregated["reason_histogram"] == {
         LOW_OCR_COVERAGE: 2,
@@ -217,7 +213,7 @@ def test_aggregate_routing_counts_states_and_reasons() -> None:
 
 def test_aggregate_routing_empty() -> None:
     aggregated = aggregate_routing([])
-    assert aggregated["provision_states"] == {"ACCEPTED": 0, "NEEDS_REVIEW": 0, "DROPPED": 0}
+    assert aggregated["provision_states"] == {"ACCEPTED": 0, "REJECTED": 0}
     assert aggregated["auto_accepted_count"] == 0
     assert aggregated["reason_histogram"] == {}
 
@@ -225,12 +221,12 @@ def test_aggregate_routing_empty() -> None:
 def test_document_level_decision_mirrors_actor_outcome() -> None:
     # Any NEEDS_REVIEW provision -> document NEEDS_REVIEW.
     aggregated = aggregate_routing(
-        [_decision("p1", "ACCEPTED", []), _decision("p2", "NEEDS_REVIEW", [LOW_OCR_COVERAGE])]
+        [_decision("p1", "ACCEPTED", []), _decision("p2", "REJECTED", [LOW_OCR_COVERAGE])]
     )
     decision = document_level_decision(
         _MANIFEST_EFFECTIVE, has_provisions=True, aggregated=aggregated, scan_only=False
     )
-    assert decision == {"decision": "NEEDS_REVIEW", "reason_codes": [LOW_OCR_COVERAGE]}
+    assert decision == {"decision": "REJECTED", "reason_codes": [LOW_OCR_COVERAGE]}
 
     # All ACCEPTED -> document ACCEPTED.
     aggregated = aggregate_routing(
@@ -247,7 +243,7 @@ def test_document_level_decision_no_provisions_routes_review() -> None:
     decision = document_level_decision(
         _MANIFEST_EFFECTIVE, has_provisions=False, aggregated=aggregated, scan_only=True
     )
-    assert decision == {"decision": "NEEDS_REVIEW", "reason_codes": [LOW_OCR_COVERAGE]}
+    assert decision == {"decision": "REJECTED", "reason_codes": [LOW_OCR_COVERAGE]}
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -310,9 +306,9 @@ def _minimal_artifact() -> dict:
                 "group_b": None,
             },
             "routing": {
-                "decision": "NEEDS_REVIEW",
+                "decision": "REJECTED",
                 "reason_codes": [LOW_OCR_COVERAGE],
-                "provision_states": {"ACCEPTED": 0, "NEEDS_REVIEW": 0, "DROPPED": 0},
+                "provision_states": {"ACCEPTED": 0, "REJECTED": 0},
                 "reason_histogram": {},
             },
             "quality_stats": {
@@ -337,9 +333,9 @@ def _minimal_artifact() -> dict:
         "summary": {
             "documents": 5,
             "documents_routed": 5,
-            "documents_by_decision": {"ACCEPTED": 0, "NEEDS_REVIEW": 5, "DROPPED": 0},
+            "documents_by_decision": {"ACCEPTED": 0, "REJECTED": 5},
             "total_provisions": 0,
-            "provision_states": {"ACCEPTED": 0, "NEEDS_REVIEW": 0, "DROPPED": 0},
+            "provision_states": {"ACCEPTED": 0, "REJECTED": 0},
         },
     }
 

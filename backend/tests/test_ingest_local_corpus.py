@@ -17,10 +17,11 @@ from scripts import ingest_local_corpus as cli
 
 def _parsed(parser: str = "pdfplumber") -> SimpleNamespace:
     return SimpleNamespace(
-        pages=[object()],
+        pages=[],
         parser=parser,
         parsed_document_id="parse-1",
         document_id="doc-1",
+        document_version_id="version-1",
         parser_version="test",
         ir_schema_version="document-ir-v2",
         source_object_key="doc-1.pdf",
@@ -69,10 +70,44 @@ def test_ingest_reports_every_requested_document_and_explicit_failure(
     monkeypatch.setattr(
         cli,
         "extract_legal_provisions",
-        lambda _ir: [SimpleNamespace(provision_id="doc-1__dieu-1")],
+        lambda _ir, **_: [
+            SimpleNamespace(
+                provision_id="good__dieu-1",
+                effective_from="2024-01-01",
+                document_version_id="version-1",
+                node_kind="ARTICLE",
+                article="1",
+                clause=None,
+                point=None,
+                point_label=None,
+                short_point=False,
+                chapter=None,
+                section=None,
+                heading=None,
+                parent_context=None,
+                source_text="text",
+                retrieval_text="text",
+                page_number=1,
+                bbox=None,
+                source_element_ids=["e1"],
+                content_hash="hash",
+                status="UNKNOWN",
+            )
+        ],
     )
     monkeypatch.setattr(cli, "enrich_provision", lambda item: item)
 
+    monkeypatch.setattr(
+        cli,
+        "_stage_outcomes",
+        lambda *_args: {
+            "parse": {"status": "PASSED"},
+            "structure": {"status": "PASSED"},
+            "relations": {"status": "RECORDED"},
+            "temporal": {"status": "PASSED"},
+            "quality": {"status": "PASSED"},
+        },
+    )
     result = cli.ingest([good, bad], dry_run=True)
 
     assert result["expected_documents"] == 2
@@ -103,6 +138,7 @@ def test_main_returns_nonzero_and_prints_failure(
             json.dumps(_manifest(path)), encoding="utf-8"
         )
     monkeypatch.setattr(cli, "CORPUS", tmp_path)
+    monkeypatch.setattr(cli, "MANIFESTS", tmp_path)
     monkeypatch.setattr(
         cli,
         "DEFAULT_DOCUMENTS",
@@ -206,23 +242,55 @@ def test_repeat_ingestion_is_idempotent_at_persistence_boundary(
     monkeypatch.setattr(
         cli,
         "extract_legal_provisions",
-        lambda _ir: [SimpleNamespace(provision_id="doc-1__dieu-1")],
+        lambda _ir, **_: [
+            SimpleNamespace(
+                provision_id="doc-1__dieu-1",
+                effective_from="2024-01-01",
+                document_version_id="version-1",
+                node_kind="ARTICLE",
+                article="1",
+                clause=None,
+                point=None,
+                point_label=None,
+                short_point=False,
+                chapter=None,
+                section=None,
+                heading=None,
+                parent_context=None,
+                source_text="text",
+                retrieval_text="text",
+                page_number=1,
+                bbox=None,
+                source_element_ids=["e1"],
+                content_hash="hash",
+                status="UNKNOWN",
+            )
+        ],
     )
-    monkeypatch.setattr(cli, "enrich_provision", lambda item: item)
-    monkeypatch.setattr(cli, "get_engine", lambda: object())
     monkeypatch.setattr(
         cli,
-        "_persist",
-        lambda *args, **kwargs: {"document_id": "doc-1"},
+        "_stage_outcomes",
+        lambda *_args: {
+            "parse": {"status": "PASSED"},
+            "structure": {"status": "PASSED"},
+            "relations": {"status": "RECORDED"},
+            "temporal": {"status": "PASSED"},
+            "quality": {"status": "PASSED"},
+        },
     )
-    monkeypatch.setattr(cli, "index_accepted_provisions", lambda *args, **kwargs: None)
-    monkeypatch.setattr(cli, "ensure_qdrant_collection", lambda: object())
+    monkeypatch.setattr(cli, "enrich_provision", lambda item: item)
+    monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://vnlaw:test@localhost/test")
+    monkeypatch.setenv("INDEX_INGESTED_PROVISIONS", "false")
+    monkeypatch.setenv("INDEX_INGESTED_PROVISIONS", "false")
 
     class Session:
         def __enter__(self):
             return self
 
         def __exit__(self, *_):
+            pass
+
+        def rollback(self):
             pass
 
     monkeypatch.setattr(cli, "sessionmaker", lambda **_: lambda: Session())
@@ -245,10 +313,47 @@ def test_scanned_documents_use_fresh_ocr_workers(monkeypatch, tmp_path):
 
     monkeypatch.setattr(cli, "_parse", parse)
     monkeypatch.setattr(
-        cli, "extract_legal_provisions", lambda _ir: [SimpleNamespace(provision_id="x")]
+        cli,
+        "extract_legal_provisions",
+        lambda _ir, **_: [
+            SimpleNamespace(
+                provision_id="x",
+                effective_from="2024-01-01",
+                document_version_id="version-1",
+                node_kind="ARTICLE",
+                article="1",
+                clause=None,
+                point=None,
+                point_label=None,
+                short_point=False,
+                chapter=None,
+                section=None,
+                heading=None,
+                parent_context=None,
+                source_text="text",
+                retrieval_text="text",
+                page_number=1,
+                bbox=None,
+                source_element_ids=["e1"],
+                content_hash="hash",
+                status="UNKNOWN",
+            )
+        ],
     )
     monkeypatch.setattr(cli, "enrich_provision", lambda item: item)
-    monkeypatch.setattr(cli, "_prepare_document", lambda *args: {})
+    monkeypatch.setattr(
+        cli,
+        "_stage_outcomes",
+        lambda *_args: {
+            "parse": {"status": "PASSED"},
+            "structure": {"status": "PASSED"},
+            "relations": {"status": "RECORDED"},
+            "temporal": {"status": "PASSED"},
+            "quality": {"status": "PASSED"},
+        },
+    )
+    monkeypatch.setattr(cli, "enrich_provision", lambda item: item)
+    monkeypatch.setattr(cli, "_prepare_document", lambda *args: {"document": object()})
     result = cli.ingest(paths, dry_run=True)
     assert not result["failures"]
     assert calls == ["scan-0.pdf", "scan-1.pdf"]
@@ -276,10 +381,28 @@ def test_ocr_worker_roundtrips_parsed_document(monkeypatch, tmp_path):
         def parse_document(self, *_args, **kwargs):
             return parsed
 
-    monkeypatch.setattr(cli, "_render_scanned_pdf", lambda *_args: [(1, tmp_path / "page.png")])
-    import app.ingestion.adapters.hybrid_ocr_adapter as hybrid_ocr_adapter
+    class Paddle:
+        @staticmethod
+        def is_compiled_with_cuda():
+            return True
 
-    monkeypatch.setattr(hybrid_ocr_adapter, "HybridOCRAdapter", OCR)
+        class device:
+            class cuda:
+                @staticmethod
+                def device_count():
+                    return 1
+
+            @staticmethod
+            def set_device(_device):
+                return None
+
+    monkeypatch.setattr(
+        cli,
+        "_render_scanned_pdf",
+        lambda *_args: [(1, tmp_path / "page.png")],
+    )
+
+    monkeypatch.setattr(cli, "_ocr_runtime", lambda: (Paddle, OCR))
     cli._run_ocr_worker(_pdf(tmp_path), output, tmp_path / "checkpoint")
     assert cli.ParsedDocument.model_validate_json(output.read_text()).parser == "hybrid_ocr"
 

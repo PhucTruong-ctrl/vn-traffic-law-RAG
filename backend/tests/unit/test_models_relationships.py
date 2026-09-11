@@ -270,7 +270,7 @@ def test_all_models_instantiate_with_required_fields() -> None:
         intent="CURRENT",
         response_status="VERIFIED",
     )
-    QueryFeedback(query_trace_id=None, useful=True)
+    QueryFeedback(query_trace_id=None, rating="LIKE")
     EvaluationDataset(
         dataset_id="gold-v1",
         name="Gold v1",
@@ -412,7 +412,7 @@ def test_relationship_object_graph_wiring() -> None:
         intent="CURRENT",
         response_status="VERIFIED",
     )
-    feedback = QueryFeedback(query_trace_id=None, useful=False, query_trace=trace)
+    feedback = QueryFeedback(query_trace_id=None, rating="DISLIKE", query_trace=trace)
     eval_run = EvaluationRun(
         run_id="run-1",
         git_commit="abc1234",
@@ -475,7 +475,7 @@ def test_documented_column_count_is_stable() -> None:
         "ingestion_artifacts": 8,
         "review_items": 14,
         "query_traces": 18,
-        "query_feedback": 6,
+        "query_feedback": 5,
         "evaluation_datasets": 8,
         "evaluation_runs": 20,
         "evaluation_results": 8,

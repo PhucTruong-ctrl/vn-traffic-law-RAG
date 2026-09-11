@@ -122,6 +122,7 @@ async def chat(
             "error": str(exc),
             "verification_result": {
                 "status": "ERROR",
+                "public_status": "INSUFFICIENT_EVIDENCE",
                 "reason_code": "WORKFLOW_UNAVAILABLE",
                 "error": str(exc),
             },
@@ -188,6 +189,8 @@ def _response_payload(result: dict[str, Any], trace_id: str) -> dict[str, Any]:
     plan_status = str(getattr(plan, "status", "")) if plan is not None else ""
     citations = _citations(result, final)
     public_status = result.get("status") or verification.get("public_status")
+    if public_status == "WORKFLOW_UNAVAILABLE":
+        public_status = "INSUFFICIENT_EVIDENCE"
     if public_status:
         status = str(public_status)
     elif verification.get("status") == "VALID" and citations:
@@ -236,12 +239,13 @@ async def _run_workflow(
                 continue
             for node, update in event.items():
                 result.update(update if isinstance(update, dict) else {})
-                if progress:
-                    await progress(node, dict(_WORKFLOW_STAGES).get(node, node))
         trace.add_span(
             "workflow_result",
             output={"status": (result.get("verification_result") or {}).get("status")},
         )
+        if (result.get("verification_result") or {}).get("status") != "VALID":
+            result.setdefault("verification_result", {})["public_status"] = "INSUFFICIENT_EVIDENCE"
+            result["status"] = "INSUFFICIENT_EVIDENCE"
     except (RuntimeError, ValueError) as exc:
         result = {
             "status": "WORKFLOW_UNAVAILABLE",
@@ -249,6 +253,7 @@ async def _run_workflow(
             "error": str(exc),
             "verification_result": {
                 "status": "ERROR",
+                "public_status": "INSUFFICIENT_EVIDENCE",
                 "reason_code": "WORKFLOW_UNAVAILABLE",
                 "error": str(exc),
             },

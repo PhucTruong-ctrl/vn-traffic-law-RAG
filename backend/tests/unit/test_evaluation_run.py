@@ -6,7 +6,7 @@ from unittest.mock import Mock
 import pytest
 from sqlalchemy import CheckConstraint
 
-from app.evaluation.run import EvaluationRunManifest, EvaluationRunWriter
+from app.evaluation.run import EvaluationRunManifest, EvaluationRunWriter, evaluate_release_records
 from app.persistence.models import EvaluationRun
 
 
@@ -246,3 +246,39 @@ def test_evaluation_run_has_non_null_metric_availability_and_status_check() -> N
     assert table.c.metric_availability.nullable is False
     checks = [c for c in table.constraints if isinstance(c, CheckConstraint)]
     assert any("RUNNING" in str(c.sqltext) and "FAILED" in str(c.sqltext) for c in checks)
+
+
+def test_empty_required_evidence_cannot_release() -> None:
+    records = [
+        {
+            "question_id": f"q-{index}",
+            "input": {
+                "expected_status": "VERIFIED",
+                "evidence_required": True,
+                "required_evidence": ["prov-1"],
+            },
+            "retrieval": {"retrieved_ids": []},
+            "output": {"status": "INSUFFICIENT_EVIDENCE"},
+            "metrics": {},
+        }
+        for index in range(200)
+    ]
+    report = evaluate_release_records(records)
+    assert report["release_status"] == "BLOCKED"
+    assert report["hard_gates"]["semantic_outcomes"] is False
+
+
+def test_expected_abstention_can_pass_without_evidence() -> None:
+    records = [
+        {
+            "question_id": f"q-{index}",
+            "input": {"expected_status": "INSUFFICIENT_EVIDENCE", "evidence_required": False},
+            "retrieval": {"retrieved_ids": []},
+            "output": {"status": "INSUFFICIENT_EVIDENCE", "abstention_reason": "NO_MATCH"},
+            "metrics": {},
+        }
+        for index in range(200)
+    ]
+    report = evaluate_release_records(records)
+    assert report["release_status"] == "RELEASED"
+    assert report["verified_answer_rate"] == 0

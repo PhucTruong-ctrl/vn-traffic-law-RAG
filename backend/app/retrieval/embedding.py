@@ -13,7 +13,6 @@ import time
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from collections.abc import Callable, Mapping, Sequence
-from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal, cast
 from urllib.parse import quote
@@ -39,6 +38,7 @@ __all__ = [
     "EmbeddingSelectionManifest",
     "EmbeddingSpaceMismatchError",
     "benchmark_local_embeddings",
+    "aggregate_model_hash",
     "load_embedding_selection_manifest",
     "write_embedding_selection_manifest",
     "ensure_embedding_space_compatible",
@@ -461,7 +461,7 @@ class LocalE5EmbeddingAdapter(EmbeddingProvider):
             raise ConfigError("local embedding requires GPU device 'cuda'")
         try:
             import paddle
-            from paddlenlp.transformers import RobertaModel
+            from paddlenlp.transformers import RobertaModel  # type: ignore[import-untyped]
             from transformers import AutoTokenizer
         except Exception as exc:
             raise ConfigError("Paddle local embedding runtime unavailable") from exc
@@ -557,11 +557,38 @@ def _artifact_hash(records: Sequence[object]) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def aggregate_model_hash(path: Path) -> str:
+    """Hash every regular model artifact by relative path and file bytes.
+
+    The aggregate is deterministic and does not materialize model contents in
+    memory. Symlinks and non-file entries are ignored so a model directory
+    cannot accidentally hash caches or runtime state.
+    """
+    root = path.expanduser()
+    if not root.is_dir():
+        raise FileNotFoundError(f"embedding model directory missing: {root}")
+    digest = hashlib.sha256()
+    files = sorted(
+        (item for item in root.rglob("*") if item.is_file() and not item.is_symlink()),
+        key=lambda item: item.relative_to(root).as_posix(),
+    )
+    if not files:
+        raise ValueError(f"embedding model directory is empty: {root}")
+    for item in files:
+        relative = item.relative_to(root).as_posix().encode("utf-8")
+        digest.update(len(relative).to_bytes(4, "big"))
+        digest.update(relative)
+        with item.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+    return digest.hexdigest()
+
+
 def benchmark_local_embeddings(
     records: Sequence[Mapping[str, object]],
     *,
     candidates: Sequence[str] | None = None,
-    sparse_vocabulary_version: str = "bm25-v1",
+    sparse_vocabulary_version: str = "bm25-v2",
     device: str = "cuda",
     max_candidates: int = 3,
     max_records: int = 40,
@@ -716,31 +743,18 @@ class VersionedEmbeddingCache:
             self._entries.clear()
 
 
-@lru_cache(maxsize=1)
-def _cached_local_provider(
-    model: str, dimensions: int, batch_size: int, device: str
-) -> EmbeddingProvider:
-    config = EmbeddingSettings(
-        provider="local",
-        model=model,
-        dimensions=dimensions,
-        batch_size=batch_size,
-        local_device=device,
-    )
-    return LocalE5EmbeddingAdapter(config)
-
-
 def get_embedding_provider(
     config: EmbeddingSettings,
     *,
     cache: VersionedEmbeddingCache | None = None,
     encoder_version: str | None = None,
 ) -> EmbeddingProvider:
-    """Instantiate configured embedding adapter; cache local model weights."""
-    if config.provider == "local" and cache is None and encoder_version is None:
-        return _cached_local_provider(
-            config.model, config.dimensions, config.batch_size, config.local_device
-        )
+    """Instantiate configured embedding adapter.
+
+    Local adapters are intentionally not process-cached: Paddle owns global
+    device/runtime state, so caching across independently configured tests or
+    runs can reuse the wrong model/device.
+    """
     if config.provider == "gemini":
         return GeminiEmbeddingAdapter(config, cache=cache, encoder_version=encoder_version)
     if config.provider == "jina":
