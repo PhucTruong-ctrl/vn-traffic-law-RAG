@@ -16,7 +16,6 @@ class Intent:
 class Analysis:
     intents: tuple[Intent, ...]
     vehicle_type: str = "any"
-    clarification_required: bool = False
 
 
 _VEHICLE_PATTERNS: tuple[tuple[str, str], ...] = (
@@ -34,29 +33,6 @@ def detect_vehicle_type(text: str) -> str:
     """Return the explicit vehicle category, or ``any`` when unspecified."""
     found = {kind for kind, pattern in _VEHICLE_PATTERNS if re.search(pattern, text, re.I)}
     return found.pop() if len(found) == 1 else "any"
-
-
-def requires_vehicle_clarification(question: str, analysis: Analysis | None = None) -> bool:
-    """Identify questions whose legal answer varies by an unspecified vehicle."""
-    normalized = re.sub(r"\bko\b", "không", question, flags=re.I)
-    if detect_vehicle_type(normalized) != "any":
-        return False
-    analysis = analysis or analyze_question(normalized)
-    lowered = normalized.casefold()
-    sanction = bool(
-        re.search(
-            r"\b(phạt|mức phạt|xử phạt|xử lý|tước|trừ điểm|tạm giữ|tịch thu)\b",
-            lowered,
-        )
-    )
-    compound = len(analysis.intents) > 1
-    violation = bool(
-        re.search(
-            r"\b(vượt đèn đỏ|không đội mũ|đi ngược chiều|nồng độ cồn)\b",
-            lowered,
-        )
-    )
-    return compound and violation or sanction and violation
 
 
 def resolve_vehicle_followup(question: str, history: object = ()) -> str:
@@ -99,7 +75,11 @@ def resolve_vehicle_followup(question: str, history: object = ()) -> str:
         "bicycle": "xe đạp",
         "specialized": "xe chuyên dùng",
     }[vehicle]
-    return f"Mức phạt đối với {label} {base} là bao nhiêu?"
+    # Normalize the extracted violation into sentence position and remove
+    # filler/copy of the prior question's copula.
+    base = base[:1].lower() + base[1:] if base else base
+    base = re.sub(r"\s+\bthì\b(?=\s|$)", "", base, flags=re.I)
+    return f"Mức phạt đối với {label} {base} bao nhiêu?"
 
 
 _DIMENSION_PATTERNS: tuple[tuple[str, str], ...] = (
@@ -229,6 +209,5 @@ __all__ = [
     "analyze_question",
     "classify_intent",
     "detect_vehicle_type",
-    "requires_vehicle_clarification",
     "resolve_vehicle_followup",
 ]

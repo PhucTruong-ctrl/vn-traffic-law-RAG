@@ -1346,38 +1346,6 @@ input::placeholder {
   color: var(--text-secondary);
 }
 
-.clarification-result {
-  margin-top: 22px;
-  padding: 18px;
-  border: 1px solid var(--gold-200);
-  border-radius: var(--radius-md);
-  background: var(--accent-soft);
-  box-shadow: var(--shadow-sm);
-}
-
-.clarification-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
-}
-
-.clarification-options button {
-  min-height: 40px;
-  padding: 8px 14px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-pill);
-  color: var(--navy-900);
-  background: var(--surface-primary);
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.clarification-options button:hover:not(:disabled) {
-  border-color: var(--brand-hover);
-  background: var(--surface-hover);
-}
-
 .answer-actions button {
   min-height: 38px;
   padding: 8px 12px;

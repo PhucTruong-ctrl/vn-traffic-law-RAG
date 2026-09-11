@@ -3,7 +3,99 @@ from __future__ import annotations
 from langchain_core.documents import Document
 
 from app.rag.analyzer import analyze_question, resolve_vehicle_followup
+from app.rag.generator import build_prompt
 from app.rag.service import RAGService
+
+
+def test_generator_prompt_addresses_legal_audience_without_internal_fallback_terms() -> None:
+    prompt = build_prompt("Vượt đèn đỏ bị phạt thế nào?", [Document("Điều 6")])
+    system, human = prompt
+
+    assert "trả lời tự nhiên" in system[1]
+    assert "CONTEXT" in system[1]
+    assert "cơ chế bằng chứng nội bộ" in system[1]
+    assert "CONTEXT" not in human[1]
+
+
+def test_generator_mixed_output_retries_once(monkeypatch) -> None:
+    import app.rag.generator as generator
+
+    class Model:
+        def __init__(self, *args, **kwargs):
+            self.calls = 0
+
+        def invoke(self, prompt):
+            self.calls += 1
+            return type(
+                "Response",
+                (),
+                {
+                    "content": "Aceasta este o sancțiune și este pentru test."
+                    if self.calls == 1
+                    else "Mức phạt là 2 triệu đồng."
+                },
+            )()
+
+    model = Model()
+    monkeypatch.setattr(
+        generator,
+        "get_generation_settings",
+        lambda: type(
+            "S", (), {"openrouter_api_key": "x", "model": "m", "openrouter_base_url": "u"}
+        )(),
+    )
+    monkeypatch.setattr("langchain_openrouter.ChatOpenRouter", lambda **kwargs: model)
+    assert (
+        generator.generate_answer("Vượt đèn đỏ?", [Document("Điều 6")])
+        == "Mức phạt là 2 triệu đồng."
+    )
+    assert model.calls == 2
+
+
+def test_generator_clean_vietnamese_does_not_retry(monkeypatch) -> None:
+    import app.rag.generator as generator
+
+    class Model:
+        calls = 0
+
+        def invoke(self, prompt):
+            self.calls += 1
+            return type(
+                "Response", (), {"content": "Người điều khiển phải chấp hành tín hiệu đèn."}
+            )()
+
+    model = Model()
+    monkeypatch.setattr(
+        generator,
+        "get_generation_settings",
+        lambda: type(
+            "S", (), {"openrouter_api_key": "x", "model": "m", "openrouter_base_url": "u"}
+        )(),
+    )
+    monkeypatch.setattr("langchain_openrouter.ChatOpenRouter", lambda **kwargs: model)
+    assert generator.generate_answer("Vượt đèn đỏ?", [Document("Điều 6")])
+    assert model.calls == 1
+
+
+def test_generator_two_mixed_outputs_return_vietnamese_fallback(monkeypatch) -> None:
+    import app.rag.generator as generator
+
+    class Model:
+        def invoke(self, prompt):
+            return type(
+                "Response", (), {"content": "Aceasta este o sancțiune și este pentru test."}
+            )()
+
+    monkeypatch.setattr(
+        generator,
+        "get_generation_settings",
+        lambda: type(
+            "S", (), {"openrouter_api_key": "x", "model": "m", "openrouter_base_url": "u"}
+        )(),
+    )
+    monkeypatch.setattr("langchain_openrouter.ChatOpenRouter", lambda **kwargs: Model())
+    result = generator.generate_answer("Vượt đèn đỏ?", [Document("Điều 6")])
+    assert result.startswith("Chưa thể tạo câu trả lời tiếng Việt")
 
 
 class FakeRetriever:
@@ -42,8 +134,20 @@ def test_short_car_followup_rewrites_against_latest_legal_turn() -> None:
     ]
 
     assert resolve_vehicle_followup("Còn ô tô?", history) == (
-        "Mức phạt đối với ô tô vượt đèn đỏ thì là bao nhiêu?"
+        "Mức phạt đối với ô tô vượt đèn đỏ bao nhiêu?"
     )
+
+
+def test_motorcycle_followup_is_standalone_without_history_prefix_or_duplicate_copula() -> None:
+    history = [{"role": "user", "content": "Vượt đèn đỏ thì mức phạt bao nhiêu?"}]
+
+    resolved = resolve_vehicle_followup("Vậy còn đối với xe máy?", history)
+
+    assert "xe mô tô" in resolved
+    assert "vượt đèn đỏ" in resolved
+    assert "user:" not in resolved
+    assert "Current question" not in resolved
+    assert "là là" not in resolved
 
 
 def test_vehicle_followup_uses_at_most_six_history_messages() -> None:

@@ -10,6 +10,13 @@ import ProgressEvents, { type ProgressEvent } from "./ProgressEvents";
 import { messageEntrance, motionTransition } from "./motion";
 import type { ChatResponse, ConversationTurn } from "./chat-types";
 
+function protectLegalParentheticals(markdown: string): string {
+  return markdown.replace(
+    /(?<!\\)\((?=[^()\n]*(?:khoản|điểm|điều|nghị định|thông tư)[^()\n]*\d)[^()\n]*\)/gi,
+    "\\$&",
+  );
+}
+
 type ChatThreadProps = {
   turns: ConversationTurn[];
   question: string;
@@ -17,7 +24,6 @@ type ChatThreadProps = {
   error?: string;
   historyLoading?: boolean;
   onOpenSource: (citation: Citation) => void;
-  onClarificationOption: (option: string) => void;
   progressEvents?: ProgressEvent[];
   sessionId?: string;
 };
@@ -25,18 +31,13 @@ type ChatThreadProps = {
 function ResponseMessage({
   response,
   onOpenSource,
-  onClarificationOption,
-  loading,
   sessionId,
 }: {
   response: ChatResponse;
   onOpenSource: (citation: Citation) => void;
-  onClarificationOption: (option: string) => void;
-  loading: boolean;
   sessionId?: string;
 }) {
   const verified = response.status === "VERIFIED";
-  const clarification = response.status === "CLARIFICATION_REQUIRED";
   const operational = response.status === "WORKFLOW_UNAVAILABLE";
   const citations = response.citations ?? [];
   const comparison = response.comparison;
@@ -75,11 +76,9 @@ function ResponseMessage({
           <span>
             {verified
               ? "Đã đối chiếu nguồn pháp luật"
-              : clarification
-                ? "Cần bổ sung thông tin"
-                : operational
-                  ? "Dịch vụ tạm thời không khả dụng"
-                  : "Chưa đủ căn cứ"}
+              : operational
+                ? "Dịch vụ tạm thời không khả dụng"
+                : "Chưa đủ căn cứ"}
           </span>
         </div>
         {operational ? (
@@ -87,30 +86,10 @@ function ResponseMessage({
             <h2>Không thể xử lý yêu cầu lúc này</h2>
             <p>{response.disclaimer ?? "Hệ thống gặp lỗi vận hành. Vui lòng thử lại sau."}</p>
           </section>
-        ) : clarification ? (
-          <section className="clarification-result" aria-labelledby="clarification-title">
-            <div className="assistant-answer" id="clarification-title">
-              <ReactMarkdown skipHtml>
-                {response.answer ?? "Bạn đang hỏi về loại phương tiện nào?"}
-              </ReactMarkdown>
-            </div>
-            <div className="clarification-options" role="group" aria-label="Chọn thông tin bổ sung">
-              {(response.options ?? []).map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => onClarificationOption(option)}
-                  disabled={loading}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
-          </section>
         ) : verified ? (
           <>
             <div className="assistant-answer">
-              <ReactMarkdown skipHtml>{answer}</ReactMarkdown>
+              <ReactMarkdown skipHtml>{protectLegalParentheticals(answer)}</ReactMarkdown>
             </div>
             <div className="answer-actions" aria-label="Thao tác với câu trả lời">
               <button type="button" onClick={copyAnswer}>
@@ -152,7 +131,9 @@ function ResponseMessage({
           <section className="comparison-result" aria-label="So sánh nguồn">
             <h3>{comparison.label ?? "So sánh nguồn"}</h3>
             <div className="comparison-answer">
-              <ReactMarkdown skipHtml>{comparison.answer}</ReactMarkdown>
+              <ReactMarkdown skipHtml>
+                {protectLegalParentheticals(comparison.answer)}
+              </ReactMarkdown>
             </div>
           </section>
         )}
@@ -170,7 +151,6 @@ export default function ChatThread({
   error,
   historyLoading = false,
   onOpenSource,
-  onClarificationOption,
   progressEvents,
   sessionId,
 }: ChatThreadProps) {
@@ -183,7 +163,7 @@ export default function ChatThread({
     if (!thread || !end) return;
     const distance = thread.scrollHeight - thread.scrollTop - thread.clientHeight;
     if (distance < 160) end.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth" });
-  }, [turns.length, loading, historyLoading, error, question, reducedMotion]);
+  }, [turns.length, historyLoading, error, question, reducedMotion]);
   const entrance = reducedMotion ? undefined : messageEntrance;
   return (
     <div ref={threadRef} className="thread">
@@ -208,8 +188,6 @@ export default function ChatThread({
             <ResponseMessage
               response={turn.response}
               onOpenSource={onOpenSource}
-              onClarificationOption={onClarificationOption}
-              loading={loading}
               sessionId={sessionId}
             />
           </motion.div>

@@ -78,16 +78,46 @@ def test_chitchat_does_not_call_retriever() -> None:
     assert result["status"] == "chitchat"
 
 
-def test_clarification_response_skips_retrieval() -> None:
-    class NeverRetriever:
-        def retrieve(self, *args, **kwargs):
-            raise AssertionError("clarification must not retrieve")
+def test_vehicle_penalty_query_retrieves_all_categories(monkeypatch) -> None:
+    from langchain_core.documents import Document
 
-    result = RAGService(NeverRetriever()).answer("Vượt đèn đỏ thì mức phạt bao nhiêu?")
+    monkeypatch.setattr(
+        "app.rag.service.generate_answer",
+        lambda *_args, **_kwargs: "Mức phạt được xác định theo từng loại phương tiện.",
+    )
 
-    assert result["status"] == "clarification_required"
-    assert result["citations"] == []
-    assert result["options"] == ["ô tô", "xe mô tô, xe gắn máy", "xe thô sơ"]
+    class RecordingRetriever:
+        def __init__(self) -> None:
+            self.queries: list[str] = []
+
+        def retrieve(self, query: str, **_: object) -> list[Document]:
+            self.queries.append(query)
+            return [
+                Document(
+                    page_content="Theo quy định hiện hành, hành vi này bị xử phạt.",
+                    metadata={
+                        "source_file": "traffic-law.md",
+                        "document_name": "Nghị định về xử phạt giao thông",
+                        "article": "Điều 6",
+                    },
+                )
+            ]
+
+    retriever = RecordingRetriever()
+    result = RAGService(retriever).answer("Vượt đèn đỏ thì mức phạt bao nhiêu?")
+
+    assert result["status"] == "complete"
+    assert result["citations"]
+    vehicle_queries = [query for query in retriever.queries if "đối với" in query]
+    assert len(vehicle_queries) == 3
+    for category in (
+        "đối với ô tô",
+        "đối với xe mô tô, xe gắn máy",
+        "đối với xe thô sơ",
+    ):
+        matching = [query for query in vehicle_queries if query.endswith(category)]
+        assert len(matching) == 1
+        assert "vượt đèn đỏ" in matching[0].lower()
 
 
 @dataclass

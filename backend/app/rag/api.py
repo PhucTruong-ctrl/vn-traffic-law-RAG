@@ -56,8 +56,6 @@ def _frontend_response(result: dict[str, Any]) -> dict[str, Any]:
             "claims": [],
             "abstention": {"reason_code": "INSUFFICIENT_EVIDENCE"},
         }
-    if result.get("status") == "clarification_required":
-        return {**result, "status": "CLARIFICATION_REQUIRED", "claims": []}
     return result
 
 
@@ -80,10 +78,10 @@ def chat(
             else create_session(client, user_id, request.title or request.question[:80], token)
         )
         session_id = str(session["id"])
-        stages["session_ms"] = round((perf_counter() - stage_started) * 1000, 2)
-
         history = recent_messages(client, user_id, session_id, token) if request.session_id else []
-        query = resolve_vehicle_followup(build_followup_query(request.question, history), history)
+        query = resolve_vehicle_followup(request.question, history)
+        if query == request.question.strip():
+            query = build_followup_query(query, history)
         stages["history_ms"] = round((perf_counter() - stage_started) * 1000, 2)
 
         stage_started = perf_counter()

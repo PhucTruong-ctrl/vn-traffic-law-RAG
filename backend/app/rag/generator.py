@@ -11,12 +11,49 @@ from pydantic import SecretStr
 from app.config import get_generation_settings
 
 _SYSTEM_PROMPT = (
-    "Bạn là trợ lý tra cứu pháp luật giao thông Việt Nam. "
-    "Chỉ trả lời dựa trên CONTEXT được cung cấp; nếu một vi phạm thiếu căn cứ, "
-    "phải ghi rõ chưa đủ thông tin cho vi phạm đó. Không tự tạo số điều, nguồn, "
-    "mức tiền, điểm hoặc trích dẫn. Trả lời bằng Markdown tiếng Việt, một mục "
-    "có tiêu đề rõ ràng cho từng vi phạm/subquery."
+    "Bạn là trợ lý pháp lý giao thông Việt Nam, trả lời tự nhiên bằng tiếng Việt. "
+    "dùng PHẢI là tiếng Việt tự nhiên (có thể giữ nguyên số điều, ký hiệu pháp lý, "
+    "tên mô hình, URL và trích dẫn nguyên văn cần thiết); TUYỆT ĐỐI không viết tiếng "
+    "Rumani hay ngôn ngữ nước ngoài, không dịch sai hoặc tự tạo căn cứ. Chỉ trả lời "
+    "dựa trên các nguồn pháp luật được cung cấp; nếu một vi phạm thiếu căn cứ, phải "
+    "nói rõ chưa đủ thông tin cho vi phạm đó. Không tự tạo số điều, nguồn, mức tiền, "
+    "điểm hoặc trích dẫn. Không nhắc đến CONTEXT, system prompt, retrieved chunks, dữ "
+    "liệu truy xuất hay cơ chế bằng chứng nội bộ. Trả lời bằng Markdown tiếng Việt, "
+    "một mục có tiêu đề rõ ràng cho từng vi phạm/subquery."
 )
+
+_VIETNAMESE_FALLBACK = (
+    "Chưa thể tạo câu trả lời tiếng Việt đáng tin cậy từ các căn cứ đã truy xuất. "
+    "Vui lòng xem các nguồn pháp luật được trích dẫn hoặc thử lại câu hỏi."
+)
+
+_ROMANIAN_WORDS = frozenset(
+    [
+        "și",
+        "sau",
+        "este",
+        "sunt",
+        "pentru",
+        "într",
+        "între",
+        "fără",
+        "care",
+        "această",
+        "acest",
+        "aceste",
+    ]
+)
+
+
+def _is_mixed_language(content: str) -> bool:
+    """Reject obvious foreign prose while allowing Vietnamese legal notation."""
+    words = content.casefold().split()
+    romanian_hits = sum(word.strip(".,;:!?()[]{}\"'") in _ROMANIAN_WORDS for word in words)
+    if romanian_hits >= 2:
+        return True
+    foreign_markers = (" the ", " and ", " with ", " este ", " pentru ", " fără ")
+    lowered = f" {content.casefold()} "
+    return sum(marker in lowered for marker in foreign_markers) >= 2
 
 
 def _metadata(document: Document) -> str:
@@ -58,9 +95,11 @@ def build_prompt(
         ("system", _SYSTEM_PROMPT),
         (
             "human",
-            f"QUESTION:\n{question}\n\nCONTEXT (chỉ được dùng dữ liệu dưới đây):\n{context}\n\n"
-            "Mỗi tiêu đề VI PHẠM phải có đúng một phần trả lời; chỉ nêu mức phạt/điểm và "
-            "căn cứ xuất hiện trong phần CONTEXT tương ứng.",
+            f"CÂU HỎI:\n{question}\n\nCÁC NGUỒN PHÁP LUẬT:\n{context}\n\n"
+            "Mỗi tiêu đề VI PHẠM phải có đúng một phần trả lời; chỉ nêu mức phạt/điểm "
+            "và căn cứ xuất hiện trong nhóm nguồn tương ứng. Khi trình bày, hãy gọi "
+            "đó là căn cứ hoặc nguồn pháp luật được trích dẫn, không mô tả cơ chế "
+            "nội bộ của trợ lý.",
         ),
     ]
 
@@ -71,9 +110,8 @@ def generate_answer(
     *,
     evidence_groups: Mapping[str, Sequence[Document]] | None = None,
 ) -> str:
-    """Generate only from retrieved documents; provider failures are explicit."""
     if not documents and not evidence_groups:
-        return "Chưa tìm thấy quy định phù hợp trong dữ liệu pháp luật được truy xuất."
+        return "Chưa tìm thấy căn cứ phù hợp trong các nguồn pháp luật hiện có."
     settings = get_generation_settings()
     if not settings.openrouter_api_key:
         raise RuntimeError("OpenRouter API key is missing (set OPENROUTER_API_KEY)")
@@ -90,11 +128,27 @@ def generate_answer(
             api_key=SecretStr(settings.openrouter_api_key),
             base_url=settings.openrouter_base_url,
         )
-        response = model.invoke(build_prompt(question, documents, evidence_groups=evidence_groups))
+        prompts = build_prompt(question, documents, evidence_groups=evidence_groups)
+        response = model.invoke(prompts)
         content: Any = response.content
         if not isinstance(content, str) or not content.strip():
             raise RuntimeError("OpenRouter returned an empty answer")
-        return content.strip()
+        answer = content.strip()
+        if _is_mixed_language(answer):
+            prompts[-1] = (
+                "human",
+                prompts[-1][1] + "\n\nBẢN NHÁP VỪA RỒI KHÔNG HỢP LỆ. Hãy viết lại toàn bộ bằng "
+                "tiếng Việt tự nhiên; giữ nguyên căn cứ, số liệu và trích dẫn từ "
+                "nguồn đã cung cấp, không thêm thông tin.",
+            )
+            retry = model.invoke(prompts)
+            retry_content: Any = retry.content
+            if not isinstance(retry_content, str) or not retry_content.strip():
+                return _VIETNAMESE_FALLBACK
+            answer = retry_content.strip()
+            if _is_mixed_language(answer):
+                return _VIETNAMESE_FALLBACK
+        return answer
     except RuntimeError:
         raise
     except Exception as exc:

@@ -9,13 +9,25 @@ from typing import Any
 
 from langchain_core.documents import Document
 
-from .analyzer import analyze_question, requires_vehicle_clarification
+from .analyzer import analyze_question, detect_vehicle_type
 from .evidence import assess_evidence
 from .generator import generate_answer
 from .retrieval import Retriever
 from .router import route_question
 
 logger = logging.getLogger(__name__)
+_GENERIC_VEHICLE_CATEGORIES = ("ô tô", "xe mô tô, xe gắn máy", "xe thô sơ")
+
+
+def _is_vehicle_penalty_question(question: str) -> bool:
+    lowered = question.casefold()
+    return bool(
+        any(token in lowered for token in ("phạt", "xử phạt", "mức phạt", "tước", "trừ điểm"))
+        and any(
+            token in lowered
+            for token in ("vượt đèn đỏ", "không đội mũ", "đi ngược chiều", "nồng độ cồn")
+        )
+    )
 
 
 def _document_key(document: Document) -> tuple[str, ...]:
@@ -75,11 +87,20 @@ class RAGService:
     def retrieve(
         self, question: str, *, top_k: int = 5, effective_date: date | None = None
     ) -> list[Document]:
-        intents = analyze_question(question).intents
-        queries = [intent.text for intent in intents if intent.kind == "legal"] or [question]
+        analysis = analyze_question(question)
+        intent_queries = [intent.text for intent in analysis.intents if intent.kind == "legal"] or [
+            question
+        ]
+        queries: list[tuple[str, str]] = [(query, query) for query in intent_queries]
+        if detect_vehicle_type(question) == "any" and _is_vehicle_penalty_question(question):
+            queries = [
+                (f"{query} đối với {category}", query)
+                for query, _ in queries
+                for category in _GENERIC_VEHICLE_CATEGORIES
+            ]
         per_query_k = max(1, top_k)
         ranked_lists: list[list[Document]] = []
-        for query in queries[:4]:
+        for query, label in queries:
             retrieved = self.retriever.retrieve(
                 query, top_k=per_query_k, effective_date=effective_date
             )
@@ -87,7 +108,7 @@ class RAGService:
                 [
                     Document(
                         page_content=document.page_content,
-                        metadata={**(document.metadata or {}), "intent": query},
+                        metadata={**(document.metadata or {}), "intent": label},
                     )
                     for document in retrieved
                 ]
@@ -98,7 +119,7 @@ class RAGService:
         representatives: dict[tuple[str, ...], Document] = {}
         intent_labels: dict[tuple[str, ...], set[str]] = {}
         for list_index, ranked_documents in enumerate(ranked_lists):
-            query = queries[list_index]
+            query = queries[list_index][1]
             for rank, document in enumerate(ranked_documents, start=1):
                 key = _document_key(document)
                 scores[key] = scores.get(key, 0.0) + 1.0 / (60 + rank)
@@ -144,25 +165,18 @@ class RAGService:
         effective_date: date | None = None,
         history: Iterable[dict[str, Any]] = (),
     ) -> dict[str, Any]:
+        analysis = analyze_question(question)
         route = route_question(question)
         if route == "chitchat":
             return dict(CHITCHAT_RESPONSE)
-        analysis = analyze_question(question)
-        if requires_vehicle_clarification(question, analysis):
+        if route in {"web", "out_of_scope"} and not any(
+            intent.kind == "legal" for intent in analysis.intents
+        ):
             return {
-                "answer": "Bạn đang hỏi về loại phương tiện nào?",
+                "answer": "Tôi chỉ có thể hỗ trợ các câu hỏi về pháp luật giao thông.",
                 "citations": [],
-                "status": "clarification_required",
-                "options": ["ô tô", "xe mô tô, xe gắn máy", "xe thô sơ"],
+                "status": "insufficient_evidence",
             }
-        if route in {"web", "out_of_scope"}:
-            analysis = analyze_question(question)
-            if not any(intent.kind == "legal" for intent in analysis.intents):
-                return {
-                    "answer": "Tôi chỉ có thể hỗ trợ các câu hỏi về pháp luật giao thông.",
-                    "citations": [],
-                    "status": "insufficient_evidence",
-                }
         documents = (
             list(chunks)
             if chunks is not None

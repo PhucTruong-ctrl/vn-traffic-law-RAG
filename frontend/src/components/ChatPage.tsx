@@ -36,24 +36,6 @@ const validateChatResponse = (payload: unknown): ChatResponse => {
     INSUFFICIENT_EVIDENCE: true,
     WORKFLOW_UNAVAILABLE: true,
   };
-  if (value.status === "CLARIFICATION_REQUIRED") {
-    const options = value.options;
-    const validAnswer = typeof value.answer === "string" && Boolean(value.answer.trim());
-    const validOptions =
-      Array.isArray(options) &&
-      options.length > 0 &&
-      options.every((option) => typeof option === "string" && Boolean(option.trim()));
-    if (!validAnswer || !validOptions) {
-      throw new Error("Phản hồi từ máy chủ không hợp lệ. Vui lòng thử lại.");
-    }
-    return {
-      ...value,
-      answer: value.answer,
-      options: options as string[],
-      citations: [],
-      claims: [],
-    } as ChatResponse;
-  }
   if (typeof value.status === "string" && NON_VERIFIED_STATUS[value.status]) {
     return payload as ChatResponse;
   }
@@ -487,11 +469,11 @@ export default function ChatPage({
               question={historyLoading ? "" : submittedQuestion}
               loading={loading}
               historyLoading={historyLoading}
+
               error={error}
               progressEvents={progressEvents}
               sessionId={activeId}
               onOpenSource={setDrawerCitation}
-              onClarificationOption={(option) => void submitQuestion(option)}
             />
           )}
           {(conversationId || turns.length > 0 || loading || historyLoading || error) && (
