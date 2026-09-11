@@ -53,6 +53,7 @@ data/**/*.sqlite3
 **/.cache/
 **/page-cache/
 **/checkpoints/
+supabase/.temp/
 
 # OS/editor/tool files
 .DS_Store
