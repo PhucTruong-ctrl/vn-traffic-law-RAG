@@ -130,3 +130,22 @@ def test_schema_rejects_malformed_extras() -> None:
         Prediction(case_id="c1", latency_ms=1, unexpected=True)
     with pytest.raises(ValidationError):
         Coordinate(document="x", unexpected="value")
+
+
+def test_thesis_dataset_shape_normalizes_to_runner_contract() -> None:
+    import importlib.util
+    import json
+    from pathlib import Path
+
+    path = Path(__file__).parents[1] / "scripts" / "run_thesis_evaluation.py"
+    spec = importlib.util.spec_from_file_location("thesis_runner", path)
+    assert spec and spec.loader
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+
+    dataset = Path(__file__).parents[2] / "data/evaluation/thesis-gold-40.json"
+    raw = json.loads(dataset.read_text(encoding="utf-8"))
+    cases = runner.load_dataset(dataset)
+    assert len(cases) == 40
+    assert cases[0]["question"] == raw["cases"][0]["query"]
+    assert cases[0]["expected"]["provision_ids"] == raw["cases"][0]["expected_provision_ids"]

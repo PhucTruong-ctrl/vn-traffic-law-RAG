@@ -41,6 +41,18 @@ def test_default_corpus_paths_resolve_from_repository_root(monkeypatch) -> None:
     assert all(chunk.text.strip() for chunk in loaded)
 
 
+def test_lexical_search_prioritizes_domain_terms_over_generic_overlap() -> None:
+    items = [
+        corpus.Chunk("Quy định về xây dựng và bảo hiểm.", {"chunk_id": "generic"}),
+        corpus.Chunk("Xe máy chạy quá tốc độ tối đa 50 km/h.", {"chunk_id": "speed"}),
+        corpus.Chunk("Đèn đỏ phải dừng xe trước vạch.", {"chunk_id": "red"}),
+    ]
+    speed = corpus.search_chunks(items, "Tốc độ, tối đa!")
+    assert speed[0][0].metadata["chunk_id"] == "speed"
+    red = corpus.search_chunks(items, "đèn đỏ")
+    assert red[0][0].metadata["chunk_id"] == "red"
+
+
 def test_health_live() -> None:
     response = TestClient(app).get("/api/v1/health/live")
     assert response.status_code == 200
@@ -136,6 +148,47 @@ def test_markdown_document_detail_exposes_content_and_source_contract(monkeypatc
     assert response.json()["content"] == "Điều 1. Nội dung quy định."
     assert response.json()["source"]["source_kind"] == "markdown"
     assert response.json()["source"]["pdf_url"] is None
+
+
+def test_markdown_document_detail_reconstructs_missing_source_in_chunk_order(monkeypatch) -> None:
+    monkeypatch.setattr(
+        legal_api,
+        "chunks",
+        lambda: [
+            Chunk(
+                text="Điều 2.",
+                metadata={
+                    "chunk_id": "c-2",
+                    "document_id": "nd-missing",
+                    "source_file": "/missing/law.md",
+                    "source_kind": "markdown",
+                },
+            ),
+            Chunk(
+                text="Điều 1.",
+                metadata={
+                    "chunk_id": "c-1",
+                    "document_id": "nd-missing",
+                    "source_file": "/missing/law.md",
+                    "source_kind": "markdown",
+                },
+            ),
+            Chunk(
+                text="Other document",
+                metadata={
+                    "chunk_id": "other",
+                    "document_id": "other",
+                    "source_file": "/missing/other.md",
+                    "source_kind": "markdown",
+                },
+            ),
+        ],
+    )
+
+    response = TestClient(app).get("/api/v1/legal-documents/nd-missing")
+
+    assert response.status_code == 200
+    assert response.json()["content"] == "Điều 1.\n\nĐiều 2."
 
 
 def test_pdf_document_detail_exposes_source_contract_without_file_read(monkeypatch) -> None:

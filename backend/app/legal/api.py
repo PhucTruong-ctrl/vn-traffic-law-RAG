@@ -72,7 +72,16 @@ def _markdown_content(document_id: str, rows: list) -> str | None:
     root = _LOCAL_DIR.resolve()
     if candidate.suffix.casefold() == ".md" and root in candidate.parents and candidate.is_file():
         return candidate.read_text(encoding="utf-8")
-    return "\n\n".join(row.text for row in rows).strip() or None
+    ordered = sorted(
+        (row for row in rows if str(row.metadata.get("document_id", "")) == document_id),
+        key=lambda row: (
+            str(row.metadata.get("chunk_id", "")),
+            str(row.metadata.get("article", "")),
+            str(row.metadata.get("clause", "")),
+            str(row.metadata.get("point", "")),
+        ),
+    )
+    return "\n\n".join(row.text for row in ordered).strip() or None
 
 
 @router.get("/legal-documents/{document_id}", response_model=LegalDocumentSummary)

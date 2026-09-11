@@ -16,6 +16,16 @@ class FakeRetriever:
         return list(self.responses.get(query, []))
 
 
+def test_speed_limit_road_traffic_questions_are_legal_but_general_questions_are_not() -> None:
+    assert (
+        analyze_question("Tốc độ tối đa trong khu vực đông dân cư là bao nhiêu km/h?")
+        .intents[0]
+        .kind
+        == "legal"
+    )
+    assert analyze_question("Thời tiết hôm nay thế nào?").intents[0].kind == "out_of_scope"
+
+
 def test_red_light_and_no_helmet_decompose_into_both_violations() -> None:
     analysis = analyze_question("Khi vượt đèn đỏ và ko đội mũ bảo hiểm")
 

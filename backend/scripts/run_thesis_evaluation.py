@@ -26,7 +26,41 @@ CATEGORIES = {
     "insufficient_evidence",
     "out_of_scope",
 }
-REQUIRED_CASE = {"id", "question", "category", "expected"}
+REQUIRED_CASE = {"id", "category"}
+THESIS_EXPECTED_FIELDS = {
+    "expected_status",
+    "expected_abstain",
+    "expected_document_ids",
+    "expected_article_ids",
+    "expected_clause_ids",
+    "expected_point_ids",
+    "expected_provision_ids",
+}
+EXPECTED_COORDINATE_LEVELS = ("document", "article", "clause", "point")
+
+
+def normalize_case(case: dict[str, Any], index: int) -> dict[str, Any]:
+    """Normalize the thesis gold schema to the runner's historical schema."""
+    if "query" in case:
+        if not isinstance(case["query"], str) or not case["query"].strip():
+            fail(f"case {case.get('id', index)} has a blank query")
+        expected = {
+            "status": case.get("expected_status"),
+            "abstain": case.get("expected_abstain"),
+            "document_ids": case.get("expected_document_ids"),
+            "article_ids": case.get("expected_article_ids"),
+            "clause_ids": case.get("expected_clause_ids"),
+            "point_ids": case.get("expected_point_ids"),
+            "provision_ids": case.get("expected_provision_ids"),
+        }
+        missing = [key for key, value in expected.items() if value is None]
+        if missing:
+            fail(f"case {case.get('id', index)} missing thesis fields: {', '.join(missing)}")
+        normalized = dict(case)
+        normalized["question"] = case["query"]
+        normalized["expected"] = expected
+        return normalized
+    return case
 
 
 def fail(message: str) -> NoReturn:
@@ -48,8 +82,11 @@ def load_dataset(path: Path) -> list[dict[str, Any]]:
     seen: set[str] = set()
     counts = {category: 0 for category in CATEGORIES}
     result: list[dict[str, Any]] = []
-    for index, case in enumerate(records):
-        if not isinstance(case, dict) or not case.keys() >= REQUIRED_CASE:
+    for index, raw_case in enumerate(records):
+        if not isinstance(raw_case, dict):
+            fail(f"case {index} must be an object")
+        case = normalize_case(raw_case, index)
+        if not case.keys() >= REQUIRED_CASE or not ({"question", "expected"} <= case.keys()):
             fail(f"case {index} must contain id, question, category, expected")
         case_id = case["id"]
         category = case["category"]

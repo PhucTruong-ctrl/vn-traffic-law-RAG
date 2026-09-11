@@ -16,6 +16,37 @@ _ROOT = Path(__file__).resolve().parents[3]
 _MANIFEST = _ROOT / "data" / "sources" / "manifest.json"
 _LOCAL_DIR = _ROOT / "data" / "corpus" / "mds"
 _PROCESSED = _ROOT / "data" / "processed" / "chunks.jsonl"
+_STOPWORDS = frozenset(
+    [
+        "a",
+        "cái",
+        "các",
+        "có",
+        "cho",
+        "của",
+        "được",
+        "để",
+        "điều",
+        "đó",
+        "trong",
+        "là",
+        "này",
+        "những",
+        "và",
+        "với",
+        "từ",
+        "về",
+        "khi",
+        "không",
+        "theo",
+        "trên",
+        "tại",
+        "một",
+        "số",
+    ]
+)
+
+
 _KNOWN = {
     "document_id",
     "doc_id",
@@ -26,6 +57,7 @@ _KNOWN = {
     "source_kind",
     "source_type",
     "retrieved_at",
+    "content_sha256",
     "chunk_id",
     "id",
     "article",
@@ -123,13 +155,26 @@ def filter_chunks(
     return [item for item in items if matches(item)]
 
 
+def _tokens(value: str) -> list[str]:
+    return [
+        token
+        for token in re.findall(r"[^\W\d_]+|\d+", value.casefold())
+        if len(token) > 1 and token not in _STOPWORDS
+    ]
+
+
 def search_chunks(items: list[Chunk], query: str, **filters: str | None) -> list[tuple[Chunk, int]]:
-    terms = re.findall(r"\w+", query.casefold())
+    terms = _tokens(query)
+    query_phrase = " ".join(terms)
     filtered = filter_chunks(items, **filters)
     scored = []
     for item in filtered:
-        haystack = item.text.casefold()
-        score = sum(haystack.count(term) for term in terms)
+        tokens = _tokens(item.text)
+        token_set = set(tokens)
+        overlap = sum(token in token_set for token in terms)
+        score = overlap * 10
+        if query_phrase and query_phrase in " ".join(tokens):
+            score += len(terms) * 10
         if score:
             scored.append((item, score))
     return sorted(scored, key=lambda pair: (-pair[1], str(pair[0].metadata.get("chunk_id", ""))))

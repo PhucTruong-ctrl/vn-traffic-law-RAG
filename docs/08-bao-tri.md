@@ -819,6 +819,120 @@ Backup chỉ hợp lệ khi đồng thời:
 - manifest đầy đủ (release-manifest.json kèm hash);
 - version khớp (migration revision, corpus hash, gold-set hash);
 - secret không nằm trong archive (`.env` không được đóng gói).
+---
+
+## 8.10.5. Defense-day backup and demo readiness checklist
+
+Thực hiện từ repository root trước buổi rehearsal/bảo vệ. Checklist này không
+in hoặc lưu giá trị bí mật; chỉ xác nhận biến môi trường bắt buộc đã hiện diện.
+
+### A. Environment and external services
+
+- [ ] `test -f .env` (hoặc file env được Compose chỉ định) và file không được
+      commit; kiểm tra tên biến, không in giá trị:
+
+  ```bash
+  test -f .env
+  for key in POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD DATABASE_URL \
+    QDRANT_URL REDIS_URL S3_ENDPOINT S3_ACCESS_KEY S3_SECRET_KEY \
+    OPENROUTER_API_KEY SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY; do
+    grep -q "^${key}=" .env || { echo "missing ${key}"; exit 1; }
+  done
+  ```
+
+- [ ] Verify local dependencies without exposing credentials:
+
+  ```bash
+  curl -fsS http://127.0.0.1:8000/health
+  curl -fsS http://127.0.0.1:8000/ready
+  curl -fsS http://127.0.0.1:6333/healthz
+  ```
+
+- [ ] Check provider readiness manually (OpenRouter and Supabase); do not
+      paste API keys into terminal logs, screenshots, or the defense recording.
+      A provider outage is not silently bypassed with an unverified answer.
+
+### B. Startup, migration, and ports
+
+- [ ] Confirm ports `3000` (frontend), `8000` (backend), `5432` (PostgreSQL),
+      `6333` (Qdrant), `6379` (Redis), and `9000` (MinIO) are free or owned by
+      the intended Compose project.
+- [ ] Start the pinned development stack from repository root:
+
+  ```bash
+  docker compose --project-directory . \
+    -f deploy/compose/compose.release.yml \
+    -f deploy/compose/compose.dev.yml up -d
+  ```
+
+- [ ] Wait for health checks, then run the one-shot migration/bootstrap path:
+
+  ```bash
+  docker compose --project-directory . \
+    -f deploy/compose/compose.release.yml \
+    run --rm migrate
+  ```
+
+- [ ] Confirm migration revision and service state:
+
+  ```bash
+  docker compose --project-directory . \
+    -f deploy/compose/compose.release.yml \
+    ps
+  docker compose --project-directory . \
+    -f deploy/compose/compose.release.yml \
+    run --rm backend alembic current
+  ```
+
+### C. Application smoke path
+
+- [ ] Open `http://127.0.0.1:3000/chat` and confirm the existing session/auth
+      state; do not create or display credentials during the demo.
+- [ ] Run one greeting, one exact-reference lookup, one natural-language
+      penalty question, one multi-intent question, and one out-of-scope or
+      insufficient-evidence question. Confirm citations open in the legal
+      explorer and abstention remains explicit when evidence is insufficient.
+- [ ] Open `http://127.0.0.1:3000/legal-sources`, search by document number or
+      article, and open a source passage/PDF when available.
+
+### D. Evaluation and release backup
+
+- [ ] Run the deterministic 40-case evaluation (five cases in each required
+      category) and retain raw output; do not claim metrics until the run is
+      complete:
+
+  ```bash
+  uv run --directory backend python scripts/run_thesis_evaluation.py \
+    data/evaluation/thesis-gold-40.json \
+    --endpoint http://127.0.0.1:8000/api/v1/chat \
+    --output-dir data/evaluation/defense-run
+  ```
+
+- [ ] Before any destructive migration or release, create PostgreSQL dump,
+      Qdrant snapshot, MinIO/object-storage mirror, source-PDF/manifest copy,
+      gold set, evaluation artifacts, release manifest, and `SHA256SUMS`.
+- [ ] Verify with `sha256sum -c SHA256SUMS`, perform a clean-room restore
+      drill, and confirm migration revision, corpus hash, and gold-set hash.
+- [ ] Ensure backup archives contain no `.env`, API key, service-role key, or
+      other secret. Keep backup media outside production volumes.
+
+### E. Screenshots and video handoff
+
+- [ ] Capture screenshots only after redacting URLs, tokens, personal data, and
+      provider credentials; verify citation and explorer states are legible.
+- [ ] The defense recording is created manually by the presenter. Before
+      playback, verify the file is a non-empty video and probe it:
+
+  ```bash
+  test -s docs/assets/defense-demo.mp4
+  ffprobe -v error -show_entries format=duration:stream=codec_name \
+    -of default=noprint_wrappers=1 docs/assets/defense-demo.mp4
+  ```
+
+- [ ] Play the recording from the checked-out repository and confirm the five
+      demo questions, citation evidence, explorer, and abstention are visible.
+
+---
 
 ---
 
