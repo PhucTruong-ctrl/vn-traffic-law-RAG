@@ -11,10 +11,12 @@ transaction.
 
 from __future__ import annotations
 
+import re
+
 from datetime import date
 from typing import Any
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import Integer, and_, func, literal, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.persistence.models import (
@@ -91,6 +93,90 @@ class ProvisionRepository:
             stmt = stmt.where(LegalProvision.clause.in_((clause, f"Khoản {clause}")))
         if point is not None:
             stmt = stmt.where(LegalProvision.point.in_((point, f"Điểm {point}", f"Điểm {point})")))
+        return list(self._session.scalars(stmt).unique())
+
+    def lexical_search(
+        self,
+        query: str,
+        *,
+        query_date: date,
+        limit: int = 30,
+    ) -> list[LegalProvision]:
+        """Bounded authoritative lookup over concept-expanded OCR-folded text."""
+        from app.ingestion.terminology import concept_variants, terminology_concepts
+        from app.query.expansion import fold_ocr, normalize_query
+
+        normalized = normalize_query(query)
+        folded = fold_ocr(normalized)
+        concepts = terminology_concepts(folded)
+        variants = [
+            fold_ocr(variant)
+            for concept in sorted(concepts, key=lambda value: (-len(value), value))
+            for variant in concept_variants(concept)
+        ]
+        terms = [term for term in folded.split() if len(term) > 1]
+        candidates = sorted(
+            dict.fromkeys(variants or terms),
+            key=lambda term: (-len(term.split()), -len(term), term),
+        )[:12]
+        if not candidates:
+            return []
+
+        fields = (
+            LegalProvision.retrieval_text,
+            LegalProvision.source_text,
+            LegalProvision.parent_context,
+        )
+        folded_fields = tuple(func.lower(field) for field in fields)
+
+        def phrase_predicate(term: str):
+            words = term.split()
+            forms = [term]
+            if len(words) > 1:
+                forms.extend(
+                    " ".join(words[:index])
+                    + "".join(words[index : index + 2])
+                    + " ".join(words[index + 2 :])
+                    for index in range(len(words) - 1)
+                )
+            return or_(
+                *(
+                    or_(*(field.like(f"%{form}%") for field in folded_fields))
+                    for form in dict.fromkeys(forms)
+                )
+            )
+
+        predicates = [phrase_predicate(term) for term in candidates]
+        relevance = sum((predicate.cast(Integer) for predicate in predicates), start=literal(0))
+        stmt = (
+            select(LegalProvision)
+            .join(LegalProvision.document_version)
+            .join(DocumentVersion.document)
+            .options(
+                joinedload(LegalProvision.document_version).joinedload(DocumentVersion.document)
+            )
+            .where(
+                LegalProvision.review_status == "ACCEPTED",
+                DocumentVersion.review_status == "ACCEPTED",
+                and_(
+                    LegalProvision.effective_from <= query_date,
+                    or_(
+                        LegalProvision.effective_to.is_(None),
+                        query_date < LegalProvision.effective_to,
+                    ),
+                ),
+                and_(
+                    DocumentVersion.effective_from <= query_date,
+                    or_(
+                        DocumentVersion.effective_to.is_(None),
+                        query_date < DocumentVersion.effective_to,
+                    ),
+                ),
+                or_(*predicates),
+            )
+            .order_by(relevance.desc(), LegalProvision.provision_id, LegalProvision.version)
+            .limit(limit)
+        )
         return list(self._session.scalars(stmt).unique())
 
     def list_provision_versions(self, provision_id: str) -> list[LegalProvision]:

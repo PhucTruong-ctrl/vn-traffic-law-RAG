@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import suppress
@@ -28,6 +29,7 @@ from app.workflow import build_query_graph as _production_build_query_graph
 from app.workflow.graph import production_services
 
 build_query_graph = _production_build_query_graph
+logger = logging.getLogger(__name__)
 
 
 def _optional_db():
@@ -188,17 +190,18 @@ def _response_payload(result: dict[str, Any], trace_id: str) -> dict[str, Any]:
     plan = result.get("query_understanding")
     plan_status = str(getattr(plan, "status", "")) if plan is not None else ""
     citations = _citations(result, final)
-    public_status = result.get("status") or verification.get("public_status")
-    if public_status == "WORKFLOW_UNAVAILABLE":
-        public_status = "INSUFFICIENT_EVIDENCE"
-    if public_status:
-        status = str(public_status)
-    elif verification.get("status") == "VALID" and citations:
+    if verification.get("status") == "VALID" and citations:
         status = "VERIFIED"
-    elif plan_status in {"GREETING", "OUT_OF_SCOPE", "CORPUS_NOT_COVERED"}:
-        status = plan_status
     else:
-        status = "INSUFFICIENT_EVIDENCE"
+        public_status = result.get("status") or verification.get("public_status")
+        if public_status == "WORKFLOW_UNAVAILABLE":
+            public_status = "INSUFFICIENT_EVIDENCE"
+        if public_status:
+            status = str(public_status)
+        elif plan_status in {"GREETING", "OUT_OF_SCOPE", "CORPUS_NOT_COVERED"}:
+            status = plan_status
+        else:
+            status = "INSUFFICIENT_EVIDENCE"
     reason = verification.get("reason_code") or getattr(plan, "status_reason", None)
     is_operational_error = status == "WORKFLOW_UNAVAILABLE"
     payload: dict[str, Any] = {
@@ -237,16 +240,25 @@ async def _run_workflow(
         async for event in graph.astream(state, stream_mode="updates"):
             if not isinstance(event, dict):
                 continue
-            for node, update in event.items():
+            for _node, update in event.items():
                 result.update(update if isinstance(update, dict) else {})
         trace.add_span(
             "workflow_result",
             output={"status": (result.get("verification_result") or {}).get("status")},
         )
-        if (result.get("verification_result") or {}).get("status") != "VALID":
-            result.setdefault("verification_result", {})["public_status"] = "INSUFFICIENT_EVIDENCE"
+        verification = result.get("verification_result") or {}
+        plan = result.get("query_understanding")
+        plan_status = str(getattr(plan, "status", ""))
+        plan_intent = str(getattr(plan, "intent", ""))
+        if plan_status == "OUT_OF_SCOPE" or plan_intent == "OUT_OF_SCOPE":
+            verification["public_status"] = "OUT_OF_SCOPE"
+            verification["reason_code"] = "OUT_OF_SCOPE"
+            result["status"] = "OUT_OF_SCOPE"
+        elif verification.get("status") != "VALID":
+            verification["public_status"] = "INSUFFICIENT_EVIDENCE"
             result["status"] = "INSUFFICIENT_EVIDENCE"
     except (RuntimeError, ValueError) as exc:
+        logger.exception("workflow execution failed", extra={"trace_id": trace_id})
         result = {
             "status": "WORKFLOW_UNAVAILABLE",
             "error_code": "WORKFLOW_UNAVAILABLE",
@@ -353,22 +365,38 @@ def _trusted_source_url(value: Any) -> bool:
     return parsed.scheme == "https" and parsed.hostname == _TRUSTED_SOURCE_HOST
 
 
+def _citation_field(item: Any, name: str, default: Any = None) -> Any:
+    return item.get(name, default) if isinstance(item, dict) else getattr(item, name, default)
+
+
+def _citation_items(value: Any) -> list[Any]:
+    if isinstance(value, dict):
+        if {"before", "after"} <= value.keys():
+            return _citation_items(value["before"]) + _citation_items(value["after"])
+        if "results" in value:
+            return _citation_items(value["results"])
+        return [item for grouped in value.values() for item in _citation_items(grouped)]
+    if value is None or isinstance(value, (str, bytes)):
+        return []
+    results = _citation_field(value, "results")
+    if results is not None:
+        return _citation_items(results)
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return [item for item in value for item in _citation_items(item)]
+    return [value]
+
+
 def _citations(result: dict[str, Any], final: dict[str, Any]) -> list[dict[str, Any]]:
-    context = result.get("expanded_context") or result.get("context_package") or []
-    if isinstance(context, dict):
-        context = [
-            item
-            for side in context.values()
-            for item in (side.results if hasattr(side, "results") else side)
-        ]
-    elif hasattr(context, "results"):
-        context = context.results
+    context = result.get("context_package")
+    if context is None:
+        context = result.get("expanded_context", [])
+    context = _citation_items(context)
     records = {
-        getattr(item, "provision_id", None): item
+        _citation_field(item, "provision_id"): item
         for item in context
-        if getattr(item, "provision_id", None)
-        and getattr(item, "review_status", "ACCEPTED") == "ACCEPTED"
-        and _trusted_source_url(getattr(item, "source_url", None))
+        if _citation_field(item, "provision_id")
+        and _citation_field(item, "review_status", "ACCEPTED") == "ACCEPTED"
+        and _trusted_source_url(_citation_field(item, "source_url"))
     }
     citations: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -376,6 +404,9 @@ def _citations(result: dict[str, Any], final: dict[str, Any]) -> list[dict[str, 
     if not isinstance(claims, list):
         return []
     for claim in claims:
+        if not isinstance(claim, dict):
+            model_dump = getattr(claim, "model_dump", None)
+            claim = model_dump() if callable(model_dump) else None
         if not isinstance(claim, dict):
             return []
         provision_ids = claim.get("provision_ids", [])
@@ -387,27 +418,25 @@ def _citations(result: dict[str, Any], final: dict[str, Any]) -> list[dict[str, 
             return []
         for provision_id in provision_ids:
             item = records.get(provision_id)
-            if item is None:
-                return []
-            if provision_id in seen:
+            if item is None or provision_id in seen:
                 return []
             seen.add(provision_id)
             citation = {
-                "provision_id": item.provision_id,
-                "document_id": item.document_id,
-                "document_number": item.document_number,
-                "article": item.article,
-                "clause": item.clause,
-                "point": item.point,
-                "parent_context": item.parent_context,
-                "source_text": item.source_text,
-                "page_number": item.page_number,
-                "legal_context": item.parent_context,
-                "bbox": _normalized_bbox(getattr(item, "bbox", None)),
-                "source_url": item.source_url,
-                "snapshot_at": getattr(item, "snapshot_at", None),
-                "content_hash": getattr(item, "content_hash", None),
-                "provision_version": item.provision_version,
+                "provision_id": _citation_field(item, "provision_id"),
+                "document_id": _citation_field(item, "document_id"),
+                "document_number": _citation_field(item, "document_number"),
+                "article": _citation_field(item, "article"),
+                "clause": _citation_field(item, "clause"),
+                "point": _citation_field(item, "point"),
+                "parent_context": _citation_field(item, "parent_context"),
+                "source_text": _citation_field(item, "source_text"),
+                "page_number": _citation_field(item, "page_number"),
+                "legal_context": _citation_field(item, "parent_context"),
+                "bbox": _normalized_bbox(_citation_field(item, "bbox")),
+                "source_url": _citation_field(item, "source_url"),
+                "snapshot_at": _citation_field(item, "snapshot_at"),
+                "content_hash": _citation_field(item, "content_hash"),
+                "provision_version": _citation_field(item, "provision_version"),
             }
             for identity_field in (
                 "provision_version",
@@ -416,7 +445,7 @@ def _citations(result: dict[str, Any], final: dict[str, Any]) -> list[dict[str, 
                 "effective_to",
                 "source_id",
             ):
-                identity_value = getattr(item, identity_field, None)
+                identity_value = _citation_field(item, identity_field)
                 if identity_value is not None:
                     if hasattr(identity_value, "isoformat"):
                         identity_value = identity_value.isoformat()

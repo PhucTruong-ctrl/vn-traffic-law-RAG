@@ -252,6 +252,10 @@ def _merge_elements(elements: list[DocumentElement]) -> list[DocumentElement]:
         overlap = max(0.0, min(a.right, b.right) - max(a.left, b.left))
         span = min(a.right - a.left, b.right - b.left)
         article = bool(_ARTICLE_ONLY.fullmatch(previous.text.strip()))
+        article_boundary = bool(_ARTICLE_HEADING.search(element.text.strip()))
+        if article_boundary:
+            merged.append(element)
+            continue
         if not (
             0 <= gap <= OCR_LINE_MERGE_MAX_GAP
             and (
@@ -301,12 +305,14 @@ class HybridOCRAdapter:
         device: str | None = None,
         recognition_mode: str = "paddle",
         vietocr_config: str = "vgg_seq2seq",
+        recognition_model: str = "PP-OCRv5_mobile_rec",
     ) -> None:
         if recognition_mode not in {"paddle", "vietocr"}:
             raise ValueError("recognition_mode must be 'paddle' or 'vietocr'")
         self.device = resolve_ocr_device(device)
         self.recognition_mode = recognition_mode
         self.vietocr_config = vietocr_config
+        self.recognition_model = recognition_model
         self._detector: Any = None
         self._recognizer: Any = None
 
@@ -317,7 +323,7 @@ class HybridOCRAdapter:
             self._detector = PaddleOCR(
                 lang="vi",
                 text_detection_model_name="PP-OCRv5_mobile_det",
-                text_recognition_model_name="PP-OCRv5_mobile_rec",
+                text_recognition_model_name=self.recognition_model,
                 device=self.device,
                 enable_mkldnn=False,
                 cpu_threads=1,

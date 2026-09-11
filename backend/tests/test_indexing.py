@@ -706,6 +706,7 @@ def test_accepted_payload_maps_authoritative_document_citation_metadata() -> Non
         document_type="DECREE",
         document_title="Nghị định 168",
         status="ACTIVE",
+        source_url="https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/168.pdf",
     )
     row_with_document = SimpleNamespace(
         **{
@@ -748,6 +749,7 @@ def test_accepted_payload_maps_authoritative_document_citation_metadata() -> Non
     assert payload["document_id"] == "nd-168-2024"
     assert payload["document_number"] == "168/2024/NĐ-CP"
     assert payload["document_type"] == "DECREE"
+    assert payload["source_url"] == "https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/168.pdf"
     assert payload["document_title"] == "Nghị định 168"
     assert payload["document_status"] == "ACTIVE"
     assert payload["vehicle_types"] == ["xe máy"]

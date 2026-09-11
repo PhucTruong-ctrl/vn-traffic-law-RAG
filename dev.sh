@@ -77,9 +77,19 @@ if ! docker run --rm --network container:vnlaw-redis redis:7-alpine redis-cli -h
   env DATABASE_URL="$DATABASE_URL" uv run --env-file /dev/null python -m alembic upgrade head
 )
 (
-  cd "$ROOT/backend"
-  # Local index uses E5 vectors; override with DEV_* for deliberate provider changes.
-  exec env PYTHONPATH=. QDRANT_URL="$QDRANT_URL" QDRANT_API_KEY="${QDRANT_API_KEY:-}" S3_ENDPOINT="$S3_ENDPOINT" MINIO_ENDPOINT="$MINIO_ENDPOINT" DATABASE_URL="$DATABASE_URL" REDIS_URL="redis://127.0.0.1:6379/0" EMBEDDING_PROVIDER="${DEV_EMBEDDING_PROVIDER:-local}" EMBEDDING_MODEL="${DEV_EMBEDDING_MODEL:-intfloat/multilingual-e5-base}" EMBEDDING_LOCAL_DEVICE="${DEV_EMBEDDING_LOCAL_DEVICE:-auto}" GENERATION_PROVIDER="${DEV_GENERATION_PROVIDER:-gemini}" GENERATION_MODEL="${DEV_GENERATION_MODEL:-gemini-3.1-flash-lite}" uv run --env-file /dev/null python -m uvicorn app.main:app --reload --reload-dir app --host 127.0.0.1 --port 8000
+  exec env PYTHONPATH=. \
+    QDRANT_URL="$QDRANT_URL" QDRANT_API_KEY="${QDRANT_API_KEY:-}" \
+    S3_ENDPOINT="$S3_ENDPOINT" S3_ACCESS_KEY="${S3_ACCESS_KEY:-}" S3_SECRET_KEY="${S3_SECRET_KEY:-}" \
+    MINIO_ENDPOINT="$MINIO_ENDPOINT" MINIO_ACCESS_KEY="${MINIO_ACCESS_KEY:-}" MINIO_SECRET_KEY="${MINIO_SECRET_KEY:-}" \
+    DATABASE_URL="$DATABASE_URL" REDIS_URL="redis://127.0.0.1:6379/0" \
+    OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}" \
+    EMBEDDING_PROVIDER="${DEV_EMBEDDING_PROVIDER:-${EMBEDDING_PROVIDER:-openrouter}}" \
+    EMBEDDING_MODEL="${DEV_EMBEDDING_MODEL:-${EMBEDDING_MODEL:-openai/text-embedding-3-small}}" \
+    EMBEDDING_DIMENSIONS="${DEV_EMBEDDING_DIMENSIONS:-${EMBEDDING_DIMENSIONS:-768}}" \
+    EMBEDDING_OPENROUTER_BASE_URL="${EMBEDDING_OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}" \
+    GENERATION_MODEL="${GENERATION_MODEL:-google/gemini-2.5-flash-lite}" \
+    GENERATION_PROVIDER="${DEV_GENERATION_PROVIDER:-openrouter}" \
+    uv run --env-file /dev/null --project "$ROOT/backend" python -m uvicorn app.main:app --reload --reload-dir "$ROOT/backend/app" --app-dir "$ROOT/backend" --host 127.0.0.1 --port 8000
 ) > >(sed -u 's/^/[api] /') 2>&1 &
 api_pid=$!; child_pids+=("$api_pid")
 api_ready=false

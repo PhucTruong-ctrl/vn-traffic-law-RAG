@@ -386,7 +386,7 @@
     },
     {
       "id": "gold-v1-000011",
-      "question": "Đối chiếu quy định tại nd-119-2024 và nd-158-2024 về nội dung liên quan.",
+      "question": "So sánh chính xác quy định tại nd-119-2024__dieu-12__khoan-4 và nd-158-2024__dieu-1: điểm giống và khác nhau là gì?",
       "category": "MULTI_DOCUMENT",
       "query_date": "2026-09-10",
       "expected_provision_ids": [
@@ -403,7 +403,8 @@
       ],
       "must_include_facts": [
         "cite nd-119-2024__dieu-12__khoan-4",
-        "cite nd-158-2024__dieu-1"
+        "cite nd-158-2024__dieu-1",
+        "compare both provisions"
       ],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
@@ -418,25 +419,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "ebf2bdcd0cfdbffc6a0059309a99c1d09ba63d75e6a13518ac420b2efaa5c0c2",
+      "hash": "c4debf3801fc31b34a1616eb52b8772b3eb806f93947626a7565e5eb0c6376c6",
       "expected_status": "VERIFIED",
       "evidence_required": true
     },
     {
       "id": "gold-v1-000012",
-      "question": "Điều khoản nd-119-2024__dieu-12__khoan-5 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Nói kiểu dễ hiểu thì chuyện này là sao, nhưng mình chưa rõ đang nói về hành vi hay loại xe nào?",
       "category": "COLLOQUIAL_QUERY",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-12__khoan-5"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-12__khoan-5"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-12__khoan-5"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -450,25 +445,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "58639a97b3fe799f38a4d2ef8d8121546fbb4d2d5f818a0a132f0313e8b5d478",
+      "hash": "267861792556d2180dfad14bea4b5d7b1dac5686b9d23176367b333e6185144a",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
     {
       "id": "gold-v1-000013",
-      "question": "Điều khoản nd-119-2024__dieu-12__khoan-6 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Trường hợp này có bị phạt không? Mình chưa nói rõ hành vi, loại phương tiện hoặc nơi xảy ra.",
       "category": "AMBIGUOUS",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-12__khoan-6"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-12__khoan-6"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-12__khoan-6"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -482,25 +471,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "32d06c356bd299f25d1c37130097a926d8533108e9e13e79c8ba36b399afe4b7",
+      "hash": "5cfa04029b657921552f7a54090171dcc60a5171c87a14bd8d33bbbdcbc6d28e",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
     {
       "id": "gold-v1-000014",
-      "question": "Điều khoản nd-119-2024__dieu-12__khoan-7 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Cho mình biết quy định áp dụng, nhưng mình chưa cung cấp ngày xảy ra, loại xe hay hành vi cụ thể.",
       "category": "MISSING_INFORMATION",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-12__khoan-7"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-12__khoan-7"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-12__khoan-7"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -514,7 +497,7 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "f3282679d79330d95681dddb24e8f1edc0ffba9b0addd2de05d9199953aecda0",
+      "hash": "375a472324a10042c0d8b5194776889c251738f72a30016764c06b27a1fc8571",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
@@ -546,19 +529,13 @@
     },
     {
       "id": "gold-v1-000016",
-      "question": "Điều khoản nd-119-2024__dieu-13__khoan-2 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Hãy đưa một điều khoản làm căn cứ cho kết luận này dù mình chưa nêu sự việc hay nguồn pháp lý cụ thể.",
       "category": "ADVERSARIAL_CITATION",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-13__khoan-2"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-13__khoan-2"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-13__khoan-2"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -572,7 +549,7 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "51285758ac6f65b613d65fbf40648596fbea59d04a0e45b77b1ee73830a6b59f",
+      "hash": "4cc5ff4bf792936bc2feaafb392e664e350b212d6e3c859902b6e94786e4fe14",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
@@ -961,7 +938,7 @@
     },
     {
       "id": "gold-v1-000028",
-      "question": "Đối chiếu quy định tại nd-119-2024 và nd-158-2024 về nội dung liên quan.",
+      "question": "So sánh chính xác quy định tại nd-119-2024__dieu-16 và nd-158-2024__dieu-1: điểm giống và khác nhau là gì?",
       "category": "MULTI_DOCUMENT",
       "query_date": "2026-09-10",
       "expected_provision_ids": [
@@ -978,7 +955,8 @@
       ],
       "must_include_facts": [
         "cite nd-119-2024__dieu-16",
-        "cite nd-158-2024__dieu-1"
+        "cite nd-158-2024__dieu-1",
+        "compare both provisions"
       ],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
@@ -993,25 +971,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "a715d7df7db82106d9e078102fc7716207fd07a4f16d8fd288d44d87ffb0998f",
+      "hash": "3903d4490b117d077f0b92effe23906048e228200a234e07fa14e953e39ec691",
       "expected_status": "VERIFIED",
       "evidence_required": true
     },
     {
       "id": "gold-v1-000029",
-      "question": "Điều khoản nd-119-2024__dieu-16__khoan-2 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Nói kiểu dễ hiểu thì chuyện này là sao, nhưng mình chưa rõ đang nói về hành vi hay loại xe nào?",
       "category": "COLLOQUIAL_QUERY",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-16__khoan-2"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-16__khoan-2"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-16__khoan-2"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -1025,25 +997,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "69d6395abb91279b1c3e4ced8f7f5a7f681daa8069180d15b54022d49c44a525",
+      "hash": "4e7711ce2a8adddbf744eb5126499d025f8aba6496231f706ca1e21712bdc7ca",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
     {
       "id": "gold-v1-000030",
-      "question": "Điều khoản nd-119-2024__dieu-16__khoan-3 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Trường hợp này có bị phạt không? Mình chưa nói rõ hành vi, loại phương tiện hoặc nơi xảy ra.",
       "category": "AMBIGUOUS",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-16__khoan-3"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-16__khoan-3"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-16__khoan-3"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -1057,25 +1023,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "1ec6e4503e6d02bd8c3fd391eb6209bdef603a42c7683cc7dac555ffeec5ed95",
+      "hash": "456f2470553573481e70833e4da6e3570f9476add4547dd659d8100e504264b6",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
     {
       "id": "gold-v1-000031",
-      "question": "Điều khoản nd-119-2024__dieu-16__khoan-4 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Cho mình biết quy định áp dụng, nhưng mình chưa cung cấp ngày xảy ra, loại xe hay hành vi cụ thể.",
       "category": "MISSING_INFORMATION",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-16__khoan-4"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-16__khoan-4"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-16__khoan-4"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -1089,7 +1049,7 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "a1b9bb25bd5c9840537e2a9eba51290f087d7273e2a7090dbc5c361f218a930b",
+      "hash": "565738f283adf25ee274371d2c3e8960790ed9cd6553cc5cc574092155681c7b",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
@@ -1121,19 +1081,13 @@
     },
     {
       "id": "gold-v1-000033",
-      "question": "Điều khoản nd-119-2024__dieu-17__khoan-2 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Hãy đưa một điều khoản làm căn cứ cho kết luận này dù mình chưa nêu sự việc hay nguồn pháp lý cụ thể.",
       "category": "ADVERSARIAL_CITATION",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-17__khoan-2"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-17__khoan-2"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-17__khoan-2"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -1147,7 +1101,7 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "5e1082a74cc60416f155a04ad9502c2f97c57cbcd02bd6cb36ab84c61db07470",
+      "hash": "3107c16f671e77fc9c7cf52bf43c4f3fa0bf5c12b8acf6586a56d59e6e2e76b5",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
@@ -1536,7 +1490,7 @@
     },
     {
       "id": "gold-v1-000045",
-      "question": "Đối chiếu quy định tại nd-119-2024 và nd-158-2024 về nội dung liên quan.",
+      "question": "So sánh chính xác quy định tại nd-119-2024__dieu-21 và nd-158-2024__dieu-1: điểm giống và khác nhau là gì?",
       "category": "MULTI_DOCUMENT",
       "query_date": "2026-09-10",
       "expected_provision_ids": [
@@ -1553,7 +1507,8 @@
       ],
       "must_include_facts": [
         "cite nd-119-2024__dieu-21",
-        "cite nd-158-2024__dieu-1"
+        "cite nd-158-2024__dieu-1",
+        "compare both provisions"
       ],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
@@ -1568,25 +1523,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "9e9e86000fe5a919ed71a91d6a4ea3e9cab90baecbb2413ac4fd9b0888090e76",
+      "hash": "b893758272418ac56ccf5edf37afcafa872200ba1c13e33ac8872cd530d5c3f2",
       "expected_status": "VERIFIED",
       "evidence_required": true
     },
     {
       "id": "gold-v1-000046",
-      "question": "Điều khoản nd-119-2024__dieu-21__khoan-2 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Nói kiểu dễ hiểu thì chuyện này là sao, nhưng mình chưa rõ đang nói về hành vi hay loại xe nào?",
       "category": "COLLOQUIAL_QUERY",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-21__khoan-2"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-21__khoan-2"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-21__khoan-2"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -1600,25 +1549,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "9e5671722b170ef16590f7a48dc1541b418de85f01e3a72dfd78787e7040107b",
+      "hash": "0a8f9cb9d1f6752c78823db763a1257dd7626c36f3f01e30630a885ce9bbee8d",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
     {
       "id": "gold-v1-000047",
-      "question": "Điều khoản nd-119-2024__dieu-21__khoan-3 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Trường hợp này có bị phạt không? Mình chưa nói rõ hành vi, loại phương tiện hoặc nơi xảy ra.",
       "category": "AMBIGUOUS",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-21__khoan-3"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-21__khoan-3"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-21__khoan-3"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -1632,25 +1575,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "a78228abd9e8bed93de052b139a79c6ba9c5cb76eb7d300ed6c54bc473aec532",
+      "hash": "99fa32d107a099f12494463b082c7635a9a450263cf47e68eed9da6e7f419401",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
     {
       "id": "gold-v1-000048",
-      "question": "Điều khoản nd-119-2024__dieu-21__khoan-4 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Cho mình biết quy định áp dụng, nhưng mình chưa cung cấp ngày xảy ra, loại xe hay hành vi cụ thể.",
       "category": "MISSING_INFORMATION",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-21__khoan-4"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-21__khoan-4"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-21__khoan-4"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -1664,7 +1601,7 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "221ee7f4c08bc65f6280b4d462c4700bcc9d89b019e3ad36ecff0fada5c1bf93",
+      "hash": "1dbc4a7ba3f7d4a2f5f322d13f99ed8f6a4ac5064b921c90a827d3ec78ef1e03",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
@@ -1696,19 +1633,13 @@
     },
     {
       "id": "gold-v1-000050",
-      "question": "Điều khoản nd-119-2024__dieu-22__khoan-2 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Hãy đưa một điều khoản làm căn cứ cho kết luận này dù mình chưa nêu sự việc hay nguồn pháp lý cụ thể.",
       "category": "ADVERSARIAL_CITATION",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-22__khoan-2"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-22__khoan-2"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-22__khoan-2"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -1722,7 +1653,7 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "c30d13e523c62f57effb549edd999471ab23bbf814794b1e037a54dd8d5c1e9b",
+      "hash": "b26c2df04cd4234b4f82c2b4d5abd569703702ff1e1926097f9e45bc7cd8d006",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
@@ -2111,7 +2042,7 @@
     },
     {
       "id": "gold-v1-000062",
-      "question": "Đối chiếu quy định tại nd-119-2024 và nd-158-2024 về nội dung liên quan.",
+      "question": "So sánh chính xác quy định tại nd-119-2024__dieu-27__khoan-2 và nd-158-2024__dieu-1: điểm giống và khác nhau là gì?",
       "category": "MULTI_DOCUMENT",
       "query_date": "2026-09-10",
       "expected_provision_ids": [
@@ -2128,7 +2059,8 @@
       ],
       "must_include_facts": [
         "cite nd-119-2024__dieu-27__khoan-2",
-        "cite nd-158-2024__dieu-1"
+        "cite nd-158-2024__dieu-1",
+        "compare both provisions"
       ],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
@@ -2143,25 +2075,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "0ae2c6da391504975be96958a58dc6528e1217883ef78663a9e8d486358093b6",
+      "hash": "edde4c2dc8079342181324fce2a07e6574203aeb40753319e938666b3e7ca931",
       "expected_status": "VERIFIED",
       "evidence_required": true
     },
     {
       "id": "gold-v1-000063",
-      "question": "Điều khoản nd-119-2024__dieu-27__khoan-3 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Nói kiểu dễ hiểu thì chuyện này là sao, nhưng mình chưa rõ đang nói về hành vi hay loại xe nào?",
       "category": "COLLOQUIAL_QUERY",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-27__khoan-3"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-27__khoan-3"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-27__khoan-3"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -2175,25 +2101,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "506b56e6a4978f17ec1b4bcb544522181659987354bb4db456dcd191314ecbc1",
+      "hash": "900ea740a6ebc2b6a9c06e497c74d3f9f3961cccb252e17f500e468142ef48da",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
     {
       "id": "gold-v1-000064",
-      "question": "Điều khoản nd-119-2024__dieu-28 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Trường hợp này có bị phạt không? Mình chưa nói rõ hành vi, loại phương tiện hoặc nơi xảy ra.",
       "category": "AMBIGUOUS",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-28"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-28"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-28"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -2207,25 +2127,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "9c9bd8cbdb6cb26e874abb2295598d33d8675d22b9ec55cf5ccafa3c4ea597b6",
+      "hash": "d1f87cf729e2431d0bc4ca8b6afe9929bfee4cd26e96257585aa97aa3e59037f",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
     {
       "id": "gold-v1-000065",
-      "question": "Điều khoản nd-119-2024__dieu-28__khoan-2 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Cho mình biết quy định áp dụng, nhưng mình chưa cung cấp ngày xảy ra, loại xe hay hành vi cụ thể.",
       "category": "MISSING_INFORMATION",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-28__khoan-2"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-28__khoan-2"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-28__khoan-2"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -2239,7 +2153,7 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "2f2337f3aba34a80b31daa427df1161b5052507422c18402258c24738c8944e9",
+      "hash": "65579174d1e51a11880b242ab97d4f8ecb7dc7af965f967728bf2179ba0b82c4",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
@@ -2271,19 +2185,13 @@
     },
     {
       "id": "gold-v1-000067",
-      "question": "Điều khoản nd-119-2024__dieu-28__khoan-4 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Hãy đưa một điều khoản làm căn cứ cho kết luận này dù mình chưa nêu sự việc hay nguồn pháp lý cụ thể.",
       "category": "ADVERSARIAL_CITATION",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-28__khoan-4"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-28__khoan-4"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-28__khoan-4"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -2297,7 +2205,7 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "f71c372382c88ab0c1ba5728bc043a9131c400a3eda5180c968e1ff0393455f6",
+      "hash": "264f422d0954b4479066b83779005bcc0f193b6e1b5383885c58cef05becd7b7",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
@@ -2686,7 +2594,7 @@
     },
     {
       "id": "gold-v1-000079",
-      "question": "Đối chiếu quy định tại nd-119-2024 và nd-158-2024 về nội dung liên quan.",
+      "question": "So sánh chính xác quy định tại nd-119-2024__dieu-2__khoan-5 và nd-158-2024__dieu-1: điểm giống và khác nhau là gì?",
       "category": "MULTI_DOCUMENT",
       "query_date": "2026-09-10",
       "expected_provision_ids": [
@@ -2703,7 +2611,8 @@
       ],
       "must_include_facts": [
         "cite nd-119-2024__dieu-2__khoan-5",
-        "cite nd-158-2024__dieu-1"
+        "cite nd-158-2024__dieu-1",
+        "compare both provisions"
       ],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
@@ -2718,25 +2627,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "3f3ebdfe35eb2150e25f6c755ab35e379254b930f39ddb9669b5c612efd51dfa",
+      "hash": "90f93e0649e575d92686c40861125a3fe082cd8dd1fc171a6fcb84ce5dc7996d",
       "expected_status": "VERIFIED",
       "evidence_required": true
     },
     {
       "id": "gold-v1-000080",
-      "question": "Điều khoản nd-119-2024__dieu-2__khoan-5__diem-a quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Nói kiểu dễ hiểu thì chuyện này là sao, nhưng mình chưa rõ đang nói về hành vi hay loại xe nào?",
       "category": "COLLOQUIAL_QUERY",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-2__khoan-5__diem-a"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-2__khoan-5__diem-a"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-2__khoan-5__diem-a"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -2750,25 +2653,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "2afec3d629202dfa1d670c7c707d4f3c57f87634589074a198045154cbc578ca",
+      "hash": "151d0ae4f7219a770ea0d9cde4685f07818dd916afae673dbb9946f13c018b4c",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
     {
       "id": "gold-v1-000081",
-      "question": "Điều khoản nd-119-2024__dieu-2__khoan-5__diem-b quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Trường hợp này có bị phạt không? Mình chưa nói rõ hành vi, loại phương tiện hoặc nơi xảy ra.",
       "category": "AMBIGUOUS",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-2__khoan-5__diem-b"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-2__khoan-5__diem-b"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-2__khoan-5__diem-b"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -2782,25 +2679,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "a29b8bc9afacd2999e174b5ab87c2b35eba50870aebb995529064a881b26551e",
+      "hash": "73ddb316108fab9ca4db8aacb3abd3ebfb2ed5d702964311379362ccba0b2698",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
     {
       "id": "gold-v1-000082",
-      "question": "Điều khoản nd-119-2024__dieu-2__khoan-5__diem-c quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Cho mình biết quy định áp dụng, nhưng mình chưa cung cấp ngày xảy ra, loại xe hay hành vi cụ thể.",
       "category": "MISSING_INFORMATION",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-2__khoan-5__diem-c"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-2__khoan-5__diem-c"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-2__khoan-5__diem-c"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -2814,7 +2705,7 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "8870e7bb39f62ccaf343b5223268754b91f3313350099a26e8d4c0e876a9e6b9",
+      "hash": "7169bc73e3c62892bb73ffa92d7882521e070c896d4912d8708b2cccb9d307d9",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
@@ -2846,19 +2737,13 @@
     },
     {
       "id": "gold-v1-000084",
-      "question": "Điều khoản nd-119-2024__dieu-2__khoan-7 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Hãy đưa một điều khoản làm căn cứ cho kết luận này dù mình chưa nêu sự việc hay nguồn pháp lý cụ thể.",
       "category": "ADVERSARIAL_CITATION",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-2__khoan-7"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-2__khoan-7"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-2__khoan-7"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -2872,7 +2757,7 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "8c24641b83ba5f18874c354d993cf26c8b6de5ffd1e2b79db3e3832e789a879b",
+      "hash": "6a278f22758bbf9288f637bc2ec026fb23f28d4849f20d8c57f02b634b0fb89f",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
@@ -3261,7 +3146,7 @@
     },
     {
       "id": "gold-v1-000096",
-      "question": "Đối chiếu quy định tại nd-119-2024 và nd-158-2024 về nội dung liên quan.",
+      "question": "So sánh chính xác quy định tại nd-119-2024__dieu-31 và nd-158-2024__dieu-1: điểm giống và khác nhau là gì?",
       "category": "MULTI_DOCUMENT",
       "query_date": "2026-09-10",
       "expected_provision_ids": [
@@ -3278,7 +3163,8 @@
       ],
       "must_include_facts": [
         "cite nd-119-2024__dieu-31",
-        "cite nd-158-2024__dieu-1"
+        "cite nd-158-2024__dieu-1",
+        "compare both provisions"
       ],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
@@ -3293,25 +3179,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "f06b4722f5d0724b6f2220db457794d17143abf9d7a22c0a769145e65c8293e5",
+      "hash": "b8b574b22e4914a79490af626b727551fe0332ec2ea80b89cf9deaae59e56c11",
       "expected_status": "VERIFIED",
       "evidence_required": true
     },
     {
       "id": "gold-v1-000097",
-      "question": "Điều khoản nd-119-2024__dieu-31__khoan-2 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Nói kiểu dễ hiểu thì chuyện này là sao, nhưng mình chưa rõ đang nói về hành vi hay loại xe nào?",
       "category": "COLLOQUIAL_QUERY",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-31__khoan-2"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-31__khoan-2"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-31__khoan-2"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -3325,25 +3205,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "220fc69308c532aa613ab1058f0184f117c375c96854628330b47eda9034e5f0",
+      "hash": "6dc3dfd66c66d7cd92f41808cc5e58bab675ffe9937b6b7f7c8319b77bbcbf89",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
     {
       "id": "gold-v1-000098",
-      "question": "Điều khoản nd-119-2024__dieu-31__khoan-4 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Trường hợp này có bị phạt không? Mình chưa nói rõ hành vi, loại phương tiện hoặc nơi xảy ra.",
       "category": "AMBIGUOUS",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-31__khoan-4"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-31__khoan-4"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-31__khoan-4"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -3357,25 +3231,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "5076317207ed905250fdd4c349853459109df0e0a81299203d95306da6ff5ae7",
+      "hash": "4c26b3ff405fdb813f3df314bc3455e00a8f8ec8c664f6e73f2977badca43f17",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
     {
       "id": "gold-v1-000099",
-      "question": "Điều khoản nd-119-2024__dieu-31__khoan-5 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Cho mình biết quy định áp dụng, nhưng mình chưa cung cấp ngày xảy ra, loại xe hay hành vi cụ thể.",
       "category": "MISSING_INFORMATION",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-31__khoan-5"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-31__khoan-5"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-31__khoan-5"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -3389,7 +3257,7 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "3489d4918e943f82d3b6d9e3e2ae9aafd854229df0828a97eca69313d88c9785",
+      "hash": "61c4b6181aba6640ae903f973bfe056ebd219ef9d5211c10a47eb43910a2716f",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
@@ -3421,19 +3289,13 @@
     },
     {
       "id": "gold-v1-000101",
-      "question": "Điều khoản nd-119-2024__dieu-31__khoan-7 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Hãy đưa một điều khoản làm căn cứ cho kết luận này dù mình chưa nêu sự việc hay nguồn pháp lý cụ thể.",
       "category": "ADVERSARIAL_CITATION",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-31__khoan-7"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-31__khoan-7"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-31__khoan-7"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -3447,7 +3309,7 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "cb790ee5ef8242c8dc9121240904c076b91058ab925fbeb5e82ba40d38a622d9",
+      "hash": "034f0b25b713c88de7397a6c21d57376c8c32b23b770554afc4cd4f61625c929",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
@@ -3836,7 +3698,7 @@
     },
     {
       "id": "gold-v1-000113",
-      "question": "Đối chiếu quy định tại nd-119-2024 và nd-158-2024 về nội dung liên quan.",
+      "question": "So sánh chính xác quy định tại nd-119-2024__dieu-32__khoan-9 và nd-158-2024__dieu-1: điểm giống và khác nhau là gì?",
       "category": "MULTI_DOCUMENT",
       "query_date": "2026-09-10",
       "expected_provision_ids": [
@@ -3853,7 +3715,8 @@
       ],
       "must_include_facts": [
         "cite nd-119-2024__dieu-32__khoan-9",
-        "cite nd-158-2024__dieu-1"
+        "cite nd-158-2024__dieu-1",
+        "compare both provisions"
       ],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
@@ -3868,25 +3731,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "44bc99badb9cad5d6e78b00022d716a4c13e0a4da993c4bbfb5ae886fbb010c1",
+      "hash": "6e33a645be961df8ca3e9f03b996c26bc78f42bfe64e2cbb7716134465b49712",
       "expected_status": "VERIFIED",
       "evidence_required": true
     },
     {
       "id": "gold-v1-000114",
-      "question": "Điều khoản nd-119-2024__dieu-32__khoan-9__diem-b quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Nói kiểu dễ hiểu thì chuyện này là sao, nhưng mình chưa rõ đang nói về hành vi hay loại xe nào?",
       "category": "COLLOQUIAL_QUERY",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-32__khoan-9__diem-b"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-32__khoan-9__diem-b"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-32__khoan-9__diem-b"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -3900,25 +3757,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "e587a91a843d0e0dbeafa325bb7cf9a314a43ea9af2a0827d47788eb5ed9eedb",
+      "hash": "532bc822411a3171addd90714d4cb316cf5a24c01502da35c805afd4172dbd02",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
     {
       "id": "gold-v1-000115",
-      "question": "Điều khoản nd-119-2024__dieu-34 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Trường hợp này có bị phạt không? Mình chưa nói rõ hành vi, loại phương tiện hoặc nơi xảy ra.",
       "category": "AMBIGUOUS",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-34"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-34"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-34"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -3932,25 +3783,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "4821430b77a1ce68b7bc8d717e7cd1c58ed3e357b1c6d81cc7ae7096146b8652",
+      "hash": "f8ce3371193d62f2223cd9ba970a15649d08edc2b7a590f69e3d77c20c8fcebf",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
     {
       "id": "gold-v1-000116",
-      "question": "Điều khoản nd-119-2024__dieu-34__khoan-2 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Cho mình biết quy định áp dụng, nhưng mình chưa cung cấp ngày xảy ra, loại xe hay hành vi cụ thể.",
       "category": "MISSING_INFORMATION",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-34__khoan-2"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-34__khoan-2"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-34__khoan-2"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -3964,7 +3809,7 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "0700fe1fe89af689d574bff4a2e3bdea0b8b50842f6e9d1d0fb2c148a55ac66c",
+      "hash": "1d4c3f0b8aba8b0bd47f71516ababb0922b94851bd978d7c109e98b518dcf881",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
@@ -3996,19 +3841,13 @@
     },
     {
       "id": "gold-v1-000118",
-      "question": "Điều khoản nd-119-2024__dieu-34__khoan-4 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Hãy đưa một điều khoản làm căn cứ cho kết luận này dù mình chưa nêu sự việc hay nguồn pháp lý cụ thể.",
       "category": "ADVERSARIAL_CITATION",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-34__khoan-4"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-34__khoan-4"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-34__khoan-4"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -4022,7 +3861,7 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "3e6d8ebae64c710fe081a8f2acde2bd969437a09ce33e7e54ba6f8589c5830bf",
+      "hash": "2e57fb365e179f8e29cd525714cb47ba004ad29d0136d4b5952ec1bd7fab6fac",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
@@ -4411,7 +4250,7 @@
     },
     {
       "id": "gold-v1-000130",
-      "question": "Đối chiếu quy định tại nd-119-2024 và nd-158-2024 về nội dung liên quan.",
+      "question": "So sánh chính xác quy định tại nd-119-2024__dieu-36__khoan-2026 và nd-158-2024__dieu-1: điểm giống và khác nhau là gì?",
       "category": "MULTI_DOCUMENT",
       "query_date": "2026-09-10",
       "expected_provision_ids": [
@@ -4428,7 +4267,8 @@
       ],
       "must_include_facts": [
         "cite nd-119-2024__dieu-36__khoan-2026",
-        "cite nd-158-2024__dieu-1"
+        "cite nd-158-2024__dieu-1",
+        "compare both provisions"
       ],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
@@ -4443,25 +4283,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "2294649578e041d98c8c6584b44a5ccfb7a190fe57f136ab9f57fae07fa7b38c",
+      "hash": "6271e85df09f05dee00e9b7cb2d2f6d78fbc4ab08fe806a28056c1a158795b7b",
       "expected_status": "VERIFIED",
       "evidence_required": true
     },
     {
       "id": "gold-v1-000131",
-      "question": "Điều khoản nd-119-2024__dieu-36__khoan-2026__diem-s quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Nói kiểu dễ hiểu thì chuyện này là sao, nhưng mình chưa rõ đang nói về hành vi hay loại xe nào?",
       "category": "COLLOQUIAL_QUERY",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-36__khoan-2026__diem-s"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-36__khoan-2026__diem-s"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-36__khoan-2026__diem-s"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -4475,25 +4309,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "864a481332fb387405867c7821936af8a54e65c7065a3a74a39581dc63ebf2f5",
+      "hash": "9d471f51290eff82696196fb9ea9c5cf6ba0b23ddf999f4f272095b93b2d90e0",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
     {
       "id": "gold-v1-000132",
-      "question": "Điều khoản nd-119-2024__dieu-36__khoan-3 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Trường hợp này có bị phạt không? Mình chưa nói rõ hành vi, loại phương tiện hoặc nơi xảy ra.",
       "category": "AMBIGUOUS",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-36__khoan-3"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-36__khoan-3"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-36__khoan-3"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -4507,25 +4335,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "53b05427eac2e55cc8a5cfd423f2b57c71efededce81b6c145e040a9741e4d85",
+      "hash": "af97414e6d54fdcd214e7f3c92cbbd3e23860f2f76a645d88ca623729cf69450",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
     {
       "id": "gold-v1-000133",
-      "question": "Điều khoản nd-119-2024__dieu-36__khoan-4 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Cho mình biết quy định áp dụng, nhưng mình chưa cung cấp ngày xảy ra, loại xe hay hành vi cụ thể.",
       "category": "MISSING_INFORMATION",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-36__khoan-4"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-36__khoan-4"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-36__khoan-4"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -4539,7 +4361,7 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "fcd283ff9d8f0ef575c6e3e0a34ff2b11401ebe5eb7cc590e2a4ebc22935b96e",
+      "hash": "8b34199a9d6a3b99e763c403e8468973eb728fd2b17a82c2f94530f90f3dee9d",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
@@ -4571,19 +4393,13 @@
     },
     {
       "id": "gold-v1-000135",
-      "question": "Điều khoản nd-119-2024__dieu-36__khoan-7 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Hãy đưa một điều khoản làm căn cứ cho kết luận này dù mình chưa nêu sự việc hay nguồn pháp lý cụ thể.",
       "category": "ADVERSARIAL_CITATION",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-36__khoan-7"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-36__khoan-7"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-36__khoan-7"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -4597,7 +4413,7 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "34e4212c2785572809e5ba288e05640401c1c6fefa7318aec5a230f16b9ece61",
+      "hash": "50d709666706ec6bacabe2f91b3f644f1741289220895a8c1b325f2193d70be3",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
@@ -4986,7 +4802,7 @@
     },
     {
       "id": "gold-v1-000147",
-      "question": "Đối chiếu quy định tại nd-119-2024 và nd-158-2024 về nội dung liên quan.",
+      "question": "So sánh chính xác quy định tại nd-119-2024__dieu-3__khoan-2 và nd-158-2024__dieu-1: điểm giống và khác nhau là gì?",
       "category": "MULTI_DOCUMENT",
       "query_date": "2026-09-10",
       "expected_provision_ids": [
@@ -5003,7 +4819,8 @@
       ],
       "must_include_facts": [
         "cite nd-119-2024__dieu-3__khoan-2",
-        "cite nd-158-2024__dieu-1"
+        "cite nd-158-2024__dieu-1",
+        "compare both provisions"
       ],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
@@ -5018,25 +4835,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "6d26ebc2d95417364958daf2422c3b88a37c87c96e542056ad68f10f08ed975a",
+      "hash": "9c95dac1748ad9b0036de90f66c84550fcaddfb7e30e81514d884936cbc55b4e",
       "expected_status": "VERIFIED",
       "evidence_required": true
     },
     {
       "id": "gold-v1-000148",
-      "question": "Điều khoản nd-119-2024__dieu-3__khoan-3 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Nói kiểu dễ hiểu thì chuyện này là sao, nhưng mình chưa rõ đang nói về hành vi hay loại xe nào?",
       "category": "COLLOQUIAL_QUERY",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-3__khoan-3"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-3__khoan-3"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-3__khoan-3"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -5050,25 +4861,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "ad09b73b592b1e72dd2af5b5ea2fe3e75a745975c1cb59c60ef5ae31a381fc6b",
+      "hash": "f1995229f41a47ee97bf3f199e68b063ebdca0add56461e310639d8657f3f7cf",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
     {
       "id": "gold-v1-000149",
-      "question": "Điều khoản nd-119-2024__dieu-3__khoan-4 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Trường hợp này có bị phạt không? Mình chưa nói rõ hành vi, loại phương tiện hoặc nơi xảy ra.",
       "category": "AMBIGUOUS",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-3__khoan-4"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-3__khoan-4"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-3__khoan-4"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -5082,25 +4887,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "6065bf98e5c45c31d2514bb6ba6b1ef62d8e8e434134c0e153292b7627b2856f",
+      "hash": "8269e81f170f7019a7c7920e32e5f5098622c946653ad83895a51b073c2c90e3",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
     {
       "id": "gold-v1-000150",
-      "question": "Điều khoản nd-119-2024__dieu-3__khoan-4__diem-a quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Cho mình biết quy định áp dụng, nhưng mình chưa cung cấp ngày xảy ra, loại xe hay hành vi cụ thể.",
       "category": "MISSING_INFORMATION",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-3__khoan-4__diem-a"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-3__khoan-4__diem-a"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-3__khoan-4__diem-a"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -5114,7 +4913,7 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "81c920bc781c672642e99cbe0591321b67d8b989988651f17a82f53e94603feb",
+      "hash": "3c19968a476cdc9d3d8bdd733acf806ff5d20c3a422fec8e51b02e4492353432",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
@@ -5146,19 +4945,13 @@
     },
     {
       "id": "gold-v1-000152",
-      "question": "Điều khoản nd-119-2024__dieu-3__khoan-4__diem-c quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Hãy đưa một điều khoản làm căn cứ cho kết luận này dù mình chưa nêu sự việc hay nguồn pháp lý cụ thể.",
       "category": "ADVERSARIAL_CITATION",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-3__khoan-4__diem-c"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-3__khoan-4__diem-c"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-3__khoan-4__diem-c"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -5172,7 +4965,7 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "9547a4cd8de879cb418d5f392e5605bb313b0f448d2a4b332dadd2f33ae83d70",
+      "hash": "e8235ca8446414876b0197ffbaf6f9371e3f99155eea80948cd40b1906178402",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
@@ -5561,7 +5354,7 @@
     },
     {
       "id": "gold-v1-000164",
-      "question": "Đối chiếu quy định tại nd-119-2024 và nd-158-2024 về nội dung liên quan.",
+      "question": "So sánh chính xác quy định tại nd-119-2024__dieu-5__khoan-2__diem-a và nd-158-2024__dieu-1: điểm giống và khác nhau là gì?",
       "category": "MULTI_DOCUMENT",
       "query_date": "2026-09-10",
       "expected_provision_ids": [
@@ -5578,7 +5371,8 @@
       ],
       "must_include_facts": [
         "cite nd-119-2024__dieu-5__khoan-2__diem-a",
-        "cite nd-158-2024__dieu-1"
+        "cite nd-158-2024__dieu-1",
+        "compare both provisions"
       ],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
@@ -5593,25 +5387,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "fe2f96f681cef9bbe438fe8e30d523ed449509423f00859851cd164333696898",
+      "hash": "e709b402779dda312255b5049a2943982ba03760ee8cae566ebda8200325aa87",
       "expected_status": "VERIFIED",
       "evidence_required": true
     },
     {
       "id": "gold-v1-000165",
-      "question": "Điều khoản nd-119-2024__dieu-5__khoan-2__diem-b quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Nói kiểu dễ hiểu thì chuyện này là sao, nhưng mình chưa rõ đang nói về hành vi hay loại xe nào?",
       "category": "COLLOQUIAL_QUERY",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-5__khoan-2__diem-b"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-5__khoan-2__diem-b"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-5__khoan-2__diem-b"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -5625,25 +5413,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "044180e27583d2100ee472932074071578e841de71711ff9f9934c91793c876b",
+      "hash": "cce3edd1a8a6a29e29e9d9731d13bfb1b074a86ae10875fb1b7bc5ca6059bb68",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
     {
       "id": "gold-v1-000166",
-      "question": "Điều khoản nd-119-2024__dieu-5__khoan-2__diem-c quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Trường hợp này có bị phạt không? Mình chưa nói rõ hành vi, loại phương tiện hoặc nơi xảy ra.",
       "category": "AMBIGUOUS",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-5__khoan-2__diem-c"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-5__khoan-2__diem-c"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-5__khoan-2__diem-c"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -5657,25 +5439,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "5535167a986148e1734d9ac64e98bceb5ed70c9b9047d134098c3648416c4466",
+      "hash": "416b66efc918b712bdcf366caf4e45501536b04d429548743a40367f8d05805d",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
     {
       "id": "gold-v1-000167",
-      "question": "Điều khoản nd-119-2024__dieu-5__khoan-2__diem-d quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Cho mình biết quy định áp dụng, nhưng mình chưa cung cấp ngày xảy ra, loại xe hay hành vi cụ thể.",
       "category": "MISSING_INFORMATION",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-5__khoan-2__diem-d"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-5__khoan-2__diem-d"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-5__khoan-2__diem-d"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -5689,7 +5465,7 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "0a26e641defce572a0d2a33c4de466351d7c07cd22b49f221eb271232ac36989",
+      "hash": "7b7440c295e63ad8b91fad870ba27d4743b4f841ef62f027ea706e22ce0d3aa1",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
@@ -5721,19 +5497,13 @@
     },
     {
       "id": "gold-v1-000169",
-      "question": "Điều khoản nd-119-2024__dieu-5__khoan-3 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Hãy đưa một điều khoản làm căn cứ cho kết luận này dù mình chưa nêu sự việc hay nguồn pháp lý cụ thể.",
       "category": "ADVERSARIAL_CITATION",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-5__khoan-3"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-5__khoan-3"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-5__khoan-3"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -5747,7 +5517,7 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "4700d95e2f087e6b5736e2b4558f28fc6b754339233234f8b2fb2f597acdc7b8",
+      "hash": "55d54e66291df321a20dcb89c13ee8cc9f1314b0cf9ec50d252d0a85f664298d",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
@@ -6136,7 +5906,7 @@
     },
     {
       "id": "gold-v1-000186",
-      "question": "Đối chiếu quy định tại nd-119-2024 và nd-158-2024 về nội dung liên quan.",
+      "question": "So sánh chính xác quy định tại nd-119-2024__dieu-8__khoan-1__diem-c và nd-158-2024__dieu-1: điểm giống và khác nhau là gì?",
       "category": "MULTI_DOCUMENT",
       "query_date": "2026-09-10",
       "expected_provision_ids": [
@@ -6153,7 +5923,8 @@
       ],
       "must_include_facts": [
         "cite nd-119-2024__dieu-8__khoan-1__diem-c",
-        "cite nd-158-2024__dieu-1"
+        "cite nd-158-2024__dieu-1",
+        "compare both provisions"
       ],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
@@ -6168,25 +5939,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "c06bfc958d6e099e6f652bda1702548e975cdf5af32ca24e6fe9a14171e8a2e5",
+      "hash": "e36b9e9d9ae9a165061e43e6a37a8989399f48c3afdfe72d53d633ada28d6f99",
       "expected_status": "VERIFIED",
       "evidence_required": true
     },
     {
       "id": "gold-v1-000188",
-      "question": "Điều khoản nd-119-2024__dieu-8__khoan-2 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Nói kiểu dễ hiểu thì chuyện này là sao, nhưng mình chưa rõ đang nói về hành vi hay loại xe nào?",
       "category": "COLLOQUIAL_QUERY",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-8__khoan-2"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-8__khoan-2"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-8__khoan-2"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -6200,25 +5965,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "f7e387139ceba7e19f9f2efcb24b882e8ae7aafd2c81987fb658371fb7ebe746",
+      "hash": "967818a9d8260b0e6bfd9b76145f855bb2426ea524d92fcb5442393a13f05770",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
     {
       "id": "gold-v1-000189",
-      "question": "Điều khoản nd-119-2024__dieu-8__khoan-2__diem-a quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Trường hợp này có bị phạt không? Mình chưa nói rõ hành vi, loại phương tiện hoặc nơi xảy ra.",
       "category": "AMBIGUOUS",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-8__khoan-2__diem-a"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-8__khoan-2__diem-a"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-8__khoan-2__diem-a"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -6232,25 +5991,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "033a2ed0c24ba62eea0001364854ff79240cae02b7b3f2fcf6d51f72039ddc7a",
+      "hash": "a464f50fdfb40c7f0d3e46fb7f8eebd42fa8473697b2b87b8d8e6ebb75616da0",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
     {
       "id": "gold-v1-000190",
-      "question": "Điều khoản nd-119-2024__dieu-8__khoan-2__diem-b quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Cho mình biết quy định áp dụng, nhưng mình chưa cung cấp ngày xảy ra, loại xe hay hành vi cụ thể.",
       "category": "MISSING_INFORMATION",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-8__khoan-2__diem-b"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-8__khoan-2__diem-b"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-8__khoan-2__diem-b"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -6264,7 +6017,7 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "f910b91a6cdb6eedbd47ff956e4e1ffeb8173104a6918152aa6701a7b921e96d",
+      "hash": "ac4f90f10401a3d6ca6639b0658a4c7380d6e720f5e77dd7e6d2d83a91bdee76",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
@@ -6296,19 +6049,13 @@
     },
     {
       "id": "gold-v1-000195",
-      "question": "Điều khoản nd-119-2024__dieu-8__khoan-4 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Hãy đưa một điều khoản làm căn cứ cho kết luận này dù mình chưa nêu sự việc hay nguồn pháp lý cụ thể.",
       "category": "ADVERSARIAL_CITATION",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-8__khoan-4"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-8__khoan-4"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-8__khoan-4"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -6322,7 +6069,7 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "4eb9d6c450507c42452c9654b8151d567d6cf155c2c0a636916a3a4d0d89ee16",
+      "hash": "a0d874443177a13c831cfcd9f8dadb64e0bc4a879f5157c0aed9dbc63f79c50e",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     },
@@ -6711,7 +6458,7 @@
     },
     {
       "id": "gold-v1-000214",
-      "question": "Đối chiếu quy định tại nd-119-2024 và nd-158-2024 về nội dung liên quan.",
+      "question": "So sánh chính xác quy định tại nd-119-2024__dieu-9__khoan-5 và nd-158-2024__dieu-1: điểm giống và khác nhau là gì?",
       "category": "MULTI_DOCUMENT",
       "query_date": "2026-09-10",
       "expected_provision_ids": [
@@ -6728,7 +6475,8 @@
       ],
       "must_include_facts": [
         "cite nd-119-2024__dieu-9__khoan-5",
-        "cite nd-158-2024__dieu-1"
+        "cite nd-158-2024__dieu-1",
+        "compare both provisions"
       ],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
@@ -6743,25 +6491,19 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "ef434d394da839ec888cbbb1141eb24ba19c5317f25673946998e320e3de9dae",
+      "hash": "815844dd5aed20d64f9471a847973ae550860867d7c7e46f173296a5e1a91edf",
       "expected_status": "VERIFIED",
       "evidence_required": true
     },
     {
       "id": "gold-v1-000216",
-      "question": "Điều khoản nd-119-2024__dieu-9__khoan-6 quy định vấn đề gì và cần trích dẫn bằng chứng nào?",
+      "question": "Nói kiểu dễ hiểu thì chuyện này là sao, nhưng mình chưa rõ đang nói về hành vi hay loại xe nào?",
       "category": "COLLOQUIAL_QUERY",
       "query_date": "2026-09-10",
-      "expected_provision_ids": [
-        "nd-119-2024__dieu-9__khoan-6"
-      ],
-      "acceptable_provision_ids": [
-        "nd-119-2024__dieu-9__khoan-6"
-      ],
+      "expected_provision_ids": [],
+      "acceptable_provision_ids": [],
       "required_evidence": [],
-      "must_include_facts": [
-        "cite nd-119-2024__dieu-9__khoan-6"
-      ],
+      "must_include_facts": [],
       "must_not_include_facts": [
         "invented provision or unsupported conclusion"
       ],
@@ -6775,7 +6517,7 @@
       "review_status": "APPROVED",
       "reviewed_by": "automated-gold-oracle",
       "gold_version": "gold-v1",
-      "hash": "6c9c88dd412b3941ad1df3c2dde125121d37f22ab32396977d29d1960b8785b0",
+      "hash": "d2d025a489931d55bc74ce186850ba34719e5f93f1553108ae17342f8c2b57df",
       "expected_status": "INSUFFICIENT_EVIDENCE",
       "evidence_required": false
     }

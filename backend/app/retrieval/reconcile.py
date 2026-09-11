@@ -324,6 +324,7 @@ def _document_metadata(
             "document_title": document.document_title,
             "document_status": document.status,
             "document_version": version.version,
+            "source_url": document.source_url,
         }
         manifest = version.manifest_json
         if isinstance(manifest, dict) and "vehicle_types" in manifest:

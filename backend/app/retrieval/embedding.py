@@ -1,6 +1,7 @@
 """Embedding provider adapters.
 
-Local Paddle GPU is production provider; HTTP adapters remain for legacy tests.
+OpenRouter is the default dense embedding provider; local Paddle remains
+available when explicitly configured.
 """
 
 from __future__ import annotations
@@ -23,7 +24,6 @@ from pydantic import BaseModel, ConfigDict
 from app.config import EmbeddingSettings
 
 logger = logging.getLogger(__name__)
-
 __all__ = [
     "ConfigError",
     "EmbeddingDimensionError",
@@ -31,6 +31,7 @@ __all__ = [
     "EmbeddingProviderError",
     "GeminiEmbeddingAdapter",
     "JinaEmbeddingAdapter",
+    "OpenRouterEmbeddingAdapter",
     "LocalE5EmbeddingAdapter",
     "VersionedEmbeddingCache",
     "embedding_cache_key",
@@ -43,11 +44,10 @@ __all__ = [
     "write_embedding_selection_manifest",
     "ensure_embedding_space_compatible",
 ]
-
-#: Default REST base URLs (proxy/deployment overrides are not needed this phase).
+#: Default REST base URLs.
 GEMINI_API_BASE_URL = "https://generativelanguage.googleapis.com"
 JINA_API_BASE_URL = "https://api.jina.ai"
-
+OPENROUTER_API_BASE_URL = "https://openrouter.ai/api/v1"
 #: Backoff base: delays are ``base * 2 ** (attempt - 1)`` — 1s, 2s, 4s for the
 #: default 3 retries (bounded, no unbounded loops).
 BACKOFF_BASE_SECONDS = 1.0
@@ -385,6 +385,62 @@ class GeminiEmbeddingAdapter(_HttpEmbeddingAdapter):
         return self._verified(vectors, len(texts))
 
 
+class OpenRouterEmbeddingAdapter(_HttpEmbeddingAdapter):
+    """OpenRouter-compatible embeddings endpoint."""
+
+    def __init__(
+        self,
+        settings: EmbeddingSettings,
+        *,
+        client: httpx.Client | None = None,
+        cache: VersionedEmbeddingCache | None = None,
+        encoder_version: str | None = None,
+    ) -> None:
+        if settings.dimensions != 768:
+            raise ConfigError(
+                "OpenRouter embedding dimensions must remain 768 for the Qdrant schema"
+            )
+        super().__init__(
+            settings,
+            api_key=settings.openrouter_api_key,
+            key_env_name="OPENROUTER_API_KEY",
+            base_url=settings.openrouter_base_url or OPENROUTER_API_BASE_URL,
+            client=client,
+            cache=cache,
+            encoder_version=encoder_version,
+        )
+
+    def _embed_uncached(self, texts: list[str]) -> list[list[float]]:
+        self._require_api_key()
+        response = self._post_with_retry(
+            f"{self._base_url}/embeddings",
+            headers={"Authorization": f"Bearer {self._api_key}"},
+            json_body={
+                "input": texts,
+                "model": self.name,
+                "dimensions": self.dims,
+                "encoding_format": "float",
+            },
+        )
+        data = response.json()
+        items = data.get("data") if isinstance(data, dict) else None
+        if not isinstance(items, list):
+            raise EmbeddingProviderError(f"{self.name} response missing 'data' list")
+        if any(not isinstance(item, dict) or "index" not in item for item in items):
+            raise EmbeddingProviderError(f"{self.name} response entries missing indices")
+        indices = [int(item["index"]) for item in items]
+        if len(items) != len(texts) or sorted(indices) != list(range(len(texts))):
+            raise EmbeddingProviderError(
+                f"{self.name} returned invalid embedding ordering/count for {len(texts)} texts"
+            )
+        ordered = sorted(items, key=lambda item: int(item["index"]))
+        vectors = [item.get("embedding") for item in ordered]
+        usage = data.get("usage") if isinstance(data, dict) else None
+        tokens = int(usage.get("total_tokens") or 0) if isinstance(usage, dict) else 0
+        self._account(tokens)
+        return self._verified(vectors, len(texts))
+
+
 class JinaEmbeddingAdapter(_HttpEmbeddingAdapter):
     """Jina Embeddings v5 via the Jina ``/v1/embeddings`` REST endpoint.
 
@@ -694,53 +750,17 @@ def ensure_embedding_space_compatible(
 def embedding_cache_key(
     model: str, encoder_version: str, text: str, *, mode: str = "default"
 ) -> str:
-    """Deterministic cache key including the embedding input mode.
-
-    Query and passage prefixes produce different vector-space inputs and must
-    never share a cache entry.
-    """
-    material = "\x00".join((model, encoder_version, mode, text))
+    material = json.dumps(
+        {"model": model, "encoder_version": encoder_version, "mode": mode, "text": text},
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
     return hashlib.sha256(material.encode("utf-8")).hexdigest()
 
 
-class VersionedEmbeddingCache:
-    """Bounded in-memory embedding cache keyed by :func:`embedding_cache_key`.
-
-    LRU eviction at ``max_size`` entries; deliberately persistence-free (a
-    rebuild embeds cold or from a future on-disk cache). Deterministic
-    reproduction: identical ``(model, encoder_version, text)`` triplets yield
-    identical vectors. Stored vectors are treated as immutable by convention;
-    :meth:`get` returns the stored object, not a copy.
-    """
-
-    def __init__(self, max_size: int = 10_000) -> None:
-        if max_size < 1:
-            raise ValueError("max_size must be >= 1")
-        self.max_size = max_size
-        self._entries: OrderedDict[str, list[float]] = OrderedDict()
-        self._lock = threading.Lock()
-
-    def get(self, key: str) -> list[float] | None:
-        with self._lock:
-            vector = self._entries.get(key)
-            if vector is not None:
-                self._entries.move_to_end(key)
-            return vector
-
-    def set(self, key: str, vector: list[float]) -> None:
-        with self._lock:
-            self._entries[key] = vector
-            self._entries.move_to_end(key)
-            while len(self._entries) > self.max_size:
-                self._entries.popitem(last=False)
-
-    def __len__(self) -> int:
-        with self._lock:
-            return len(self._entries)
-
-    def clear(self) -> None:
-        with self._lock:
-            self._entries.clear()
+_LOCAL_PROVIDER_CACHE: dict[tuple[Any, ...], LocalE5EmbeddingAdapter] = {}
+_LOCAL_PROVIDER_LOCK = threading.Lock()
 
 
 def get_embedding_provider(
@@ -749,16 +769,28 @@ def get_embedding_provider(
     cache: VersionedEmbeddingCache | None = None,
     encoder_version: str | None = None,
 ) -> EmbeddingProvider:
-    """Instantiate configured embedding adapter.
-
-    Local adapters are intentionally not process-cached: Paddle owns global
-    device/runtime state, so caching across independently configured tests or
-    runs can reuse the wrong model/device.
-    """
+    if config.provider == "openrouter":
+        return OpenRouterEmbeddingAdapter(config, cache=cache, encoder_version=encoder_version)
     if config.provider == "gemini":
         return GeminiEmbeddingAdapter(config, cache=cache, encoder_version=encoder_version)
     if config.provider == "jina":
         return JinaEmbeddingAdapter(config, cache=cache, encoder_version=encoder_version)
     if config.provider == "local":
-        return LocalE5EmbeddingAdapter(config, cache=cache, encoder_version=encoder_version)
+        if cache is not None or encoder_version is not None:
+            return LocalE5EmbeddingAdapter(config, cache=cache, encoder_version=encoder_version)
+        key = (
+            config.provider,
+            config.model,
+            config.dimensions,
+            config.batch_size,
+            config.local_device,
+        )
+        provider = _LOCAL_PROVIDER_CACHE.get(key)
+        if provider is None:
+            with _LOCAL_PROVIDER_LOCK:
+                provider = _LOCAL_PROVIDER_CACHE.get(key)
+                if provider is None:
+                    provider = LocalE5EmbeddingAdapter(config)
+                    _LOCAL_PROVIDER_CACHE[key] = provider
+        return provider
     raise ConfigError(f"unsupported embedding provider: {config.provider!r}")

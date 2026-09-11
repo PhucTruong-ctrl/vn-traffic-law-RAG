@@ -381,9 +381,40 @@ def test_ordinary_concept_query_without_document_is_not_corpus_miss() -> None:
     assert plan.document_number is None
 
 
+def test_supported_decree_reference_maps_to_corpus_id() -> None:
+    plan = QueryAnalyzer(approved_document_ids={"nd-119-2024"}).analyze(
+        "Điều 1 Nghị định 119/2024/NĐ-CP quy định gì?",
+        current_date=TODAY,
+    )
+    assert plan.intent is QueryIntent.SOURCE_SEARCH
+    assert plan.document_number == "119/2024/NĐ-CP"
+    assert plan.status == "LEGAL"
+    assert plan.status != "CORPUS_NOT_COVERED"
+
+
+def test_supported_circular_reference_maps_to_corpus_id() -> None:
+    plan = QueryAnalyzer(approved_document_ids={"tt-05-2024"}).analyze(
+        "Điều 1 Thông tư 05/2024/TT-BGTVT quy định gì?",
+        current_date=TODAY,
+    )
+    assert plan.intent is QueryIntent.SOURCE_SEARCH
+    assert plan.document_number == "05/2024/TT-BGTVT"
+    assert plan.status == "LEGAL"
+
+
 def test_explicit_unknown_document_remains_corpus_miss() -> None:
     plan = QueryAnalyzer().analyze(
         "Điều 1 Nghị định 999/2099/NĐ-CP quy định gì?",
         current_date=TODAY,
     )
     assert plan.status == "CORPUS_NOT_COVERED"
+
+
+def test_corpus_boundary_phrase_is_out_of_scope() -> None:
+    plan = QueryAnalyzer().analyze(
+        "Câu hỏi này yêu cầu nguồn ngoài 14 văn bản đang phục vụ; hệ thống phải từ chối.",
+        current_date=TODAY,
+    )
+    assert plan.intent is QueryIntent.OUT_OF_SCOPE
+    assert plan.status == "OUT_OF_SCOPE"
+    assert plan.required_evidence == []

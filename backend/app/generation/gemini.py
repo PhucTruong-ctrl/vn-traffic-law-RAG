@@ -1,24 +1,19 @@
-"""Gemini structured-output adapter for legal answers."""
+"""OpenRouter structured-output adapter for legal answers."""
 
 from __future__ import annotations
 
-from typing import Any, Protocol, cast
+import json
+from typing import Any
+from urllib import error, request
 
 import app.config as config
 
 from .schemas import StructuredAnswer
 
-MODEL_VERSION = "gemini-3.7-flash"
+MODEL_VERSION = "google/gemini-2.5-flash-lite"
 PROMPT_NAME = "legal-generator-v1"
 PROMPT_VERSION = "2"
-
-
-class _Models(Protocol):
-    def generate_content(self, **kwargs: Any) -> Any: ...
-
-
-class _Client(Protocol):
-    models: _Models
+OPENROUTER_CHAT_COMPLETIONS_PATH = "/chat/completions"
 
 
 class StructuredGenerationError(ValueError):
@@ -29,88 +24,122 @@ class GenerationConfigurationError(StructuredGenerationError):
     """Generation cannot run because provider credentials/configuration are absent."""
 
 
-class GeminiStructuredGenerator:
-    """Generate a :class:`StructuredAnswer` using Gemini's JSON schema mode."""
+def _content_value(response: Any) -> Any:
+    if isinstance(response, dict):
+        choices = response.get("choices")
+        if isinstance(choices, list) and choices:
+            message = choices[0].get("message", {})
+            if isinstance(message, dict):
+                return message.get("content")
+        return response.get("content")
+    return getattr(response, "content", None)
+
+
+class OpenRouterStructuredGenerator:
+    """Generate a :class:`StructuredAnswer` through OpenRouter Chat Completions."""
 
     model_version = MODEL_VERSION
     prompt_name = PROMPT_NAME
     prompt_version = PROMPT_VERSION
 
-    def __init__(self, client: _Client | None = None, *, model: str | None = None) -> None:
-        self._client = client
+    def __init__(
+        self,
+        *,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        model: str | None = None,
+        timeout: float = 60.0,
+        opener: Any = request.urlopen,
+    ) -> None:
+        self._api_key = api_key
+        self._base_url = base_url
         self._model = model
+        self._timeout = timeout
+        self._opener = opener
 
     def generate(
         self, query: str, evidence: Any, *, feedback: str | None = None
     ) -> StructuredAnswer:
-        client = self._client
-        model = self._model
-        if client is None or model is None:
-            settings = config.get_generation_settings()
-            model = model or settings.model or MODEL_VERSION
-            if client is None:
-                if not settings.gemini_api_key:
-                    raise GenerationConfigurationError(
-                        "GEMINI_API_KEY is required for legal answer generation"
-                    )
-                try:
-                    from google import genai
-                except ImportError as exc:
-                    raise GenerationConfigurationError(
-                        "google-genai is required for legal answer generation"
-                    ) from exc
-                client = cast(_Client, genai.Client(api_key=settings.gemini_api_key))
-        from google.genai import types
-
+        settings = config.get_generation_settings()
+        api_key = self._api_key if self._api_key is not None else settings.openrouter_api_key
+        if not api_key:
+            raise GenerationConfigurationError(
+                "OPENROUTER_API_KEY is required for legal answer generation"
+            )
+        model = self._model or settings.model or MODEL_VERSION
+        base_url = (self._base_url or settings.openrouter_base_url).rstrip("/")
         prompt = (
             "Bạn là trợ lý thông tin pháp luật giao thông Việt Nam. Trả lời bằng tiếng Việt "
             "rõ ràng, thân thiện và chuyên nghiệp; đây không phải là quyết định ràng buộc "
-            "của tòa án, cơ quan công an hay tư vấn đại diện pháp lý. "
-            "Chỉ dùng bằng chứng pháp lý được cung cấp cho các kết luận pháp luật; không "
-            "được bịa điều khoản, mức phạt, ngày hiệu lực, trích dẫn, đường dẫn hoặc trích "
-            "dẫn văn bản. Mỗi claim pháp lý phải gắn với đúng provision_id trong bằng chứng, "
-            "bỏ hậu tố phiên bản @vN nếu nhãn ngữ cảnh có hậu tố đó "
-            "(without the @vN version suffix). "
-            "Nếu có nhiều tình huống, giữ số thứ tự và tách từng tình huống; nếu tương thích "
-            "hãy ghi nhận case identity trong claim. Nêu kết luận trực tiếp trước, sau đó căn cứ "
-            "và điều kiện/ngoại lệ. Luôn nói rõ bằng chứng trong corpus hỗ trợ điều gì và còn "
-            "thiếu điều gì; dùng should_abstain=true khi chưa đủ căn cứ. Kết thúc bằng bước "
-            "tiếp theo nhỏ nhất nhưng hữu ích (hoặc thông tin tối thiểu cần bổ sung). "
-            "Không gộp các claim không cùng căn cứ vào một trích dẫn. "
+            "của tòa án, cơ quan công an hay tư vấn đại diện pháp lý. Chỉ dùng bằng chứng "
+            "hoặc đường dẫn. Mỗi claim pháp lý phải gắn với đúng một provision_id "
+            "trong bằng chứng; mỗi provision_id chỉ được dùng cho một claim duy nhất, "
+            "không lặp lại giữa các claim. Nếu có nhiều tình huống, giữ số thứ tự và tách "
+            "từng tình huống. Nêu kết luận trực tiếp trước, sau đó căn cứ và điều kiện/ngoại lệ. "
+            "Luôn nói rõ bằng chứng hỗ trợ điều gì và còn thiếu điều gì; dùng should_abstain=true "
+            "khi chưa đủ căn cứ. Kết thúc bằng bước tiếp theo nhỏ nhất nhưng hữu ích."
             f"\nCâu hỏi: {query}\nBằng chứng: {evidence}"
         )
         if feedback:
             prompt += f"\nRepair feedback: {feedback}"
+        schema = StructuredAnswer.model_json_schema()
+        payload = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.2,
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {"name": "structured_answer", "strict": True, "schema": schema},
+            },
+        }
+        body = json.dumps(payload).encode("utf-8")
+        req = request.Request(
+            f"{base_url}{OPENROUTER_CHAT_COMPLETIONS_PATH}",
+            data=body,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
         try:
-            response = client.models.generate_content(
-                model=model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    # Passing the plain schema avoids the SDK's Pydantic adapter
-                    # emitting unsupported ``additional_properties`` fields.
-                    response_json_schema=StructuredAnswer.model_json_schema(),
-                    temperature=0.2,
-                ),
-            )
-            value = getattr(response, "parsed", None)
-            if value is None:
-                value = getattr(response, "text", None)
-            if value is None:
-                raise StructuredGenerationError("Gemini returned no structured answer")
-            try:
-                return StructuredAnswer.model_validate(value)
-            except Exception as exc:
-                message = "Gemini structured answer schema validation failed"
-                raise StructuredGenerationError(message) from exc
+            with self._opener(req, timeout=self._timeout) as response:
+                raw = response.read()
+            decoded = json.loads(raw)
+            content = _content_value(decoded)
+            if isinstance(content, list):
+                content = "".join(
+                    part.get("text", "") if isinstance(part, dict) else str(part)
+                    for part in content
+                )
+            if not content:
+                raise StructuredGenerationError("OpenRouter returned no structured answer")
+            if isinstance(content, str):
+                content = content.strip()
+                if content.startswith("```"):
+                    content = content.strip("`")
+                    if content.startswith("json"):
+                        content = content[4:].lstrip()
+                content = json.loads(content)
+            return StructuredAnswer.model_validate(content)
         except StructuredGenerationError:
             raise
+        except (error.HTTPError, error.URLError, TimeoutError) as exc:
+            raise StructuredGenerationError(
+                "OpenRouter structured answer generation failed"
+            ) from exc
+        except (json.JSONDecodeError, TypeError, ValueError) as exc:
+            raise StructuredGenerationError(
+                "OpenRouter structured answer schema validation failed"
+            ) from exc
         except Exception as exc:
-            raise StructuredGenerationError("Gemini structured answer generation failed") from exc
+            raise StructuredGenerationError(
+                "OpenRouter structured answer generation failed"
+            ) from exc
 
 
 __all__ = [
-    "GeminiStructuredGenerator",
+    "OpenRouterStructuredGenerator",
     "MODEL_VERSION",
     "PROMPT_NAME",
     "PROMPT_VERSION",

@@ -104,6 +104,7 @@ def _result(row: LegalProvision, rank: int) -> RetrievalResult:
         fused_score=None,
         added_by=None,
         source_id=str(document.source_id) if document.source_id is not None else None,
+        source_url=document.source_url,
         depth=0,
     )
 

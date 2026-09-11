@@ -189,6 +189,7 @@ def project_document(
 
     document_title = metadata.document_title or document_number
 
+    source_url = _optional_str(manifest.get("source_url"))
     document = LegalDocument(
         document_id=document_id,
         document_number=document_number,
@@ -196,7 +197,7 @@ def project_document(
         document_type=document_type,
         issuer=metadata.issuer,  # normalized issuer (VNLRAG-27), not raw manifest text
         issued_date=_parse_iso_date(manifest.get("issued_date")),
-        source_url=_optional_str(manifest.get("source_url")),
+        source_url=source_url,
         downloaded_at=None,
         file_hash=file_hash,
         status=status,

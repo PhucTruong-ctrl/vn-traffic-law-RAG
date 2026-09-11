@@ -282,3 +282,39 @@ def test_expected_abstention_can_pass_without_evidence() -> None:
     report = evaluate_release_records(records)
     assert report["release_status"] == "RELEASED"
     assert report["verified_answer_rate"] == 0
+
+
+def test_nested_abstention_reason_is_counted() -> None:
+    records = [
+        {
+            "question_id": f"q-{index}",
+            "input": {"expected_status": "INSUFFICIENT_EVIDENCE", "evidence_required": False},
+            "retrieval": {"retrieved_ids": []},
+            "output": {
+                "status": "INSUFFICIENT_EVIDENCE",
+                "abstention": {"reason_code": "NO_MATCH"},
+            },
+            "metrics": {},
+        }
+        for index in range(200)
+    ]
+    report = evaluate_release_records(records)
+    assert report["release_status"] == "RELEASED"
+    assert report["abstention_taxonomy"] == {"NO_MATCH": 200}
+
+
+def test_out_of_scope_expected_status_counts_as_abstention() -> None:
+    records = [
+        {
+            "question_id": f"q-{index}",
+            "input": {"expected_status": "OUT_OF_SCOPE", "evidence_required": False},
+            "retrieval": {"retrieved_ids": []},
+            "output": {"status": "OUT_OF_SCOPE", "abstention_reason": "OUT_OF_SCOPE"},
+            "metrics": {},
+        }
+        for index in range(200)
+    ]
+    report = evaluate_release_records(records)
+    assert report["release_status"] == "RELEASED"
+    assert report["semantic_failure_count"] == 0
+    assert report["abstention_taxonomy"] == {"OUT_OF_SCOPE": 200}

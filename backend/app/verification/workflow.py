@@ -14,7 +14,7 @@ from typing import Any
 from .abstention import AbstentionReason
 from .l2_citation import L2CitationVerifier, VerificationIssue
 from .l4_numeric import L4NumericVerifier
-from .l5_claim import L5ClaimVerifier
+from .l5_claim import L5ClaimVerifier, OpenRouterClaimJudge
 from .l6_evidence import L6EvidenceVerifier
 
 
@@ -41,7 +41,9 @@ class VerificationBoundaryResult:
 class LegalVerificationBoundary:
     citation: L2CitationVerifier = field(default_factory=L2CitationVerifier)
     numeric: L4NumericVerifier = field(default_factory=L4NumericVerifier)
-    claim: L5ClaimVerifier = field(default_factory=lambda: L5ClaimVerifier(judge_enabled=False))
+    claim: L5ClaimVerifier = field(
+        default_factory=lambda: L5ClaimVerifier(judge=OpenRouterClaimJudge(), judge_enabled=True)
+    )
     evidence: L6EvidenceVerifier = field(default_factory=L6EvidenceVerifier)
 
     def verify(

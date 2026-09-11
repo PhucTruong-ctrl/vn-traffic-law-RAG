@@ -2,8 +2,8 @@
 
 from .context_builder import ContextBuilder, build_context
 from .gemini import (
-    GeminiStructuredGenerator,
     GenerationConfigurationError,
+    OpenRouterStructuredGenerator,
     StructuredGenerationError,
 )
 from .schemas import Claim, ClaimType, StructuredAnswer
@@ -12,7 +12,7 @@ __all__ = [
     "Claim",
     "ClaimType",
     "ContextBuilder",
-    "GeminiStructuredGenerator",
+    "OpenRouterStructuredGenerator",
     "StructuredAnswer",
     "StructuredGenerationError",
     "GenerationConfigurationError",

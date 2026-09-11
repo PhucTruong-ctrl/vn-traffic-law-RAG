@@ -94,14 +94,21 @@ def _resolve_database_url() -> str:
 def _artifact_metadata() -> dict[str, str]:
     manifest = json.loads((_ROOT / "data/candidate-corpus-manifest.json").read_text())
     snapshot_hash = str(manifest["artifact_sha256"])
-    model_path = _ROOT / "data/models/multilingual-e5-base-paddle"
     selection = json.loads((_ROOT / "data/evaluation/embedding-selection.json").read_text())
     sparse_path = _ROOT / "data/sparse-vocab/bm25-v2.json"
+    identity = {
+        "provider": str(selection["provider"]),
+        "model": str(selection["model"]),
+        "dimensions": int(selection["dimensions"]),
+    }
+    embedding_model_hash = hashlib.sha256(
+        json.dumps(identity, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
     return {
         "corpus_snapshot_version": "candidate-corpus-14",
         "corpus_snapshot_hash": snapshot_hash,
         "embedding_version": str(selection["revision"]),
-        "embedding_model_hash": aggregate_model_hash(model_path),
+        "embedding_model_hash": embedding_model_hash,
         "sparse_vocabulary_version": str(selection["sparse_vocabulary_version"]),
         "sparse_vocabulary_hash": hashlib.sha256(sparse_path.read_bytes()).hexdigest(),
         "chunking_version": "canonical-v1",

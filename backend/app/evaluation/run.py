@@ -446,14 +446,17 @@ def evaluate_release_records(records: Sequence[Mapping[str, Any]]) -> dict[str, 
             }
         )
         status = str(output.get("status", _field(record, "status", ""))).upper()
+        abstention = _mapping(output.get("abstention", {}))
         abstention_reason = str(
             output.get("abstention_reason")
             or output.get("reason_code")
+            or abstention.get("reason_code")
             or _field(record, "error")
             or "UNCLASSIFIED"
         )
         expected_abstention = expected_status in {
             "INSUFFICIENT_EVIDENCE",
+            "OUT_OF_SCOPE",
             "UNSUPPORTED",
             "INVALID",
         }

@@ -118,18 +118,19 @@ VIETNAMESE_STOPWORDS: frozenset[str] = frozenset(
 
 
 def tokenize_vietnamese(text: str, *, drop_stopwords: bool = False) -> list[str]:
-    """Deterministic Vietnamese-aware tokenizer.
+    """Tokenize Vietnamese with bounded OCR-folded aliases.
 
-    Normalizes to NFC (composes decomposed diacritics), lowercases, then
-    splits on any non-letter/digit character. Vietnamese letters are kept
-    intact — ``đ`` and diacritics are preserved (FR-03 requires distinct
-    ``d``/``đ``, so no diacritic folding is ever applied). Numeric tokens are
-    retained, including clause markers such as ``96`` and numeric-only text
-    such as ``96.`` (which tokenizes to ``["96"]``). Optionally removes the
-    minimal :data:`VIETNAMESE_STOPWORDS`.
+    Query aliases are emitted only when their folded spelling is distinct.
+    This lets naturally typed Vietnamese and common OCR spellings share the
+    indexed vocabulary without changing the immutable sparse index.
     """
-    normalized = unicodedata.normalize("NFC", text.lower())
+    normalized = unicodedata.normalize("NFC", text.casefold())
     tokens = _TOKEN_RE.findall(normalized)
+    folded = unicodedata.normalize("NFKD", normalized)
+    folded = "".join(char for char in folded if unicodedata.category(char) != "Mn")
+    folded = folded.replace("đ", "d")
+    aliases = _TOKEN_RE.findall(folded)
+    tokens.extend(token for token in aliases if token not in tokens)
     if drop_stopwords:
         tokens = [token for token in tokens if token not in VIETNAMESE_STOPWORDS]
     return tokens

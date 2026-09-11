@@ -3,11 +3,25 @@ from datetime import date
 from types import SimpleNamespace
 
 from app.query.evidence_gate import EvidenceGateResult, EvidenceStatus
+from app.query.query_understanding import QueryAnalyzer
 from app.query.query_understanding_types import EvidenceType
 from app.retrieval.comparison import ComparisonResult
 from app.retrieval.contracts import CandidateSet, RetrievalResult
 from app.workflow import graph as workflow_graph
 from app.workflow.graph import GraphServices, build_query_graph, production_services
+
+
+def test_canonical_reference_query_preserves_hierarchy() -> None:
+    rewritten = workflow_graph._canonical_reference_query("nd-119-2024__dieu-11__khoan-4")
+    assert rewritten == "Điều 11 119/2024/NĐ-CP Khoản 4"
+
+    plan = QueryAnalyzer().analyze(rewritten, current_date=date(2026, 8, 31))
+    assert (plan.document_number, plan.article, plan.clause, plan.point) == (
+        "119/2024/NĐ-CP",
+        "11",
+        "4",
+        None,
+    )
 
 
 def services(**overrides):
@@ -190,6 +204,46 @@ def test_retrieve_passes_query_plan_exact_reference() -> None:
     }
 
 
+def test_multi_provision_retrieval_looks_up_each_exact_reference() -> None:
+    calls = []
+    first = SimpleNamespace(document_number="1/2024/NĐ-CP", article="1", clause=None, point=None)
+    second = SimpleNamespace(document_number="2/2024/NĐ-CP", article="2", clause=None, point=None)
+    plan = SimpleNamespace(
+        normalized_query="both",
+        intent="MULTI_PROVISION",
+        references=(first, second),
+        effective_date=date(2024, 1, 1),
+        missing_query_information=[],
+    )
+
+    def retrieve(query, **kwargs):
+        calls.append(kwargs["exact_reference"])
+        return [kwargs["exact_reference"]["document_number"]]
+
+    graph = build_query_graph(
+        services(
+            analyzer=lambda question, **_: plan,
+            temporal=lambda plan, **_: date(2024, 1, 1),
+            retriever=retrieve,
+            evidence_gate=type(
+                "CompleteGate",
+                (),
+                {
+                    "evaluate": lambda self, plan, context: type(
+                        "Gate", (), {"status": EvidenceStatus.COMPLETE, "evidence_gaps": []}
+                    )()
+                },
+            )(),
+        )
+    )
+    state = graph.invoke({"question": "both", "max_repair_attempts": 0})
+    assert calls == [
+        {"document_number": "1/2024/NĐ-CP", "article": "1", "clause": None, "point": None},
+        {"document_number": "2/2024/NĐ-CP", "article": "2", "clause": None, "point": None},
+    ]
+    assert state["recall_candidates"] == ["1/2024/NĐ-CP", "2/2024/NĐ-CP"]
+
+
 def test_targeted_repair_retrieves_and_merges_every_gap() -> None:
     calls = []
 
@@ -316,8 +370,24 @@ def test_out_of_scope_plan_abstains_before_retrieval() -> None:
         )
     )
     state = graph.invoke({"question": "tax advice", "max_repair_attempts": 0})
-    assert state["final_response"]["status"] == "INSUFFICIENT_EVIDENCE"
+    assert state["final_response"]["status"] == "OUT_OF_SCOPE"
     assert calls == []
+
+
+def test_corpus_boundary_plan_abstains_without_retrieval() -> None:
+    calls = []
+    graph = build_query_graph(services(retriever=lambda *args, **kwargs: calls.append(args)))
+    state = graph.invoke(
+        {
+            "question": (
+                "Câu hỏi này yêu cầu nguồn ngoài 14 văn bản đang phục vụ; hệ thống phải từ chối."
+            ),
+            "query_date": date(2026, 8, 31),
+        }
+    )
+    assert calls == []
+    assert state["final_response"]["status"] == "OUT_OF_SCOPE"
+    assert state["verification_result"]["reason_code"] == "OUT_OF_SCOPE"
 
 
 def test_production_services_retrieves_with_normalized_query(monkeypatch) -> None:
@@ -829,6 +899,36 @@ def test_source_fallback_excludes_unrelated_records() -> None:
             ],
         }
     ).claims[0].provision_ids == ["wanted"]
+
+
+def test_source_fallback_accepts_mapping_with_exact_reference() -> None:
+    plan = SimpleNamespace(
+        intent="SOURCE_SEARCH",
+        normalized_query="Điều 1",
+        document_number="168/2024/NĐ-CP",
+        article="1",
+        clause=None,
+        point=None,
+    )
+    result = workflow_graph._evidence_fallback(
+        {
+            "query_understanding": plan,
+            "evidence_status": EvidenceStatus.COMPLETE,
+            "expanded_context": [
+                {
+                    "provision_id": "wanted",
+                    "text": "Điều 1 nội dung",
+                    "review_status": "ACCEPTED",
+                    "document_number": "168/2024/NĐ-CP",
+                    "article": "Điều 1",
+                    "clause": None,
+                    "point": None,
+                }
+            ],
+        }
+    )
+    assert result is not None
+    assert result.claims[0].provision_ids == ["wanted"]
 
 
 def test_quota_fallback_supports_current_when_one_accepted_provision_covers_evidence():

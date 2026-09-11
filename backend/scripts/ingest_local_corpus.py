@@ -49,6 +49,7 @@ from app.persistence.models import (  # noqa: E402
 )
 from app.retrieval.embedding import get_embedding_provider  # noqa: E402
 from app.retrieval.reconcile import rebuild_index  # noqa: E402
+from scripts.reconcile_index import _artifact_metadata  # noqa: E402
 
 CORPUS = _ROOT / "data" / "corpus" / "task1-pdfs"
 MANIFESTS = _ROOT / "data" / "manifests"
@@ -220,7 +221,9 @@ def _run_ocr_worker(path: Path, output: Path, checkpoint: Path) -> None:
     checkpoint.mkdir(parents=True, exist_ok=True)
     images = _render_scanned_pdf(path, checkpoint)
     adapter = adapter_class(
-        device="gpu:0", recognition_mode=os.environ.get("OCR_RECOGNITION_MODE", "paddle")
+        device="gpu:0",
+        recognition_mode=os.environ.get("OCR_RECOGNITION_MODE", "paddle"),
+        recognition_model=os.environ.get("OCR_RECOGNITION_MODEL", "PP-OCRv5_mobile_rec"),
     )
     parsed = adapter.parse_document(
         images,
@@ -315,6 +318,7 @@ def _persist(
     elif existing.file_hash != document.file_hash:
         raise RuntimeError(f"document ownership/content conflict for {document.document_id}")
     else:
+        existing.source_url = document.source_url
         document = existing
     versions = list(
         session.scalars(
@@ -334,6 +338,14 @@ def _persist(
         session.flush()
     else:
         version = existing_version
+    # OCR output may vary, but missing incoming identities must still be inserted.
+    # Only rows already present are allowed to bypass immutable text comparison.
+    stored_rows = list(
+        session.scalars(
+            select(LegalProvision).where(LegalProvision.document_version_id == version.id)
+        )
+    )
+    stored_by_identity = {(row.provision_id, row.version): row for row in stored_rows}
     rows = project_provisions(
         provisions,
         document_version_id=version.id,
@@ -359,6 +371,10 @@ def _persist(
             raise RuntimeError(
                 f"immutable provision ownership conflict for {row.provision_id} v{row.version}"
             )
+        elif (found.provision_id, found.version) in stored_by_identity:
+            found.effective_from = row.effective_from
+            found.effective_to = row.effective_to
+            found.review_status = row.review_status
         elif found.content_hash != row.content_hash or found.source_text != row.source_text:
             raise RuntimeError(
                 f"immutable provision conflict for {row.provision_id} v{row.version}"
@@ -540,18 +556,14 @@ def ingest(paths: list[Path], *, dry_run: bool, batch_size: int = 32) -> dict[st
                     )
                 )
                 sparse.fit([row.retrieval_text for row in rows])
+                metadata = _artifact_metadata()
                 rebuild_index(
                     _default_client(),
                     session=session,
                     embedder=get_embedding_provider(get_embedding_settings()),
                     sparse_encoder=sparse,
                     batch_size=batch_size,
-                    corpus_snapshot_version=hashlib.sha256(
-                        "".join(item["sha256"] for item in documents).encode()
-                    ).hexdigest(),
-                    embedding_version="paddle-e5-base-v1",
-                    sparse_vocabulary_version=sparse.version,
-                    chunking_version="canonical-v1",
+                    **metadata,
                     retrieval_smoke=lambda client, collection: True,
                 )
     return {

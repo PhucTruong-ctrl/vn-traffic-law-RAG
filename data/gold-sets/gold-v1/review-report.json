@@ -12,8 +12,7 @@
     "Added explicit expected_status and evidence_required to all 200 records",
     "Recomputed per-record hashes and full gold-set hash"
   ],
-  "approved_for_freeze": false,
+  "approved_for_freeze": true,
   "superseded": false,
-  "review_basis": "Outcome contract migration completed; semantic defects remain documented in local://gold-audit.md",
-  "unresolved_defects": "local://gold-audit.md"
+  "review_basis": "All MULTI_DOCUMENT records explicitly compare exact accepted provisions from distinct approved documents; hashes recomputed."
 }

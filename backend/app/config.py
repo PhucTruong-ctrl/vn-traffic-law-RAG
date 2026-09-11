@@ -64,23 +64,28 @@ class Settings(BaseSettings):
 
 
 class GenerationSettings(BaseSettings):
-    """Structured Gemini generation settings used by query fallback."""
+    """Structured OpenRouter generation settings used by query fallback."""
 
     model_config = SettingsConfigDict(
         env_file=str(_ENV_FILE),
         env_file_encoding="utf-8",
-        extra="ignore",
+        dotenv_filtering="only_existing",
+        extra="forbid",
         case_sensitive=False,
         populate_by_name=True,
     )
 
     model: str = Field(
-        default="gemini-3.7-flash",
+        default="google/gemini-2.5-flash-lite",
         validation_alias=AliasChoices("GENERATION_MODEL", "LLM_MODEL"),
     )
-    gemini_api_key: str = Field(
+    openrouter_api_key: str = Field(
         default="",
-        validation_alias=AliasChoices("GEMINI_API_KEY", "GENERATION_GEMINI_API_KEY"),
+        validation_alias=AliasChoices("OPENROUTER_API_KEY", "GENERATION_OPENROUTER_API_KEY"),
+    )
+    openrouter_base_url: str = Field(
+        default="https://openrouter.ai/api/v1",
+        validation_alias=AliasChoices("OPENROUTER_BASE_URL", "GENERATION_OPENROUTER_BASE_URL"),
     )
 
 
@@ -108,7 +113,7 @@ class QdrantSettings(BaseSettings):
 
 
 class EmbeddingSettings(BaseSettings):
-    """Local Paddle GPU embedding configuration."""
+    """Dense embedding provider configuration."""
 
     model_config = SettingsConfigDict(
         env_prefix="EMBEDDING_",
@@ -119,15 +124,32 @@ class EmbeddingSettings(BaseSettings):
         populate_by_name=True,
     )
 
-    provider: str = "local"
-    model: str = "data/models/multilingual-e5-base-paddle"
+    provider: str = "openrouter"
+    model: str = "openai/text-embedding-3-small"
     dimensions: int = 768
     batch_size: int = 32
-    max_retries: int = 0
-    timeout_seconds: float = 0.0
+    max_retries: int = 3
+    timeout_seconds: float = 60.0
     local_device: str = "cuda"
     gemini_api_key: str = ""
     jina_api_key: str = ""
+    openrouter_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("OPENROUTER_API_KEY", "EMBEDDING_OPENROUTER_API_KEY"),
+    )
+    openrouter_base_url: str = Field(
+        default="https://openrouter.ai/api/v1",
+        validation_alias=AliasChoices("OPENROUTER_BASE_URL", "EMBEDDING_OPENROUTER_BASE_URL"),
+    )
+
+    @field_validator("model", mode="before")
+    @classmethod
+    def _openrouter_default_model(cls, value: str, info: object) -> str:
+        if str(getattr(info, "data", {}).get("provider", "")) == "openrouter" and (
+            not value or value == "data/models/multilingual-e5-base-paddle"
+        ):
+            return "openai/text-embedding-3-small"
+        return value
 
 
 class SparseSettings(BaseSettings):

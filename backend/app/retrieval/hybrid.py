@@ -1,7 +1,6 @@
 """Hybrid dense+sparse retrieval with exact-reference promotion."""
 
 from __future__ import annotations
-
 from collections.abc import Collection, Mapping, Sequence
 from datetime import date
 from typing import Any
@@ -9,13 +8,24 @@ from typing import Any
 from qdrant_client import QdrantClient, models
 
 from app.config import RetrievalSettings, get_retrieval_settings
+from app.persistence.repositories.provisions import ProvisionRepository
 from app.persistence.repositories.temporal import TemporalRepository
+from app.query.expansion import ocr_query_variants
 from app.retrieval.contracts import CandidateSet, RetrievalResult, result_from_payload
 from app.retrieval.embedding import EmbeddingProvider
 from app.retrieval.exact_lookup import ExactLookup
 from app.retrieval.filters import build_temporal_filter
 from app.retrieval.qdrant_store import DENSE_VECTOR_NAME, PROVISION_ALIAS, SPARSE_VECTOR_NAME
 from app.retrieval.sparse import SparseEncoder, sparse_vector_dict
+
+
+def _lexical_queries(query: str) -> list[str]:
+    """Return bounded lexical forms, including OCR and phrase repair forms."""
+    variants = [query, *ocr_query_variants(query)]
+    seen: set[str] = set()
+    return [
+        variant for variant in variants if variant and not (variant in seen or seen.add(variant))
+    ]
 
 
 def reciprocal_rank_fusion(
@@ -48,6 +58,7 @@ class HybridRetriever:
         exact_lookup: ExactLookup | None = None,
         *,
         temporal_repository: TemporalRepository | None = None,
+        provision_repository: ProvisionRepository | None = None,
         collection: str = PROVISION_ALIAS,
         settings: RetrievalSettings | None = None,
     ) -> None:
@@ -56,6 +67,7 @@ class HybridRetriever:
         self._encoder = encoder
         self._exact_lookup = exact_lookup
         self._temporal_repository = temporal_repository
+        self._provision_repository = provision_repository
         self._collection = collection
         self._settings = settings or get_retrieval_settings()
 
@@ -66,10 +78,16 @@ class HybridRetriever:
         query_date: date,
         vehicle_type: str | None = None,
         exact_reference: Mapping[str, str | None] | None = None,
+        candidate_limit: int | None = None,
     ) -> CandidateSet:
-        """Return fused candidates, retaining exact matches outside Qdrant fusion."""
+        """Return fused candidates, retaining exact matches outside Qdrant fusion.
+
+        ``candidate_limit`` preserves a larger per-variant ranked list.
+        """
         dense_vector = self._embedder.embed([query])[0]
-        sparse_weights = self._encoder.encode(query)
+        sparse_queries = _lexical_queries(query)
+        sparse_vectors = [self._encoder.encode(candidate) for candidate in sparse_queries]
+        sparse_vectors = [vector for vector in sparse_vectors if vector]
         query_filter = (
             build_temporal_filter(query_date, vehicle_type=vehicle_type)
             if self._settings.temporal_filter_enabled
@@ -83,8 +101,7 @@ class HybridRetriever:
                 filter=query_filter,
             )
         ]
-        query_kwargs: dict[str, Any] = {"prefetch": prefetch}
-        if sparse_weights:
+        for sparse_weights in sparse_vectors:
             prefetch.append(
                 models.Prefetch(
                     query=models.SparseVector(**sparse_vector_dict(sparse_weights)),
@@ -93,7 +110,10 @@ class HybridRetriever:
                     filter=query_filter,
                 )
             )
-        query_kwargs["query"] = _rrf_query(self._settings, len(prefetch))
+        query_kwargs: dict[str, Any] = {
+            "prefetch": prefetch,
+            "query": _rrf_query(self._settings, len(prefetch)),
+        }
         channel_ids = {
             "dense": _channel_ids(
                 self._client.query_points(
@@ -106,8 +126,8 @@ class HybridRetriever:
                 )
             )
         }
-        if sparse_weights:
-            channel_ids["sparse"] = _channel_ids(
+        for index, sparse_weights in enumerate(sparse_vectors):
+            channel_ids[f"sparse-{index}"] = _channel_ids(
                 self._client.query_points(
                     collection_name=self._collection,
                     query=models.SparseVector(**sparse_vector_dict(sparse_weights)),
@@ -119,7 +139,7 @@ class HybridRetriever:
             )
         response = self._client.query_points(
             collection_name=self._collection,
-            limit=self._settings.fusion_limit,
+            limit=max(candidate_limit or self._settings.final_top_k, self._settings.fusion_limit),
             with_payload=True,
             **query_kwargs,
         )
@@ -144,7 +164,6 @@ class HybridRetriever:
         )
         exact_ids = {result.provision_id for result in exact}
         merged = _merge_exact(results, exact)
-        # Exact candidates are intentionally promoted after fusion, never dropped.
         merged.sort(
             key=lambda result: (
                 result.provision_id not in exact_ids,
@@ -152,16 +171,47 @@ class HybridRetriever:
                 result.provision_id,
             )
         )
-        merged = [
-            result.model_copy(update={"rank": rank}) for rank, result in enumerate(merged, start=1)
-        ]
         exact_results = [result for result in merged if result.provision_id in exact_ids]
+        limit = candidate_limit if candidate_limit is not None else self._settings.final_top_k
         merged = (
             exact_results
-            + [result for result in merged if result.provision_id not in exact_ids][
-                : self._settings.final_top_k
-            ]
+            + [result for result in merged if result.provision_id not in exact_ids][:limit]
         )
+        lexical = (
+            self._provision_repository.lexical_search(query, query_date=query_date, limit=30)
+            if self._provision_repository is not None
+            else []
+        )
+        lexical_results: list[RetrievalResult] = []
+        for rank, row in enumerate(lexical, start=1):
+            document_version = row.document_version
+            document = document_version.document
+            payload = {
+                "provision_id": row.provision_id,
+                "provision_version": row.version,
+                "document_id": document.document_id,
+                "document_version_id": str(row.document_version_id),
+                "text": row.retrieval_text,
+                "source_text": row.source_text,
+                "parent_context": row.parent_context,
+                "document_number": document.document_number,
+                "document_type": document.document_type,
+                "article": row.article,
+                "clause": row.clause,
+                "point": row.point,
+                "effective_from": row.effective_from,
+                "effective_to": row.effective_to,
+                "page_number": row.page_number,
+                "bbox": row.bbox,
+                "source_id": str(document.source_id) if document.source_id else None,
+                "source_url": document.source_url,
+                "content_hash": row.content_hash,
+                "review_status": "ACCEPTED",
+            }
+            lexical_results.append(
+                result_from_payload(payload, rank=rank, score=None, source="lexical")
+            )
+        merged = _merge_exact(merged, lexical_results)
         merged = [
             result.model_copy(update={"rank": rank}) for rank, result in enumerate(merged, start=1)
         ]
@@ -211,9 +261,7 @@ def _rrf_query(settings: RetrievalSettings, channel_count: int) -> Any:
     rrf_query = getattr(models, "RrfQuery", None)
     rrf = getattr(models, "Rrf", None)
     if rrf_query is not None and rrf is not None:
-        weights = [settings.dense_weight]
-        if channel_count > 1:
-            weights.append(settings.sparse_weight)
+        weights = [settings.dense_weight] + [settings.sparse_weight] * (channel_count - 1)
         return rrf_query(rrf=rrf(k=settings.rrf_k, weights=weights))
     return models.FusionQuery(fusion=models.Fusion.RRF)
 
@@ -244,7 +292,9 @@ def _retrieval_sources(
 ) -> list[str]:
     provision_id = payload.get("provision_id")
     return [
-        channel for channel in ("dense", "sparse") if provision_id in channel_ids.get(channel, ())
+        channel
+        for channel in ("dense", *(f"sparse-{index}" for index in range(len(channel_ids) - 1)))
+        if provision_id in channel_ids.get(channel, ())
     ]
 
 

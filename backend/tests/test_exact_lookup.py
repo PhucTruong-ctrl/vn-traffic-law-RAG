@@ -10,6 +10,7 @@ def _row(provision_id: str = "p-đ", *, vehicle_types: list[str] | None = None) 
         document_number="168/2024/NĐ-CP",
         document_type="DECREE",
         source_id=None,
+        source_url="https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/168.pdf",
     )
     version = SimpleNamespace(
         manifest_json={"vehicle_types": vehicle_types} if vehicle_types is not None else {},
@@ -56,6 +57,9 @@ def test_exact_lookup_preserves_literal_point_and_canonical_row():
 
     assert result.results[0].point == "đ"
     assert result.results[0].provision_id == "p-đ"
+    assert (
+        result.results[0].source_url == "https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/168.pdf"
+    )
     assert repository.arguments["point"] == "đ"
 
 

@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Callable, Iterable
 from datetime import date
-from typing import Any, Protocol, TypeAlias, cast
+from typing import Any, Protocol, TypeAlias
+from urllib import request
 
 from pydantic import BaseModel, ConfigDict, PrivateAttr
 
@@ -14,21 +16,6 @@ from app.ingestion.terminology import TERMINOLOGY, TERMINOLOGY_VERSION, canonica
 from .date_policy import MISSING_QUERY_DATE, resolve_query_date
 from .evidence_plan import required_evidence_for
 from .query_understanding_types import EvidenceType, QueryIntent
-
-
-class _GenaiModels(Protocol):
-    def generate_content(self, **kwargs: Any) -> Any: ...
-
-
-class _GenaiClient(Protocol):
-    models: _GenaiModels
-
-
-class _FallbackObject(Protocol):
-    def analyze(self, question: str, *, current_date: date) -> QueryPlan: ...
-
-
-FallbackAnalyzer: TypeAlias = Callable[..., "QueryPlan"] | _FallbackObject
 
 
 def _safe_fallback_plan(question: str) -> QueryPlan:
@@ -63,6 +50,17 @@ class CaseSpec(BaseModel):
     missing_information: list[str] = []
 
 
+class ProvisionReference(BaseModel):
+    """Canonical provision reference extracted from a legal question."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    document_number: str
+    article: str | None = None
+    clause: str | None = None
+    point: str | None = None
+
+
 class QueryPlan(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
@@ -75,6 +73,7 @@ class QueryPlan(BaseModel):
     article: str | None
     clause: str | None
     point: str | None
+    references: list[ProvisionReference] = []
     legal_entities: list[str]
     normalized_query: str
     required_evidence: list[EvidenceType]
@@ -97,53 +96,82 @@ class QueryPlan(BaseModel):
 
 
 class QueryPlanFallback:
-    """Structured Gemini fallback for questions deterministic parsing cannot resolve."""
+    """Structured OpenRouter fallback for questions deterministic parsing cannot resolve."""
 
     def __init__(
         self,
-        client: _GenaiClient | None = None,
+        client: Any | None = None,
         *,
         model: str | None = None,
+        timeout: float = 60.0,
+        opener: Any = request.urlopen,
     ) -> None:
         self._client = client
         self._model = model
+        self._timeout = timeout
+        self._opener = opener
 
     def analyze(self, question: str, *, current_date: date) -> QueryPlan:
         try:
-            client = self._client
-            model = self._model
-            if client is None or model is None:
-                from app.config import get_generation_settings
+            from app.config import get_generation_settings
 
-                settings = get_generation_settings()
-                model = model or settings.model
-                if client is None:
-                    from google import genai
-
-                    client = cast(_GenaiClient, genai.Client(api_key=settings.gemini_api_key))
-            from google.genai import types
-
-            assert client is not None
-
-            response = client.models.generate_content(
-                model=model,
-                contents=(
-                    "Analyze this Vietnamese legal question and return only a QueryPlan "
-                    f"JSON object. Current date: {current_date.isoformat()}. "
-                    f"Question: {question}"
-                ),
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=QueryPlan,
-                    temperature=0.2,
-                ),
+            settings = get_generation_settings()
+            model = self._model or settings.model
+            if not model or not settings.openrouter_api_key:
+                raise ValueError("OpenRouter configuration is incomplete")
+            prompt = (
+                "Analyze this Vietnamese legal question and return only a QueryPlan JSON object. "
+                f"Current date: {current_date.isoformat()}. Question: {question}"
             )
-            parsed = getattr(response, "parsed", None)
-            if parsed is None:
-                parsed = getattr(response, "text", None)
-            if parsed is None:
-                raise ValueError("Gemini returned no structured query plan")
-            return QueryPlan.model_validate(parsed)
+            payload = {
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.2,
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "query_plan",
+                        "strict": True,
+                        "schema": QueryPlan.model_json_schema(),
+                    },
+                },
+            }
+            if self._client is not None:
+                response = self._client(
+                    payload,
+                    api_key=settings.openrouter_api_key,
+                    base_url=settings.openrouter_base_url,
+                    timeout=self._timeout,
+                )
+            else:
+                req = request.Request(
+                    f"{settings.openrouter_base_url.rstrip('/')}/chat/completions",
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers={
+                        "Authorization": f"Bearer {settings.openrouter_api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    method="POST",
+                )
+                with self._opener(req, timeout=self._timeout) as response:
+                    response = json.loads(response.read())
+            if isinstance(response, dict):
+                content = response["choices"][0]["message"]["content"]
+            else:
+                content = getattr(response, "content", None)
+            if isinstance(content, list):
+                content = "".join(
+                    part.get("text", "") if isinstance(part, dict) else str(part)
+                    for part in content
+                )
+            if isinstance(content, str):
+                content = content.strip()
+                if content.startswith("```"):
+                    content = content.strip("`")
+                    if content.startswith("json"):
+                        content = content[4:].lstrip()
+                content = json.loads(content)
+            return QueryPlan.model_validate(content)
         except Exception:
             return _safe_fallback_plan(question)
 
@@ -278,8 +306,23 @@ def _default_corpus_document_ids() -> frozenset[str]:
 
 
 def _document_id_for_number(number: str, approved: frozenset[str]) -> str | None:
-    candidate = re.sub(r"[^a-z0-9]+", "-", number.casefold().replace("đ", "d")).strip("-")
-    return candidate if candidate in approved else None
+    match = re.fullmatch(
+        r"\s*(\d{1,4})\s*/\s*(\d{4})\s*/\s*([a-zđ]+)(?:\s*-\s*([a-z0-9]+))?\s*",
+        number,
+        re.I,
+    )
+    if match is None:
+        return None
+    serial, year, prefix, suffix = match.groups()
+    prefix = prefix.casefold().replace("đ", "d")
+    suffix = suffix.casefold().replace("đ", "d") if suffix else None
+    if prefix == "nd" and suffix == "cp":
+        base = f"nd-{serial}-{year}"
+    elif prefix == "tt":
+        base = f"tt-{serial}-{year}"
+    else:
+        return None
+    return base if base in approved else None
 
 
 class QueryAnalyzer:
@@ -364,8 +407,10 @@ class QueryAnalyzer:
         )
         out_of_scope = bool(
             re.search(
-                r"ngoài\s*(?:việt nam|giao thông đường bộ)|tư vấn cá nhân|"
-                r"kết luận tai nạn|luật mỹ|luật hoa kỳ",
+                r"ngoài\s*(?:việt nam|giao thông đường bộ)|"
+                r"ngoài\s+(?:14\s+)?văn bản(?:\s+đang)?\s+phục vụ|"
+                r"nguồn\s+ngoài\s+(?:14\s+)?văn bản|"
+                r"tư vấn cá nhân|kết luận tai nạn|luật mỹ|luật hoa kỳ",
                 lowered,
             )
         )
@@ -467,6 +512,43 @@ class QueryAnalyzer:
             else ("CORPUS_NOT_COVERED" if corpus_not_covered else "LEGAL")
         )
         status_reason = status if status != "LEGAL" else None
+        references: list[ProvisionReference] = []
+        canonical_pattern = re.compile(
+            r"(?P<document>[a-z]+-\d{1,4}-\d{4})"
+            r"(?:__dieu-(?P<article>\d+))?"
+            r"(?:__khoan-(?P<clause>\d+))?"
+            r"(?:__diem-(?P<point>[a-zđ]))?",
+            re.I,
+        )
+        for match in canonical_pattern.finditer(lowered):
+            references.append(
+                ProvisionReference(
+                    document_number=match.group("document"),
+                    article=match.group("article"),
+                    clause=match.group("clause"),
+                    point=match.group("point"),
+                )
+            )
+        human_pattern = re.compile(
+            r"(?:điều\s+(?P<human_article>\d+)\s+)"
+            r"(?:nghị\s+định\s+)?"
+            r"(?P<document>\d{1,4}/\d{4}/[a-zđ]+(?:-[a-z0-9]+)?)"
+            r"(?:\s+khoản\s+(?P<human_clause>\d+))?"
+            r"(?:\s+điểm\s+(?P<human_point>[a-zđ]))?",
+            re.I,
+        )
+        for match in human_pattern.finditer(lowered):
+            document_number = match.group("document")
+            prefix, suffix = document_number.rsplit("/", 1)
+            document_number = f"{prefix}/{suffix.upper()}"
+            references.append(
+                ProvisionReference(
+                    document_number=document_number,
+                    article=match.group("human_article"),
+                    clause=match.group("human_clause"),
+                    point=match.group("human_point"),
+                )
+            )
         plan = QueryPlan(
             intent=intent,
             effective_date=effective,
@@ -477,6 +559,7 @@ class QueryAnalyzer:
             article=hierarchy.group(1) if hierarchy else None,
             clause=clause.group(1) if clause else None,
             point=point.group(1) if point else None,
+            references=references,
             legal_entities=entities,
             normalized_query=_normalize(text),
             required_evidence=required_evidence_for(intent, text, entities),
@@ -486,19 +569,20 @@ class QueryAnalyzer:
             status=status,
             status_reason=status_reason,
         )
-        plan._original_query = text
         if (
             date_result.reason_code == MISSING_QUERY_DATE
             and "query_date" not in plan.missing_query_information
         ):
             plan.missing_query_information.append("query_date")
-        plan.case_queries, plan.cases = _build_cases(
-            text,
-            plan.normalized_query,
-            vehicle,
-            plan.required_evidence,
-            plan.missing_query_information,
-        )
+        if intent is not QueryIntent.COMPARISON:
+            plan.case_queries, plan.cases = _build_cases(
+                text,
+                plan.normalized_query,
+                vehicle,
+                plan.required_evidence,
+                plan.missing_query_information,
+            )
+        plan._original_query = text
         return plan
 
 

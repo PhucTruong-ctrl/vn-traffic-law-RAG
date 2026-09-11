@@ -20,6 +20,17 @@ def required_evidence_for(
         return []
 
     text = question.casefold()
+    # Canonical provision references are authoritative targets even when the
+    # question contains no semantic domain vocabulary.
+    asks_reference = bool(
+        re.search(
+            r"(?:điều\s+[\w.-]+|khoản\s+[\w.-]+|điểm\s+[a-zđ])"
+            r".*(?:\d{1,4}/\d{4}/(?:nđ|nd|tt|qđ|qdhđ|qcvn|qh)\b)",
+            text,
+            re.IGNORECASE,
+        )
+        or re.search(r"\b(?:nd|tt|qd)-\d{1,4}-\d{4}(?:__|$)", text, re.IGNORECASE)
+    )
     required: list[EvidenceType] = []
     asks_exception = bool(
         re.search(
@@ -55,7 +66,9 @@ def required_evidence_for(
     if asks_condition:
         required.append(EvidenceType.LEGAL_CONDITION)
 
-    if not required and asks_points:
+    if not required and asks_reference:
+        required.append(EvidenceType.VIOLATION_DEFINITION)
+    elif not required and asks_points:
         required.append(EvidenceType.LICENSE_POINTS)
     elif not required and intent_value != "SOURCE_SEARCH":
         required.append(EvidenceType.VIOLATION_DEFINITION)

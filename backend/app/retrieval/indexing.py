@@ -323,7 +323,12 @@ def payload_metadata_from_row(row: LegalProvision) -> dict[str, Any]:
         "document_title": getattr(document, "document_title", None),
         "document_status": getattr(document, "status", None),
         "document_version": getattr(version_row, "version", None),
+        "source_url": getattr(document, "source_url", None),
     }
+    if metadata["source_url"] is None:
+        manifest = getattr(version_row, "manifest_json", None)
+        if isinstance(manifest, dict):
+            metadata["source_url"] = manifest.get("source_url")
     manifest = getattr(version_row, "manifest_json", None)
     if isinstance(manifest, dict) and "vehicle_types" in manifest:
         metadata["vehicle_types"] = manifest["vehicle_types"]

@@ -229,7 +229,7 @@ class PdfPlumberAdapter:
                 page_data.append((page, lines, table_rows))
         if not searchable:
             raise SearchableTextRequiredError(
-                f"no searchable text layer in {path}; quarantined, OCR is not performed"
+                f"no searchable text layer in {path}; OCR fallback is required"
             )
         counts = Counter(
             _norm(line).casefold()

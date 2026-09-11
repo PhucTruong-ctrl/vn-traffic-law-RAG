@@ -24,6 +24,18 @@ import unicodedata
 #: to :data:`TERMINOLOGY` (added/removed/renamed canonical terms or variants).
 TERMINOLOGY_VERSION = "1.1.0"
 
+#: Concepts that describe the requested evidence rather than the legal subject.
+#: They must not be sufficient to scope a candidate provision by themselves.
+GENERIC_CONCEPTS = frozenset(
+    {
+        "phạt tiền",
+        "mức phạt tiền",
+        "xử phạt vi phạm hành chính",
+        "đăng ký",
+        "giao thông đường bộ",
+    }
+)
+
 #: Canonical term -> variant spellings (canonical term listed first).
 #: Sources are the real corpus documents cited per entry.
 TERMINOLOGY: dict[str, list[str]] = {
@@ -45,6 +57,8 @@ TERMINOLOGY: dict[str, list[str]] = {
         "nồng độ cồn trong hơi thở",
     ],
     "đăng ký": ["đăng ký", "đăng kí", "dang ky", "dang ki"],
+    "vi phạm tốc độ": ["vi phạm tốc độ", "quá tốc độ", "chạy quá tốc độ", "toc do", "tốc độ"],
+    "vi phạm làn đường": ["vi phạm làn đường", "sai làn", "đi sai làn", "lấn làn", "lan duong"],
     "giao thông đường bộ": [
         "giao thông đường bộ",
         "giao thông đuờng bộ",
@@ -94,9 +108,12 @@ TERMINOLOGY: dict[str, list[str]] = {
 
 
 def _term_key(term: str) -> str:
-    """Deterministic lookup key: NFC + casefold + whitespace collapse."""
-    text = unicodedata.normalize("NFC", term)
-    return re.sub(r"\s+", " ", text).strip().casefold()
+    """Build an OCR-tolerant canonical key for terminology matching."""
+    text = unicodedata.normalize("NFKD", term.casefold())
+    text = "".join(char for char in text if unicodedata.category(char) != "Mn")
+    text = text.replace("đ", "d")
+    # OCR commonly splits/joins Vietnamese words and varies punctuation.
+    return re.sub(r"[^a-z0-9]+", " ", text).strip()
 
 
 #: variant key (casefolded) -> canonical term.  Variants are listed with the
@@ -126,17 +143,28 @@ def canonical_term(term: str, version: str | None = None) -> str:
 
 
 def terminology_concepts(text: str, version: str | None = None) -> set[str]:
-    """Return canonical concepts mentioned anywhere in text."""
+    """Return canonical concepts mentioned in text, tolerating one joined token."""
     if version is not None and version != TERMINOLOGY_VERSION:
         raise ValueError(f"unsupported terminology version {version!r}")
     key = _term_key(text)
-    return {
-        canonical
-        for canonical, variants in TERMINOLOGY.items()
-        if any(
-            re.search(rf"(?<!\w){re.escape(_term_key(variant))}(?!\w)", key) for variant in variants
-        )
-    }
+    compact = key.replace(" ", "")
+    concepts: set[str] = set()
+    for canonical, variants in TERMINOLOGY.items():
+        for variant in variants:
+            variant_key = _term_key(variant)
+            if re.search(rf"(?<!\w){re.escape(variant_key)}(?!\w)", key):
+                concepts.add(canonical)
+                break
+            words = variant_key.split()
+            if len(words) > 1:
+                for index in range(len(words) - 1):
+                    joined = "".join(words[index : index + 2])
+                    if joined in compact:
+                        concepts.add(canonical)
+                        break
+                if canonical in concepts:
+                    break
+    return concepts
 
 
 def concept_variants(concept: str, version: str | None = None) -> tuple[str, ...]:
@@ -149,10 +177,8 @@ def concept_variants(concept: str, version: str | None = None) -> tuple[str, ...
 __all__ = [
     "TERMINOLOGY",
     "TERMINOLOGY_VERSION",
+    "GENERIC_CONCEPTS",
     "canonical_term",
     "concept_variants",
     "terminology_concepts",
 ]
-
-
-__all__ = ["TERMINOLOGY", "TERMINOLOGY_VERSION", "canonical_term"]

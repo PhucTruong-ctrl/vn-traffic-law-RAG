@@ -16,6 +16,7 @@ class QueryState(TypedDict, total=False):
     query_understanding: Any
     temporal_context: Any
     expansion_set: Any
+    provision_references: list[Any]
     recall_candidates: Any
     case_candidates: dict[str, Any]
     fused: Any

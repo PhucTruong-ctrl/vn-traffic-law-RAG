@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 
-from app.ingestion.terminology import terminology_concepts
+from app.ingestion.terminology import GENERIC_CONCEPTS, terminology_concepts
 from app.retrieval.contracts import RetrievalResult
 
 from .query_understanding import QueryPlan
@@ -48,7 +48,53 @@ def _fold_ocr_text(text: str) -> str:
     return folded.replace("đ", "d")
 
 
-_AMOUNT = re.compile(r"\b\d[\d.,\s]*(?:dong|trieu\s*dong|nghin\s*dong)\b", re.IGNORECASE)
+def _candidate_text(candidate: RetrievalResult) -> str:
+    """Fold all indexed representations, including enriched retrieval text."""
+    return _fold_ocr_text(
+        " ".join(
+            part
+            for part in (
+                getattr(candidate, "text", None),
+                getattr(candidate, "source_text", None),
+                getattr(candidate, "parent_context", None),
+            )
+            if part
+        )
+    )
+
+
+_AMOUNT = re.compile(
+    r"(?<![\w])"
+    r"\d{1,3}(?:[.,\s]\d{3})*(?:[.,]\d+)?\s*"
+    r"(?:"
+    r"vnd|vn\s*đ|dong"
+    r"|trieu\s*(?:dong|vnd|vn\s*đ)?"
+    r"|nghin\s*(?:dong|vnd|vn\s*đ)?"
+    r")"
+    r"(?![\w])",
+    re.IGNORECASE,
+)
+_PENALTY_WORDING = re.compile(
+    r"(?:"
+    r"phat\s+tien(?:\s+tu|\s+den|\s+muc)?"
+    r"|muc\s+phat(?:\s+tien)?"
+    r"|bi\s+phat"
+    r"|xu\s+phat"
+    r")"
+    r"(?=[\s:;,.-]*(?:\d|tu\s+\d|den\s+\d|trieu|nghin|vnd|vn\s*đ|dong))",
+    re.IGNORECASE,
+)
+_VIOLATION_WORDING = re.compile(
+    r"(?:"
+    r"hanh\s+vi(?:\s+bi)?\s+(?:vi\s+pham|bi\s+phat|xu\s+phat)"
+    r"|vi\s+pham\s+quy\s+dinh"
+    r"|khong\s+chap\s+hanh(?:\s+day\s+du)?\s+(?:hieu\s+lenh|hieu\s+lenh\s+cua)"
+    r"|khong\s+chap\s+hanh\s+(?:hieu\s+lenh|yeu\s+cau)"
+    r"|thuc\s+hien\s+hanh\s+vi\s+vi\s+pham"
+    r"|can\s+cu\s+xu\s+phat"
+    r")",
+    re.IGNORECASE,
+)
 _POINTS = re.compile(
     r"(?:tru\s+(?:[\w]+\s+)?\d+\s*diem"
     r"|\d+\s*diem\s+(?:giay\s+phep|gplx)"
@@ -58,17 +104,11 @@ _POINTS = re.compile(
 
 
 def _covered_types(candidate: RetrievalResult) -> set[EvidenceType]:
-    text = _fold_ocr_text(
-        " ".join(
-            part
-            for part in (candidate.text, candidate.source_text, candidate.parent_context)
-            if part
-        )
-    )
+    text = _candidate_text(candidate)
     covered: set[EvidenceType] = set()
-    if re.search(r"hanh vi vi pham|vi pham|can cu xu phat|quy dinh|hanh vi .* bi phat", text):
+    if _VIOLATION_WORDING.search(text):
         covered.add(EvidenceType.VIOLATION_DEFINITION)
-    if _AMOUNT.search(text):
+    if _PENALTY_WORDING.search(text) or _AMOUNT.search(text):
         covered.add(EvidenceType.MONETARY_PENALTY)
     if _POINTS.search(text):
         covered.add(EvidenceType.LICENSE_POINTS)
@@ -101,7 +141,6 @@ def _case_has_problem(case: object) -> str | None:
 
 _SCOPING_STOPWORDS = {
     "bao",
-    "bi",
     "bao nhieu",
     "phat",
     "sao",
@@ -125,13 +164,6 @@ _SCOPING_STOPWORDS = {
     "lai",
     "thi",
 }
-_VIOLATION_MARKERS = {
-    "vuot den do",
-    "sai lan",
-    "nong do",
-    "toc do",
-    "ruou bia",
-}
 
 
 def _case_candidates(case: object, context: Sequence[RetrievalResult]) -> list[RetrievalResult]:
@@ -141,22 +173,16 @@ def _case_candidates(case: object, context: Sequence[RetrievalResult]) -> list[R
     vehicle = _fold_ocr_text(getattr(case, "vehicle_type", "") or "")
     if vehicle and re.search(rf"(?<!\w){re.escape(vehicle)}(?!\w)", query_text):
         concepts.update(terminology_concepts(vehicle))
-    if not concepts:
-        concepts = {marker for marker in _VIOLATION_MARKERS if marker in query_text}
-    if not concepts:
+    discriminating = concepts - GENERIC_CONCEPTS
+    if not discriminating:
+        discriminating = {marker for marker in _VIOLATION_MARKERS if marker in query_text}
+    if not discriminating:
         return candidates
     scoped: list[RetrievalResult] = []
     for candidate in candidates:
-        candidate_text = _fold_ocr_text(
-            " ".join(
-                part
-                for part in (candidate.text, candidate.source_text, candidate.parent_context)
-                if part
-            )
-        )
-        if concepts.intersection(terminology_concepts(candidate_text)) or any(
-            marker in candidate_text for marker in concepts
-        ):
+        candidate_text = _candidate_text(candidate)
+        candidate_concepts = terminology_concepts(candidate_text)
+        if discriminating.intersection(candidate_concepts):
             scoped.append(candidate)
     return scoped
 
@@ -170,7 +196,8 @@ def _evaluate_case(
     provisions: list[str] = []
     for candidate in scoped:
         covered.update(_covered_types(candidate))
-        provisions.append(candidate.provision_id)
+        if candidate.provision_id not in provisions:
+            provisions.append(candidate.provision_id)
     gaps = [evidence_type for evidence_type in requested if evidence_type not in covered]
     reasons = [] if not gaps else [f"missing evidence: {gap.value}" for gap in gaps]
     problem = _case_has_problem(case)
