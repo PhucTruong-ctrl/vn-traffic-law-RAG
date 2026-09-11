@@ -30,14 +30,17 @@ export default function Sidebar({
   onConversationActivity,
 }: SidebarProps) {
   const supabase = useMemo(() => createClient(), []);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   useEffect(() => {
-    void supabase.auth
-      .getSession()
-      .then(({ data }) => setAccessToken(data.session?.access_token ?? null));
-    const { data } = supabase.auth.onAuthStateChange((_event, session) =>
-      setAccessToken(session?.access_token ?? null),
-    );
+    void supabase.auth.getSession().then(({ data }) => {
+      setUserEmail(data.session?.user.email ?? null);
+      setAccessToken(data.session?.access_token ?? null);
+    });
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserEmail(session?.user.email ?? null);
+      setAccessToken(session?.access_token ?? null);
+    });
     return () => data.subscription.unsubscribe();
   }, [supabase]);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -481,7 +484,7 @@ export default function Sidebar({
             ND
           </span>
           <span>
-            <b>Người dùng</b>
+            <b>{userEmail ?? "Người dùng"}</b>
             <small>Trợ lý pháp luật</small>
           </span>
           <span className="sidebar-user__menu" aria-hidden="true">

@@ -136,6 +136,9 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [authError, setAuthError] = useState("");
   const abortControllerRef = useRef<AbortController | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -207,6 +210,10 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
   async function authenticate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setAuthError("");
+    if (authMode === "register" && password !== confirmPassword) {
+      setAuthError("Mật khẩu xác nhận không khớp.");
+      return;
+    }
     const result =
       authMode === "login"
         ? await supabase.auth.signInWithPassword({ email, password })
@@ -285,30 +292,72 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
           <form onSubmit={authenticate}>
             <h1>Đăng nhập để tra cứu</h1>
             <p>Vui lòng đăng nhập hoặc tạo tài khoản để sử dụng chat.</p>
-            <label>
+            <label htmlFor="auth-email">
               Email
               <input
+                id="auth-email"
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 required
               />
             </label>
-            <label>
+            <label htmlFor="auth-password">
               Mật khẩu
-              <input
-                type="password"
-                minLength={8}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-              />
+              <span className="auth-password-field">
+                <input
+                  id="auth-password"
+                  type={showPassword ? "text" : "password"}
+                  minLength={8}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  className="auth-password-toggle"
+                  aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                  aria-pressed={showPassword}
+                  onClick={() => setShowPassword((visible) => !visible)}
+                >
+                  {showPassword ? "Ẩn" : "Hiện"}
+                </button>
+              </span>
             </label>
+            {authMode === "register" && (
+              <label htmlFor="auth-confirm-password">
+                Xác nhận mật khẩu
+                <span className="auth-password-field">
+                  <input
+                    id="auth-confirm-password"
+                    type={showConfirmPassword ? "text" : "password"}
+                    minLength={8}
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="auth-password-toggle"
+                    aria-label={
+                      showConfirmPassword ? "Ẩn mật khẩu xác nhận" : "Hiện mật khẩu xác nhận"
+                    }
+                    aria-pressed={showConfirmPassword}
+                    onClick={() => setShowConfirmPassword((visible) => !visible)}
+                  >
+                    {showConfirmPassword ? "Ẩn" : "Hiện"}
+                  </button>
+                </span>
+              </label>
+            )}
             {authError && <p role="alert">{authError}</p>}
             <button type="submit">{authMode === "login" ? "Đăng nhập" : "Đăng ký"}</button>
             <button
               type="button"
-              onClick={() => setAuthMode(authMode === "login" ? "register" : "login")}
+              onClick={() => {
+                setAuthMode(authMode === "login" ? "register" : "login");
+                setAuthError("");
+              }}
             >
               {authMode === "login" ? "Tạo tài khoản" : "Đã có tài khoản"}
             </button>

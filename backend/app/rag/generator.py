@@ -27,10 +27,15 @@ def generate_answer(question: str, documents: Sequence[Document]) -> str:
         return "Chưa tìm thấy quy định phù hợp trong dữ liệu pháp luật được truy xuất."
     settings = get_generation_settings()
     if not settings.openrouter_api_key:
-        raise RuntimeError("OpenRouter provider is unavailable")
+        raise RuntimeError("OpenRouter API key is missing (set OPENROUTER_API_KEY)")
     try:
         from langchain_openrouter import ChatOpenRouter
+    except ImportError as exc:
+        raise RuntimeError(
+            "OpenRouter integration is not installed (add langchain-openrouter)"
+        ) from exc
 
+    try:
         model = ChatOpenRouter(
             model=settings.model,
             temperature=0,
@@ -45,7 +50,7 @@ def generate_answer(question: str, documents: Sequence[Document]) -> str:
     except RuntimeError:
         raise
     except Exception as exc:
-        raise RuntimeError("OpenRouter provider is unavailable") from exc
+        raise RuntimeError("OpenRouter request failed") from exc
 
 
 __all__ = ["build_prompt", "generate_answer"]
