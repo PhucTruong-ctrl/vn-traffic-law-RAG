@@ -386,15 +386,3 @@ def delete_bookmark(
         headers=_headers(token),
     )
     return None
-
-
-def add_bookmark(
-    client: SupabaseClient, user_id: str, session_id: str, message_id: str, token: str | None = None
-) -> dict:
-    return save_bookmark(
-        client,
-        user_id,
-        session_id,
-        {"assistant_message_id": message_id},
-        token,
-    )

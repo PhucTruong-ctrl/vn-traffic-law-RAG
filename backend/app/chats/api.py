@@ -51,7 +51,6 @@ def deps(credentials: HTTPAuthorizationCredentials = Depends(bearer)):  # noqa: 
 
 
 @router.get("/chats", response_model=SessionListResponse)
-@router.get("/conversations", response_model=SessionListResponse)
 def sessions(
     query: str | None = Query(None),  # noqa: B008
     limit: int = Query(50, ge=1, le=100),  # noqa: B008
@@ -64,7 +63,6 @@ def sessions(
 
 
 @router.post("/chats", status_code=201)
-@router.post("/conversations", status_code=201)
 def create(
     payload: SessionCreate,
     user: dict = Depends(get_current_user),  # noqa: B008
@@ -75,7 +73,6 @@ def create(
 
 
 @router.get("/chats/{session_id}")
-@router.get("/conversations/{session_id}")
 def get(
     session_id: str,
     user: dict = Depends(get_current_user),  # noqa: B008
@@ -86,7 +83,6 @@ def get(
 
 
 @router.patch("/chats/{session_id}")
-@router.patch("/conversations/{session_id}")
 def rename(
     session_id: str,
     payload: SessionRename,
@@ -98,7 +94,6 @@ def rename(
 
 
 @router.delete("/chats/{session_id}")
-@router.delete("/conversations/{session_id}")
 def remove(
     session_id: str,
     user: dict = Depends(get_current_user),  # noqa: B008
@@ -110,7 +105,6 @@ def remove(
 
 
 @router.post("/chats/{session_id}/messages", status_code=201)
-@router.post("/conversations/{session_id}/messages", status_code=201)
 def message(
     session_id: str,
     payload: MessageCreate,
@@ -147,7 +141,6 @@ def feedback_alias(
 
 
 @router.post("/chats/{session_id}/bookmarks")
-@router.post("/conversations/{session_id}/bookmarks")
 def bookmark(
     session_id: str,
     payload: BookmarkCreate,
@@ -160,7 +153,6 @@ def bookmark(
     )
 
 
-@router.get("/saved")
 @router.get("/bookmarks")
 def saved(
     user: dict = Depends(get_current_user),  # noqa: B008
@@ -170,7 +162,6 @@ def saved(
     return {"items": list_bookmarks(client, uid(user), token)}
 
 
-@router.get("/saved/{assistant_message_id}/status")
 @router.get("/bookmarks/{assistant_message_id}/status")
 def saved_status(
     assistant_message_id: str,
@@ -181,7 +172,6 @@ def saved_status(
     return get_bookmark_status(client, uid(user), assistant_message_id, token)
 
 
-@router.post("/saved/{session_id}", status_code=201)
 @router.post("/bookmarks/{session_id}", status_code=201)
 def save(
     session_id: str,
@@ -195,7 +185,6 @@ def save(
     )
 
 
-@router.delete("/saved/{assistant_message_id}", status_code=204)
 @router.delete("/bookmarks/{assistant_message_id}", status_code=204)
 def unsave(
     assistant_message_id: str,

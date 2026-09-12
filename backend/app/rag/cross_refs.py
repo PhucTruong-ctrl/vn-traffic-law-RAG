@@ -47,14 +47,14 @@ def expand_sibling_completions(
             if identity in seen:
                 continue
             seen.add(identity)
-            result.append(_with_sibling_provenance(sibling, source_id))
+            result.append(_with_provenance(sibling, source_id, "SIBLING", 0))
             added += 1
     return result
 
 
-def _with_sibling_provenance(document: Any, source_id: str) -> Any:
+def _with_provenance(document: Any, source_id: str, added_by: str, depth: int) -> Any:
     metadata = dict(getattr(document, "metadata", {}) or {})
-    metadata.update(added_by="SIBLING", depth=0, source_id=source_id)
+    metadata.update(added_by=added_by, depth=depth, source_id=source_id)
     try:
         return document.__class__(
             page_content=getattr(document, "page_content", ""),
@@ -109,7 +109,12 @@ def expand_cross_references(
             if identity not in seen:
                 seen.add(identity)
                 expanded.append(
-                    _with_cross_reference_provenance(document, reference_sources.get(reference, ""))
+                    _with_provenance(
+                        document,
+                        reference_sources.get(reference, ""),
+                        "CROSS_REFERENCE",
+                        1,
+                    )
                 )
                 remaining -= 1
                 if not remaining:
@@ -125,18 +130,6 @@ def _identity(document: Any) -> tuple[str, str]:
     source = metadata.get("source_file") or metadata.get("source") or ""
     content = getattr(document, "page_content", "")
     return str(source), str(content)
-
-
-def _with_cross_reference_provenance(document: Any, source_id: str) -> Any:
-    metadata = dict(getattr(document, "metadata", {}) or {})
-    metadata.update(added_by="CROSS_REFERENCE", depth=1, source_id=source_id)
-    try:
-        return document.__class__(
-            page_content=getattr(document, "page_content", ""),
-            metadata=metadata,
-        )
-    except (TypeError, AttributeError):
-        return _DocumentLikeClone(document, metadata)
 
 
 def _source_id(document: Any) -> str:
