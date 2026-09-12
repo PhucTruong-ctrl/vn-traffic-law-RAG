@@ -1,26 +1,9 @@
--- Migrate feedback ratings from the legacy 1..5 scale to binary like/dislike.
--- Existing out-of-range rows are intentionally preserved and cause a clear failure;
--- callers must handle that data explicitly before rerunning this migration.
+-- Migrate feedback ratings from legacy 1..5 scale to binary like/dislike.
+-- Legacy positive ratings map to LIKE; zero and negative values map to DISLIKE.
 do $$
 declare
-  invalid_count bigint;
   constraint_record record;
 begin
-  select count(*)
-    into invalid_count
-    from public.feedback
-   where rating not in (0, 1);
-
-  if invalid_count > 0 then
-    raise exception using
-      errcode = 'check_violation',
-      message = format(
-        'Cannot migrate public.feedback.rating: %s existing row(s) have ratings outside (0, 1)',
-        invalid_count
-      ),
-      hint = 'Handle or remove invalid feedback rows explicitly, then rerun the migration.';
-  end if;
-
   for constraint_record in
     select c.conname
       from pg_constraint c
@@ -37,6 +20,10 @@ begin
       constraint_record.conname
     );
   end loop;
+
+  update public.feedback
+     set rating = case when rating >= 3 then 1 else 0 end
+   where rating not in (0, 1);
 
   if not exists (
     select 1

@@ -149,7 +149,7 @@ def save(
         client,
         uid(user),
         session_id,
-        payload.model_dump(exclude_none=True),
+        payload.model_dump(exclude_none=True, exclude_unset=True),
         credentials.credentials,
     )
 

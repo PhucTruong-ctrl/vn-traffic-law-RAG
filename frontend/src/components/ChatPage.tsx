@@ -293,12 +293,10 @@ export default function ChatPage({
         setHistoryLoading(false);
       })
       .catch((loadError) => {
-        if (loadError.name !== "AbortError") {
-          setError(
-            loadError instanceof Error ? loadError.message : "Không thể tải cuộc trò chuyện.",
-          );
-          setHistoryLoading(false);
-        }
+        if (loadError.name === "AbortError") return;
+        setError(loadError instanceof Error ? loadError.message : "Không thể tải cuộc trò chuyện.");
+        setHistoryLoading(false);
+        setTurns([]);
       });
     return () => controller.abort();
   }, [conversationId, activeId, turns.length, session, authHeaders]);
@@ -561,7 +559,15 @@ export default function ChatPage({
           }
           aria-busy={loading || historyLoading}
         >
-          {!conversationId && !turns.length && !loading && !historyLoading && !error ? (
+          {error && conversationId && !historyLoading && !turns.length ? (
+            <div className="conversation-error" role="alert">
+              <strong>Không thể tải cuộc trò chuyện này.</strong>
+              <p>{error}</p>
+              <button type="button" onClick={resetConversation}>
+                Mở cuộc trò chuyện mới
+              </button>
+            </div>
+          ) : !conversationId && !turns.length && !loading && !historyLoading && !error ? (
             <Welcome
               question={question}
               suggestions={suggestions}
@@ -574,7 +580,6 @@ export default function ChatPage({
               question={historyLoading ? "" : submittedQuestion}
               loading={loading}
               historyLoading={historyLoading}
-
               error={error}
               progressEvents={progressEvents}
               sessionId={activeId ?? ""}

@@ -81,6 +81,10 @@ export default function Composer({
         placeholder={hero ? "Bạn muốn hỏi điều gì?" : "Hỏi tiếp..."}
         rows={hero ? 2 : 1}
       />
+      <div className="composer-context">
+        <span>Nguồn: Văn bản pháp luật đã lập chỉ mục</span>
+        {hero && <span>Enter ↵ gửi · Shift+Enter xuống dòng</span>}
+      </div>
       <div className="composer-actions">
         {loading ? (
           <button type="button" aria-label="Dừng tra cứu" title="Dừng tra cứu" onClick={onStop}>

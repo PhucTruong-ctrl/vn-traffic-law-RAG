@@ -13,6 +13,9 @@ from app.ingestion.markdown import load_manifest
 from app.ingestion.source import normalized_metadata
 
 _ROOT = Path(__file__).resolve().parents[3]
+_CONTAINER_ROOT = Path("/app")
+if not (_ROOT / "data").is_dir() and (_CONTAINER_ROOT / "data").is_dir():
+    _ROOT = _CONTAINER_ROOT
 _MANIFEST = _ROOT / "data" / "sources" / "manifest.json"
 _LOCAL_DIR = _ROOT / "data" / "corpus" / "mds"
 _PROCESSED = _ROOT / "data" / "processed" / "chunks.jsonl"

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import "./globals.css";
-import { dmMono, dmSans, sourceSerif } from "./fonts";
+import { appMono, appSans, appSerif } from "./fonts";
 
 export const metadata: Metadata = {
   title: "VNLAW — Tra cứu pháp luật giao thông",
@@ -14,7 +14,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi" className={`${dmSans.variable} ${dmMono.variable} ${sourceSerif.variable}`}>
+    <html lang="vi" className={`${appSans.variable} ${appMono.variable} ${appSerif.variable}`}>
       <body>{children}</body>
     </html>
   );

@@ -16,7 +16,9 @@
 @media (max-width: 760px) {
   .app-shell {
     display: block;
-    min-height: 100vh;
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
     transition: none;
   }
 
@@ -25,7 +27,8 @@
   }
 
   .main-panel {
-    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: visible;
   }
 
   .sidebar {
@@ -102,7 +105,7 @@
 
 .composer textarea {
   min-height: 104px;
-  padding: 15px 68px 15px 15px;
+  padding: 15px 68px 52px 15px;
 }
 
 .compact-composer textarea {

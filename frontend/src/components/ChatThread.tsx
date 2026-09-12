@@ -142,6 +142,11 @@ function ResponseMessage({
           />
         ) : verified ? (
           <>
+            <div className="answer-verification" role="status">
+              <span aria-hidden="true">✓</span>
+              <span>Đã đối chiếu nguồn</span>
+              {citations.length > 0 && <span>{citations.length} căn cứ</span>}
+            </div>
             <MarkdownAnswer answer={answer} />
             <div className="answer-actions" aria-label="Thao tác với câu trả lời">
               <div className="action-group">

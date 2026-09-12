@@ -17,7 +17,7 @@ export type FeedbackWidgetProps = {
 export default function FeedbackWidget({
   sessionId,
   messageId,
-  endpoint = `/api/v1/chats/${encodeURIComponent(sessionId)}/messages/${encodeURIComponent(messageId)}/feedback`,
+  endpoint = `chats/${encodeURIComponent(sessionId)}/messages/${encodeURIComponent(messageId)}/feedback`,
 }: FeedbackWidgetProps) {
   const supabase = useRef(createClient()).current;
   const [value, setValue] = useState<FeedbackValue | null>(null);
@@ -124,9 +124,7 @@ export function BookmarkToggle({
   const [bookmarked, setBookmarked] = useState(initialBookmarked);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const url = endpoint
-    ? apiUrl(endpoint)
-    : apiUrl(`chats/${encodeURIComponent(sessionId)}/bookmarks`);
+  const url = endpoint ? apiUrl(endpoint) : apiUrl(`bookmarks/${encodeURIComponent(sessionId)}`);
 
   async function toggle() {
     if (submitting) return;

@@ -156,7 +156,7 @@ export default function SavedPage() {
           </Link>
           <p className="eyebrow saved-page__eyebrow">THƯ VIỆN CÁ NHÂN</p>
           <div className="saved-page__title-row">
-            <h1>Đã lưu</h1>
+            <h1 className="page-title">Đã lưu</h1>
             {!loading && !error && <span className="saved-page__count">{items.length}</span>}
           </div>
           <p className="saved-page__intro">Các câu trả lời và trích dẫn bạn muốn xem lại.</p>

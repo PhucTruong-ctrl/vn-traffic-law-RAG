@@ -51,6 +51,7 @@ class QdrantSettings(_Env):
     )
     collection: str = Field(default="traffic_law", validation_alias="QDRANT_COLLECTION")
     url: str = Field(default="", validation_alias="QDRANT_URL")
+    api_key: str = Field(default="", validation_alias="QDRANT_API_KEY")
     timeout: int | None = Field(default=2, validation_alias="QDRANT_TIMEOUT")
 
     def model_post_init(self, __context: object) -> None:

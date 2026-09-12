@@ -14,8 +14,11 @@
 }
 .legal-sources-page h1 {
   margin: 12px 0 8px;
-  font-family: var(--font-source-serif);
+  font-family: var(--font-serif), Georgia, serif;
   font-size: clamp(34px, 5vw, 58px);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
 }
 .legal-sources-page__header p:last-child {
   color: #5c6873;
@@ -28,22 +31,15 @@
 .legal-sources-page__filters {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-bottom: 24px;
-}
-.legal-sources-page__filters label {
-  display: grid;
-  gap: 6px;
-  color: #455463;
-  font-size: 13px;
-  font-weight: 650;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
 }
 .legal-sources-page__filters input {
   min-height: 44px;
   padding: 10px 12px;
-  border: 1px solid #ccd4da;
-  border-radius: 9px;
-  background: white;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-control);
+  background: var(--surface);
   color: inherit;
 }
 .legal-source-card {
@@ -51,23 +47,26 @@
   gap: 7px;
   width: 100%;
   min-height: 112px;
-  padding: 18px;
-  margin-bottom: 10px;
-  border: 1px solid #d8dedf;
-  border-radius: 13px;
+  padding: var(--space-4);
+  margin-bottom: var(--space-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
   color: inherit;
-  background: white;
+  background: var(--surface);
   text-align: left;
   cursor: pointer;
 }
 .legal-source-card:hover,
 .legal-source-card:focus-visible {
-  border-color: #9a7841;
-  box-shadow: 0 5px 20px rgba(25, 38, 48, 0.08);
+  border-color: var(--gold-500);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
 }
 .legal-source-card__kind {
-  color: #86652d;
-  font: 11px var(--font-dm-mono);
+  color: var(--gold-700);
+  font:
+    11px var(--font-mono),
+    monospace;
   letter-spacing: 0.08em;
 }
 .legal-source-card strong {
@@ -121,7 +120,7 @@
 .saved-page__back {
   display: inline-flex;
   margin-bottom: 14px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .saved-page__eyebrow {
@@ -148,7 +147,9 @@
   border-radius: var(--radius-pill);
   color: var(--accent-strong);
   background: var(--accent-soft);
-  font: 600 12px var(--font-dm-mono);
+  font:
+    600 12px var(--font-mono),
+    monospace;
 }
 
 .saved-page__intro {
@@ -166,9 +167,8 @@
 }
 
 .saved-page__search-label {
-  color: var(--text-secondary);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .saved-page__search-wrap {
@@ -225,7 +225,9 @@
   gap: 12px;
   padding: 14px 18px 10px;
   color: var(--text-tertiary);
-  font: 11px var(--font-dm-mono);
+  font:
+    11px var(--font-mono),
+    monospace;
   letter-spacing: 0.02em;
 }
 
@@ -258,16 +260,10 @@
 .saved-card__question:hover {
   background: var(--surface-secondary);
 }
-
-.saved-card__question strong {
-  font-size: 17px;
-  line-height: 1.4;
-}
-
 .saved-card__question span {
   color: var(--accent-strong);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .saved-card__body {
@@ -324,9 +320,8 @@
 .saved-card__source {
   display: inline-flex;
   margin-top: 16px;
-  color: var(--brand-primary);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .saved-card__citations {
@@ -356,9 +351,8 @@
   padding: 8px 14px;
   border: 1px solid currentColor;
   border-radius: var(--radius-sm);
-  color: inherit;
   background: transparent;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .saved-page__state--empty {

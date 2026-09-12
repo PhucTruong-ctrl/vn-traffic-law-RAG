@@ -292,8 +292,7 @@ function LegalSourcesExplorer() {
           <Link href="/chat" className="legal-sources-page__back">
             ← Trợ lý
           </Link>
-          <p className="eyebrow">THƯ VIỆN PHÁP LUẬT</p>
-          <h1>Nguồn pháp luật</h1>
+          <h1 className="page-title">Nguồn pháp luật</h1>
           <p>Tra cứu văn bản và điều khoản được sử dụng trong hệ thống.</p>
         </div>
       </header>

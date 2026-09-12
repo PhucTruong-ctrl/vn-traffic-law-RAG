@@ -135,7 +135,7 @@ def touch_session(
         "PATCH",
         SESSIONS_TABLE,
         params={"id": f"eq.{session_id}", "user_id": f"eq.{user_id}", "deleted": "eq.false"},
-        data={"updated_at": "now()"},
+        data={},
         headers={**_headers(token), "Prefer": "return=representation"},
     )
     if not rows:

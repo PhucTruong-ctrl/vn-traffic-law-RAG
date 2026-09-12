@@ -90,7 +90,7 @@ export default function Sidebar({
       if (isLoadingMore) setLoadingMore(true);
       else setConversationsLoading(true);
       const params = new URLSearchParams({ limit: "30" });
-      if (query.trim()) params.set("search", query.trim());
+      if (query.trim()) params.set("query", query.trim());
       if (nextCursor) params.set("cursor", nextCursor);
       try {
         const result = await fetch(apiUrl(`chats?${params}`), {
