@@ -183,6 +183,7 @@ def _violation_context(question: str, dimensions: list[tuple[str, int]]) -> str:
 
 
 def classify_intent(text: str) -> str:
+    """Classify corpus-supported legal, conversational, and refused requests."""
     lowered = text.casefold()
     if re.search(r"\b(hello|hi|xin chào|cảm ơn|tạm biệt)\b", lowered):
         return "chitchat"

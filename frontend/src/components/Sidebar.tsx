@@ -129,18 +129,18 @@ export default function Sidebar({
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [cursor, loadingMore, search, conversations.length]);
+  }, [cursor, fetchConversations, loadingMore, search]);
   useEffect(() => {
     const activity = onConversationActivity;
     if (!activity) return;
     const refresh = window.setTimeout(() => void fetchConversations(), 0);
     return () => window.clearTimeout(refresh);
-  }, [onConversationActivity]);
+  }, [fetchConversations, onConversationActivity]);
   useEffect(() => {
     if (!authReady) return;
     const timer = window.setTimeout(() => void fetchConversations(), 0);
     return () => window.clearTimeout(timer);
-  }, [authReady, accessToken]);
+  }, [authReady, accessToken, fetchConversations]);
 
   useEffect(() => {
     if (!searchOpen || !authReady || !accessToken) return;
@@ -149,7 +149,7 @@ export default function Sidebar({
       void fetchConversations(null, search);
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [search, searchOpen, authReady, accessToken]);
+  }, [search, searchOpen, authReady, accessToken, fetchConversations]);
 
   useEffect(() => {
     if (!mobileOpen) {
@@ -474,6 +474,10 @@ export default function Sidebar({
           <Link className="sidebar-nav__item" href="/legal-sources" onClick={closeMobile}>
             <BookIcon />
             <span>Nguồn pháp luật</span>
+          </Link>
+          <Link className="sidebar-nav__item" href="/saved" onClick={closeMobile}>
+            <BookIcon />
+            <span>Đã lưu</span>
           </Link>
         </nav>
         <div className="chat-list">

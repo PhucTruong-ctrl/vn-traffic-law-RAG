@@ -23,6 +23,18 @@ class MessageCreate(BaseModel):
     metadata: dict = Field(default_factory=dict)
 
 
+class MessageResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    id: str | None = None
+    content: str
+    role: str
+    status: str | None = None
+    response: dict[str, object] | None = None
+    citations: list[dict] = Field(default_factory=list)
+    metadata: dict = Field(default_factory=dict)
+    feedback_rating: int | None = Field(default=None, ge=0, le=1)
+
+
 class FeedbackCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     rating: int = Field(ge=0, le=1)
@@ -33,4 +45,40 @@ class FeedbackCreate(BaseModel):
 
 class BookmarkCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    message_id: str = Field(min_length=1)
+
+    message_id: str | None = Field(default=None, min_length=1)
+    assistant_message_id: str | None = Field(default=None, min_length=1)
+    user_message_id: str | None = Field(default=None, min_length=1)
+    question: str | None = Field(default=None, min_length=1)
+    answer: str | None = Field(default=None, min_length=1)
+    citations: list[dict] = Field(default_factory=list)
+    response: dict[str, object] | None = None
+
+
+class BookmarkResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    user_id: str
+    source_session_id: str | None = None
+    user_message_id: str | None = None
+    assistant_message_id: str | None = None
+    question: str
+    answer: str
+    citations: list[dict] = Field(default_factory=list)
+    response: dict[str, object] | None = None
+    created_at: str | None = None
+
+
+class BookmarkStatusResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    saved: bool
+    item: BookmarkResponse | None = None
+
+
+class SessionListResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    items: list[dict] = Field(default_factory=list)
+    next_cursor: str | None = None

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { LoaderCircle, ThumbsDown, ThumbsUp } from "lucide-react";
+import { Bookmark, LoaderCircle, ThumbsDown, ThumbsUp } from "lucide-react";
 import { createClient } from "../../utils/supabase/client";
 
 type FeedbackValue = "LIKE" | "DISLIKE";
@@ -104,5 +104,88 @@ export default function FeedbackWidget({
         </span>
       )}
     </div>
+  );
+}
+
+export type BookmarkToggleProps = {
+  sessionId: string;
+  messageId: string;
+  initialBookmarked?: boolean;
+  endpoint?: string;
+};
+
+export function BookmarkToggle({
+  sessionId,
+  messageId,
+  initialBookmarked = false,
+  endpoint,
+}: BookmarkToggleProps) {
+  const supabase = useRef(createClient()).current;
+  const [bookmarked, setBookmarked] = useState(initialBookmarked);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+  const url = endpoint
+    ? `${apiUrl}${endpoint}`
+    : `${apiUrl}/api/v1/chats/${encodeURIComponent(sessionId)}/bookmarks`;
+
+  async function toggle() {
+    if (submitting) return;
+    const previous = bookmarked;
+    const next = !previous;
+    setBookmarked(next);
+    setSubmitting(true);
+    setError(null);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (data.session?.access_token) headers.Authorization = `Bearer ${data.session.access_token}`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ message_id: messageId }),
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        bookmarked?: boolean;
+        is_bookmarked?: boolean;
+        saved?: boolean;
+      } | null;
+      if (!response.ok) throw new Error("Không thể cập nhật mục đã lưu.");
+      const serverState = payload?.bookmarked ?? payload?.is_bookmarked ?? payload?.saved;
+      setBookmarked(typeof serverState === "boolean" ? serverState : next);
+    } catch (toggleError) {
+      setBookmarked(previous);
+      setError(
+        toggleError instanceof Error ? toggleError.message : "Không thể cập nhật mục đã lưu.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <span className="bookmark-toggle">
+      <button
+        type="button"
+        className="feedback-widget__choice-button"
+        aria-label={bookmarked ? "Bỏ lưu câu trả lời" : "Lưu câu trả lời"}
+        title={bookmarked ? "Bỏ lưu" : "Lưu"}
+        aria-pressed={bookmarked}
+        aria-busy={submitting}
+        disabled={submitting}
+        onClick={() => void toggle()}
+      >
+        {submitting ? (
+          <LoaderCircle size={17} aria-hidden="true" className="animate-spin" />
+        ) : (
+          <Bookmark size={17} aria-hidden="true" fill={bookmarked ? "currentColor" : "none"} />
+        )}
+      </button>
+      {error && (
+        <span className="feedback-widget__error" role="alert">
+          {error}
+        </span>
+      )}
+    </span>
   );
 }

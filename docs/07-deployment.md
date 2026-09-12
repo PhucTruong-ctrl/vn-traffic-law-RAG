@@ -25,20 +25,28 @@ Tài liệu này định nghĩa phương án triển khai (deployment) của VNL
 
 ### 7.0.1. Chat SSE contract and evidence boundary
 
-The chat UI may use `GET /api/v1/chat/events?question=...` for incremental progress. The endpoint returns `text/event-stream` with buffering disabled:
+The chat UI may use `GET /api/v1/chat/events?question=...` for incremental progress.
+The ordinary chat request is bounded in the browser to 120 seconds by default;
+`NEXT_PUBLIC_CHAT_TIMEOUT_MS` may override that limit. A timeout aborts the request
+and must not expose an unverified draft.
 
-- Each workflow stage is sent as `event: progress` with JSON data containing `stage` and a human-readable `message`.
-- After the workflow completes, exactly one `event: result` carries the same verified response payload contract as the non-streaming chat endpoint.
-- The server waits briefly for queued progress events before reading the completed workflow result, so terminal progress is not discarded.
-- If the client disconnects or the response is cancelled, the stream cancels and awaits the workflow task. It does not continue generation in the background and does not emit a fabricated result.
-- Workflow `RuntimeError`/`ValueError` failures are converted to a fail-closed abstention payload (`WORKFLOW_UNAVAILABLE`) rather than an unverified answer.
+Chat statuses remain distinct end to end: `VERIFIED`, `GREETING`, `OUT_OF_SCOPE`,
+`CORPUS_NOT_COVERED`, `INSUFFICIENT_EVIDENCE`, and `WORKFLOW_UNAVAILABLE`.
+`GREETING` is handled without legal retrieval. `CORPUS_NOT_COVERED` identifies a
+traffic-law question unsupported by the serving corpus. The exact evidence gate
+must pass all evidence types required by the query plan before generation; otherwise
+the bounded repair path ends in explicit abstention.
 
-Source-PDF provenance is fail-closed at `GET /api/v1/documents/{document_id}/source`. A cached object is served from the content-addressed `source-pdfs` key; when absent, the recorded URL must be an exact HTTPS URL on the approved official host `datafiles.chinhphu.vn`, without credentials or fragments. Redirects are rejected. The downloaded bytes must stay within the configured upload limit, start with the PDF signature, and match the accepted document SHA-256 before being cached and returned. Missing/untrusted/unavailable sources return a structured error; the service never silently substitutes arbitrary remote content.
+Search and source viewing are corpus-only. Legal Explorer calls the API-backed
+`GET /api/v1/legal-search` endpoint and document/provision routes for filtered
+search and deep links to preserved Markdown/PDF provenance. Neither chat nor search
+performs open-web retrieval or fallback.
+
 
 Mục tiêu triển khai:
 
 1. Toàn bộ hạ tầng dữ liệu chạy bằng Docker Compose trên máy local hoặc private network, không phụ thuộc VPS.
-2. Dữ liệu pháp lý bền vững qua restart: PostgreSQL là nguồn chân lý; Qdrant là index dẫn xuất dựng lại được.
+2. Legal Explorer và saved Q&A snapshots dùng các API hiện có; chúng không mở rộng corpus hoặc tạo nguồn pháp lý mới.
 3. Ingestion từ đúng 14 PDF, manual CLI, xử lý nền; không parse đồng bộ trong request handler.
 4. Snapshot corpus, PDF, artifact và hash là immutable; mỗi run có provenance và gate report.
 5. Chỉ bản ghi `ACCEPTED` sau automatic gates mới được embed/index và phục vụ query; `REJECTED` giữ lý do, không index.
@@ -1771,22 +1779,17 @@ qdrant_data volume + qdrant_snapshots
 Qdrant sparse BM25
 uv lock (pin dependency)
 Redis + Dramatiq actor pipeline
-MinIO buckets (6 bucket theo loại artifact)
-explicit provider configuration
-local defense release (Docker Compose, không VPS)
-PostgreSQL usage tracking (thay file JSON)
+MinIO object storage
 ```
-
----
-
 ## 7.19. Kết luận
 
-Phương án triển khai v2 ưu tiên tính tái lập, khả năng phục hồi và độ ổn định trong buổi bảo vệ.
+Phương án triển khai hiện tại chỉ mô tả runtime local/private-network và các API
+đã có. Legal Explorer tìm kiếm trong serving corpus và mở deep link passage; saved
+Q&A lưu snapshot bền vững qua Supabase. Chat dùng các trạng thái chuẩn, exact
+evidence gate, và timeout trình duyệt có giới hạn; tuyệt đối không có web fallback.
 
-Kiến trúc triển khai chốt:
-
-```text
-frontend (Next.js)  +  backend (FastAPI)  +  worker (Dramatiq)
+Migration corpus từ xa, manual UI còn lại và bằng chứng evaluation cuối vẫn pending.
+Tài liệu này không tuyên bố evaluation hoàn tất hoặc release readiness.
 PostgreSQL 18       +  Qdrant v1.19.0     +  Redis 8        +  MinIO
 External: Langfuse Cloud, Gemini API, Jina API
 RAGFlow: môi trường benchmark riêng

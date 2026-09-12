@@ -36,8 +36,61 @@ def require(status: int, expected: int, label: str) -> None:
         raise RuntimeError(f"{label}: expected {expected}, got {status}")
 
 
+def require_chat_contract(
+    result: Any,
+    label: str,
+    *,
+    expected_status: str = "complete",
+    require_citations: bool = True,
+    required_reference: str | None = None,
+) -> None:
+    """Fail closed on the semantic fields the release flow exposes."""
+    if not isinstance(result, dict):
+        raise RuntimeError(f"{label}: expected JSON object, got {type(result).__name__}")
+    if result.get("status") != expected_status:
+        raise RuntimeError(
+            f"{label}: expected status {expected_status!r}, got {result.get('status')!r}"
+        )
+    answer = result.get("answer")
+    if not isinstance(answer, str) or not answer.strip():
+        raise RuntimeError(f"{label}: answer must be a non-blank string")
+    citations = result.get("citations")
+    if not isinstance(citations, list):
+        raise RuntimeError(f"{label}: citations must be a list")
+    if require_citations and not citations:
+        raise RuntimeError(f"{label}: expected at least one citation")
+    seen: set[tuple[str, str]] = set()
+    for index, citation in enumerate(citations):
+        if not isinstance(citation, dict):
+            raise RuntimeError(f"{label}: citation {index} must be an object")
+        for field in ("source_id", "document_id", "excerpt"):
+            if not isinstance(citation.get(field), str) or not citation[field].strip():
+                raise RuntimeError(f"{label}: citation {index} missing non-blank {field}")
+        identity = (citation["source_id"], citation["document_id"])
+        if identity in seen:
+            raise RuntimeError(f"{label}: duplicate citation identity {identity!r}")
+        seen.add(identity)
+    if required_reference and not any(
+        required_reference.casefold()
+        in " ".join(
+            str(citation.get(field, ""))
+            for field in ("document_id", "document_number", "article")
+        ).casefold()
+        for citation in citations
+    ):
+        raise RuntimeError(
+            f"{label}: no citation matches required reference {required_reference!r}"
+        )
 def main() -> int:
     base = os.getenv("RELEASE_API_BASE", "http://127.0.0.1:8000/api/v1").rstrip("/")
+    questions = [
+        "Đèn tín hiệu giao thông màu đỏ thì người tham gia giao thông phải làm gì theo Điều 6?",
+        "Mức phạt nồng độ cồn đối với người điều khiển ô tô là bao nhiêu?",
+        "Theo Điều 6 Nghị định 168, hành vi vượt đèn đỏ bị phạt thế nào?",
+        "Đèn đỏ và nồng độ cồn: người lái ô tô bị xử lý ra sao?",
+        "Thời tiết ngày mai ở Hà Nội thế nào?",
+    ]
+    results: list[dict[str, Any]] = []
     users = configured_test_users()
     token_a = obtain_access_token(users[0])
     token_b = obtain_access_token(users[1]) if len(users) > 1 else None
@@ -64,15 +117,7 @@ def main() -> int:
     )
     require(status, 201, "create session")
     session_id = session["id"]
-    questions = [
-        "Ô tô vượt đèn đỏ bị phạt bao nhiêu?",
-        "Mức phạt nồng độ cồn đối với người điều khiển ô tô là gì?",
-        "Khoản 9 Điều 6 Nghị định 168/2024 quy định gì?",
-        "Ô tô vượt đèn đỏ bị phạt tiền bao nhiêu và có bị trừ điểm giấy phép không?",
-        "Hãy tư vấn luật giao thông của một quốc gia khác đang thay đổi hôm nay.",
-    ]
-    results = []
-    for question in questions:
+    for index, question in enumerate(questions):
         status, result = call(
             base,
             "POST",
@@ -81,6 +126,23 @@ def main() -> int:
             {"question": question, "session_id": session_id},
         )
         require(status, 200, f"chat: {question[:30]}")
+        if index == 0:
+            require_chat_contract(result, "exact-reference/traffic-light", required_reference="168")
+        elif index == 1:
+            require_chat_contract(result, "alcohol/penalty")
+        elif index == 2:
+            require_chat_contract(result, "exact-reference/article-6", required_reference="168")
+        elif index == 3:
+            require_chat_contract(result, "multi-intent/traffic-light")
+        else:
+            require_chat_contract(
+                result,
+                "out-of-scope",
+                expected_status="insufficient_evidence",
+                require_citations=False,
+            )
+            if result.get("citations") != []:
+                raise RuntimeError("out-of-scope: citations must be empty")
         results.append(
             {
                 "question": question,

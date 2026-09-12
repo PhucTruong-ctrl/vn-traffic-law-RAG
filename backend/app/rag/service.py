@@ -11,8 +11,9 @@ from typing import Any
 from langchain_core.documents import Document
 
 from .analyzer import analyze_question, detect_vehicle_types, vehicle_label
-from .evidence import assess_evidence
+from .evidence import ABSTENTION_MESSAGE, assess_evidence
 from .generator import generate_answer
+from .references import parse_reference
 from .retrieval import Retriever
 from .router import route_question
 
@@ -219,17 +220,23 @@ class RAGService:
             documents,
             analysis=analysis,
         )
-        required_intents_missing = bool(evidence_groups) and any(
-            not documents_for_intent for documents_for_intent in evidence_groups.values()
-        )
-        if required_intents_missing:
+        required_reference = parse_reference(question)
+        if required_reference and not documents:
             return {
-                "answer": "Chưa tìm thấy đủ căn cứ pháp lý cho mọi ý trong câu hỏi này.",
+                "answer": ABSTENTION_MESSAGE,
                 "citations": [],
                 "status": "insufficient_evidence",
-                "reason_code": "MISSING_INTENT_EVIDENCE",
+                "reason_code": "reference_not_found",
             }
-        decision = assess_evidence(documents)
+        decision = assess_evidence(
+            documents,
+            required_reference=required_reference.as_dict() if required_reference else None,
+            required_intents=(
+                (intent.text for intent in analysis.intents if intent.kind == "legal")
+                if required_reference is None
+                else None
+            ),
+        )
         if not decision.allowed:
             return {
                 "answer": decision.message or "",
@@ -255,7 +262,7 @@ class RAGService:
 CHITCHAT_RESPONSE = {
     "answer": "Xin chào! Tôi có thể giúp bạn tra cứu quy định pháp luật giao thông.",
     "citations": [],
-    "status": "chitchat",
+    "status": "GREETING",
 }
 
 

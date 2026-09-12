@@ -6,6 +6,33 @@ import Modal from "./Modal";
 import LegalSourceViewer, { type LegalSourceDocument } from "./LegalSourceViewer";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+const API_PREFIX = API_BASE.endsWith("/api/v1") ? API_BASE : `${API_BASE}/api/v1`;
+
+function apiUrl(path: string) {
+  return `${API_PREFIX}/${path.replace(/^\/+/, "")}`;
+}
+
+function responseError(response: Response) {
+  return response.text().then((body) => {
+    let detail = "";
+    try {
+      const payload = JSON.parse(body) as { detail?: unknown; message?: unknown };
+      detail =
+        typeof payload.detail === "string"
+          ? payload.detail
+          : typeof payload.message === "string"
+            ? payload.message
+            : "";
+    } catch {
+      detail = body.trim();
+    }
+    throw new Error(
+      detail
+        ? `Không thể tải nội dung nguồn pháp luật (${response.status}): ${detail}`
+        : `Không thể tải nội dung nguồn pháp luật (${response.status})`,
+    );
+  });
+}
 export default function SourceDrawer({
   citation,
   onClose,
@@ -16,7 +43,7 @@ export default function SourceDrawer({
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const [sourceDocument, setSourceDocument] = useState<LegalSourceDocument | undefined>();
   const [loading, setLoading] = useState(false);
-
+  const [error, setError] = useState("");
   useEffect(() => {
     if (!citation) return;
     const previousFocus =
@@ -37,26 +64,43 @@ export default function SourceDrawer({
       previousFocus?.focus();
     };
   }, [citation]);
-
   useEffect(() => {
     if (!citation) return;
     const controller = new AbortController();
-    void fetch(`${API_BASE}/api/v1/legal-documents/${encodeURIComponent(citation.document_id)}`, {
-      signal: controller.signal,
-    })
-      .then((response) => {
-        if (!response.ok) throw new Error("Không thể tải nội dung nguồn pháp luật.");
-        return response.json() as Promise<LegalSourceDocument>;
+    const timer = window.setTimeout(() => {
+      setLoading(true);
+      setSourceDocument(undefined);
+      fetch(apiUrl(`legal-documents/${encodeURIComponent(citation.document_id)}`), {
+        signal: controller.signal,
       })
-      .then(setSourceDocument)
-      .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        setSourceDocument(undefined);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
+        .then((response) => {
+          if (!response.ok) return responseError(response);
+          return response.json() as Promise<LegalSourceDocument | { data?: LegalSourceDocument }>;
+        })
+        .then((payload) => {
+          if (!controller.signal.aborted) {
+            const document =
+              payload && typeof payload === "object" && "data" in payload
+                ? payload.data
+                : (payload as LegalSourceDocument);
+            setSourceDocument(document || undefined);
+          }
+        })
+        .catch((reason: unknown) => {
+          if (reason instanceof DOMException && reason.name === "AbortError") return;
+          if (!controller.signal.aborted)
+            setError(
+              reason instanceof Error ? reason.message : "Không thể tải nội dung nguồn pháp luật.",
+            );
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setLoading(false);
+        });
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
   }, [citation]);
 
   if (!citation) return null;
@@ -75,6 +119,10 @@ export default function SourceDrawer({
     >
       {loading ? (
         <p className="legal-source-viewer__state">Đang tải nội dung nguồn pháp luật…</p>
+      ) : error ? (
+        <p className="legal-source-viewer__state" role="alert">
+          {error}
+        </p>
       ) : (
         <LegalSourceViewer
           citation={citation}
@@ -82,6 +130,10 @@ export default function SourceDrawer({
           document={
             sourceDocument || {
               document_title: title,
+              document_id: citation.document_id || citation.document || undefined,
+              article: citation.article,
+              clause: citation.clause,
+              point: citation.point,
               source_url: citation.source_url,
               pdf_url: citation.pdf_url,
               source_file: citation.source_file,

@@ -24,7 +24,8 @@ export type ChatResponse = {
   trace_id?: string;
   assistant_message_id?: string;
   conversation_id?: string;
-  comparison?: { label?: string; citations?: Citation[]; answer?: string } | null;
+  bookmarked?: boolean;
+  is_bookmarked?: boolean;
 };
 export type ConversationTurn = { question: string; response: ChatResponse };
 export type Conversation = {

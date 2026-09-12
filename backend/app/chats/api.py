@@ -9,17 +9,21 @@ from app.chats.schemas import (
     FeedbackCreate,
     MessageCreate,
     SessionCreate,
+    SessionListResponse,
     SessionRename,
 )
 from app.chats.service import (
-    add_bookmark,
     add_feedback,
     add_message,
     create_session,
+    delete_bookmark,
     delete_session,
+    get_bookmark_status,
     get_session,
+    list_bookmarks,
     list_sessions,
     rename_session,
+    save_bookmark,
 )
 from app.database.session import SupabaseClient, get_db
 from app.rag.service import RAGService
@@ -46,16 +50,17 @@ def deps(credentials: HTTPAuthorizationCredentials = Depends(bearer)):  # noqa: 
     return _token(credentials)
 
 
-@router.get("/chats")
-@router.get("/conversations")
+@router.get("/chats", response_model=SessionListResponse)
+@router.get("/conversations", response_model=SessionListResponse)
 def sessions(
     query: str | None = Query(None),  # noqa: B008
+    limit: int = Query(50, ge=1, le=100),  # noqa: B008
     user: dict = Depends(get_current_user),  # noqa: B008
     client: SupabaseClient = Depends(get_db),  # noqa: B008
     token: str = Depends(deps),  # noqa: B008
 ):
-    items = list_sessions(client, uid(user), query, token)
-    return {"conversations": items, "items": items}
+    items = list_sessions(client, uid(user), query, limit, token)
+    return {"items": items, "next_cursor": None}
 
 
 @router.post("/chats", status_code=201)
@@ -150,4 +155,53 @@ def bookmark(
     client: SupabaseClient = Depends(get_db),  # noqa: B008
     token: str = Depends(deps),  # noqa: B008
 ):
-    return add_bookmark(client, uid(user), session_id, payload.message_id, token)
+    return save_bookmark(
+        client, uid(user), session_id, payload.model_dump(exclude_none=True), token
+    )
+
+
+@router.get("/saved")
+@router.get("/bookmarks")
+def saved(
+    user: dict = Depends(get_current_user),  # noqa: B008
+    client: SupabaseClient = Depends(get_db),  # noqa: B008
+    token: str = Depends(deps),  # noqa: B008
+):
+    return {"items": list_bookmarks(client, uid(user), token)}
+
+
+@router.get("/saved/{assistant_message_id}/status")
+@router.get("/bookmarks/{assistant_message_id}/status")
+def saved_status(
+    assistant_message_id: str,
+    user: dict = Depends(get_current_user),  # noqa: B008
+    client: SupabaseClient = Depends(get_db),  # noqa: B008
+    token: str = Depends(deps),  # noqa: B008
+):
+    return get_bookmark_status(client, uid(user), assistant_message_id, token)
+
+
+@router.post("/saved/{session_id}", status_code=201)
+@router.post("/bookmarks/{session_id}", status_code=201)
+def save(
+    session_id: str,
+    payload: BookmarkCreate,
+    user: dict = Depends(get_current_user),  # noqa: B008
+    client: SupabaseClient = Depends(get_db),  # noqa: B008
+    token: str = Depends(deps),  # noqa: B008
+):
+    return save_bookmark(
+        client, uid(user), session_id, payload.model_dump(exclude_none=True), token
+    )
+
+
+@router.delete("/saved/{assistant_message_id}", status_code=204)
+@router.delete("/bookmarks/{assistant_message_id}", status_code=204)
+def unsave(
+    assistant_message_id: str,
+    user: dict = Depends(get_current_user),  # noqa: B008
+    client: SupabaseClient = Depends(get_db),  # noqa: B008
+    token: str = Depends(deps),  # noqa: B008
+):
+    delete_bookmark(client, uid(user), assistant_message_id, token)
+    return Response(status_code=204)

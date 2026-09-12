@@ -30,7 +30,8 @@ The index is derived data. Rebuild it from the manifest and chunks rather than t
 
 ## Grounded generation, verification, and abstention
 
-`backend/app/rag/router.py` classifies requests as legal, chitchat, web, or out-of-scope without fetching external sources. `backend/app/rag/references.py` parses and matches explicit Điều/Khoản/Điểm and document-number references. `backend/app/rag/evidence.py` applies deterministic evidence gates. Only supported evidence reaches `backend/app/rag/generator.py`, whose configured ChatOpenRouter model generates from the supplied context; citations are assembled from stored metadata in `backend/app/rag/service.py`. Missing or insufficient evidence returns an abstention instead of fabricated legal content or web retrieval.
+`backend/app/rag/router.py` classifies requests without external I/O; the canonical public chat statuses are `VERIFIED`, `GREETING`, `OUT_OF_SCOPE`, `CORPUS_NOT_COVERED`, `INSUFFICIENT_EVIDENCE`, and `WORKFLOW_UNAVAILABLE`. `backend/app/rag/references.py` parses and matches explicit Điều/Khoản/Điểm and document-number references. `backend/app/rag/evidence.py` applies the exact evidence-completeness gate before generation: every evidence type required by the query plan must be supported by the retrieved context, otherwise the service abstains. Only supported evidence reaches `backend/app/rag/generator.py`; citations are assembled from stored metadata in `backend/app/rag/service.py`. The query path is corpus-only: it never performs web retrieval, and traffic-law questions unsupported by the serving corpus are classified as `CORPUS_NOT_COVERED`.
+
 
 The request path is therefore:
 
@@ -52,8 +53,11 @@ manifest + source files
 
 Supabase stores application data, not the local retrieval corpus. `backend/app/database/models.py`
 names application tables: `profiles`, `chat_sessions`, `messages`, `feedback`, and `bookmarks`.
-Auth and chat services own authentication, sessions, messages, feedback, and the inactive P2
-bookmark endpoint. Qdrant holds derived vectors; manifest and Markdown remain ingestion inputs.
+Auth and chat services own authentication, sessions, messages, feedback, and saved Q&A snapshots.
+Saving a bookmark persists the user question, answer, citations, response payload, and source message
+IDs; saved items can be listed, checked, and deleted. Qdrant holds derived vectors; manifest and
+Markdown remain ingestion inputs.
+
 
 ## HTTP API, readiness, and traceability
 
@@ -61,10 +65,20 @@ FastAPI mounts the active routers from `backend/app/main.py`:
 
 - `backend/app/rag/api.py`: `POST /api/v1/chat` for grounded legal chat (`question`, `top_k`, optional `effective_date`);
 - `backend/app/auth/api.py`: register, login, and current-user endpoints backed by Supabase auth;
-- `backend/app/chats/api.py`: chat sessions, messages, feedback, and bookmarks;
-- `backend/app/legal/api.py`: legal documents, provisions, and metadata search.
+- `backend/app/chats/api.py`: chat sessions, messages, feedback, and saved Q&A bookmark snapshots;
+- `backend/app/legal/api.py`: legal documents, provisions, and `GET /api/v1/legal-search` text search with optional `document_id`, `article`, `clause`, `point`, and bounded `limit` filters.
 
-`backend/app/main.py` also provides `GET /api/v1/health/live` and `GET /api/v1/health/ready`. Readiness checks Supabase and the configured Qdrant collection. Trace middleware accepts or creates `X-Trace-ID`, returns it on the response, and logs method, path, status, and duration.
+Legal explorer deep links use `/legal-sources` and citation metadata to open a document/provision or
+source passage; the API preserves Markdown/PDF provenance for that viewer. Saved Q&A routes include
+`POST /api/v1/chats/{session_id}/bookmarks`, `GET /api/v1/saved` (also `/bookmarks`), status lookup,
+and deletion. `backend/app/main.py` also provides `GET /api/v1/health/live` and
+## Implementation status notes
+
+The documented runtime contract is limited to the implemented local corpus and APIs.
+Saved Q&A persistence, Legal Explorer search/deep links, canonical chat statuses,
+the exact evidence gate, and bounded browser timeout are implemented behavior.
+Remote corpus migration/manual UI work and final evaluation evidence remain pending;
+this document does not claim release readiness or evaluation completion.
 
 Run the API from the repository root:
 

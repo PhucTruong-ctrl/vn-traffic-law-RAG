@@ -75,7 +75,69 @@ def test_chitchat_does_not_call_retriever() -> None:
 
     result = RAGService(NeverRetriever()).answer("hi")
     assert result["answer"]
-    assert result["status"] == "chitchat"
+    assert result["status"] == "GREETING"
+
+
+def test_exact_reference_mismatch_abstains() -> None:
+    from langchain_core.documents import Document
+
+    result = RAGService().answer(
+        "Điều 6 Nghị định 100/2019 quy định gì?",
+        chunks=[
+            Document(
+                page_content="Nội dung điều 6.",
+                metadata={"article": "Điều 7", "document_number": "100/2019"},
+            )
+        ],
+    )
+
+    assert result["status"] == "insufficient_evidence"
+    assert result["reason_code"] == "reference_not_found"
+
+
+def test_exact_reference_match_allows_answer(monkeypatch) -> None:
+    from langchain_core.documents import Document
+
+    monkeypatch.setattr("app.rag.service.generate_answer", lambda *_args, **_kwargs: "Đáp án")
+    result = RAGService().answer(
+        "Điều 6 Nghị định 100/2019 quy định gì?",
+        chunks=[
+            Document(
+                page_content="Nội dung điều 6.",
+                metadata={
+                    "chunk_id": "chunk-6",
+                    "document_id": "100/2019",
+                    "article": "Điều 6",
+                    "document_number": "100/2019",
+                },
+            )
+        ],
+    )
+
+    assert result["status"] == "complete"
+
+
+def test_release_chat_contract_rejects_wrong_reference_or_citation() -> None:
+    from scripts.verify_release_authenticated import require_chat_contract
+
+    valid = {
+        "status": "complete",
+        "answer": "Theo quy định.",
+        "citations": [
+            {
+                "source_id": "chunk-1",
+                "document_id": "nd-168-2024",
+                "article": "Điều 6",
+                "excerpt": "Nội dung.",
+            }
+        ],
+    }
+    require_chat_contract(valid, "valid", required_reference="168")
+    with pytest.raises(RuntimeError, match="required reference"):
+        require_chat_contract(valid, "wrong-reference", required_reference="100")
+    invalid = {**valid, "citations": [{**valid["citations"][0], "excerpt": ""}]}
+    with pytest.raises(RuntimeError, match="excerpt"):
+        require_chat_contract(invalid, "missing-excerpt")
 
 
 def test_vehicle_penalty_query_retrieves_all_categories(monkeypatch) -> None:

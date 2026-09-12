@@ -19,6 +19,9 @@ Record date, browser, result, and evidence path beside every item. Leave uncheck
 - [ ] Rename/delete — Date: ____ Browser: ____ Result: ____ Evidence: ____
 - [ ] Feedback — Date: ____ Browser: ____ Result: ____ Evidence: ____
 - [ ] Chat retry/failure state — Date: ____ Browser: ____ Result: ____ Evidence: ____
+- [ ] Saved Q&A — from a completed answer, save it, verify **Đã lưu** shows question/answer/citations, search finds it, reload preserves it, and delete removes it — Date: ____ Browser: ____ Result: ____ Evidence: ____
+- [ ] Chat timeout exits loading with answer or explicit failure within configured limit (default 120 seconds; `NEXT_PUBLIC_CHAT_TIMEOUT_MS` override) — Date: ____ Browser: ____ Result: ____ Evidence: ____
+- [ ] Chat session visibility after submit/reload — conversation remains in history and the question plus final answer/clarification are visible after reopening — Date: ____ Browser: ____ Result: ____ Evidence: ____
 
 ## Citation
 

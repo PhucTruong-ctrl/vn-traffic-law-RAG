@@ -124,40 +124,20 @@ Pipeline worker: `snapshot -> parse -> normalize -> legal extract -> reference r
 
 ### 3.2.2. Online query pipeline
 
-```mermaid
-flowchart TB
-    UQ["Câu hỏi người dùng"]
-    QU["Query Understanding (intent, query_date, comparison dates, vehicle_type, legal entities, normalized query, số văn bản/Điều/Khoản/Điểm, evidence plan)"]
-    TR["Temporal Resolution"]
-    QE["Query Expansion (original | normalized | multi-query rewrite | conditional HyDE)"]
-    RECALL["Parallel Multi-Recall (exact legal lookup | dense | sparse BM25)"]
-    FUSE["RRF Fusion"]
-    RERANK["Reranking"]
-    LCE["Legal Context Expansion (parent | sibling | cross-reference | penalty companion)"]
-    EGG["Evidence Completeness Gate"]
-    CB["Context Builder"]
-    GEN["Structured Answer Generator"]
-    VER["Verification (schema, citation ID, temporal, numeric grounding, claim support, evidence completeness)"]
-    OUT["Verified Answer | Abstention"]
-    TARGET["Targeted Retrieval (missing evidence categories)"]
+Online query is corpus-only: classification and retrieval never call the open web.
+The legal explorer has its own API-backed search/deep-link path over the serving
+provisions; it does not broaden chat evidence. Chat classification preserves the
+canonical public statuses `VERIFIED`, `GREETING`, `OUT_OF_SCOPE`,
+`CORPUS_NOT_COVERED`, `INSUFFICIENT_EVIDENCE`, and `WORKFLOW_UNAVAILABLE`.
+`GREETING` is returned before legal retrieval, while a traffic question unsupported
+by the serving corpus returns `CORPUS_NOT_COVERED`.
 
-    UQ --> QU
-    QU --> TR
-    TR --> QE
-    QE --> RECALL
-    RECALL --> FUSE
-    FUSE --> RERANK
-    RERANK --> LCE
-    LCE --> EGG
-    EGG -- "complete" --> CB
-    EGG -- "incomplete" --> TARGET
-    TARGET --> EGG
-    CB --> GEN
-    GEN --> VER
-    VER --> OUT
-```
+The exact Evidence Completeness Gate runs before generation. It compares the query's
+evidence plan with the retrieved and expanded context; any required evidence gap
+routes to bounded targeted retrieval/repair and then abstention if unresolved.
+The browser uses a bounded chat timeout (120 seconds by default, configurable with
+`NEXT_PUBLIC_CHAT_TIMEOUT_MS`); timeout aborts the request and does not emit a draft.
 
-Query expansion luôn giữ câu hỏi gốc của người dùng. HyDE chỉ dùng có điều kiện (câu ngắn, khẩu ngữ, ngữ nghĩa yếu hoặc bằng chứng chưa đủ). Không có vòng rewrite không giới hạn (FR-12). Context Builder là node riêng giữa Evidence Completeness Gate và generator: nhận `reranked + expanded_context`, chuyển thành `context_package` cho `generate` (xem 3.22).
 
 ### 3.2.3. LangGraph controlled workflow
 
@@ -441,33 +421,12 @@ sequenceDiagram
 
 Chính sách canonical date (FR-11, UC-02): câu hỏi chỉ có năm và không có sự kiện pháp lý thay đổi hiệu lực trong năm thì áp dụng ngày chuẩn được ghi rõ (ví dụ 01/07 của năm đó) và BẮT BUỘC hiển thị ngày đã áp dụng; nếu có sự kiện thay đổi thì yêu cầu ngày cụ thể hoặc ABSTAIN với `MISSING_QUERY_DATE`. Không dùng văn bản hiện hành làm mặc định cho câu hỏi lịch sử.
 
-### 3.3.4. Comparison query flow
+### 3.3.4. Historical version separation
 
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant QU as Query Understanding
-    participant G as LangGraph
-    participant PG as PostgreSQL
-    participant QD as Qdrant
-    participant GEN as Generator
-    participant VER as Verifier
-
-    U->>QU: "Quy định trước và sau 01/01/2025 khác nhau thế nào?"
-    QU->>QU: intent = COMPARISON, comparison dates = (before, after)
-    QU-->>G: two temporal contexts A, B
-    G->>PG: exact lookup context A (date A)
-    G->>QD: dense + sparse context A (filter interval A)
-    G->>PG: exact lookup context B (date B)
-    G->>QD: dense + sparse context B (filter interval B)
-    G->>G: expand + evidence check riêng cho từng phía
-    G->>GEN: generate comparison (không trộn context hai mốc)
-    GEN-->>G: structured answer
-    G->>VER: verify citation A theo interval A, citation B theo interval B
-    alt đủ bằng chứng cả hai phía
-        G-->>U: structured comparison + citation riêng từng giai đoạn
-    else một phía thiếu sau repair
-        G-->>U: ABSTAIN INSUFFICIENT_EVIDENCE
+Historical queries resolve the requested effective date and keep citations tied to
+that interval. The active MVP does not expose a separate comparison workflow;
+comparison remains an earlier design concept and is not an implemented chat/API
+capability.
     end
 ```
 
@@ -3403,7 +3362,7 @@ Không retry chặn, không ghi lỗi vào response pháp lý. Bật/tắt bằn
 
 ---
 
-## 3.28. API Contracts
+### 3.28. API Contracts
 
 Base path: `/api/v1`. Boundary là single-user localhost/private network; không có authentication, admin, reviewer role hoặc public multi-tenant contract. Mọi response nghiệp vụ có `trace_id`; lỗi kỹ thuật dùng 4xx/5xx; abstention dùng HTTP 200.
 
@@ -3413,17 +3372,41 @@ Base path: `/api/v1`. Boundary là single-user localhost/private network; không
 POST /api/v1/chat
 ```
 
-Chat response luôn là verified hoặc abstained; citation được dựng từ metadata đã kiểm chứng. Query không gọi web.
+Chat trả về trạng thái công khai chuẩn: `VERIFIED`, `GREETING`, `OUT_OF_SCOPE`,
+`CORPUS_NOT_COVERED`, `INSUFFICIENT_EVIDENCE`, hoặc `WORKFLOW_UNAVAILABLE`.
+`GREETING` không chạy legal retrieval; `CORPUS_NOT_COVERED` là câu hỏi giao thông
+ngoài corpus đang phục vụ. Query không gọi web. Evidence Completeness Gate là cổng
+chặn chính xác trước generation: thiếu bất kỳ evidence type bắt buộc nào thì không
+được sinh câu trả lời đã verify.
 
-### 3.28.2. Search
+### 3.28.2. Legal explorer search and deep links
 
 ```http
-POST /api/v1/search
+GET /api/v1/legal-search?q={text}&document_id={id}&article={article}&clause={clause}&point={point}&limit={1..100}
+GET /api/v1/legal-documents
+GET /api/v1/legal-documents/{document_id}
+GET /api/v1/legal-documents/{document_id}/provisions
 ```
 
-Search không bắt buộc gọi generator và chỉ tìm trong corpus `ACCEPTED` đang được phục vụ.
+`legal-search` performs bounded text search over the local serving corpus and
+returns provision metadata and score. Document/provision responses preserve source
+metadata used by `/legal-sources` deep links to Markdown passages or PDF pages.
+There is no web fallback.
 
-### 3.28.3. Job status
+### 3.28.3. Saved Q&A snapshots
+
+```http
+POST /api/v1/chats/{session_id}/bookmarks
+GET /api/v1/saved
+GET /api/v1/saved/{assistant_message_id}/status
+DELETE /api/v1/saved/{assistant_message_id}
+```
+
+The bookmark operation persists a durable Q&A snapshot: question, answer, citations,
+response payload, session/message IDs, and user ownership. `/bookmarks` aliases are
+also available for list/status/save/delete compatibility.
+
+### 3.28.4. Job status
 
 ```http
 GET /api/v1/jobs/{job_id}
@@ -3431,7 +3414,7 @@ GET /api/v1/jobs/{job_id}
 
 Trạng thái trả về gồm `QUEUED`, các stage xử lý nền, `ACCEPTED`, `REJECTED`, `INDEXED` hoặc `FAILED`, kèm snapshot/hash và gate summary.
 
-### 3.28.4. Feedback
+### 3.28.5. Feedback
 
 ```http
 POST /api/v1/feedback

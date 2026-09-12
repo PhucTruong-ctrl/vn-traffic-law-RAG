@@ -4,7 +4,10 @@
     "codegraph": {
       "type": "stdio",
       "command": "codegraph",
-      "args": ["serve", "--mcp"],
+      "args": [
+        "serve",
+        "--mcp"
+      ],
       "cwd": "/home/haki/orca/vn-traffic-law-RAG",
       "enabled": true
     },
@@ -21,7 +24,7 @@
     "atlassian": {
       "type": "http",
       "url": "https://mcp.atlassian.com/v2/mcp",
-      "enabled": true
+      "enabled": false
     }
   }
 }

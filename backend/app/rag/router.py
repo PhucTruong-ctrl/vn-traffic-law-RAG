@@ -8,7 +8,7 @@ ROUTES = {"legal", "chitchat", "web", "out_of_scope"}
 
 
 def route_question(question: str) -> str:
-    """Return one of the four supported routes without fetching or calling tools."""
+    """Classify a question without performing retrieval or external I/O."""
     return classify_intent(question)
 
 

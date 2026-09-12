@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { Clipboard, FileDown, Share2 } from "lucide-react";
 import AbstentionResult from "./AbstentionResult";
 import CitationCard, { type Citation } from "./CitationCard";
-import FeedbackWidget from "./FeedbackWidget";
+import FeedbackWidget, { BookmarkToggle } from "./FeedbackWidget";
 import LegalMark from "./LegalMark";
 import ProgressEvents, { type ProgressEvent } from "./ProgressEvents";
 import { messageEntrance, motionTransition } from "./motion";
@@ -15,6 +15,100 @@ function protectLegalParentheticals(markdown: string): string {
   return markdown.replace(
     /(?<!\\)\((?=[^()\n]*(?:khoản|điểm|điều|nghị định|thông tư)[^()\n]*\d)[^()\n]*\)/gi,
     "\\$&",
+  );
+}
+
+const tableSeparator = /^\s*\|?\s*:?-{2,}:?\s*(?:\|\s*:?-{2,}:?\s*)+\|?\s*$/;
+
+function splitAnswerTables(
+  markdown: string,
+): Array<
+  { kind: "markdown"; text: string } | { kind: "table"; headers: string[]; rows: string[][] }
+> {
+  const lines = markdown.replace(/\r\n?/g, "\n").split("\n");
+  const parts: Array<
+    { kind: "markdown"; text: string } | { kind: "table"; headers: string[]; rows: string[][] }
+  > = [];
+  let markdownLines: string[] = [];
+  const flushMarkdown = () => {
+    if (markdownLines.join("\n").trim())
+      parts.push({ kind: "markdown", text: markdownLines.join("\n") });
+    markdownLines = [];
+  };
+  const lineCells = (line: string) =>
+    line
+      .trim()
+      .replace(/^\|/, "")
+      .replace(/\|$/, "")
+      .split("|")
+      .map((cell) => cell.trim());
+  for (let index = 0; index < lines.length; index += 1) {
+    if (
+      index + 1 >= lines.length ||
+      !lines[index].includes("|") ||
+      !tableSeparator.test(lines[index + 1])
+    ) {
+      markdownLines.push(lines[index]);
+      continue;
+    }
+    const headers = lineCells(lines[index]);
+    const separator = lineCells(lines[index + 1]);
+    if (headers.length < 2 || separator.length !== headers.length) {
+      markdownLines.push(lines[index]);
+      continue;
+    }
+    flushMarkdown();
+    const rows: string[][] = [];
+    index += 2;
+    while (index < lines.length && lines[index].includes("|") && lines[index].trim()) {
+      const row = lineCells(lines[index]);
+      if (row.length !== headers.length) break;
+      rows.push(row);
+      index += 1;
+    }
+    index -= 1;
+    parts.push({ kind: "table", headers, rows });
+  }
+  flushMarkdown();
+  return parts;
+}
+
+export function MarkdownAnswer({ answer }: { answer: string }) {
+  return (
+    <>
+      {splitAnswerTables(protectLegalParentheticals(answer)).map((part, index) =>
+        part.kind === "markdown" ? (
+          <ReactMarkdown key={index} skipHtml>
+            {part.text}
+          </ReactMarkdown>
+        ) : (
+          <div className="assistant-answer-table" key={index}>
+            <table>
+              <thead>
+                <tr>
+                  {part.headers.map((header, cellIndex) => (
+                    <th key={cellIndex} scope="col">
+                      <ReactMarkdown skipHtml>{header}</ReactMarkdown>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {part.rows.map((row, rowIndex) => (
+                  <tr key={rowIndex}>
+                    {row.map((cell, cellIndex) => (
+                      <td key={cellIndex}>
+                        <ReactMarkdown skipHtml>{cell}</ReactMarkdown>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ),
+      )}
+    </>
   );
 }
 
@@ -41,7 +135,6 @@ function ResponseMessage({
   const verified = response.status === "VERIFIED";
   const operational = response.status === "WORKFLOW_UNAVAILABLE";
   const citations = response.citations ?? [];
-  const comparison = response.comparison;
   const [actionState, setActionState] = useState("");
   const answer = response.answer ?? "";
 
@@ -90,14 +183,21 @@ function ResponseMessage({
         ) : verified ? (
           <>
             <div className="assistant-answer">
-              <ReactMarkdown skipHtml>{protectLegalParentheticals(answer)}</ReactMarkdown>
+              <MarkdownAnswer answer={answer} />
             </div>
             <div className="answer-actions" aria-label="Thao tác với câu trả lời">
               <button type="button" onClick={copyAnswer} aria-label="Sao chép" title="Sao chép">
                 <Clipboard size={17} aria-hidden="true" />
               </button>
               {sessionId && response.assistant_message_id && (
-                <FeedbackWidget sessionId={sessionId} messageId={response.assistant_message_id} />
+                <>
+                  <BookmarkToggle
+                    sessionId={sessionId}
+                    messageId={response.assistant_message_id}
+                    initialBookmarked={response.bookmarked ?? response.is_bookmarked ?? false}
+                  />
+                  <FeedbackWidget sessionId={sessionId} messageId={response.assistant_message_id} />
+                </>
               )}
               <button
                 type="button"
@@ -135,16 +235,6 @@ function ResponseMessage({
               ))}
             </div>
           </details>
-        )}
-        {verified && comparison?.answer && (
-          <section className="comparison-result" aria-label="So sánh nguồn">
-            <h3>{comparison.label ?? "So sánh nguồn"}</h3>
-            <div className="comparison-answer">
-              <ReactMarkdown skipHtml>
-                {protectLegalParentheticals(comparison.answer)}
-              </ReactMarkdown>
-            </div>
-          </section>
         )}
       </div>
     </div>

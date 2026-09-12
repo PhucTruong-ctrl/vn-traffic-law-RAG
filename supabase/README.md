@@ -10,6 +10,17 @@ This directory contains the application database definition for the VN traffic-l
 4. Optional: create a test account in **Authentication → Users → Add user**. Copy its UUID.
 5. Optional: use **SQL Editor** with `supabase/seed.sql`. If using the Supabase SQL editor, replace `:demo_user_id` with the quoted UUID in both statements (the `\if` guard is intended for `psql`; the SQL statements themselves are ordinary PostgreSQL).
 6. In **Project Settings → API**, configure only the project URL and publishable/anon key in browser clients. Keep the service-role key server-side and out of Git.
+7. For an existing project, apply the durable saved Q&A migration [`migrations/20260913000000_saved_qa_bookmarks.sql`](migrations/20260913000000_saved_qa_bookmarks.sql) before testing bookmarks. It preserves existing rows where possible, backfills question/answer/citations from messages, and makes saved snapshots survive later chat/message deletion.
+For an existing hosted project, use either the Supabase Dashboard **SQL Editor** (paste the migration file and run it) or the Supabase Management API SQL endpoint. The Management API requires an access token supplied out of band; never place it in this repository, command history, screenshots, or logs. Example request shape:
+
+```bash
+curl -X POST "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/database/query" \
+  -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  --data "$(python -c 'import json, pathlib; print(json.dumps({"query": pathlib.Path("supabase/migrations/20260913000000_saved_qa_bookmarks.sql").read_text()}))')"
+```
+
+Use the current Supabase Management API documentation for authentication and endpoint details, and inspect the response for SQL errors. The migration is not applied by the application or backend checker.
 
 ## CLI setup
 

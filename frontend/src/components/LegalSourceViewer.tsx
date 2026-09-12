@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Clipboard } from "lucide-react";
 import type { Citation } from "./CitationCard";
 import PdfCitationViewer from "./PdfCitationViewer";
@@ -15,7 +15,18 @@ export type LegalSourceDocument = {
     source_url?: string | null;
     pdf_url?: string | null;
     source_kind?: SourceKind;
+    document_id?: string | null;
   };
+  document_id?: string | null;
+  provision_id?: string | null;
+  article?: string | number | null;
+  clause?: string | number | null;
+  point?: string | null;
+  chunk_id?: string | null;
+  chunk_index?: number | null;
+  article_number?: string | number | null;
+  clause_number?: string | number | null;
+  point_number?: string | null;
   source_kind?: SourceKind;
   content?: string | null;
   markdown?: string | null;
@@ -28,14 +39,22 @@ type Props = {
   citation: Citation;
   document?: LegalSourceDocument;
   mode?: "chat" | "explorer";
+  searchQuery?: string;
 };
 
 type MarkdownBlock = { id: string; level: number; title?: string; text: string };
-export default function LegalSourceViewer({ citation, document, mode = "chat" }: Props) {
+export default function LegalSourceViewer({
+  citation,
+  document,
+  mode = "chat",
+  searchQuery,
+}: Props) {
   const source = document?.source;
   const merged = {
     ...citation,
     ...document,
+    document_id: document?.document_id || citation.document_id,
+    provision_id: document?.provision_id ?? citation.provision_id,
     source_kind: source?.source_kind ?? document?.source_kind,
     pdf_url: source?.pdf_url ?? document?.pdf_url ?? citation.pdf_url,
     source_url: source?.source_url ?? document?.source_url ?? citation.source_url,
@@ -47,18 +66,35 @@ export default function LegalSourceViewer({ citation, document, mode = "chat" }:
       ? "pdf"
       : "markdown");
   if (kind === "pdf") {
-    return <PdfCitationViewer citation={merged} />;
+    return (
+      <PdfCitationViewer
+        citation={{ ...merged, provision_id: merged.provision_id ?? undefined } as Citation}
+      />
+    );
   }
-  return <MarkdownSourceViewer citation={citation} document={merged} mode={mode} />;
+  return (
+    <MarkdownSourceViewer
+      citation={citation}
+      document={
+        { ...merged, provision_id: merged.provision_id ?? undefined } as LegalSourceDocument &
+          Citation
+      }
+      mode={mode}
+      searchQuery={searchQuery}
+    />
+  );
 }
+
 function MarkdownSourceViewer({
   citation,
   document,
   mode,
+  searchQuery,
 }: {
   citation: Citation;
   document: LegalSourceDocument & Citation;
   mode: "chat" | "explorer";
+  searchQuery?: string;
 }) {
   const raw =
     document.markdown ??
@@ -70,26 +106,48 @@ function MarkdownSourceViewer({
   const visibleRaw = raw.replace(/\r\n?/g, "\n").replace(/\A---\s*\n[\s\S]*?(?:\n---\s*\n|\Z)/, "");
   const blocks = useMemo(() => parseMarkdown(visibleRaw), [visibleRaw]);
 
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(searchQuery ?? "");
+  const [querySource, setQuerySource] = useState(searchQuery);
+  if (querySource !== searchQuery) {
+    setQuerySource(searchQuery);
+    setQuery(searchQuery ?? "");
+  }
   const [copied, setCopied] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const target = useMemo(() => {
-    if (mode !== "chat") return "";
+    if (mode === "chat") {
+      return (
+        citation.source_text ?? citation.excerpt ?? citation.snippet ?? citation.provision_id ?? ""
+      );
+    }
+    return searchQuery?.trim() || "";
+  }, [citation, mode, searchQuery]);
+  const findTarget = useCallback((container: HTMLElement, term: string): HTMLElement | null => {
+    const needle = term.trim().toLocaleLowerCase();
+    if (!needle) return null;
     return (
-      citation.source_text ?? citation.excerpt ?? citation.snippet ?? citation.provision_id ?? ""
+      Array.from(container.querySelectorAll<HTMLElement>("[data-source-text]")).find((node) =>
+        (node.dataset.sourceText || "").toLocaleLowerCase().includes(needle),
+      ) ??
+      Array.from(container.querySelectorAll<HTMLElement>("[data-article]")).find((node) => {
+        const reference = [
+          node.dataset.article && `điều ${node.dataset.article}`,
+          node.dataset.clause && `khoản ${node.dataset.clause}`,
+          node.dataset.point && `điểm ${node.dataset.point}`,
+        ]
+          .filter(Boolean)
+          .join(" ");
+        return reference.toLocaleLowerCase().includes(needle);
+      }) ??
+      null
     );
-  }, [citation, mode]);
-
+  }, []);
   useEffect(() => {
     const container = contentRef.current;
-    const needle = mode === "chat" ? target.trim().toLowerCase() : query.trim().toLowerCase();
-    if (!container || !needle) return;
-    const match = Array.from(container.querySelectorAll<HTMLElement>("[data-source-text]")).find(
-      (node) => node.dataset.sourceText?.toLowerCase().includes(needle),
-    );
+    if (!container) return;
+    const match = findTarget(container, mode === "chat" ? target : query);
     match?.scrollIntoView({ block: "center" });
-  }, [mode, query, target, blocks]);
-
+  }, [mode, query, target, blocks, findTarget]);
   const matches = (mode === "chat" ? target : query).trim().toLowerCase();
   const copy = async () => {
     try {
@@ -161,6 +219,12 @@ function MarkdownSourceViewer({
               key={block.id}
               id={block.id}
               data-source-text={block.text}
+              data-provision-id={document.provision_id ?? citation.provision_id}
+              data-chunk-id={document.chunk_id}
+              data-chunk-index={document.chunk_index}
+              data-article={document.article ?? document.article_number ?? citation.article}
+              data-clause={document.clause ?? document.clause_number ?? citation.clause}
+              data-point={document.point ?? document.point_number ?? citation.point}
               className={`${highlighted ? "markdown-viewer__match" : ""} ${cited ? "markdown-viewer__citation" : ""}`}
             >
               {block.level > 0 ? (

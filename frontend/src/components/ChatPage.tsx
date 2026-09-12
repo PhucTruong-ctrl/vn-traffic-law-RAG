@@ -18,6 +18,7 @@ import { createClient } from "../../utils/supabase/client";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 const API_PATH = `${API_BASE}/api/v1/chat`;
+const CHAT_TIMEOUT_MS = 120_000;
 const isCitation = (value: unknown): value is Citation => {
   if (typeof value !== "object" || value === null) return false;
   const citation = value as Record<string, unknown>;
@@ -87,6 +88,8 @@ function responseFromMessage(message: Record<string, unknown>): ChatResponse | n
     ...response,
     ...(typeof message.id === "string" ? { assistant_message_id: message.id } : {}),
     ...(typeof message.session_id === "string" ? { conversation_id: message.session_id } : {}),
+    ...(typeof message.bookmarked === "boolean" ? { bookmarked: message.bookmarked } : {}),
+    ...(typeof message.is_bookmarked === "boolean" ? { is_bookmarked: message.is_bookmarked } : {}),
   });
   if (typeof candidate === "string") {
     const citations = Array.isArray(message.citations) ? message.citations.filter(isCitation) : [];
@@ -115,7 +118,13 @@ function responseFromMessage(message: Record<string, unknown>): ChatResponse | n
       : [];
   if (!answer) return null;
   if (value.status && typeof value.status === "string" && value.status !== "complete") {
-    return enrich({ ...value, answer, citations } as ChatResponse);
+    return enrich({
+      ...value,
+      answer,
+      citations,
+      ...(typeof value.bookmarked === "boolean" ? { bookmarked: value.bookmarked } : {}),
+      ...(typeof value.is_bookmarked === "boolean" ? { is_bookmarked: value.is_bookmarked } : {}),
+    } as ChatResponse);
   }
   return enrich({
     ...value,
@@ -126,6 +135,8 @@ function responseFromMessage(message: Record<string, unknown>): ChatResponse | n
       Array.isArray(value.claims) && value.claims.length
         ? value.claims
         : citations.map((citation) => ({ claim: citation.excerpt || answer })),
+    ...(typeof value.bookmarked === "boolean" ? { bookmarked: value.bookmarked } : {}),
+    ...(typeof value.is_bookmarked === "boolean" ? { is_bookmarked: value.is_bookmarked } : {}),
   } as ChatResponse);
 }
 
@@ -190,6 +201,9 @@ export default function ChatPage({
   const conversationId = initialConversationId;
   const [question, setQuestion] = useState("");
   const [drawerCitation, setDrawerCitation] = useState<Citation | null>(null);
+  const openCitation = useCallback((citation: Citation) => {
+    setDrawerCitation(citation);
+  }, []);
   const [turns, setTurns] = useState<ConversationTurn[]>([]);
   const [submittedQuestion, setSubmittedQuestion] = useState("");
   const [conversationActivity, setConversationActivity] = useState<{
@@ -304,12 +318,21 @@ export default function ChatPage({
     else if (authMode === "register" && !result.data.session)
       setAuthError("Vui lòng xác nhận email trước khi đăng nhập.");
   }
-
   async function submitQuestion(submitted: string) {
     if (!submitted || loading || historyLoading || !session) return;
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
+    let timedOut = false;
+    const timeout = window.setTimeout(
+      () => {
+        timedOut = true;
+        abortController.abort();
+      },
+      Number(process.env.NEXT_PUBLIC_CHAT_TIMEOUT_MS) || CHAT_TIMEOUT_MS,
+    );
     setProgressEvents([]);
+    setError("");
+    setSubmittedQuestion(submitted);
     setLoading(true);
     try {
       const result = await fetch(API_PATH, {
@@ -341,11 +364,15 @@ export default function ChatPage({
       if (responseId) setConversationActivity({ id: responseId, nonce: Date.now() });
       setQuestion("");
     } catch (submissionError) {
-      if (submissionError instanceof DOMException && submissionError.name === "AbortError") return;
-      setError(
-        submissionError instanceof Error ? submissionError.message : "Không thể xử lý câu hỏi.",
-      );
+      if (submissionError instanceof DOMException && submissionError.name === "AbortError") {
+        setError(timedOut ? "Tra cứu quá thời gian chờ. Vui lòng thử lại." : "Đã dừng tra cứu.");
+      } else {
+        setError(
+          submissionError instanceof Error ? submissionError.message : "Không thể xử lý câu hỏi.",
+        );
+      }
     } finally {
+      window.clearTimeout(timeout);
       if (abortControllerRef.current === abortController) {
         abortControllerRef.current = null;
         setLoading(false);
@@ -507,7 +534,7 @@ export default function ChatPage({
               error={error}
               progressEvents={progressEvents}
               sessionId={activeId}
-              onOpenSource={setDrawerCitation}
+              onOpenSource={openCitation}
             />
           )}
           {(conversationId || turns.length > 0 || loading || historyLoading || error) && (

@@ -49,27 +49,33 @@ path and collection are configured by `QDRANT_PATH` and `QDRANT_COLLECTION`.
 
 ## Legal source explorer
 
-The `/legal-sources` page lists the documents exposed by the legal API and
-supports text, document-number, and article filtering. A document can be
-opened at provision level. Markdown sources are rendered as structured legal
-text; PDF sources are rendered in the in-app PDF viewer with page navigation,
-zoom, and citation-coordinate highlighting when metadata is available. The
-explorer is read-only: the manifest and derived Qdrant index remain the
-ingestion/retrieval sources of truth.
+The `/legal-sources` page lists documents exposed by the legal API and supports
+text, document-number, and article filtering. API-backed search is available at
+`GET /api/v1/legal-search?q=...` with optional `document_id`, `article`, `clause`,
+`point`, and bounded `limit` filters. Document and provision routes, together with
+citation metadata, provide deep links to a provision or its Markdown/PDF passage.
+Markdown sources are rendered as structured legal text; PDF sources are rendered
+in the in-app PDF viewer with page navigation, zoom, and citation-coordinate
+highlighting when metadata is available. The explorer is read-only and corpus-only:
+it does not perform query-time web retrieval.
+
 
 ## Grounded chat and citations
 
 Set `OPENROUTER_API_KEY` and optionally `OPENROUTER_BASE_URL` in `.env`.
-`GENERATION_MODEL` selects the ChatOpenRouter model; its default is
-`deepseek/deepseek-v4-flash-0731`.
+`GENERATION_MODEL` selects the configured ChatOpenRouter model.
 
-Chat requests retrieve legal chunks, apply deterministic reference and
-evidence checks, then send the question and retrieved documents to the
-configured model. Responses expose citations assembled from document metadata
-(identity, article/clause/point, source, page, and effective-date information).
-Selecting a citation opens the corresponding Markdown passage or PDF page in
-the source viewer. When evidence is insufficient, the service abstains rather
-than inventing facts or performing web retrieval.
+Chat requests retrieve legal chunks, apply the exact deterministic evidence-completeness
+gate, then send only supported context to the configured model. The public response
+statuses are `VERIFIED`, `GREETING`, `OUT_OF_SCOPE`, `CORPUS_NOT_COVERED`,
+`INSUFFICIENT_EVIDENCE`, and `WORKFLOW_UNAVAILABLE`; they are not collapsed into one
+generic failure. `CORPUS_NOT_COVERED` means a traffic-law question is outside the
+serving corpus, not that the service will search the web. Insufficient evidence
+abstains rather than inventing facts. Responses expose citations assembled from
+document metadata, and selecting one opens the corresponding source passage.
+The browser bounds a chat request to 120 seconds by default; set
+`NEXT_PUBLIC_CHAT_TIMEOUT_MS` to override that limit.
+
 
 ## API routes
 
@@ -80,18 +86,12 @@ than inventing facts or performing web retrieval.
 - `GET/PATCH/DELETE /api/v1/chats/{session_id}`
 - `POST /api/v1/chats/{session_id}/messages`
 - `POST /api/v1/chats/{session_id}/messages/{message_id}/feedback`
-- `POST /api/v1/chats/{session_id}/bookmarks`
+- `POST /api/v1/chats/{session_id}/bookmarks` (saved Q&A snapshot)
+- `GET /api/v1/saved` (also `/bookmarks`), bookmark status, and deletion routes
 - `GET /api/v1/legal-documents`
 - `GET /api/v1/legal-documents/{document_id}`
 - `GET /api/v1/legal-documents/{document_id}/provisions`
 - `GET /api/v1/legal-search`
-
-Chat payload:
-
-```json
-{"question":"...", "top_k":5, "effective_date":null}
-```
-
 ## Thesis evaluation (40 cases)
 
 The reproducible thesis set is `data/evaluation/thesis-gold-40.json` (40
