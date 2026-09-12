@@ -107,7 +107,7 @@ def _qdrant_ready() -> bool:
             finally:
                 client.close()
             return True
-        from app.rag.api import service as rag_service
+        from app.rag.api import rag_service
 
         store = rag_service.retriever._store_for_query()
         store.client.get_collection(settings.collection)

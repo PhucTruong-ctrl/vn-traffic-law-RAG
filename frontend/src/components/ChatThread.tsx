@@ -8,8 +8,15 @@ import CitationCard, { type Citation } from "./CitationCard";
 import FeedbackWidget, { BookmarkToggle } from "./FeedbackWidget";
 import LegalMark from "./LegalMark";
 import ProgressEvents, { type ProgressEvent } from "./ProgressEvents";
-import { messageEntrance, motionTransition } from "./motion";
+import type { Transition } from "motion/react";
 import type { ChatResponse, ConversationTurn } from "./chat-types";
+
+const motionTransition: Transition = { duration: 0.2, ease: "easeOut" };
+
+const messageEntrance = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+};
 
 function protectLegalParentheticals(markdown: string): string {
   return markdown.replace(

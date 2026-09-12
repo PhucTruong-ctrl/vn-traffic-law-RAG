@@ -10,12 +10,11 @@ from typing import Any
 
 from langchain_core.documents import Document
 
-from .analyzer import analyze_question, detect_vehicle_types, vehicle_label
+from .analyzer import analyze_question, classify_intent, detect_vehicle_types, vehicle_label
 from .evidence import ABSTENTION_MESSAGE, assess_evidence
 from .generator import generate_answer
 from .references import parse_reference
 from .retrieval import Retriever
-from .router import route_question
 
 logger = logging.getLogger(__name__)
 _GENERIC_VEHICLE_CATEGORIES = ("ô tô", "xe mô tô, xe gắn máy", "xe thô sơ")
@@ -194,7 +193,7 @@ class RAGService:
         history: Iterable[dict[str, Any]] = (),
     ) -> dict[str, Any]:
         analysis = analyze_question(question)
-        route = route_question(question)
+        route = classify_intent(question)
         if route == "chitchat":
             return dict(CHITCHAT_RESPONSE)
         if route in {"web", "out_of_scope"} and not any(

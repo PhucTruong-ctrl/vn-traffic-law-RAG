@@ -86,7 +86,7 @@ def resolve_vehicle_followup(question: str, history: object = ()) -> str:
     base = " ".join(base.split()).strip(" ,;:-?.")
     if not base:
         return current
-    label = vehicle_label(vehicle)
+    label = VEHICLE_LABELS[vehicle]
     # Normalize the extracted violation into sentence position and remove
     # filler/copy of the prior question's copula.
     base = base[:1].lower() + base[1:] if base else base

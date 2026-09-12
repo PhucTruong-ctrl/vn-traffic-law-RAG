@@ -5,14 +5,13 @@ from __future__ import annotations
 import re
 
 _SPACE_RE = re.compile(r"\s+")
-_PUNCT_RE = re.compile(r"[\n\r\t]+")
 
 
 def generate_title(question: str, *, max_length: int = 60) -> str:
     """Return concise title derived solely from question text."""
     if max_length < 1:
         raise ValueError("max_length must be positive")
-    text = _SPACE_RE.sub(" ", _PUNCT_RE.sub(" ", question)).strip()
+    text = _SPACE_RE.sub(" ", question).strip()
     if not text:
         raise ValueError("question must not be blank")
     text = text.rstrip("?.!;: ")

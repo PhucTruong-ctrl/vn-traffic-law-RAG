@@ -68,7 +68,6 @@ def expand_cross_references(
     documents: Iterable[Any],
     resolver: Callable[..., Iterable[Any]],
     *,
-    max_depth: int = 1,
     max_references: int = 4,
     max_documents: int | None = None,
 ) -> list[Any]:
@@ -79,7 +78,7 @@ def expand_cross_references(
     if max_documents < 0:
         raise ValueError("max_documents must be non-negative")
     originals = originals[:max_documents]
-    if max_depth < 1 or max_references < 1 or not originals:
+    if max_references < 1 or not originals:
         return originals
     expanded: list[Any] = []
     references: list[LegalReference] = []

@@ -127,11 +127,6 @@ def chunks(
     ]
 
 
-def _value(metadata: dict[str, Any], key: str) -> str | None:
-    value = metadata.get(key)
-    return None if value is None else str(value)
-
-
 def filter_chunks(
     items: list[Chunk],
     *,
@@ -143,7 +138,7 @@ def filter_chunks(
     def matches(item: Chunk) -> bool:
         md = item.metadata
         return all(
-            value is None or _value(md, key) == value
+            value is None or (md.get(key) is not None and str(md[key]) == value)
             for key, value in (
                 ("document_id", document_id),
                 ("article", article),

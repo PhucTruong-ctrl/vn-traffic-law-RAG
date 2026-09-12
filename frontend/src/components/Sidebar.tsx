@@ -3,16 +3,14 @@
 import { createPortal } from "react-dom";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MoreHorizontal } from "lucide-react";
+import { BookOpen, MoreHorizontal, PanelLeft, Plus, Search } from "lucide-react";
 import Link from "next/link";
-import { BookIcon, PanelIcon, PlusIcon, SearchIcon } from "./Icons";
 import LegalMark from "./LegalMark";
 import Modal from "./Modal";
 import type { Conversation } from "./chat-types";
 import { createClient } from "../../utils/supabase/client";
 import { apiUrl } from "../lib/api";
 type ConversationActivity = { id: string; nonce: number } | null;
-
 type SidebarProps = {
   activeConversationId?: string;
   activeQuestion: string;
@@ -370,7 +368,7 @@ export default function Sidebar({
         aria-expanded={mobileOpen}
         onClick={() => setMobileOpen(true)}
       >
-        <PanelIcon aria-hidden="true" />
+        <PanelLeft aria-hidden="true" />
         <span>Mở điều hướng</span>
       </button>
       {mobileOpen && (
@@ -388,7 +386,7 @@ export default function Sidebar({
         className="search-dialog"
       >
         <div className="search-dialog__input">
-          <SearchIcon />
+          <Search />
           <input
             autoFocus
             aria-label="Tìm kiếm"
@@ -435,7 +433,7 @@ export default function Sidebar({
             aria-label="Tìm kiếm cuộc trò chuyện"
             onClick={() => setSearchOpen(true)}
           >
-            <SearchIcon />
+            <Search />
           </button>
           <button
             type="button"
@@ -443,7 +441,7 @@ export default function Sidebar({
             aria-label="Đóng điều hướng"
             onClick={closeMobile}
           >
-            <PanelIcon />
+            <PanelLeft />
           </button>
           <button
             type="button"
@@ -456,7 +454,7 @@ export default function Sidebar({
               onCollapsedChange?.(next);
             }}
           >
-            <PanelIcon />
+            <PanelLeft />
           </button>
         </div>
         <button
@@ -468,16 +466,16 @@ export default function Sidebar({
             closeMobile();
           }}
         >
-          <PlusIcon />
+          <Plus />
           <span>Cuộc trò chuyện mới</span>
         </button>
         <nav className="sidebar-nav" aria-label="Điều hướng">
           <Link className="sidebar-nav__item" href="/legal-sources" onClick={closeMobile}>
-            <BookIcon />
+            <BookOpen />
             <span>Nguồn pháp luật</span>
           </Link>
           <Link className="sidebar-nav__item" href="/saved" onClick={closeMobile}>
-            <BookIcon />
+            <BookOpen />
             <span>Đã lưu</span>
           </Link>
         </nav>

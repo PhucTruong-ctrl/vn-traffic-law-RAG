@@ -26,7 +26,6 @@ from .schemas import ChatRequest
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["rag"])
 rag_service = chats_api.rag_service
-service = rag_service
 
 
 def _token(credentials: HTTPAuthorizationCredentials) -> str:

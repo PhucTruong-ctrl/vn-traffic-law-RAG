@@ -31,10 +31,6 @@ from app.rag.service import RAGService
 rag_service = RAGService()
 
 
-def _answer(question: str, **kwargs):
-    return rag_service.answer(question, **kwargs)
-
-
 router = APIRouter(prefix="/api/v1", tags=["chats"])
 
 
@@ -138,19 +134,6 @@ def feedback_alias(
     message_id = data.pop("message_id")
     session_id = data.pop("session_id")
     return add_feedback(client, uid(user), session_id, message_id, data, token)
-
-
-@router.post("/chats/{session_id}/bookmarks")
-def bookmark(
-    session_id: str,
-    payload: BookmarkCreate,
-    user: dict = Depends(get_current_user),  # noqa: B008
-    client: SupabaseClient = Depends(get_db),  # noqa: B008
-    token: str = Depends(deps),  # noqa: B008
-):
-    return save_bookmark(
-        client, uid(user), session_id, payload.model_dump(exclude_none=True), token
-    )
 
 
 @router.get("/bookmarks")
