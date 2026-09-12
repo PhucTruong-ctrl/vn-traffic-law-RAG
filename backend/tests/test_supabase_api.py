@@ -97,10 +97,10 @@ def test_message_schema_exposes_response_citations_and_metadata_snapshot() -> No
     payload = MessageCreate(
         content="Theo quy định.",
         role="assistant",
-        response="Theo quy định.",
+        response={"answer": "Theo quy định.", "citations": []},
         citations=[{"document": "Nghị định 100", "source_file": "nd100.md", "excerpt": "..."}],
         metadata={"effective_date": "2026-01-01"},
     )
-    assert payload.model_dump()["response"] == "Theo quy định."
+    assert payload.model_dump()["response"] == {"answer": "Theo quy định.", "citations": []}
     assert payload.model_dump()["citations"][0]["document"] == "Nghị định 100"
     assert payload.model_dump()["metadata"] == {"effective_date": "2026-01-01"}

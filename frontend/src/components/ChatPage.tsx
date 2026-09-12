@@ -102,11 +102,28 @@ function responseFromMessage(message: Record<string, unknown>): ChatResponse | n
       })),
     });
   }
-  try {
-    return enrich(validateChatResponse(candidate));
-  } catch {
-    return null;
+  if (!candidate || typeof candidate !== "object") return null;
+  const value = candidate as Record<string, unknown>;
+  const answer = typeof value.answer === "string" ? value.answer.trim() : "";
+  const citations = Array.isArray(value.citations)
+    ? value.citations.filter(isCitation)
+    : Array.isArray(message.citations)
+      ? message.citations.filter(isCitation)
+      : [];
+  if (!answer) return null;
+  if (value.status && typeof value.status === "string" && value.status !== "complete") {
+    return enrich({ ...value, answer, citations } as ChatResponse);
   }
+  return enrich({
+    ...value,
+    status: "VERIFIED",
+    answer,
+    citations,
+    claims:
+      Array.isArray(value.claims) && value.claims.length
+        ? value.claims
+        : citations.map((citation) => ({ claim: citation.excerpt || answer })),
+  } as ChatResponse);
 }
 
 function turnsFromConversation(value: unknown): ConversationTurn[] {

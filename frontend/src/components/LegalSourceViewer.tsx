@@ -7,18 +7,19 @@ import PdfCitationViewer from "./PdfCitationViewer";
 type SourceKind = "markdown" | "pdf";
 export type LegalSourceDocument = {
   title?: string;
+  document_name?: string;
   source?: {
+    source_file?: string | null;
+    source_url?: string | null;
+    pdf_url?: string | null;
     source_kind?: SourceKind;
-    pdf_url?: string;
-    source_url?: string;
-    source_file?: string;
   };
   source_kind?: SourceKind;
-  content?: string;
-  markdown?: string;
-  pdf_url?: string;
-  source_url?: string;
-  source_file?: string;
+  content?: string | null;
+  markdown?: string | null;
+  pdf_url?: string | null;
+  source_url?: string | null;
+  source_file?: string | null;
 };
 
 type Props = {

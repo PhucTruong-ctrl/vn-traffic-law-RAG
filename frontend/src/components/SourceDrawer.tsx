@@ -36,13 +36,10 @@ export default function SourceDrawer({
   const title =
     citation.document_title ||
     citation.document_number ||
-    citation.provision_id ||
+    citation.document_id ||
     "Nguồn pháp luật";
-  const excerpt = (citation.source_text || citation.snippet || "").replace(/\r?\n/g, "\n");
-  const parentContext = (citation.parent_context || citation.legal_context || "").replace(
-    /\r?\n/g,
-    "\n",
-  );
+  const excerpt = citation.excerpt.replace(/\r?\n/g, "\n");
+  const parentContext = "";
 
   return (
     <Modal
@@ -55,7 +52,9 @@ export default function SourceDrawer({
         <div>
           <span className="source-drawer__eyebrow">NGUỒN TRÍCH DẪN</span>
           <h2>{title}</h2>
-          <p className="source-drawer__document">Trang {citation.page_number || 1}</p>
+          {citation.page !== null && citation.page !== undefined && (
+            <p className="source-drawer__document">Trang {citation.page}</p>
+          )}
         </div>
       </header>
       <div className="source-drawer__body">

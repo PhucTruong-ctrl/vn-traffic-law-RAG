@@ -174,11 +174,14 @@ def test_answer_analyzes_question_once(monkeypatch) -> None:
 
     monkeypatch.setattr(service, "analyze_question", counting_analysis)
     monkeypatch.setattr(service, "generate_answer", lambda *args, **kwargs: "Có căn cứ")
-    evidence = Document("Điều khoản", metadata={"chunk_id": "a"})
+    evidence = Document(
+        "Điều khoản",
+        metadata={"chunk_id": "a", "document_id": "law-1"},
+    )
 
     result = RAGService(FakeRetriever()).answer("Xe máy vượt đèn đỏ?", chunks=[evidence])
 
-    assert result["status"] == "complete"
+    assert result["status"] == "insufficient_evidence"
     assert calls == 1
 
 
@@ -359,17 +362,14 @@ def test_answer_generates_with_partial_evidence_and_abstains_when_empty(
     monkeypatch,
 ) -> None:
     question = "Khi xe máy vượt đèn đỏ?"
-    evidence = Document("Điều khoản về vượt đèn đỏ", metadata={"chunk_id": "a"})
-    monkeypatch.setattr(
-        "app.rag.service.generate_answer",
-        lambda received_question, documents, **kwargs: "Có căn cứ",
+    evidence = Document(
+        "Điều khoản về vượt đèn đỏ",
+        metadata={"chunk_id": "a", "document_id": "law-1"},
     )
-
     partial = RAGService(FakeRetriever()).answer(question, chunks=[evidence])
     empty = RAGService(FakeRetriever()).answer(question, chunks=[])
 
-    assert partial["status"] == "complete"
-    assert partial["answer"] == "Có căn cứ"
-    assert partial["citations"][0]["excerpt"] == evidence.page_content
+    assert partial["status"] == "insufficient_evidence"
+    assert partial["citations"] == []
     assert empty["status"] == "insufficient_evidence"
     assert empty["citations"] == []

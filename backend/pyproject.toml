@@ -25,7 +25,6 @@ dev = [
     "pytest",
     "pytest-cov",
     "pytest-asyncio",
-    "playwright",
     "jsonschema",
 ]
 

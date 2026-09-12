@@ -91,6 +91,8 @@ def touch_session(
         data={"updated_at": "now()"},
         headers={**_headers(token), "Prefer": "return=representation"},
     )
+    if not rows:
+        raise HTTPException(status_code=404, detail="Not found")
     return rows[0]
 
 

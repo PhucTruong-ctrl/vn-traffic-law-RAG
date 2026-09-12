@@ -9,12 +9,19 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import statistics
+import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, NoReturn
 from urllib import error, request
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "backend"))
+
+from app.auth.test_auth import obtain_access_token  # noqa: E402
 
 CATEGORIES = {
     "exact_reference",
@@ -138,20 +145,11 @@ def expected_ids(case: dict[str, Any]) -> set[str]:
         elif isinstance(value, str):
             values.append(value)
     return {str(value) for value in values if str(value).strip()}
-
-
 def citation_id(citation: Any) -> str | None:
     if not isinstance(citation, dict):
         return None
-    for key in ("provision_id", "id", "chunk_id"):
-        value = citation.get(key)
-        if value:
-            return str(value)
-    document = citation.get("document") or citation.get("document_id")
-    article = citation.get("article")
-    if document and article:
-        return f"{document}__dieu-{article}"
-    return None
+    value = citation.get("source_id")
+    return str(value) if value else None
 
 
 def score_case(
@@ -160,14 +158,19 @@ def score_case(
     citations = prediction.get("citations", [])
     if not isinstance(citations, list):
         citations = []
-    ids = {item for item in (citation_id(c) for c in citations) if item}
-    wanted = expected_ids(case)
-    hit = bool(ids & wanted) if wanted else None
     expected = case["expected"]
+    expected_ids = expected.get("provision_ids", [])
+    if not isinstance(expected_ids, list):
+        expected_ids = []
+    wanted = {str(item) for item in expected_ids if str(item).strip()}
+    citation_ids = {
+        str(citation.get("source_id"))
+        for citation in citations
+        if isinstance(citation, dict) and citation.get("source_id")
+    }
+    hit = bool(citation_ids & wanted) if wanted else None
     status = str(prediction.get("status", "")).upper()
-    should_abstain = bool(expected.get("abstain", expected.get("should_abstain", False)))
-    abstention = (status in {"INSUFFICIENT_EVIDENCE", "OUT_OF_SCOPE"}) == should_abstain
-    valid_citations = all(isinstance(c, dict) and citation_id(c) for c in citations)
+    should_abstain = bool(expected.get("abstain", False))
     result = {
         "case_id": case["id"],
         "category": case["category"],
@@ -178,31 +181,27 @@ def score_case(
         "article_accuracy": None,
         "clause_accuracy": None,
         "point_accuracy": None,
-        "citation_validity": valid_citations if citations else not wanted,
-        "answer_correctness_manual": prediction.get("answer_correctness_manual"),
-        "abstention_accuracy": abstention,
+        "citation_validity": (
+            all(isinstance(item, dict) and item.get("source_id") for item in citations)
+            if citations
+            else not wanted
+        ),
+        "answer_correctness_manual": None,
+        "abstention_accuracy": (
+            status in {"INSUFFICIENT_EVIDENCE", "OUT_OF_SCOPE"}
+        )
+        == should_abstain,
+        "latency_ms": round(latency_ms, 2) if latency_ms is not None else None,
     }
-    if latency_ms is not None:
-        result["latency_ms"] = round(latency_ms, 2)
-    # Coordinate accuracy is deterministic only when gold coordinates are present
-    # and response citations expose the same coordinate fields.
-    for field in ("document", "article", "clause", "point"):
-        expected_value = expected.get(field)
-        if expected_value is not None:
-            actual = {
-                str(c.get(field))
-                for c in citations
-                if isinstance(c, dict) and c.get(field) is not None
-            }
-            result[f"{field}_accuracy"] = str(expected_value) in actual
     return result
-
-
-def post_json(url: str, payload: dict[str, Any], timeout: float) -> tuple[dict[str, Any], float]:
+def post_json(
+    url: str, payload: dict[str, Any], timeout: float, bearer_token: str | None = None
+) -> tuple[dict[str, Any], float]:
     body = json.dumps(payload, ensure_ascii=False).encode()
-    req = request.Request(
-        url, data=body, headers={"Content-Type": "application/json"}, method="POST"
-    )
+    headers = {"Content-Type": "application/json"}
+    if bearer_token:
+        headers["Authorization"] = f"Bearer {bearer_token}"
+    req = request.Request(url, data=body, headers=headers, method="POST")
     started = time.perf_counter()
     try:
         with request.urlopen(req, timeout=timeout) as response:
@@ -218,10 +217,20 @@ def aggregate(rows: list[dict[str, Any]], metadata: dict[str, Any]) -> dict[str,
     def mean(field: str) -> float | None:
         values = [float(row[field]) for row in rows if isinstance(row.get(field), (int, float))]
         return round(statistics.mean(values), 2) if values else None
-
     def ratio(field: str) -> float | None:
         values = [row[field] for row in rows if isinstance(row.get(field), bool)]
         return round(sum(values) / len(values), 4) if values else None
+
+    def percentile(field: str, percentile_value: float) -> float | None:
+        values = sorted(
+            float(row[field]) for row in rows if isinstance(row.get(field), (int, float))
+        )
+        if not values:
+            return None
+        rank = (len(values) - 1) * percentile_value / 100
+        lower = int(rank)
+        upper = min(lower + 1, len(values) - 1)
+        return round(values[lower] + (values[upper] - values[lower]) * (rank - lower), 2)
 
     by_category = {}
     for category in sorted(CATEGORIES):
@@ -260,37 +269,24 @@ def aggregate(rows: list[dict[str, Any]], metadata: dict[str, Any]) -> dict[str,
         },
         "latency_ms": {
             "mean": mean("latency_ms"),
-            "p50": (
-                round(
-                    statistics.median(
-                        [
-                            r["latency_ms"]
-                            for r in rows
-                            if isinstance(r.get("latency_ms"), (int, float))
-                        ]
-                    ),
-                    2,
-                )
-                if any(isinstance(r.get("latency_ms"), (int, float)) for r in rows)
-                else None
-            ),
+            "p50": percentile("latency_ms", 50),
+            "p95": percentile("latency_ms", 95),
         },
         "by_category": by_category,
     }
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("dataset", type=Path)
     parser.add_argument("--predictions", type=Path)
     parser.add_argument("--endpoint", default="http://127.0.0.1:8000/api/v1/chat")
-    parser.add_argument("--output-dir", type=Path, default=Path("thesis-evaluation"))
+    parser.add_argument("--bearer-token", default=os.getenv("TEST_BEARER_TOKEN"))
     parser.add_argument("--model-label", default="unspecified")
     parser.add_argument("--top-k", type=int, default=5)
-    parser.add_argument("--timeout", type=float, default=60)
+    parser.add_argument("--timeout", type=float, default=300)
+    parser.add_argument("--output-dir", type=Path, default=Path("thesis-evaluation"))
     args = parser.parse_args()
-    if args.predictions is None and not args.endpoint:
-        fail("provide --predictions or --endpoint")
+    if args.predictions is None and not args.bearer_token:
+        args.bearer_token = obtain_access_token()
     cases = load_dataset(args.dataset)
     saved = load_predictions(args.predictions) if args.predictions else {}
     rows: list[dict[str, Any]] = []
@@ -309,6 +305,7 @@ def main() -> int:
                     "effective_date": case.get("query_date"),
                 },
                 args.timeout,
+                args.bearer_token,
             )
             rows.append(score_case(case, prediction, latency))
         except RuntimeError as exc:

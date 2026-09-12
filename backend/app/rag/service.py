@@ -42,19 +42,24 @@ def _document_key(document: Document) -> tuple[str, ...]:
 
 
 def _citation(document: Document) -> dict[str, Any]:
-    metadata = document.metadata
-    source_file = metadata.get("source_file") or metadata.get("source")
+    metadata = document.metadata or {}
+    source_id = str(metadata.get("chunk_id", "")).strip()
+    document_id = str(metadata.get("document_id", "")).strip()
+    if not source_id or not document_id:
+        raise ValueError("retrieved document is missing citation identity")
     return {
-        "document": metadata.get("document_name")
-        or metadata.get("document_number")
-        or "Văn bản pháp luật",
+        "source_id": source_id,
+        "document_id": document_id,
+        "document_number": metadata.get("document_number"),
+        "document_title": metadata.get("document_name") or metadata.get("document_title"),
         "article": metadata.get("article"),
         "clause": metadata.get("clause"),
         "point": metadata.get("point"),
-        "page": metadata.get("page") or metadata.get("page_number") or 1,
-        "source_file": source_file or "unknown",
-        "excerpt": document.page_content,
+        "page": metadata.get("page"),
+        "source_file": metadata.get("source_file"),
+        "source_url": metadata.get("source_url"),
         "pdf_url": metadata.get("pdf_url"),
+        "excerpt": document.page_content,
     }
 
 
@@ -78,8 +83,6 @@ def _intent_groups(
             for label in labels:
                 if isinstance(label, str) and label in groups:
                     groups[label].append(document)
-    if not any(groups.values()) and len(intents) == 1:
-        groups[intents[0].text] = documents
     return groups, documents
 
 
@@ -216,12 +219,15 @@ class RAGService:
             documents,
             analysis=analysis,
         )
-        supported_groups = {key: value for key, value in evidence_groups.items() if value}
-        if not supported_groups:
+        required_intents_missing = bool(evidence_groups) and any(
+            not documents_for_intent for documents_for_intent in evidence_groups.values()
+        )
+        if required_intents_missing:
             return {
-                "answer": "Chưa tìm thấy đủ căn cứ pháp lý cho câu hỏi này.",
+                "answer": "Chưa tìm thấy đủ căn cứ pháp lý cho mọi ý trong câu hỏi này.",
                 "citations": [],
                 "status": "insufficient_evidence",
+                "reason_code": "MISSING_INTENT_EVIDENCE",
             }
         decision = assess_evidence(documents)
         if not decision.allowed:
@@ -229,6 +235,7 @@ class RAGService:
                 "answer": decision.message or "",
                 "citations": [],
                 "status": "insufficient_evidence",
+                "reason_code": decision.reason,
             }
         answer = generate_answer(question, documents, evidence_groups=evidence_groups or None)
         unique_citations: list[dict[str, Any]] = []

@@ -50,7 +50,10 @@ manifest + source files
 
 ## Supabase application persistence
 
-Supabase stores application data, not the local retrieval corpus. `backend/app/database/models.py` names the application tables: `profiles`, `chat_sessions`, `messages`, `feedback`, and `bookmarks`. The auth and chat services/routes own authentication, sessions, messages, feedback, and bookmarks; Qdrant holds derived vectors/sparse terms and the manifest/Markdown remain ingestion inputs.
+Supabase stores application data, not the local retrieval corpus. `backend/app/database/models.py`
+names application tables: `profiles`, `chat_sessions`, `messages`, `feedback`, and `bookmarks`.
+Auth and chat services own authentication, sessions, messages, feedback, and the inactive P2
+bookmark endpoint. Qdrant holds derived vectors; manifest and Markdown remain ingestion inputs.
 
 ## HTTP API, readiness, and traceability
 

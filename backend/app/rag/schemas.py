@@ -31,14 +31,18 @@ class ChatRequest(BaseModel):
 class Citation(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    document: str = Field(min_length=1)
+    source_id: str = Field(min_length=1)
+    document_id: str = Field(min_length=1)
+    document_number: str | None = None
+    document_title: str | None = None
     article: str | None = None
     clause: str | None = None
     point: str | None = None
-    page: int = Field(default=1, ge=1)
-    source_file: str = Field(min_length=1)
-    excerpt: str = Field(min_length=1)
+    page: int | None = Field(default=None, ge=1)
+    source_file: str | None = None
+    source_url: str | None = None
     pdf_url: str | None = None
+    excerpt: str = Field(min_length=1)
 
 
 class RetrievedChunk(BaseModel):

@@ -42,9 +42,7 @@ def _frontend_response(result: dict[str, Any]) -> dict[str, Any]:
             "claims": [
                 {
                     "claim": citation.get("excerpt") or result["answer"],
-                    "provision_ids": (
-                        [citation["provision_id"]] if citation.get("provision_id") else []
-                    ),
+                    "provision_ids": ([citation["source_id"]] if citation.get("source_id") else []),
                 }
                 for citation in citations
             ],
@@ -54,9 +52,21 @@ def _frontend_response(result: dict[str, Any]) -> dict[str, Any]:
             **result,
             "status": "INSUFFICIENT_EVIDENCE",
             "claims": [],
-            "abstention": {"reason_code": "INSUFFICIENT_EVIDENCE"},
+            "abstention": {"reason_code": result.get("reason_code", "INSUFFICIENT_EVIDENCE")},
         }
     return result
+
+
+def _canonicalize_legacy_result(result: dict[str, Any]) -> dict[str, Any]:
+    citations = []
+    for citation in result.get("citations", []):
+        if not isinstance(citation, dict):
+            continue
+        source_id = str(citation.get("source_id") or citation.get("provision_id") or "").strip()
+        document_id = str(citation.get("document_id") or "").strip()
+        if source_id and document_id:
+            citations.append({**citation, "source_id": source_id, "document_id": document_id})
+    return {**result, "citations": citations}
 
 
 @router.post("/chat")
@@ -96,8 +106,13 @@ def chat(
 
         stage_started = perf_counter()
         result = _frontend_response(
-            chats_api.rag_service.answer(
-                query, top_k=request.top_k, effective_date=request.effective_date, history=history
+            _canonicalize_legacy_result(
+                chats_api.rag_service.answer(
+                    query,
+                    top_k=request.top_k,
+                    effective_date=request.effective_date,
+                    history=history,
+                )
             )
         )
         stages["rag_ms"] = round((perf_counter() - stage_started) * 1000, 2)
@@ -133,9 +148,9 @@ def chat(
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
-@router.get("/health")
-def health() -> dict[str, str]:
+@router.get("/health/live")
+def health_live() -> dict[str, str]:
     return {"status": "ok"}
 
 
-__all__ = ["ChatRequest", "chat", "health", "router"]
+__all__ = ["ChatRequest", "chat", "health_live", "router"]

@@ -106,6 +106,8 @@ trap cleanup INT TERM EXIT
     QDRANT_PATH="$QDRANT_PATH" QDRANT_COLLECTION="${QDRANT_COLLECTION:-traffic_law}" \
     OPENROUTER_API_KEY="$OPENROUTER_API_KEY" OPENROUTER_BASE_URL="${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}" \
     GENERATION_MODEL="${GENERATION_MODEL:-deepseek/deepseek-v4-flash-0731}" EMBEDDING_MODEL="${EMBEDDING_MODEL:-openai/text-embedding-3-small}" \
+    TEST_USER_EMAIL="${TEST_USER_EMAIL:-}" TEST_USER_PASSWORD="${TEST_USER_PASSWORD:-}" \
+    TEST_USER_B_EMAIL="${TEST_USER_B_EMAIL:-}" TEST_USER_B_PASSWORD="${TEST_USER_B_PASSWORD:-}" \
     uv run --env-file /dev/null --directory "$ROOT/backend" python -m uvicorn app.main:app --reload --reload-dir "$ROOT/backend/app" --app-dir "$ROOT/backend" --host 127.0.0.1 --port 8000
 ) > >(sed -u 's/^/[api] /') 2>&1 &
 child_pids+=("$!")
@@ -119,7 +121,7 @@ child_pids+=("$!")
 child_pids+=("$!")
 
 for _ in $(seq 1 100); do
-  if curl --fail --silent --max-time 1 http://127.0.0.1:8000/api/v1/health/live >/dev/null &&
+  if curl --fail --silent --max-time 1 http://127.0.0.1:8000/api/v1/health/ready >/dev/null &&
     curl --fail --silent --max-time 1 http://127.0.0.1:3000/ >/dev/null; then
     echo "==> http://localhost:3000"
     echo "==> API http://localhost:8000"

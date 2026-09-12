@@ -8,8 +8,8 @@ type ViewerState = "loading" | "ready" | "error";
 type ZoomMode = "fit" | number;
 
 export default function PdfCitationViewer({ citation }: { citation: Citation }) {
-  const initialPage = Math.max(1, Number(citation.page_number) || 1);
-  const key = `${citation.document_id ?? "missing"}:${initialPage}`;
+  const initialPage = citation.page == null ? 1 : Math.max(1, citation.page);
+  const key = `${citation.document_id}:${citation.page ?? "none"}`;
   return <PdfCitationDocument key={key} citation={citation} initialPage={initialPage} />;
 }
 
@@ -58,7 +58,7 @@ function PdfCitationDocument({
         setError("");
         pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.mjs";
         loadingTask = pdfjs.getDocument({
-          url: citation.pdf_url,
+          url: citation.pdf_url ?? citation.source_url ?? "",
           standardFontDataUrl: "/pdfjs/standard_fonts/",
           isImageDecoderSupported: false,
         }) as typeof loadingTask;

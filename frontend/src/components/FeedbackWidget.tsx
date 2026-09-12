@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { ThumbsDown, ThumbsUp } from "lucide-react";
 import { createClient } from "../../utils/supabase/client";
 
 type FeedbackValue = "LIKE" | "DISLIKE";
@@ -21,13 +22,13 @@ export default function FeedbackWidget({
   const [value, setValue] = useState<FeedbackValue | null>(null);
   const [state, setState] = useState<SubmissionState>("idle");
   const [error, setError] = useState<string | null>(null);
-
   const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!value || state === "submitting") return;
+  async function submit(nextValue: FeedbackValue) {
+    if (value || state === "submitting") return;
+    setValue(nextValue);
     setState("submitting");
+    setError(null);
     const { data } = await supabase.auth.getSession();
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (data.session?.access_token) headers.Authorization = `Bearer ${data.session.access_token}`;
@@ -38,7 +39,7 @@ export default function FeedbackWidget({
         body: JSON.stringify({
           session_id: sessionId,
           message_id: messageId,
-          rating: value === "LIKE" ? 1 : 0,
+          rating: nextValue === "LIKE" ? 1 : 0,
         }),
       });
       if (!response.ok) {
@@ -58,50 +59,34 @@ export default function FeedbackWidget({
 
   return (
     <div className="feedback-widget" aria-busy={state === "submitting"}>
-      {state === "success" ? (
-        <p className="feedback-widget__success" role="status">
-          Cảm ơn bạn đã gửi phản hồi.
-        </p>
-      ) : (
-        <form className="feedback-widget__form" onSubmit={submit}>
-          <div
-            className="feedback-widget__choice interaction-feedbacks"
-            role="group"
-            aria-label="Đánh giá"
-          >
-            <button
-              className="feedback-widget__choice interaction-feedback"
-              type="button"
-              aria-label="Thích"
-              aria-pressed={value === "LIKE"}
-              onClick={() => setValue("LIKE")}
-            >
-              Thích
-            </button>
-            <button
-              className="feedback-widget__choice interaction-feedback"
-              type="button"
-              aria-label="Không thích"
-              aria-pressed={value === "DISLIKE"}
-              onClick={() => setValue("DISLIKE")}
-            >
-              Không thích
-            </button>
-            <button
-              className="feedback-widget__submit interaction-feedback"
-              type="submit"
-              disabled={!value || state === "submitting"}
-              aria-busy={state === "submitting"}
-            >
-              {state === "submitting" ? "Đang gửi…" : "Gửi"}
-            </button>
-          </div>
-          {state === "error" && (
-            <p className="feedback-widget__error" role="alert">
-              {error}
-            </p>
-          )}
-        </form>
+      <div className="feedback-widget__choice" role="group" aria-label="Đánh giá">
+        <button
+          className="feedback-widget__choice-button"
+          type="button"
+          aria-label="Thích"
+          title="Thích"
+          aria-pressed={value === "LIKE"}
+          disabled={Boolean(value) || state === "submitting"}
+          onClick={() => void submit("LIKE")}
+        >
+          <ThumbsUp size={17} aria-hidden="true" />
+        </button>
+        <button
+          className="feedback-widget__choice-button"
+          type="button"
+          aria-label="Không thích"
+          title="Không thích"
+          aria-pressed={value === "DISLIKE"}
+          disabled={Boolean(value) || state === "submitting"}
+          onClick={() => void submit("DISLIKE")}
+        >
+          <ThumbsDown size={17} aria-hidden="true" />
+        </button>
+      </div>
+      {state === "error" && (
+        <span className="feedback-widget__error" role="alert">
+          {error}
+        </span>
       )}
     </div>
   );

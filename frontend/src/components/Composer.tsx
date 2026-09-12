@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
-import { SendIcon } from "./Icons";
-
+import { Square, Send } from "lucide-react";
 type ComposerProps = {
   id: string;
   value: string;
@@ -79,12 +78,12 @@ export default function Composer({
       <div className="composer-actions">
         <span className="scope-chip">Luật giao thông</span>
         {loading ? (
-          <button type="button" aria-label="Dừng tra cứu" onClick={onStop}>
-            Dừng
+          <button type="button" aria-label="Dừng tra cứu" title="Dừng tra cứu" onClick={onStop}>
+            <Square size={17} fill="currentColor" aria-hidden="true" />
           </button>
         ) : (
-          <button type="submit" aria-label="Gửi" disabled={!value.trim()}>
-            <SendIcon />
+          <button type="submit" aria-label="Gửi" title="Gửi" disabled={!value.trim()}>
+            <Send size={17} aria-hidden="true" />
           </button>
         )}
       </div>

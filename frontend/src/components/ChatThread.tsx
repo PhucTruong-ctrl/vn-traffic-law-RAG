@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { motion, useReducedMotion } from "motion/react";
+import { Clipboard, FileDown, Share2 } from "lucide-react";
 import AbstentionResult from "./AbstentionResult";
 import CitationCard, { type Citation } from "./CitationCard";
 import FeedbackWidget from "./FeedbackWidget";
@@ -92,14 +93,22 @@ function ResponseMessage({
               <ReactMarkdown skipHtml>{protectLegalParentheticals(answer)}</ReactMarkdown>
             </div>
             <div className="answer-actions" aria-label="Thao tác với câu trả lời">
-              <button type="button" onClick={copyAnswer}>
-                Sao chép
+              <button type="button" onClick={copyAnswer} aria-label="Sao chép" title="Sao chép">
+                <Clipboard size={17} aria-hidden="true" />
               </button>
-              <button type="button" onClick={() => window.print()}>
-                Xuất PDF
+              {sessionId && response.assistant_message_id && (
+                <FeedbackWidget sessionId={sessionId} messageId={response.assistant_message_id} />
+              )}
+              <button
+                type="button"
+                onClick={() => window.print()}
+                aria-label="Xuất PDF"
+                title="Xuất PDF"
+              >
+                <FileDown size={17} aria-hidden="true" />
               </button>
-              <button type="button" onClick={shareAnswer}>
-                Chia sẻ
+              <button type="button" onClick={shareAnswer} aria-label="Chia sẻ" title="Chia sẻ">
+                <Share2 size={17} aria-hidden="true" />
               </button>
               {actionState && <span role="status">{actionState}</span>}
             </div>
@@ -136,9 +145,6 @@ function ResponseMessage({
               </ReactMarkdown>
             </div>
           </section>
-        )}
-        {verified && sessionId && response.assistant_message_id && (
-          <FeedbackWidget sessionId={sessionId} messageId={response.assistant_message_id} />
         )}
       </div>
     </div>

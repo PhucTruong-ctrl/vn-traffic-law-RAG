@@ -55,7 +55,7 @@ class QdrantSettings(_Env):
 def get_supabase_settings() -> tuple[str, str]:
     return (
         os.getenv("SUPABASE_URL", "").rstrip("/"),
-        os.getenv("SUPABASE_SERVICE_ROLE_KEY", "") or os.getenv("SUPABASE_ANON_KEY", ""),
+        os.getenv("SUPABASE_SERVICE_ROLE_KEY", ""),
     )
 
 

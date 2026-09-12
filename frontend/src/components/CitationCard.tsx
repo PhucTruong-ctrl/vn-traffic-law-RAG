@@ -1,33 +1,24 @@
 "use client";
 
 export type Citation = {
+  source_id: string;
+  document_id: string;
+  document_number?: string | null;
+  document_title?: string | null;
+  document?: string | null;
   provision_id?: string;
-  document_id?: string;
-  document_number?: string;
-  document?: string;
-  article?: string;
-  parent_context?: string;
-  legal_context?: string;
-  source_url?: string;
+  article?: string | null;
+  clause?: string | null;
+  point?: string | null;
+  page?: number | null;
+  page_number?: number | string | null;
+  source_file?: string | null;
+  source_url?: string | null;
+  pdf_url?: string | null;
   source_text?: string;
-  excerpt?: string;
-  page_number?: number | string;
-  page?: number | string;
-  source_file?: string;
-  pdf_url?: string;
-  bbox?: number[] | { left: number; top: number; right: number; bottom: number };
-  document_title?: string;
-  clause?: string;
-  point?: string;
-  version?: string;
-  provision_version?: number;
-  version_date?: string;
-  effective_from?: string;
-  effective_to?: string | null;
-  interval?: { from?: string; to?: string | null };
-  snapshot_at?: string;
-  content_hash?: string;
   snippet?: string;
+  excerpt: string;
+  bbox?: number[] | { left: number; top: number; right: number; bottom: number };
 };
 
 type CitationCardProps = {

@@ -201,12 +201,14 @@ export default function LegalSourcesPage() {
           <LegalSourceViewer
             mode="explorer"
             citation={{
+              source_id: `${selected.document_id}:explorer`,
+              document_id: selected.document_id || selected.id || "selected-document",
               document_title: selected.document_name || selected.title || selected.document_title,
               document_number: selected.document_number,
               source_url: selected.source?.source_url ?? selected.source_url,
               pdf_url: selected.source?.pdf_url ?? selected.pdf_url,
               source_file: selected.source?.source_file ?? selected.source_file,
-              source_text: selected.content || selected.markdown,
+              excerpt: selected.content || selected.markdown || "",
             }}
             document={selected}
           />

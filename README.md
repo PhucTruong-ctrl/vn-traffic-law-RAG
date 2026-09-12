@@ -10,19 +10,24 @@ Markdown manifest + local PDFs -> legal documents/provisions -> local Qdrant HYB
 
 ## Quick start
 
-The one-command development stack runs the API, Next.js frontend, and their
-local service dependencies through Docker Compose:
+Canonical local startup uses `dev.sh`:
 
 ```bash
 cp .env.example .env
-# Fill the Supabase and OpenRouter values in .env.
-docker compose --env-file .env up --build
+# Fill server and public Supabase/OpenRouter values in .env.
+./dev.sh
 ```
 
 Open `http://127.0.0.1:3000`. Supabase provides registration/login and stores
-profiles, chat sessions, messages, feedback, and bookmarks. The browser uses
-the publishable/anonymous Supabase key; the backend uses the service-role key
-only for its server-side persistence operations. Never commit `.env` or keys.
+profiles, chat sessions, messages, feedback, and bookmarks. Browser receives
+only public Supabase values; backend requires service-role credentials. Never
+commit `.env` or keys.
+
+Docker Compose is optional deployment tooling:
+
+```bash
+docker compose --env-file .env up --build
+```
 
 For ingestion or a backend-only development loop, install the backend and run
 the existing scripts directly:

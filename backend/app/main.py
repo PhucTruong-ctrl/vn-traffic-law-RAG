@@ -37,6 +37,7 @@ app.include_router(legal_router)
 @app.middleware("http")
 async def trace_id_middleware(request: Request, call_next):
     trace_id = request.headers.get("X-Trace-ID") or uuid4().hex
+    request.state.trace_id = trace_id
     started = time.perf_counter()
     try:
         response = await call_next(request)
@@ -65,6 +66,21 @@ async def trace_id_middleware(request: Request, call_next):
         },
     )
     return response
+
+
+@app.exception_handler(Exception)
+async def internal_error_handler(request: Request, _exc: Exception) -> JSONResponse:
+    trace_id = getattr(request.state, "trace_id", request.headers.get("X-Trace-ID") or uuid4().hex)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "Internal server error",
+                "request_id": trace_id,
+            }
+        },
+    )
 
 
 def _supabase_ready() -> bool:
@@ -98,6 +114,12 @@ def _qdrant_ready() -> bool:
         if client is not None:
             with contextlib.suppress(Exception):
                 client.close()
+
+
+@app.get("/api/v1/health")
+def health() -> dict[str, str]:
+    """Backward-compatible aggregate health endpoint."""
+    return {"status": "ok"}
 
 
 @app.get("/api/v1/health/live")

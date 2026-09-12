@@ -18,7 +18,7 @@ class MessageCreate(BaseModel):
     content: str = Field(min_length=1)
     role: str = Field(default="user", pattern="^(user|assistant)$")
     status: str = Field(default="complete", max_length=30)
-    response: str | None = None
+    response: dict[str, object] | None = None
     citations: list[dict] = Field(default_factory=list)
     metadata: dict = Field(default_factory=dict)
 
