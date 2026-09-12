@@ -1,7 +1,7 @@
 "use client";
 import { createPortal } from "react-dom";
+import { X } from "lucide-react";
 import { useEffect, useRef } from "react";
-
 type ModalProps = {
   open: boolean;
   onClose: () => void;
@@ -70,10 +70,11 @@ export default function Modal({ open, onClose, label, className = "", children }
           ref={closeButtonRef}
           type="button"
           className="modal__close"
-          aria-label={className.includes("pdf-source-drawer") ? "Đóng trình xem PDF" : "Đóng"}
+          aria-label={`Đóng ${label}`}
+          title={`Đóng ${label}`}
           onClick={onClose}
         >
-          <span aria-hidden="true">×</span>
+          <X aria-hidden="true" />
         </button>
         {children}
       </div>

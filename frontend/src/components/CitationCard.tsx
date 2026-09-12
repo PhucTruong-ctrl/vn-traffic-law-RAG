@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronRight } from "lucide-react";
 export type Citation = {
   source_id: string;
   document_id: string;
@@ -58,7 +59,7 @@ export default function CitationCard({ citation, onOpenSource }: CitationCardPro
           <small>{sourceType}</small>
         </span>
         <span className="citation-card__chevron" aria-hidden="true">
-          ›
+          <ChevronRight aria-hidden="true" />
         </span>
       </button>
     </article>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import type { FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import AppHeader from "./AppHeader";
 import ChatThread from "./ChatThread";
@@ -404,11 +405,12 @@ export default function ChatPage({
                 <button
                   type="button"
                   className="auth-password-toggle"
-                  aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                  aria-label={showPassword ? "Hiện mật khẩu" : "Ẩn mật khẩu"}
                   aria-pressed={showPassword}
+                  title={showPassword ? "Hiện mật khẩu" : "Ẩn mật khẩu"}
                   onClick={() => setShowPassword((visible) => !visible)}
                 >
-                  {showPassword ? "Ẩn" : "Hiện"}
+                  {showPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
                 </button>
               </span>
             </label>
@@ -431,9 +433,14 @@ export default function ChatPage({
                       showConfirmPassword ? "Ẩn mật khẩu xác nhận" : "Hiện mật khẩu xác nhận"
                     }
                     aria-pressed={showConfirmPassword}
+                    title={showConfirmPassword ? "Ẩn mật khẩu xác nhận" : "Hiện mật khẩu xác nhận"}
                     onClick={() => setShowConfirmPassword((visible) => !visible)}
                   >
-                    {showConfirmPassword ? "Ẩn" : "Hiện"}
+                    {showConfirmPassword ? (
+                      <EyeOff aria-hidden="true" />
+                    ) : (
+                      <Eye aria-hidden="true" />
+                    )}
                   </button>
                 </span>
               </label>

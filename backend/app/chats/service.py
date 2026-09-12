@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import httpx
 from fastapi import HTTPException
 
 from app.database.models import BOOKMARKS_TABLE, FEEDBACK_TABLE, MESSAGES_TABLE, SESSIONS_TABLE
@@ -10,6 +11,12 @@ from app.database.session import SupabaseClient
 
 def _headers(token: str | None) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"} if token else {}
+
+
+def _is_feedback_duplicate(exc: httpx.HTTPStatusError) -> bool:
+    response = exc.response
+    text = response.text.lower()
+    return response.status_code == 409 or "23505" in text or "duplicate" in text or "unique" in text
 
 
 def _one(
@@ -172,12 +179,25 @@ def add_feedback(
         {"id": f"eq.{message_id}", "session_id": f"eq.{session_id}", "user_id": f"eq.{user_id}"},
         token,
     )
-    rows = client.request(
-        "POST",
-        FEEDBACK_TABLE,
-        data={**data, "message_id": message_id, "user_id": user_id},
-        headers={**_headers(token), "Prefer": "return=representation,resolution=merge-duplicates"},
-    )
+    try:
+        rows = client.request(
+            "POST",
+            FEEDBACK_TABLE,
+            data={**data, "message_id": message_id, "user_id": user_id},
+            headers={**_headers(token), "Prefer": "return=representation"},
+        )
+    except httpx.HTTPStatusError as exc:
+        if _is_feedback_duplicate(exc):
+            raise HTTPException(
+                status_code=409,
+                detail="Feedback has already been submitted for this message.",
+            ) from exc
+        raise
+    if not rows:
+        raise HTTPException(
+            status_code=409,
+            detail="Feedback has already been submitted for this message.",
+        )
     return rows[0]
 
 

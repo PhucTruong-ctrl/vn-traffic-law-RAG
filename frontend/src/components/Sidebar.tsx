@@ -3,6 +3,7 @@
 import { createPortal } from "react-dom";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import { BookIcon, PanelIcon, PlusIcon, SearchIcon } from "./Icons";
 import LegalMark from "./LegalMark";
@@ -62,6 +63,7 @@ export default function Sidebar({
   const [loadingMore, setLoadingMore] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const wasMobileOpen = useRef(false);
   const mobileToggleRef = useRef<HTMLButtonElement>(null);
@@ -226,6 +228,7 @@ export default function Sidebar({
         !menuRef.current?.contains(target)
       ) {
         setActionMenu(null);
+        menuTriggerRef.current?.focus();
       }
     };
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -273,6 +276,7 @@ export default function Sidebar({
         !userMenuRef.current?.contains(target)
       ) {
         setUserMenuOpen(false);
+        userMenuTriggerRef.current?.focus();
       }
     };
     window.addEventListener("resize", reposition);
@@ -334,15 +338,21 @@ export default function Sidebar({
 
   async function remove(id: string) {
     if (!authReady || !accessToken) return;
-    if (!window.confirm("Xóa cuộc trò chuyện này?")) return;
     const result = await fetch(`${API_BASE}/api/v1/chats/${encodeURIComponent(id)}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${accessToken}` },
     });
-    if (result.ok) setConversations((items) => items.filter((item) => item.id !== id));
+    if (result.ok) {
+      setConversations((items) => items.filter((item) => item.id !== id));
+      setDeleteTarget(null);
+    }
   }
 
   const closeMobile = () => setMobileOpen(false);
+  const closeUserMenu = () => {
+    setUserMenuOpen(false);
+    userMenuTriggerRef.current?.focus();
+  };
   const visibleConversations = search.trim()
     ? conversations.filter((item) =>
         item.title.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()),
@@ -515,18 +525,21 @@ export default function Sidebar({
                           type="button"
                           className="chat-list__menu-trigger"
                           aria-label={`Tùy chọn ${item.title}`}
+                          title={`Tùy chọn ${item.title}`}
+                          aria-haspopup="menu"
                           aria-expanded={actionMenu === item.id}
                           aria-controls={`chat-menu-${item.id}`}
                           onClick={(event) => {
                             if (actionMenu === item.id) {
                               setActionMenu(null);
+                              event.currentTarget.focus();
                               return;
                             }
                             menuTriggerRef.current = event.currentTarget;
                             setActionMenu(item.id);
                           }}
                         >
-                          <span aria-hidden="true">•••</span>
+                          <MoreHorizontal aria-hidden="true" />
                         </button>
                       </span>
                     )}
@@ -555,7 +568,7 @@ export default function Sidebar({
                             type="button"
                             role="menuitem"
                             onClick={() => {
-                              void remove(item.id);
+                              setDeleteTarget(item);
                               setActionMenu(null);
                             }}
                           >
@@ -597,18 +610,23 @@ export default function Sidebar({
             type="button"
             className="sidebar-user__menu"
             aria-label="Mở tùy chọn tài khoản"
+            title="Mở tùy chọn tài khoản"
+            aria-haspopup="menu"
             aria-expanded={userMenuOpen}
+            aria-controls="account-menu"
             onClick={() => setUserMenuOpen((open) => !open)}
           >
-            <span aria-hidden="true">•••</span>
+            <MoreHorizontal aria-hidden="true" />
           </button>
           {userMenuOpen &&
             typeof document !== "undefined" &&
             createPortal(
               <span
+                id="account-menu"
                 ref={userMenuRef}
                 className="chat-list__menu sidebar-user__popover"
                 role="menu"
+                aria-label="Tùy chọn tài khoản"
                 style={{ top: userMenuPosition.top, left: userMenuPosition.left }}
               >
                 <button
@@ -618,12 +636,19 @@ export default function Sidebar({
                     setPasswordError("");
                     setPasswordMessage("");
                     setPasswordOpen(true);
-                    setUserMenuOpen(false);
+                    closeUserMenu();
                   }}
                 >
                   Đổi mật khẩu
                 </button>
-                <button type="button" role="menuitem" onClick={() => void signOut()}>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    void signOut();
+                    closeUserMenu();
+                  }}
+                >
                   Đăng xuất
                 </button>
               </span>,
@@ -662,6 +687,33 @@ export default function Sidebar({
             {passwordMessage && <p className="account-dialog__success">{passwordMessage}</p>}
             <button type="submit">Lưu mật khẩu</button>
           </form>
+        </Modal>
+        <Modal
+          open={Boolean(deleteTarget)}
+          onClose={() => setDeleteTarget(null)}
+          label="Xác nhận xóa cuộc trò chuyện"
+          className="account-dialog"
+        >
+          <div className="account-dialog__form">
+            <h2>Xóa cuộc trò chuyện?</h2>
+            <p>
+              Bạn có chắc muốn xóa “{deleteTarget?.title || "Cuộc trò chuyện"}” không? Hành động này
+              không thể hoàn tác.
+            </p>
+            <div>
+              <button type="button" onClick={() => setDeleteTarget(null)}>
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (deleteTarget) void remove(deleteTarget.id);
+                }}
+              >
+                Xóa
+              </button>
+            </div>
+          </div>
         </Modal>
       </aside>
     </>

@@ -290,9 +290,11 @@ class Retriever:
         try:
             qdrant = get_qdrant_settings()
             embedding = get_embedding_settings()
+            if not embedding.openrouter_api_key:
+                raise RetrievalProviderError("OPENROUTER_API_KEY is required for retrieval")
             dense = OpenAIEmbeddings(
                 model=embedding.model,
-                dimensions=768,
+                dimensions=getattr(embedding, "dimensions", 768),
                 api_key=SecretStr(embedding.openrouter_api_key),
                 base_url=embedding.openrouter_base_url,
             )
@@ -311,6 +313,8 @@ class Retriever:
                 vector_name="dense",
                 sparse_vector_name="sparse",
             )
+            if hasattr(self._store, "client"):
+                self._store.client.get_collection(qdrant.collection)
             return self._store
         except RetrievalProviderError:
             raise

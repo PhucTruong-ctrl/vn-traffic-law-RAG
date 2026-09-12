@@ -1,6 +1,5 @@
 """VNLaw backend application entrypoint."""
 
-import contextlib
 import logging
 import time
 from uuid import uuid4
@@ -99,21 +98,22 @@ def _supabase_ready() -> bool:
 
 
 def _qdrant_ready() -> bool:
-    client = None
     try:
         settings = get_qdrant_settings()
         if settings.url:
             client = QdrantClient(url=settings.url, timeout=settings.timeout)
-        else:
-            client = QdrantClient(path=str(settings.path), timeout=settings.timeout)
-        client.get_collection(settings.collection)
+            try:
+                client.get_collection(settings.collection)
+            finally:
+                client.close()
+            return True
+        from app.rag.api import service as rag_service
+
+        store = rag_service.retriever._store_for_query()
+        store.client.get_collection(settings.collection)
         return True
     except Exception:
         return False
-    finally:
-        if client is not None:
-            with contextlib.suppress(Exception):
-                client.close()
 
 
 @app.get("/api/v1/health")

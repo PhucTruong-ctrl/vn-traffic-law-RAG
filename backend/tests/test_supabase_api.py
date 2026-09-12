@@ -93,6 +93,13 @@ def test_feedback_accepts_binary_ratings_and_requires_ids() -> None:
             )
 
 
+def test_feedback_payload_preserves_binary_rating_and_ownership_ids() -> None:
+    payload = FeedbackCreate(rating=1, message_id="message-1", session_id="session-1")
+    assert payload.rating == 1
+    assert payload.message_id == "message-1"
+    assert payload.session_id == "session-1"
+
+
 def test_message_schema_exposes_response_citations_and_metadata_snapshot() -> None:
     payload = MessageCreate(
         content="Theo quy định.",

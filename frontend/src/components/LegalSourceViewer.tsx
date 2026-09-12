@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Check, Clipboard } from "lucide-react";
 import type { Citation } from "./CitationCard";
 import PdfCitationViewer from "./PdfCitationViewer";
 
@@ -108,7 +109,13 @@ function MarkdownSourceViewer({
           placeholder="Tìm trong văn bản"
           aria-label="Tìm trong văn bản"
         />
-        <button type="button" onClick={() => void copy()}>
+        <button
+          type="button"
+          onClick={() => void copy()}
+          aria-label={copied ? "Đã sao chép nguồn" : "Sao chép nguồn"}
+          title={copied ? "Đã sao chép nguồn" : "Sao chép nguồn"}
+        >
+          {copied ? <Check aria-hidden="true" /> : <Clipboard aria-hidden="true" />}
           {copied ? "Đã sao chép" : "Sao chép nguồn"}
         </button>
       </div>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, RefreshCw, ZoomIn, ZoomOut } from "lucide-react";
 import type { CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Citation } from "./CitationCard";
 
 type ViewerState = "loading" | "ready" | "error";
@@ -134,12 +135,14 @@ function PdfCitationDocument({
             onClick={() => setPageNumber((page) => Math.max(1, page - 1))}
             disabled={pageNumber <= 1}
             aria-label="Trang trước"
+            title="Trang trước"
           >
-            ‹
+            <ChevronLeft aria-hidden="true" />
           </button>
-          <label>
+          <label htmlFor="pdf-page-number">
             Trang{" "}
             <input
+              id="pdf-page-number"
               type="number"
               min={1}
               max={pageCount || undefined}
@@ -160,19 +163,35 @@ function PdfCitationDocument({
             onClick={() => setPageNumber((page) => Math.min(pageCount || page + 1, page + 1))}
             disabled={!pageCount || pageNumber >= pageCount}
             aria-label="Trang sau"
+            title="Trang sau"
           >
-            ›
+            <ChevronRight aria-hidden="true" />
           </button>
         </div>
         <div className="pdf-viewer__zoom">
-          <button type="button" onClick={() => changeZoom(-0.1)} aria-label="Thu nhỏ">
-            −
+          <button
+            type="button"
+            onClick={() => changeZoom(-0.1)}
+            aria-label="Thu nhỏ"
+            title="Thu nhỏ"
+          >
+            <ZoomOut aria-hidden="true" />
           </button>
           <span>{zoomLabel}</span>
-          <button type="button" onClick={() => changeZoom(0.1)} aria-label="Phóng to">
-            +
+          <button
+            type="button"
+            onClick={() => changeZoom(0.1)}
+            aria-label="Phóng to"
+            title="Phóng to"
+          >
+            <ZoomIn aria-hidden="true" />
           </button>
-          <button type="button" onClick={() => setZoom("fit")}>
+          <button
+            type="button"
+            onClick={() => setZoom("fit")}
+            aria-label="Vừa chiều rộng"
+            title="Vừa chiều rộng"
+          >
             Vừa chiều rộng
           </button>
         </div>
@@ -187,8 +206,14 @@ function PdfCitationDocument({
           <div className="pdf-viewer__error" role="alert">
             <strong>Không mở được PDF</strong>
             <span>{error || "Nguồn PDF không khả dụng."}</span>
-            <button type="button" onClick={() => setRetryToken((token) => token + 1)}>
-              Thử lại
+            <button
+              type="button"
+              onClick={() => setRetryToken((token) => token + 1)}
+              aria-label="Thử lại"
+              title="Thử lại"
+            >
+              <RefreshCw aria-hidden="true" />
+              <span>Thử lại</span>
             </button>
             {citation.source_url && (
               <a href={citation.source_url} target="_blank" rel="noreferrer">

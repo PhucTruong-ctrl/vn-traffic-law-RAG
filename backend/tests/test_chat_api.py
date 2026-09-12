@@ -142,6 +142,26 @@ def test_feedback_checks_message_ownership_before_insert(supabase_client) -> Non
     }
 
 
+def test_feedback_duplicate_is_rejected(supabase_client) -> None:
+    supabase_client.responses.extend(
+        [[{"id": "message-1"}], [{"id": "feedback-1"}], [{"id": "message-1"}], []]
+    )
+    assert add_feedback(supabase_client, "owner-1", "session-1", "message-1", {"rating": 1}) == {
+        "id": "feedback-1"
+    }
+
+    with pytest.raises(Exception) as exc:
+        add_feedback(supabase_client, "owner-1", "session-1", "message-1", {"rating": 0})
+
+    assert getattr(exc.value, "status_code", None) == 409
+    assert supabase_client.calls[2]["params"] == {
+        "id": "eq.message-1",
+        "session_id": "eq.session-1",
+        "user_id": "eq.owner-1",
+        "select": "*",
+    }
+
+
 def test_authenticated_chat_creates_session_and_persists_snapshots(
     client, supabase_client, monkeypatch
 ) -> None:

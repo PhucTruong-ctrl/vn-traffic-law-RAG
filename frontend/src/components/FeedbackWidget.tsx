@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ThumbsDown, ThumbsUp } from "lucide-react";
+import { LoaderCircle, ThumbsDown, ThumbsUp } from "lucide-react";
 import { createClient } from "../../utils/supabase/client";
 
 type FeedbackValue = "LIKE" | "DISLIKE";
@@ -25,7 +25,7 @@ export default function FeedbackWidget({
   const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 
   async function submit(nextValue: FeedbackValue) {
-    if (value || state === "submitting") return;
+    if (value || state === "submitting" || state === "success") return;
     setValue(nextValue);
     setState("submitting");
     setError(null);
@@ -50,6 +50,7 @@ export default function FeedbackWidget({
       }
       setState("success");
     } catch (submissionError) {
+      setValue(null);
       setState("error");
       setError(
         submissionError instanceof Error ? submissionError.message : "Không thể gửi phản hồi.",
@@ -57,8 +58,11 @@ export default function FeedbackWidget({
     }
   }
 
+  const isSubmitting = state === "submitting";
+  const isLocked = state === "success";
+
   return (
-    <div className="feedback-widget" aria-busy={state === "submitting"}>
+    <div className="feedback-widget" aria-busy={isSubmitting}>
       <div className="feedback-widget__choice" role="group" aria-label="Đánh giá">
         <button
           className="feedback-widget__choice-button"
@@ -66,10 +70,14 @@ export default function FeedbackWidget({
           aria-label="Thích"
           title="Thích"
           aria-pressed={value === "LIKE"}
-          disabled={Boolean(value) || state === "submitting"}
+          disabled={isLocked || isSubmitting}
           onClick={() => void submit("LIKE")}
         >
-          <ThumbsUp size={17} aria-hidden="true" />
+          {isSubmitting && value === "LIKE" ? (
+            <LoaderCircle size={17} aria-hidden="true" className="animate-spin" />
+          ) : (
+            <ThumbsUp size={17} aria-hidden="true" />
+          )}
         </button>
         <button
           className="feedback-widget__choice-button"
@@ -77,12 +85,19 @@ export default function FeedbackWidget({
           aria-label="Không thích"
           title="Không thích"
           aria-pressed={value === "DISLIKE"}
-          disabled={Boolean(value) || state === "submitting"}
+          disabled={isLocked || isSubmitting}
           onClick={() => void submit("DISLIKE")}
         >
-          <ThumbsDown size={17} aria-hidden="true" />
+          {isSubmitting && value === "DISLIKE" ? (
+            <LoaderCircle size={17} aria-hidden="true" className="animate-spin" />
+          ) : (
+            <ThumbsDown size={17} aria-hidden="true" />
+          )}
         </button>
       </div>
+      <span className="sr-only" role="status" aria-live="polite">
+        {isSubmitting ? "Đang gửi phản hồi…" : isLocked ? "Đã gửi phản hồi." : ""}
+      </span>
       {state === "error" && (
         <span className="feedback-widget__error" role="alert">
           {error}

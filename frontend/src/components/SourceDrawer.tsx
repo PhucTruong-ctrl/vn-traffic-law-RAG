@@ -1,10 +1,9 @@
 "use client";
-
+import { ExternalLink } from "lucide-react";
 import { useEffect, useRef } from "react";
 import type { Citation } from "./CitationCard";
 import Modal from "./Modal";
 import LegalSourceViewer from "./LegalSourceViewer";
-
 export default function SourceDrawer({
   citation,
   onClose,
@@ -81,7 +80,7 @@ export default function SourceDrawer({
         </button>
         {citation.source_url && (
           <a href={citation.source_url} target="_blank" rel="noreferrer">
-            Mở bản gốc ↗
+            Mở bản gốc <ExternalLink aria-hidden="true" />
           </a>
         )}
       </footer>
