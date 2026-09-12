@@ -46,6 +46,9 @@ function normalize(payload: unknown): LegalDocument[] {
   }
   return [];
 }
+function normalizeDocument(payload: unknown): LegalDocument {
+  return payload && typeof payload === "object" ? (payload as LegalDocument) : {};
+}
 
 export default function LegalSourcesPage() {
   const [documents, setDocuments] = useState<LegalDocument[]>([]);
@@ -55,6 +58,32 @@ export default function LegalSourcesPage() {
   const [number, setNumber] = useState("");
   const [article, setArticle] = useState("");
   const [selected, setSelected] = useState<LegalDocument | null>(null);
+  const [selectedLoading, setSelectedLoading] = useState(false);
+  const [selectedError, setSelectedError] = useState("");
+
+  const selectDocument = async (document: LegalDocument) => {
+    setSelected(document);
+    setSelectedError("");
+    const documentId = document.document_id || document.id;
+    if (!documentId || document.content || document.markdown) return;
+    setSelectedLoading(true);
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/v1/legal-documents/${encodeURIComponent(documentId)}`,
+      );
+      if (!response.ok) throw new Error("Không thể tải nội dung nguồn pháp luật.");
+      const detail = normalizeDocument(await response.json());
+      setSelected((current) =>
+        current?.document_id === document.document_id ? { ...current, ...detail } : current,
+      );
+    } catch (cause) {
+      setSelectedError(
+        cause instanceof Error ? cause.message : "Không thể tải nội dung nguồn pháp luật.",
+      );
+    } finally {
+      setSelectedLoading(false);
+    }
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -176,7 +205,7 @@ export default function LegalSourcesPage() {
                 type="button"
                 className="legal-source-card"
                 key={doc.id || doc.document_id || `${title}-${index}`}
-                onClick={() => setSelected(doc)}
+                onClick={() => void selectDocument(doc)}
               >
                 <span className="legal-source-card__kind">
                   {sourceKind === "markdown" ? "MARKDOWN" : "PDF"}
@@ -197,22 +226,29 @@ export default function LegalSourcesPage() {
         label="Chi tiết nguồn pháp luật"
         className="legal-source-modal"
       >
-        {selected && (
-          <LegalSourceViewer
-            mode="explorer"
-            citation={{
-              source_id: `${selected.document_id}:explorer`,
-              document_id: selected.document_id || selected.id || "selected-document",
-              document_title: selected.document_name || selected.title || selected.document_title,
-              document_number: selected.document_number,
-              source_url: selected.source?.source_url ?? selected.source_url,
-              pdf_url: selected.source?.pdf_url ?? selected.pdf_url,
-              source_file: selected.source?.source_file ?? selected.source_file,
-              excerpt: selected.content || selected.markdown || "",
-            }}
-            document={selected}
-          />
-        )}
+        {selected &&
+          (selectedLoading ? (
+            <p className="legal-source-viewer__state">Đang tải nội dung nguồn pháp luật…</p>
+          ) : selectedError ? (
+            <p className="legal-source-viewer__state" role="alert">
+              {selectedError}
+            </p>
+          ) : (
+            <LegalSourceViewer
+              mode="explorer"
+              citation={{
+                source_id: `${selected.document_id}:explorer`,
+                document_id: selected.document_id || selected.id || "selected-document",
+                document_title: selected.document_name || selected.title || selected.document_title,
+                document_number: selected.document_number,
+                source_url: selected.source?.source_url ?? selected.source_url,
+                pdf_url: selected.source?.pdf_url ?? selected.pdf_url,
+                source_file: selected.source?.source_file ?? selected.source_file,
+                excerpt: selected.content || selected.markdown || "",
+              }}
+              document={selected}
+            />
+          ))}
       </Modal>
     </main>
   );

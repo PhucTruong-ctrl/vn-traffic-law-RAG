@@ -7,8 +7,9 @@ import PdfCitationViewer from "./PdfCitationViewer";
 
 type SourceKind = "markdown" | "pdf";
 export type LegalSourceDocument = {
-  title?: string;
-  document_name?: string;
+  title?: string | null;
+  document_name?: string | null;
+  document_title?: string | null;
   source?: {
     source_file?: string | null;
     source_url?: string | null;
@@ -30,7 +31,6 @@ type Props = {
 };
 
 type MarkdownBlock = { id: string; level: number; title?: string; text: string };
-
 export default function LegalSourceViewer({ citation, document, mode = "chat" }: Props) {
   const source = document?.source;
   const merged = {
@@ -51,7 +51,6 @@ export default function LegalSourceViewer({ citation, document, mode = "chat" }:
   }
   return <MarkdownSourceViewer citation={citation} document={merged} mode={mode} />;
 }
-
 function MarkdownSourceViewer({
   citation,
   document,
@@ -68,7 +67,9 @@ function MarkdownSourceViewer({
     citation.excerpt ??
     citation.snippet ??
     "";
-  const blocks = useMemo(() => parseMarkdown(raw), [raw]);
+  const visibleRaw = raw.replace(/\r\n?/g, "\n").replace(/\A---\s*\n[\s\S]*?(?:\n---\s*\n|\Z)/, "");
+  const blocks = useMemo(() => parseMarkdown(visibleRaw), [visibleRaw]);
+
   const [query, setQuery] = useState("");
   const [copied, setCopied] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -80,15 +81,16 @@ function MarkdownSourceViewer({
   }, [citation, mode]);
 
   useEffect(() => {
-    if (!target || !contentRef.current) return;
-    const needle = target.trim().toLowerCase();
-    const match = Array.from(
-      contentRef.current.querySelectorAll<HTMLElement>("[data-source-text]"),
-    ).find((node) => node.dataset.sourceText?.toLowerCase().includes(needle));
+    const container = contentRef.current;
+    const needle = mode === "chat" ? target.trim().toLowerCase() : query.trim().toLowerCase();
+    if (!container || !needle) return;
+    const match = Array.from(container.querySelectorAll<HTMLElement>("[data-source-text]")).find(
+      (node) => node.dataset.sourceText?.toLowerCase().includes(needle),
+    );
     match?.scrollIntoView({ block: "center" });
-  }, [target, blocks]);
+  }, [mode, query, target, blocks]);
 
-  const matches = query.trim().toLowerCase();
+  const matches = (mode === "chat" ? target : query).trim().toLowerCase();
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(raw);
@@ -101,6 +103,33 @@ function MarkdownSourceViewer({
 
   return (
     <section className="legal-source-viewer markdown-viewer" aria-label="Văn bản pháp luật">
+      <header className="markdown-viewer__header">
+        <div>
+          <p className="markdown-viewer__eyebrow">Văn bản pháp luật</p>
+          <h2>{document.document_title || document.title || "Nguồn pháp luật"}</h2>
+        </div>
+        <div className="markdown-viewer__actions">
+          {(document.source_url || document.pdf_url) && (
+            <a
+              className="markdown-viewer__original"
+              href={document.source_url || document.pdf_url || undefined}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Mở bản gốc
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={() => void copy()}
+            className="markdown-viewer__copy"
+            aria-label={copied ? "Đã sao chép văn bản" : "Sao chép văn bản"}
+          >
+            {copied ? <Check aria-hidden="true" /> : <Clipboard aria-hidden="true" />}
+            {copied ? "Đã sao chép" : "Sao chép"}
+          </button>
+        </div>
+      </header>
       <div className="markdown-viewer__toolbar">
         <input
           type="search"
@@ -109,15 +138,6 @@ function MarkdownSourceViewer({
           placeholder="Tìm trong văn bản"
           aria-label="Tìm trong văn bản"
         />
-        <button
-          type="button"
-          onClick={() => void copy()}
-          aria-label={copied ? "Đã sao chép nguồn" : "Sao chép nguồn"}
-          title={copied ? "Đã sao chép nguồn" : "Sao chép nguồn"}
-        >
-          {copied ? <Check aria-hidden="true" /> : <Clipboard aria-hidden="true" />}
-          {copied ? "Đã sao chép" : "Sao chép nguồn"}
-        </button>
       </div>
       {blocks.some((block) => block.level > 0) && (
         <nav className="markdown-viewer__outline" aria-label="Mục lục văn bản">
@@ -174,8 +194,8 @@ function Heading({ level, title }: { level: number; title: string }) {
 }
 
 function parseMarkdown(markdown: string): MarkdownBlock[] {
-  return markdown
-    .replace(/\r\n?/g, "\n")
+  const body = markdown.replace(/\r\n?/g, "\n").replace(/^---\s*\n[\s\S]*?(?:\n---\s*\n|$)/, "");
+  return body
     .split(/\n{2,}/)
     .map((part, index) => {
       const text = part.trim();

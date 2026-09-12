@@ -23,7 +23,9 @@ const isCitation = (value: unknown): value is Citation => {
   const citation = value as Record<string, unknown>;
   return (
     (typeof citation.provision_id === "string" && Boolean(citation.provision_id.trim())) ||
-    (typeof citation.document === "string" && Boolean(citation.document.trim()))
+    (typeof citation.document === "string" && Boolean(citation.document.trim())) ||
+    (typeof citation.document_title === "string" && Boolean(citation.document_title.trim())) ||
+    (typeof citation.document_id === "string" && Boolean(citation.document_id.trim()))
   );
 };
 const validateChatResponse = (payload: unknown): ChatResponse => {
@@ -153,19 +155,27 @@ function turnsFromConversation(value: unknown): ConversationTurn[] {
       typeof message.content === "string"
     ) {
       const next = messages[index + 1];
-      if (
-        next &&
-        typeof next === "object" &&
-        ((next as Record<string, unknown>).role === "assistant" ||
-          (next as Record<string, unknown>).type === "assistant")
-      ) {
-        const nextMessage = next as Record<string, unknown>;
+      const nextMessage =
+        next && typeof next === "object" ? (next as Record<string, unknown>) : null;
+      if (nextMessage?.role === "assistant" || nextMessage?.type === "assistant") {
         const response = responseFromMessage({
           ...nextMessage,
           session_id: typeof nextMessage.session_id === "string" ? nextMessage.session_id : raw.id,
         });
-        if (response) turns.push({ question: message.content, response });
+        if (response) {
+          turns.push({ question: message.content, response });
+          index += 1;
+          continue;
+        }
       }
+      turns.push({
+        question: message.content,
+        response: {
+          status: "WORKFLOW_UNAVAILABLE",
+          answer: "Câu hỏi này chưa có phản hồi được lưu.",
+          disclaimer: "Phản hồi chưa được lưu hoàn chỉnh; vui lòng gửi lại câu hỏi.",
+        },
+      });
     }
   }
   return turns;

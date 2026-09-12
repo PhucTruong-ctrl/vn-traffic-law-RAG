@@ -1,9 +1,11 @@
 "use client";
-import { ExternalLink } from "lucide-react";
-import { useEffect, useRef } from "react";
+
+import { useEffect, useRef, useState } from "react";
 import type { Citation } from "./CitationCard";
 import Modal from "./Modal";
-import LegalSourceViewer from "./LegalSourceViewer";
+import LegalSourceViewer, { type LegalSourceDocument } from "./LegalSourceViewer";
+
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 export default function SourceDrawer({
   citation,
   onClose,
@@ -12,13 +14,18 @@ export default function SourceDrawer({
   onClose: () => void;
 }) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const [sourceDocument, setSourceDocument] = useState<LegalSourceDocument | undefined>();
+  const [loading, setLoading] = useState(false);
+
   useEffect(() => {
     if (!citation) return;
     const previousFocus =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      globalThis.document.activeElement instanceof HTMLElement
+        ? globalThis.document.activeElement
+        : null;
     const background = [
-      document.querySelector<HTMLElement>(".sidebar"),
-      document.querySelector<HTMLElement>(".main-panel"),
+      globalThis.document.querySelector<HTMLElement>(".sidebar"),
+      globalThis.document.querySelector<HTMLElement>(".main-panel"),
     ].filter((element): element is HTMLElement => element !== null);
     const previousInert = background.map((element) => element.hasAttribute("inert"));
     background.forEach((element) => element.setAttribute("inert", ""));
@@ -31,59 +38,57 @@ export default function SourceDrawer({
     };
   }, [citation]);
 
+  useEffect(() => {
+    if (!citation) return;
+    const controller = new AbortController();
+    void fetch(`${API_BASE}/api/v1/legal-documents/${encodeURIComponent(citation.document_id)}`, {
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error("Không thể tải nội dung nguồn pháp luật.");
+        return response.json() as Promise<LegalSourceDocument>;
+      })
+      .then(setSourceDocument)
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setSourceDocument(undefined);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [citation]);
+
   if (!citation) return null;
   const title =
     citation.document_title ||
     citation.document_number ||
     citation.document_id ||
     "Nguồn pháp luật";
-  const excerpt = citation.excerpt.replace(/\r?\n/g, "\n");
-  const parentContext = "";
 
   return (
     <Modal
-      open={Boolean(citation)}
+      open
       onClose={onClose}
       label="Nguồn pháp luật"
-      className="source-drawer pdf-source-drawer"
+      className="source-drawer legal-source-drawer"
     >
-      <header className="source-drawer__header">
-        <div>
-          <span className="source-drawer__eyebrow">NGUỒN TRÍCH DẪN</span>
-          <h2>{title}</h2>
-          {citation.page !== null && citation.page !== undefined && (
-            <p className="source-drawer__document">Trang {citation.page}</p>
-          )}
-        </div>
-      </header>
-      <div className="source-drawer__body">
-        <LegalSourceViewer citation={citation} mode="chat" />
-        <details className="source-excerpt">
-          <summary>Đọc đoạn trích nguyên văn</summary>
-          <blockquote>{excerpt || "Nguồn không cung cấp nội dung đoạn trích."}</blockquote>
-        </details>
-        {parentContext && (
-          <details className="source-excerpt">
-            <summary>Ngữ cảnh điều khoản cha</summary>
-            <blockquote>{parentContext}</blockquote>
-          </details>
-        )}
-      </div>
-      <footer className="source-drawer__footer">
-        <button
-          ref={closeButtonRef}
-          className="source-drawer__done"
-          type="button"
-          onClick={onClose}
-        >
-          Đóng
-        </button>
-        {citation.source_url && (
-          <a href={citation.source_url} target="_blank" rel="noreferrer">
-            Mở bản gốc <ExternalLink aria-hidden="true" />
-          </a>
-        )}
-      </footer>
+      {loading ? (
+        <p className="legal-source-viewer__state">Đang tải nội dung nguồn pháp luật…</p>
+      ) : (
+        <LegalSourceViewer
+          citation={citation}
+          mode="chat"
+          document={
+            sourceDocument || {
+              document_title: title,
+              source_url: citation.source_url,
+              pdf_url: citation.pdf_url,
+              source_file: citation.source_file,
+            }
+          }
+        />
+      )}
     </Modal>
   );
 }
