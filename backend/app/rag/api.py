@@ -28,10 +28,6 @@ router = APIRouter(prefix="/api/v1", tags=["rag"])
 rag_service = chats_api.rag_service
 
 
-def _token(credentials: HTTPAuthorizationCredentials) -> str:
-    return credentials.credentials
-
-
 def _frontend_response(result: dict[str, Any]) -> dict[str, Any]:
     citations = result.get("citations", [])
     if result.get("status") == "complete":
@@ -75,7 +71,7 @@ def chat(
     client: SupabaseClient = Depends(get_db),  # noqa: B008
     credentials: HTTPAuthorizationCredentials = Depends(bearer),  # noqa: B008
 ) -> dict[str, Any]:
-    token = _token(credentials)
+    token = credentials.credentials
     started = perf_counter()
     stages: dict[str, float] = {}
     try:

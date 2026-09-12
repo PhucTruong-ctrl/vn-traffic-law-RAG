@@ -7,9 +7,8 @@ import AbstentionResult from "./AbstentionResult";
 import CitationCard, { type Citation } from "./CitationCard";
 import FeedbackWidget, { BookmarkToggle } from "./FeedbackWidget";
 import LegalMark from "./LegalMark";
-import ProgressEvents, { type ProgressEvent } from "./ProgressEvents";
 import type { Transition } from "motion/react";
-import type { ChatResponse, ConversationTurn } from "./chat-types";
+import type { ChatResponse, ConversationTurn, ProgressEvent } from "./chat-types";
 
 const motionTransition: Transition = { duration: 0.2, ease: "easeOut" };
 
@@ -313,7 +312,23 @@ export default function ChatThread({
                   <span className="streaming-badge">Đang trả lời</span>
                 </div>
                 <span className="loading-question">{question}</span>
-                <ProgressEvents loading={loading} events={progressEvents} />
+                <section
+                  className="progress-events-panel"
+                  aria-label="Tiến trình xử lý"
+                  aria-live="polite"
+                >
+                  <div className="progress-events__skeleton" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                  <p className="progress-events__event" role="status">
+                    {progressEvents
+                      ?.map((event) => event.message || event.detail)
+                      .filter((message): message is string => Boolean(message))
+                      .at(-1) || "Đang xử lý yêu cầu…"}
+                  </p>
+                </section>
                 <span className="loading-bar" aria-hidden="true" />
                 <div className="loading-skeleton" aria-hidden="true">
                   <span />

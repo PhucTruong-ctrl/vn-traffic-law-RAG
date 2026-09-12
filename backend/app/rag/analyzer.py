@@ -36,11 +36,6 @@ VEHICLE_LABELS: dict[str, str] = {
 }
 
 
-def vehicle_label(vehicle_type: str) -> str:
-    """Map an internal vehicle category key to its canonical Vietnamese label."""
-    return VEHICLE_LABELS[vehicle_type]
-
-
 def detect_vehicle_types(text: str) -> tuple[str, ...]:
     """Return explicitly named vehicle categories in stable pattern order."""
     return tuple(kind for kind, pattern in _VEHICLE_PATTERNS if re.search(pattern, text, re.I))
@@ -225,5 +220,4 @@ __all__ = [
     "detect_vehicle_type",
     "detect_vehicle_types",
     "resolve_vehicle_followup",
-    "vehicle_label",
 ]

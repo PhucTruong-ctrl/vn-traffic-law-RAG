@@ -59,11 +59,6 @@ def get_supabase_settings() -> tuple[str, str]:
     )
 
 
-class ChunkSettings(_Env):
-    size: int = Field(default=1200, validation_alias="CHUNK_SIZE")
-    overlap: int = Field(default=120, validation_alias="CHUNK_OVERLAP")
-
-
 @lru_cache(maxsize=1)
 def get_generation_settings() -> GenerationSettings:
     return GenerationSettings()
@@ -79,17 +74,10 @@ def get_qdrant_settings() -> QdrantSettings:
     return QdrantSettings()
 
 
-@lru_cache(maxsize=1)
-def get_chunk_settings() -> ChunkSettings:
-    return ChunkSettings()
-
-
 __all__ = [
-    "ChunkSettings",
     "EmbeddingSettings",
     "GenerationSettings",
     "QdrantSettings",
-    "get_chunk_settings",
     "get_embedding_settings",
     "get_generation_settings",
     "get_qdrant_settings",

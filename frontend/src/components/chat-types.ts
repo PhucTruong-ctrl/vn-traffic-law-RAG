@@ -28,6 +28,13 @@ export type ChatResponse = {
   is_bookmarked?: boolean;
 };
 export type ConversationTurn = { question: string; response: ChatResponse };
+export type ProgressEvent = {
+  event?: string;
+  type?: string;
+  message?: string;
+  detail?: string;
+  status?: string;
+};
 export type Conversation = {
   id: string;
   title: string;

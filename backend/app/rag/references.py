@@ -83,21 +83,23 @@ def extract_references(text: str, *, limit: int = 4) -> list[LegalReference]:
 
 def metadata_matches(metadata: Mapping[str, Any], reference: LegalReference) -> bool:
     """Require exact normalized matches for every specified reference field."""
-    normalized = {str(key): _normalize(value) for key, value in metadata.items()}
-    if reference.article and normalized.get("article") != _normalize(reference.article):
+    normalized = {str(key): normalize_reference_value(value) for key, value in metadata.items()}
+    if reference.article and normalized.get("article") != normalize_reference_value(
+        reference.article
+    ):
         return False
-    if reference.clause and normalized.get("clause") != _normalize(reference.clause):
+    if reference.clause and normalized.get("clause") != normalize_reference_value(reference.clause):
         return False
-    if reference.point and normalized.get("point") != _normalize(reference.point):
+    if reference.point and normalized.get("point") != normalize_reference_value(reference.point):
         return False
     if reference.number:
         document = normalized.get("document_number") or normalized.get("document_name")
-        if document != _normalize(reference.number):
+        if document != normalize_reference_value(reference.number):
             return False
     return True
 
 
-def _normalize(value: Any) -> str:
+def normalize_reference_value(value: Any) -> str:
     return re.sub(r"\s+", "", str(value or "")).casefold()
 
 

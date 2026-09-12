@@ -10,7 +10,7 @@ from typing import Any
 
 from langchain_core.documents import Document
 
-from .analyzer import analyze_question, classify_intent, detect_vehicle_types, vehicle_label
+from .analyzer import VEHICLE_LABELS, analyze_question, classify_intent, detect_vehicle_types
 from .evidence import ABSTENTION_MESSAGE, assess_evidence
 from .generator import generate_answer
 from .references import parse_reference
@@ -109,7 +109,7 @@ class RAGService:
         if _is_vehicle_penalty_question(question):
             if len(vehicle_types) > 1:
                 queries = [
-                    (f"{query} đối với {vehicle_label(vehicle_type)}", label)
+                    (f"{query} đối với {VEHICLE_LABELS[vehicle_type]}", label)
                     for query, label in queries
                     for vehicle_type in vehicle_types
                 ]

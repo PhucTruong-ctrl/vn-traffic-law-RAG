@@ -6,6 +6,8 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from .references import normalize_reference_value
+
 ABSTENTION_MESSAGE = "Chưa đủ căn cứ trong dữ liệu pháp luật được truy xuất để trả lời chắc chắn."
 
 
@@ -87,7 +89,7 @@ def _matches_reference(metadata: Mapping[str, Any], reference: Mapping[str, str]
 
 
 def _normalize(value: Any) -> str:
-    return "".join(str(value or "").casefold().split())
+    return normalize_reference_value(value)
 
 
 __all__ = ["ABSTENTION_MESSAGE", "EvidenceDecision", "assess_evidence"]

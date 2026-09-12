@@ -1,7 +1,6 @@
 """Authenticated chat session, message, feedback, and bookmark endpoints."""
 
 from fastapi import APIRouter, Depends, Query, Response
-from fastapi.security import HTTPAuthorizationCredentials
 
 from app.auth.api import bearer, get_current_user
 from app.chats.schemas import (
@@ -38,21 +37,13 @@ def uid(user: dict) -> str:
     return str(user.get("id") or user.get("user_id") or user["sub"])
 
 
-def _token(credentials: HTTPAuthorizationCredentials) -> str:
-    return credentials.credentials
-
-
-def deps(credentials: HTTPAuthorizationCredentials = Depends(bearer)):  # noqa: B008
-    return _token(credentials)
-
-
 @router.get("/chats", response_model=SessionListResponse)
 def sessions(
     query: str | None = Query(None),  # noqa: B008
     limit: int = Query(50, ge=1, le=100),  # noqa: B008
     user: dict = Depends(get_current_user),  # noqa: B008
     client: SupabaseClient = Depends(get_db),  # noqa: B008
-    token: str = Depends(deps),  # noqa: B008
+    token: str = Depends(bearer),  # noqa: B008
 ):
     items = list_sessions(client, uid(user), query, limit, token)
     return {"items": items, "next_cursor": None}
@@ -63,7 +54,7 @@ def create(
     payload: SessionCreate,
     user: dict = Depends(get_current_user),  # noqa: B008
     client: SupabaseClient = Depends(get_db),  # noqa: B008
-    token: str = Depends(deps),  # noqa: B008
+    token: str = Depends(bearer),  # noqa: B008
 ):
     return create_session(client, uid(user), payload.title, token)
 
@@ -73,7 +64,7 @@ def get(
     session_id: str,
     user: dict = Depends(get_current_user),  # noqa: B008
     client: SupabaseClient = Depends(get_db),  # noqa: B008
-    token: str = Depends(deps),  # noqa: B008
+    token: str = Depends(bearer),  # noqa: B008
 ):
     return get_session(client, uid(user), session_id, token)
 
@@ -84,7 +75,7 @@ def rename(
     payload: SessionRename,
     user: dict = Depends(get_current_user),  # noqa: B008
     client: SupabaseClient = Depends(get_db),  # noqa: B008
-    token: str = Depends(deps),  # noqa: B008
+    token: str = Depends(bearer),  # noqa: B008
 ):
     return rename_session(client, uid(user), session_id, payload.title, token)
 
@@ -94,7 +85,7 @@ def remove(
     session_id: str,
     user: dict = Depends(get_current_user),  # noqa: B008
     client: SupabaseClient = Depends(get_db),  # noqa: B008
-    token: str = Depends(deps),  # noqa: B008
+    token: str = Depends(bearer),  # noqa: B008
 ):
     delete_session(client, uid(user), session_id, token)
     return Response(status_code=204)
@@ -106,7 +97,7 @@ def message(
     payload: MessageCreate,
     user: dict = Depends(get_current_user),  # noqa: B008
     client: SupabaseClient = Depends(get_db),  # noqa: B008
-    token: str = Depends(deps),  # noqa: B008
+    token: str = Depends(bearer),  # noqa: B008
 ):
     return add_message(client, uid(user), session_id, payload.model_dump(), token)
 
@@ -118,7 +109,7 @@ def feedback(
     payload: FeedbackCreate,
     user: dict = Depends(get_current_user),  # noqa: B008
     client: SupabaseClient = Depends(get_db),  # noqa: B008
-    token: str = Depends(deps),  # noqa: B008
+    token: str = Depends(bearer),  # noqa: B008
 ):
     return add_feedback(client, uid(user), session_id, message_id, payload.model_dump(), token)
 
@@ -128,7 +119,7 @@ def feedback_alias(
     payload: FeedbackCreate,
     user: dict = Depends(get_current_user),  # noqa: B008
     client: SupabaseClient = Depends(get_db),  # noqa: B008
-    token: str = Depends(deps),  # noqa: B008
+    token: str = Depends(bearer),  # noqa: B008
 ):
     data = payload.model_dump()
     message_id = data.pop("message_id")
@@ -140,7 +131,7 @@ def feedback_alias(
 def saved(
     user: dict = Depends(get_current_user),  # noqa: B008
     client: SupabaseClient = Depends(get_db),  # noqa: B008
-    token: str = Depends(deps),  # noqa: B008
+    token: str = Depends(bearer),  # noqa: B008
 ):
     return {"items": list_bookmarks(client, uid(user), token)}
 
@@ -150,7 +141,7 @@ def saved_status(
     assistant_message_id: str,
     user: dict = Depends(get_current_user),  # noqa: B008
     client: SupabaseClient = Depends(get_db),  # noqa: B008
-    token: str = Depends(deps),  # noqa: B008
+    token: str = Depends(bearer),  # noqa: B008
 ):
     return get_bookmark_status(client, uid(user), assistant_message_id, token)
 
@@ -161,7 +152,7 @@ def save(
     payload: BookmarkCreate,
     user: dict = Depends(get_current_user),  # noqa: B008
     client: SupabaseClient = Depends(get_db),  # noqa: B008
-    token: str = Depends(deps),  # noqa: B008
+    token: str = Depends(bearer),  # noqa: B008
 ):
     return save_bookmark(
         client, uid(user), session_id, payload.model_dump(exclude_none=True), token
@@ -173,7 +164,7 @@ def unsave(
     assistant_message_id: str,
     user: dict = Depends(get_current_user),  # noqa: B008
     client: SupabaseClient = Depends(get_db),  # noqa: B008
-    token: str = Depends(deps),  # noqa: B008
+    token: str = Depends(bearer),  # noqa: B008
 ):
     delete_bookmark(client, uid(user), assistant_message_id, token)
     return Response(status_code=204)

@@ -23,6 +23,40 @@ class SupabaseClient:
         if not self.key:
             raise RuntimeError("SUPABASE_ANON_KEY or SUPABASE_SERVICE_ROLE_KEY is required")
 
+    def _request(
+        self,
+        method: str,
+        path: str,
+        *,
+        data: Any = None,
+        params: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
+        auth: bool = False,
+        token: str | None = None,
+    ) -> Any:
+        self._config()
+        request_headers = {"apikey": self.key, "Content-Type": "application/json"}
+        request_headers["Authorization"] = (
+            f"Bearer {token or self.key}" if auth else f"Bearer {self.key}"
+        )
+        request_headers.update(headers or {})
+        response = httpx.request(
+            method,
+            f"{self.url}/{path.lstrip('/')}",
+            params=params,
+            json=data,
+            headers=request_headers,
+            timeout=15,
+        )
+        if response.is_error:
+            detail = response.text.strip()
+            raise httpx.HTTPStatusError(
+                f"Supabase request failed ({response.status_code}): {detail}",
+                request=response.request,
+                response=response,
+            )
+        return response.json() if response.content else None
+
     def request(
         self,
         method: str,
@@ -32,25 +66,13 @@ class SupabaseClient:
         data: Any = None,
         headers: dict[str, str] | None = None,
     ) -> Any:
-        self._config()
-        request_headers = {"apikey": self.key, "Authorization": f"Bearer {self.key}"}
-        request_headers.update(headers or {})
-        response = httpx.request(
+        return self._request(
             method,
-            f"{self.url}/rest/v1/{table.lstrip('/')}",
+            f"rest/v1/{table}",
             params=params,
-            json=data,
-            headers=request_headers,
-            timeout=15,
+            data=data,
+            headers=headers,
         )
-        if response.is_error:
-            detail = response.text.strip()
-            raise httpx.HTTPStatusError(
-                f"Supabase REST request failed ({response.status_code}): {detail}",
-                request=response.request,
-                response=response,
-            )
-        return response.json() if response.content else None
 
     def auth_request(
         self,
@@ -60,29 +82,8 @@ class SupabaseClient:
         data: Any = None,
         token: str | None = None,
     ) -> Any:
-        self._config()
-        headers = {"apikey": self.key, "Content-Type": "application/json"}
-        headers["Authorization"] = f"Bearer {token or self.key}"
-        response = httpx.request(
-            method,
-            f"{self.url}/auth/v1/{path.lstrip('/')}",
-            json=data,
-            headers=headers,
-            timeout=15,
-        )
-        if response.is_error:
-            detail = response.text.strip()
-            raise httpx.HTTPStatusError(
-                f"Supabase Auth request failed ({response.status_code}): {detail}",
-                request=response.request,
-                response=response,
-            )
-        return response.json() if response.content else None
-
-
-def get_supabase_client() -> SupabaseClient:
-    return SupabaseClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY)
+        return self._request(method, f"auth/v1/{path}", data=data, auth=True, token=token)
 
 
 def get_db():
-    yield get_supabase_client()
+    yield SupabaseClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY)
