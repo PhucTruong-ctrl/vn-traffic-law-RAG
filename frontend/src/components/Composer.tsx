@@ -77,7 +77,7 @@ export default function Composer({
         rows={hero ? 2 : 1}
       />
       <div className="composer-actions">
-        <span className="scope-chip">Luật giao thông</span>
+        <span className="scope-chip">Câu hỏi gợi ý</span>
         {loading ? (
           <button type="button" aria-label="Dừng tra cứu" title="Dừng tra cứu" onClick={onStop}>
             <Square size={17} fill="currentColor" aria-hidden="true" />
