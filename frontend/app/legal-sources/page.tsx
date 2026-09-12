@@ -6,28 +6,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Modal from "../../src/components/Modal";
 import LegalSourceViewer from "../../src/components/LegalSourceViewer";
-import { apiUrl } from "../../src/lib/api";
-
-function responseError(response: Response, fallback: string) {
-  return response.text().then((body) => {
-    let detail = "";
-    try {
-      const payload = JSON.parse(body) as { detail?: unknown; message?: unknown };
-      detail =
-        typeof payload.detail === "string"
-          ? payload.detail
-          : typeof payload.message === "string"
-            ? payload.message
-            : "";
-    } catch {
-      detail = body.trim();
-    }
-    throw new Error(
-      detail ? `${fallback} (${response.status}): ${detail}` : `${fallback} (${response.status})`,
-    );
-  });
-}
-
+import { apiUrl, responseError } from "../../src/lib/api";
 type LegalProvision = {
   id?: string;
   provision_id?: string;
@@ -152,14 +131,14 @@ function LegalSourcesExplorer() {
   const selectedRequest = useRef<{ id: string; controller: AbortController } | null>(null);
   const [selectedError, setSelectedError] = useState("");
 
-  const updateUrl = useCallback((updates: Record<string, string>) => {
+  const updateUrl = (updates: Record<string, string>) => {
     const params = new URLSearchParams(window.location.search);
     for (const [key, value] of Object.entries(updates)) {
       if (value.trim()) params.set(key, value.trim());
       else params.delete(key);
     }
     window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
-  }, []);
+  };
 
   const selectDocument = useCallback(
     async (
@@ -228,7 +207,7 @@ function LegalSourcesExplorer() {
         }
       }
     },
-    [article, clause, point, updateUrl],
+    [article, clause, point],
   );
 
   useEffect(() => {

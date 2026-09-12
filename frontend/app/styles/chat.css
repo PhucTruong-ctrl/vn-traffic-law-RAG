@@ -20,7 +20,6 @@
   z-index: 4;
   margin-inline: calc(clamp(16px, 4vw, 56px) * -1);
   padding: 14px clamp(16px, 4vw, 56px) max(12px, env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, transparent, rgba(244, 245, 243, 0.97) 30%);
 }
 
 .welcome {
@@ -34,22 +33,6 @@
   filter: drop-shadow(0 8px 18px rgba(23, 58, 99, 0.1));
 }
 
-.composer {
-  margin-top: 30px;
-}
-
-.compact-composer {
-  margin-top: 0;
-}
-
-.sticky-composer {
-  position: sticky;
-  bottom: 0;
-  z-index: 4;
-  margin-inline: calc(clamp(16px, 4vw, 56px) * -1);
-  padding: 14px clamp(16px, 4vw, 56px) max(12px, env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, transparent, rgba(244, 245, 243, 0.97) 30%);
-}
 .compact-composer textarea {
   min-height: 0;
   max-height: calc(23px * 8 + 24px);
@@ -372,8 +355,18 @@
   display: contents;
 }
 
-.answer-actions button,
-.feedback-widget__choice-button {
+.action-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  background: var(--surface-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.action-group button {
   display: grid;
   width: 36px;
   min-width: 36px;
@@ -382,10 +375,35 @@
   flex: 0 0 36px;
   place-items: center;
   padding: 0;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid transparent;
   border-radius: 9px;
   color: var(--slate-700);
   background: var(--surface-secondary);
+}
+
+.action-group button:hover:not(:disabled),
+.action-group button[aria-pressed="true"] {
+  border-color: var(--gold-200);
+  color: var(--navy-950);
+  background: var(--accent-soft);
+}
+
+.action-group button:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.answer-actions .action-group {
+  margin-top: 0;
+}
+
+.answer-actions button:focus-visible,
+.feedback-widget__choice-button:focus-visible,
+.action-group button:focus-visible,
+.citation-card__button:focus-visible,
+.citations > summary:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--focus) 28%, transparent);
+  outline-offset: 2px;
 }
 
 .citations {

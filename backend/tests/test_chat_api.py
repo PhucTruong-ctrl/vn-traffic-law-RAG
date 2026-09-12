@@ -240,7 +240,7 @@ def test_authenticated_chat_creates_session_and_persists_snapshots(
         "citations": [citation],
         "status": "complete",
     }
-    monkeypatch.setattr("app.chats.api.rag_service.answer", lambda question, **kwargs: rag_result)
+    monkeypatch.setattr("app.rag.api.rag_service.answer", lambda question, **kwargs: rag_result)
     supabase_client.responses.extend(
         [
             [{"id": "user-1", "email": "person@example.com"}],
@@ -284,7 +284,7 @@ def test_authenticated_chat_normalizes_legacy_rag_result_for_frontend(
         "citations": [citation],
         "status": "complete",
     }
-    monkeypatch.setattr("app.chats.api.rag_service.answer", lambda question, **kwargs: rag_result)
+    monkeypatch.setattr("app.rag.api.rag_service.answer", lambda question, **kwargs: rag_result)
     supabase_client.responses.extend(
         [
             [{"id": "user-1"}],
@@ -344,6 +344,31 @@ def test_rename_requires_non_blank_title(client) -> None:
         "/api/v1/chats/session-1", json={"title": "   "}, headers={"Authorization": "Bearer token"}
     )
     assert response.status_code == 401
+
+
+def test_authenticated_chat_listing_forwards_raw_bearer_token(client, supabase_client) -> None:
+    supabase_client.auth_response = {"id": "user-1"}
+    supabase_client.responses.append([])
+
+    response = client.get(
+        "/api/v1/chats",
+        headers={"Authorization": "Bearer user-token"},
+    )
+
+    assert response.status_code == 200
+    assert supabase_client.calls[-1]["headers"] == {"Authorization": "Bearer user-token"}
+
+
+def test_invalid_bearer_token_for_chat_listing_is_rejected(client, supabase_client) -> None:
+    supabase_client.auth_response = {}
+
+    response = client.get(
+        "/api/v1/chats",
+        headers={"Authorization": "Bearer stale-or-invalid-token"},
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Invalid or expired token"}
 
 
 def test_legal_explorer_route_returns_document_provisions(client, monkeypatch) -> None:

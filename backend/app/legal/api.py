@@ -107,10 +107,13 @@ def list_provisions(
     clause: str | None = None,
     point: str | None = None,
 ) -> list[LegalProvision]:
+    items = chunks()
     rows = filter_chunks(
-        chunks(), document_id=document_id, article=article, clause=clause, point=point
+        items, document_id=document_id, article=article, clause=clause, point=point
     )
-    if not rows and not any(d.document_id == document_id for d in list_documents()):
+    if not rows and not any(
+        str(item.metadata.get("document_id", "")) == document_id for item in items
+    ):
         raise HTTPException(status_code=404, detail="legal document not found")
     return [_provision(item) for item in rows]
 

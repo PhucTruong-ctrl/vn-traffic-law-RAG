@@ -25,10 +25,24 @@ class FakeSupabase:
         self, method: str, path: str, *, data: Any = None, token: str | None = None
     ) -> Any:
         self.calls.append({"method": method, "path": path, "data": data, "token": token})
-        if self.auth_response is not None:
+        if path == "user":
+            user = self.auth_response
+            if user is None and token in self.auth_users:
+                user = self.auth_users[token]
+            if user is not None:
+                if self.responses and isinstance(self.responses[0], list):
+                    rows = self.responses[0]
+                    if (
+                        len(rows) == 1
+                        and isinstance(rows[0], dict)
+                        and rows[0].get("id") == user.get("id")
+                        and not {"user_id", "session_id", "role", "content"} & rows[0].keys()
+                    ):
+                        self.responses.pop(0)
+                return user
+            return {}
+        if self.auth_response is not None and path == "token":
             return self.auth_response
-        if path == "user" and token in self.auth_users:
-            return self.auth_users[token]
         if path == "token":
             email = (data or {}).get("email")
             user = next(

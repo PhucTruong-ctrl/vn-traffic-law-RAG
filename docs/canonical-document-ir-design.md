@@ -36,26 +36,26 @@ from pydantic import BaseModel, ConfigDict
 class ParsedDocument(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    parsed_document_id: str            # UUID, không phải document_id pháp lý
-    document_id: str                   # document_id pháp lý từ manifest
-    parser: str                        # "DOCLING" | "MINERU"
-    parser_version: str                # pin version, ví dụ "docling-2.1.x"
-    ir_schema_version: str             # "document-ir-v2" (baseline v2)
-    source_object_key: str             # object key PDF nguồn trong MinIO
+    parsed_document_id: str            # UUID, not legal document_id
+    document_id: str                   # legal document_id from the corpus manifest
+    parser: str                        # parser provenance, when ingestion supplies it
+    parser_version: str
+    ir_schema_version: str             # current frozen IR contract
+    source_reference: str              # source/corpus reference, not an app-owned blob store key
     pages: list["ParsedPage"]
     parse_started_at: datetime
     parse_completed_at: datetime
-    quality_report: dict               # kết quả quality gate cấp tài liệu
+    quality_report: dict
 ```
 
 | Field | Kiểu | Mô tả |
 |---|---|---|
-| `parsed_document_id` | `str` | UUID, **không phải** `document_id` pháp lý |
+| `parsed_document_id` | `str` | UUID, không phải `document_id` pháp lý |
 | `document_id` | `str` | `document_id` pháp lý lấy từ manifest |
-| `parser` | `str` | `"DOCLING" \| "MINERU"` |
-| `parser_version` | `str` | Pin version, ví dụ `"docling-2.1.x"` |
-| `ir_schema_version` | `str` | `"document-ir-v2"` (baseline v2; xem mục 8) |
-| `source_object_key` | `str` | Object key PDF nguồn trong MinIO |
+| `parser` | `str` | Provenance parser nếu ingestion cung cấp |
+| `parser_version` | `str` | Version parser hoặc pipeline đã pin |
+| `ir_schema_version` | `str` | Version contract IR hiện hành |
+| `source_reference` | `str` | Tham chiếu PDF/Markdown trong corpus; không giả định object storage do ứng dụng sở hữu |
 | `pages` | `list["ParsedPage"]` | Danh sách trang |
 | `parse_started_at` | `datetime` | Thời điểm bắt đầu parse |
 | `parse_completed_at` | `datetime` | Thời điểm hoàn tất parse |
@@ -163,11 +163,8 @@ Reproduce nguyên văn từ doc 03 §3.6.5 (dòng 866-913):
 ```json
 {
   "parsed_document_id": "9f1c2e0a-4b3c-4d5e-8f90-1234567890ab",
-  "document_id": "nd-168-2024",
-  "parser": "DOCLING",
-  "parser_version": "docling-2.1.0",
   "ir_schema_version": "document-ir-v2",
-  "source_object_key": "documents/nd-168-2024/source/<sha256>.pdf",
+  "source_reference": "data/sources/<document>.pdf",
   "pages": [
     {
       "page_number": 12,
@@ -228,16 +225,20 @@ IR được version hóa qua field `ir_schema_version` trên `ParsedDocument` (d
 - Chuẩn hóa **một không gian tọa độ canonical duy nhất**: `BoundingBox.coordinate_space = "NORMALIZED_PAGE"` (0..1, gốc TOPLEFT); tọa độ gốc của parser sống trong `raw_reference` (`bbox_points` / `bbox_permille`).
 - Tăng cường **bất biến validation parser-independent** (enforced by schema): bbox bounds 0..1 + `right >= left` + `bottom >= top`; `page_number >= 1`; `reading_order >= 0`; `parser_confidence` trong [0, 1]; `parser_version` không rỗng; `element_id` duy nhất; `element.page_number == page.page_number`; `parse_completed_at >= parse_started_at`. Những giá trị trước đây được chấp nhận (page_number 0, confidence 1.5, bbox đảo, ...) nay **bị từ chối** tại schema boundary.
 
-Artifacts `document-ir-v1` phải được **re-normalize** theo quy trình bên dưới (đọc artifact parser gốc từ `parser-outputs`, chạy adapter hiện hành sang v2) — không cần re-parse.
+Artifacts `document-ir-v1` là lịch sử; khi còn dùng phải chuyển sang contract
+hiện hành bằng adapter tương ứng và chạy lại quality gates/golden fixtures
+trước khi index. Repository MVP lưu corpus và embeddings trong filesystem cùng
+Qdrant; Supabase là nguồn chân lý cho auth và dữ liệu ứng dụng, không phải kho
+parser artifacts.
 
-**Re-normalization procedure** (doc 08 §8.3.6, §8.4.5):
+**Re-normalization procedure**:
 
-- Nếu **chỉ IR schema** thay đổi: đọc artifact parser gốc từ object storage bucket `parser-outputs`, chuyển sang IR mới bằng adapter hiện hành — **re-normalize, không cần re-parse** (có thể re-project mà không re-parse).
-- Nếu **parser version** thay đổi: phải **re-parse** từ PDF nguồn (`source-pdfs`) vì parser output cũ không tương thích, không tái sử dụng parser output cũ.
-- Sau khi re-normalize/re-parse, chạy lại quality gates và golden fixtures trước khi viết vào PostgreSQL.
-
-**Idempotency** (doc 08 §8.3.6, dòng 299): idempotency key chứa IR schema version; bump schema làm key đổi, cho phép chạy lại pipeline.
-
+- Nếu chỉ IR schema thay đổi: đọc artifact parser/corpus hiện có, chuyển sang
+  IR mới bằng adapter hiện hành — re-normalize, không cần re-parse nếu dữ liệu
+  nguồn đủ để chuyển đổi.
+- Nếu parser version thay đổi: re-parse từ PDF/Markdown nguồn vì output parser
+  cũ có thể không tương thích.
+- Sau đó chạy lại quality gates và golden fixtures trước khi ghi/index.
 ## 9. Parser-neutrality (doc 03 §3.6.6)
 
 - **Legal Structure Extractor chỉ đọc `ParsedDocument`/`DocumentElement`**, không đọc `DoclingDocument` hay output JSON của MinerU. Toàn bộ phân tích pháp lý phụ thuộc duy nhất vào IR.

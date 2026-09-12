@@ -73,10 +73,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - name: Install commitlint deps
-        run: npm ci
-        working-directory: frontend
+      - name: Install commitlint
+        run: npm install --no-save --no-package-lock --ignore-scripts @commitlint/cli@21.2.1
       - name: Lint PR commit messages
-        run: npm exec --prefix frontend --no -- commitlint --config commitlint.config.mjs --from "${{ github.event.pull_request.base.sha }}" --to "${{ github.event.pull_request.head.sha }}"
+        run: npx --no-install commitlint --config commitlint.config.mjs --from "${{ github.event.pull_request.base.sha }}" --to "${{ github.event.pull_request.head.sha }}"

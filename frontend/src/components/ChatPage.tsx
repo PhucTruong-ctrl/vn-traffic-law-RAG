@@ -272,7 +272,11 @@ export default function ChatPage({
         }),
       )
       .then((result) => {
-        if (!result?.ok) throw new Error("Không thể tải cuộc trò chuyện.");
+        if (result.status === 401) {
+          void supabase.auth.signOut();
+          throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+        }
+        if (!result.ok) throw new Error("Không thể tải cuộc trò chuyện.");
         return result.json();
       })
       .then((payload) => {
@@ -344,6 +348,10 @@ export default function ChatPage({
         signal: abortController.signal,
       });
       const payload = await result.json().catch(() => null);
+      if (result.status === 401) {
+        await supabase.auth.signOut();
+        throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      }
       if (!result.ok)
         throw new Error(payload?.detail || payload?.error?.message || "Không thể xử lý câu hỏi.");
       const nextResponse = validateChatResponse(payload);
@@ -532,7 +540,7 @@ export default function ChatPage({
 
               error={error}
               progressEvents={progressEvents}
-              sessionId={activeId}
+              sessionId={activeId ?? ""}
               onOpenSource={openCitation}
             />
           )}

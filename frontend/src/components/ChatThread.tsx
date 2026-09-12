@@ -1,21 +1,13 @@
 "use client";
+
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { motion, useReducedMotion } from "motion/react";
 import { Clipboard, FileDown, Share2 } from "lucide-react";
 import AbstentionResult from "./AbstentionResult";
 import CitationCard, { type Citation } from "./CitationCard";
 import FeedbackWidget, { BookmarkToggle } from "./FeedbackWidget";
 import LegalMark from "./LegalMark";
-import type { Transition } from "motion/react";
 import type { ChatResponse, ConversationTurn, ProgressEvent } from "./chat-types";
-
-const motionTransition: Transition = { duration: 0.2, ease: "easeOut" };
-
-const messageEntrance = {
-  initial: { opacity: 0, y: 8 },
-  animate: { opacity: 1, y: 0 },
-};
 
 function protectLegalParentheticals(markdown: string): string {
   return markdown.replace(
@@ -24,7 +16,7 @@ function protectLegalParentheticals(markdown: string): string {
   );
 }
 
-const tableSeparator = /^\s*\|?\s*:?-{2,}:?\s*(?:\|\s*:?-{2,}:?\s*)+\|?\s*$/;
+const tableSeparator = /^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$/;
 
 function splitAnswerTables(
   markdown: string,
@@ -37,8 +29,8 @@ function splitAnswerTables(
   > = [];
   let markdownLines: string[] = [];
   const flushMarkdown = () => {
-    if (markdownLines.join("\n").trim())
-      parts.push({ kind: "markdown", text: markdownLines.join("\n") });
+    const text = markdownLines.join("\n");
+    if (text.trim()) parts.push({ kind: "markdown", text });
     markdownLines = [];
   };
   const lineCells = (line: string) =>
@@ -81,40 +73,32 @@ function splitAnswerTables(
 
 export function MarkdownAnswer({ answer }: { answer: string }) {
   return (
-    <>
-      {splitAnswerTables(protectLegalParentheticals(answer)).map((part, index) =>
+    <div className="markdown-answer">
+      {splitAnswerTables(answer).map((part, index) =>
         part.kind === "markdown" ? (
-          <ReactMarkdown key={index} skipHtml>
-            {part.text}
-          </ReactMarkdown>
+          <ReactMarkdown key={index}>{protectLegalParentheticals(part.text)}</ReactMarkdown>
         ) : (
-          <div className="assistant-answer-table" key={index}>
-            <table>
-              <thead>
-                <tr>
-                  {part.headers.map((header, cellIndex) => (
-                    <th key={cellIndex} scope="col">
-                      <ReactMarkdown skipHtml>{header}</ReactMarkdown>
-                    </th>
+          <table key={index}>
+            <thead>
+              <tr>
+                {part.headers.map((header) => (
+                  <th key={header}>{header}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {part.rows.map((row, rowIndex) => (
+                <tr key={rowIndex}>
+                  {row.map((cell, cellIndex) => (
+                    <td key={cellIndex}>{cell}</td>
                   ))}
                 </tr>
-              </thead>
-              <tbody>
-                {part.rows.map((row, rowIndex) => (
-                  <tr key={rowIndex}>
-                    {row.map((cell, cellIndex) => (
-                      <td key={cellIndex}>
-                        <ReactMarkdown skipHtml>{cell}</ReactMarkdown>
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         ),
       )}
-    </>
+    </div>
   );
 }
 
@@ -122,11 +106,11 @@ type ChatThreadProps = {
   turns: ConversationTurn[];
   question: string;
   loading: boolean;
-  error?: string;
+  error: string;
   historyLoading?: boolean;
   onOpenSource: (citation: Citation) => void;
   progressEvents?: ProgressEvent[];
-  sessionId?: string;
+  sessionId: string;
 };
 
 function ResponseMessage({
@@ -136,87 +120,72 @@ function ResponseMessage({
 }: {
   response: ChatResponse;
   onOpenSource: (citation: Citation) => void;
-  sessionId?: string;
+  sessionId: string;
 }) {
-  const verified = response.status === "VERIFIED";
-  const operational = response.status === "WORKFLOW_UNAVAILABLE";
   const citations = response.citations ?? [];
+  const verified = response.status === "VERIFIED";
+  const operational =
+    response.status === "INSUFFICIENT_EVIDENCE" ||
+    response.status === "GREETING" ||
+    response.status === "OUT_OF_SCOPE" ||
+    response.status === "CORPUS_NOT_COVERED" ||
+    response.status === "WORKFLOW_UNAVAILABLE";
   const [actionState, setActionState] = useState("");
   const answer = response.answer ?? "";
-
-  async function copyAnswer() {
-    if (typeof navigator.clipboard?.writeText !== "function") return;
-    try {
-      await navigator.clipboard.writeText(answer);
-      setActionState("Đã sao chép");
-    } catch {
-      setActionState("");
-    }
-  }
-  async function shareAnswer() {
-    try {
-      if (typeof navigator.share === "function") {
-        await navigator.share({ text: answer });
-        setActionState("Đã chia sẻ");
-      } else if (typeof navigator.clipboard?.writeText === "function") {
-        await navigator.clipboard.writeText(answer);
-        setActionState("Đã sao chép");
-      }
-    } catch {
-      setActionState("");
-    }
-  }
-
   return (
     <div className="assistant-message response-message">
       <LegalMark />
       <div className="response-content">
         <div className="message-meta">
           <strong>Trợ lý Luật Giao thông</strong>
-          <span>
-            {verified
-              ? "Đã đối chiếu nguồn pháp luật"
-              : operational
-                ? "Dịch vụ tạm thời không khả dụng"
-                : "Chưa đủ căn cứ"}
-          </span>
         </div>
         {operational ? (
-          <section className="abstention-result alert error" role="alert">
-            <h2>Không thể xử lý yêu cầu lúc này</h2>
-            <p>{response.disclaimer ?? "Hệ thống gặp lỗi vận hành. Vui lòng thử lại sau."}</p>
-          </section>
+          <AbstentionResult
+            reason={response.abstention?.reason}
+            reasonCode={response.abstention?.reason_code}
+            disclaimer={response.disclaimer}
+          />
         ) : verified ? (
           <>
-            <div className="assistant-answer">
-              <MarkdownAnswer answer={answer} />
-            </div>
+            <MarkdownAnswer answer={answer} />
             <div className="answer-actions" aria-label="Thao tác với câu trả lời">
-              <button type="button" onClick={copyAnswer} aria-label="Sao chép" title="Sao chép">
-                <Clipboard size={17} aria-hidden="true" />
-              </button>
-              {sessionId && response.assistant_message_id && (
-                <>
-                  <BookmarkToggle
-                    sessionId={sessionId}
-                    messageId={response.assistant_message_id}
-                    initialBookmarked={response.bookmarked ?? response.is_bookmarked ?? false}
-                  />
-                  <FeedbackWidget sessionId={sessionId} messageId={response.assistant_message_id} />
-                </>
-              )}
-              <button
-                type="button"
-                onClick={() => window.print()}
-                aria-label="Xuất PDF"
-                title="Xuất PDF"
-              >
-                <FileDown size={17} aria-hidden="true" />
-              </button>
-              <button type="button" onClick={shareAnswer} aria-label="Chia sẻ" title="Chia sẻ">
-                <Share2 size={17} aria-hidden="true" />
-              </button>
-              {actionState && <span role="status">{actionState}</span>}
+              <div className="action-group">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(answer);
+                    setActionState("Đã sao chép");
+                  }}
+                  aria-label="Sao chép"
+                >
+                  <Clipboard size={17} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  aria-label="Xuất PDF"
+                  title="Xuất PDF"
+                >
+                  <FileDown size={17} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (navigator.share) await navigator.share({ text: answer });
+                  }}
+                  aria-label="Chia sẻ"
+                  title="Chia sẻ"
+                >
+                  <Share2 size={17} aria-hidden="true" />
+                </button>
+                {actionState && <span role="status">{actionState}</span>}
+                <FeedbackWidget sessionId={sessionId} messageId={response.assistant_message_id ?? ""} />
+                <BookmarkToggle
+                  sessionId={sessionId}
+                  messageId={response.assistant_message_id ?? ""}
+                  initialBookmarked={response.bookmarked ?? response.is_bookmarked ?? false}
+                />
+              </div>
             </div>
           </>
         ) : (
@@ -246,6 +215,7 @@ function ResponseMessage({
     </div>
   );
 }
+
 export default function ChatThread({
   turns,
   question,
@@ -256,7 +226,6 @@ export default function ChatThread({
   progressEvents,
   sessionId,
 }: ChatThreadProps) {
-  const reducedMotion = useReducedMotion();
   const endRef = useRef<HTMLDivElement>(null);
   const threadRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -264,9 +233,8 @@ export default function ChatThread({
     const end = endRef.current;
     if (!thread || !end) return;
     const distance = thread.scrollHeight - thread.scrollTop - thread.clientHeight;
-    if (distance < 160) end.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth" });
-  }, [turns.length, historyLoading, error, question, reducedMotion]);
-  const entrance = reducedMotion ? undefined : messageEntrance;
+    if (distance < 160) end.scrollIntoView({ behavior: "smooth" });
+  }, [turns.length, historyLoading, error, question]);
   return (
     <div ref={threadRef} className="thread">
       {historyLoading && (
@@ -276,12 +244,7 @@ export default function ChatThread({
       )}
       {!historyLoading &&
         turns.map((turn, index) => (
-          <motion.div
-            key={`${turn.question}-${index}`}
-            initial={entrance?.initial}
-            animate={entrance?.animate}
-            transition={motionTransition}
-          >
+          <div key={`${turn.question}-${index}`}>
             <div className="user-message">
               <div className="query-bubble" aria-label="Câu hỏi đã gửi">
                 {turn.question}
@@ -292,58 +255,38 @@ export default function ChatThread({
               onOpenSource={onOpenSource}
               sessionId={sessionId}
             />
-          </motion.div>
+          </div>
         ))}
-      {historyLoading
-        ? null
-        : loading && (
-            <motion.div
-              className="assistant-message loading-state"
-              role="status"
+      {!historyLoading && loading && (
+        <div className="assistant-message loading-state" role="status" aria-live="polite">
+          <LegalMark />
+          <div className="loading-content">
+            <div className="message-meta">
+              <strong>Trợ lý Luật Giao thông</strong>
+              <span className="streaming-badge">Đang trả lời</span>
+            </div>
+            <span className="loading-question">{question}</span>
+            <section
+              className="progress-events-panel"
+              aria-label="Tiến trình xử lý"
               aria-live="polite"
-              initial={entrance?.initial}
-              animate={entrance?.animate}
-              transition={motionTransition}
             >
-              <LegalMark />
-              <div className="loading-content">
-                <div className="message-meta">
-                  <strong>Trợ lý Luật Giao thông</strong>
-                  <span className="streaming-badge">Đang trả lời</span>
-                </div>
-                <span className="loading-question">{question}</span>
-                <section
-                  className="progress-events-panel"
-                  aria-label="Tiến trình xử lý"
-                  aria-live="polite"
-                >
-                  <div className="progress-events__skeleton" aria-hidden="true">
-                    <span />
-                    <span />
-                    <span />
-                  </div>
-                  <p className="progress-events__event" role="status">
-                    {progressEvents
-                      ?.map((event) => event.message || event.detail)
-                      .filter((message): message is string => Boolean(message))
-                      .at(-1) || "Đang xử lý yêu cầu…"}
-                  </p>
-                </section>
-                <span className="loading-bar" aria-hidden="true" />
-                <div className="loading-skeleton" aria-hidden="true">
-                  <span />
-                  <span />
-                  <span />
-                </div>
-              </div>
-            </motion.div>
-          )}
+              <p className="progress-events__event" role="status">
+                {progressEvents
+                  ?.map((event) => event.message || event.detail)
+                  .filter((message): message is string => Boolean(message))
+                  .at(-1) || "Đang xử lý yêu cầu…"}
+              </p>
+            </section>
+          </div>
+        </div>
+      )}
       {!historyLoading && error && (
         <p role="alert" className="error-message">
           {error}
         </p>
       )}
-      <div ref={endRef} aria-hidden="true" />
+      <div ref={endRef} />
     </div>
   );
 }

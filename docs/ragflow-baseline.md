@@ -1,11 +1,22 @@
-# RAGFlow baseline (benchmark only)
+# RAGFlow baseline (historical benchmark)
+
+> **Historical record.** RAGFlow was evaluated as a possible local benchmark
+> target during the earlier deployment design. It is not part of the active
+> VNLRAG MVP and is not required for release, retrieval, ingestion, or answer
+> generation. The active runtime is the two-application stack (Next.js
+> frontend plus FastAPI backend), with Supabase REST/Auth persistence and a
+> local or service-hosted Qdrant collection.
+
+The remainder of this document preserves the old benchmark procedure for
+provenance. Do not use it as the current release runbook.
+
+## Historical contract
 
 RAGFlow is an optional, local-only benchmark target. It is not part of the
 VNLRAG release compose, answer path, source of truth, or ingestion workers.
 The baseline uses the pinned image `infiniflow/ragflow:v0.26.4` (the version
 specified by deployment design) and binds both endpoints to loopback.
 
-## Contract
 
 Copy `deploy/env/ragflow.env.example` to an untracked local env file and fill
 only credentials required by the local RAGFlow installation. Never commit
@@ -31,45 +42,30 @@ docker compose --project-directory . \
   --profile ragflow up -d
 
 docker compose --project-directory . \
-  -f deploy/compose/compose.ragflow.yml \
-  --profile ragflow ps
+## Active release checks
 
-docker compose --project-directory . \
-  -f deploy/compose/compose.ragflow.yml \
-  --profile ragflow down
-```
-
-This profile is intentionally separate and must not be started alongside a
-heavy ingestion/evaluation run. No external RAGFlow deployment or benchmark
-run is claimed by this baseline.
-
-## Gate M6 demo stabilization checks
-
-These are runnable checks for the operator; this document does not claim that
-they have been run.
+The following checks supersede the historical compose topology above. The
+active release has only `frontend`, `backend`, and `qdrant` services; Supabase
+is an external persistence/auth dependency. There is no worker, PostgreSQL,
+Redis, MinIO, or RAGFlow service in the release compose.
 
 ```bash
-# 1. Validate the release graph and required healthchecks without starting it.
-docker compose --project-directory . -f deploy/compose/compose.release.yml config >/tmp/vnlaw-release.yml
-python - <<'PY'
-import yaml
-with open('/tmp/vnlaw-release.yml') as f:
-    services = yaml.safe_load(f)["services"]
-assert set(services) == {"frontend", "backend", "worker", "postgres", "qdrant", "redis", "minio", "migrate"}
-assert all("healthcheck" in spec for name, spec in services.items() if name != "migrate")
-PY
-
-# 2. Start the release stack and wait for app health.
+docker compose --project-directory . -f deploy/compose/compose.release.yml config
 docker compose --project-directory . -f deploy/compose/compose.release.yml up -d
 curl --fail http://127.0.0.1:8000/api/v1/health/live
+curl --fail http://127.0.0.1:8000/api/v1/health/ready
 curl --fail http://127.0.0.1:3000
-
-# 3. Exercise deterministic browser smoke checks against a mockable API boundary.
-(cd frontend && npm ci && npx playwright install chromium && npm run test:e2e)
-
-# 4. Stop the stack after the rehearsal.
 docker compose --project-directory . -f deploy/compose/compose.release.yml down
 ```
+
+The backend retrieves from Qdrant's `traffic_law` collection, combining dense
+OpenRouter embeddings with FastEmbed BM25, then applies deterministic evidence
+checks before one OpenRouter generation. Legal answers expose citations; the
+backend fails closed with HTTP 503 when retrieval or generation dependencies
+are unavailable.
+
+## Historical adapter boundary
+
 
 ## Adapter boundary
 

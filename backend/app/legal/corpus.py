@@ -122,9 +122,7 @@ def chunks(
         return selected
     manifest_path = _path(manifest, _MANIFEST)
     docs = load_manifest(manifest_path, local_dir=_LOCAL_DIR)
-    return [
-        Chunk(text=d.page_content, metadata=normalized_metadata(dict(d.metadata))) for d in docs
-    ]
+    return [Chunk(text=d.page_content, metadata=dict(d.metadata)) for d in docs]
 
 
 def filter_chunks(
@@ -151,11 +149,7 @@ def filter_chunks(
 
 
 def _tokens(value: str) -> list[str]:
-    return [
-        token
-        for token in re.findall(r"[^\W\d_]+|\d+", value.casefold())
-        if len(token) > 1 and token not in _STOPWORDS
-    ]
+    return re.findall(r"[^\W\d_]+|\d+", value.casefold(), flags=re.UNICODE)
 
 
 def search_chunks(items: list[Chunk], query: str, **filters: str | None) -> list[tuple[Chunk, int]]:

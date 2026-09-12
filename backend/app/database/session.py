@@ -2,19 +2,16 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 import httpx
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
-SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "")
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+from app.config import get_supabase_settings
 
 
 class SupabaseClient:
     def __init__(self, url: str, key: str):
-        self.url = url.rstrip("/")
+        self.url = url
         self.key = key
 
     def _config(self) -> None:
@@ -65,13 +62,17 @@ class SupabaseClient:
         params: dict[str, str] | None = None,
         data: Any = None,
         headers: dict[str, str] | None = None,
+        auth: bool = False,
+        token: str | None = None,
     ) -> Any:
         return self._request(
             method,
-            f"rest/v1/{table}",
+            f"{'auth/v1' if auth else 'rest/v1'}/{table}",
             params=params,
             data=data,
             headers=headers,
+            auth=auth,
+            token=token,
         )
 
     def auth_request(
@@ -86,4 +87,8 @@ class SupabaseClient:
 
 
 def get_db():
-    yield SupabaseClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY)
+    settings = get_supabase_settings()
+    yield SupabaseClient(
+        settings.url,
+        settings.service_role_key or settings.anon_key,
+    )

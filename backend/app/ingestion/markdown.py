@@ -210,4 +210,4 @@ def write_jsonl(documents: Iterable[Document], output: str | Path) -> int:
     return count
 
 
-__all__ = ["Document", "load_markdown", "load_manifest", "parse_front_matter", "write_jsonl"]
+__all__ = ["load_markdown", "load_manifest", "parse_front_matter", "write_jsonl"]

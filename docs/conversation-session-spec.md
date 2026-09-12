@@ -1,8 +1,14 @@
 # Conversation Session Specification
 
+> **Implementation status:** This document describes the active authenticated
+> chat/session contract. The original React-only, non-persistent behavior
+> described below is historical and has been superseded.
+
 ## Problem Statement
 
-Người dùng hiện chỉ có một chat stateful trong thời gian trang còn mở. Mỗi request gửi duy nhất `question`; lịch sử câu hỏi và câu trả lời chỉ tồn tại trong React state, không có conversation identifier, không có persistence, và sidebar chưa hiển thị lịch sử thật.
+Người dùng trước đây chỉ có một chat stateful trong thời gian trang còn mở.
+Mỗi request chỉ gửi `question`; lịch sử chỉ tồn tại trong React state, không có
+conversation identifier, persistence, hoặc sidebar history.
 
 Vì vậy người dùng không thể:
 
@@ -10,15 +16,34 @@ Vì vậy người dùng không thể:
 - chuyển đổi giữa nhiều đoạn chat độc lập;
 - để hệ thống dùng context của đúng đoạn chat;
 - tìm kiếm, đổi tên hoặc xóa đoạn chat;
-- giữ thứ tự conversation theo hoạt động mới nhất.
-
-Feature này vẫn thuộc nhóm P1 conversation history trong kế hoạch hiện tại; không thay đổi phạm vi P0, verified-or-abstain, canonical date policy, Evidence Completeness Gate hoặc citation invariants.
-
 ## Solution
 
-Thêm domain Conversation và Message phía server, với anonymous ownership được xác định bằng HttpOnly cookie. Một conversation chỉ được tạo khi người dùng gửi message đầu tiên. Mỗi lượt chat được lưu thành user message và assistant message có trạng thái; QueryTrace hiện tại liên kết với assistant message để giữ audit, citation và verification metadata tách khỏi transcript.
+Server-side Conversation (implemented by the existing `chat_sessions` table)
+and Message records are owned by the authenticated Supabase user. A
+conversation is created when the first chat request omits `session_id`; later
+requests send that identifier. Each turn persists a user message and an
+assistant message through Supabase REST, including response/citations/metadata
+JSON fields used for reload and audit.
 
-Frontend dùng `/chat` làm màn hình chat mới và `/chat/:conversation_id` làm deep link cho conversation đang mở. Sidebar tải danh sách theo kích thước viewport, sắp xếp `last_activity_at` giảm dần, hỗ trợ chọn, tìm kiếm, đổi tên và soft-delete conversation.
+Frontend uses `/chat` for a new chat and `/chat/:conversation_id` for an open
+conversation. The backend currently exposes these API routes:
+`POST /api/v1/chat`, `GET|POST /api/v1/chats`,
+`GET|PATCH|DELETE /api/v1/chats/{session_id}`, and
+`POST /api/v1/chats/{session_id}/messages`; saved Q&A uses
+`/api/v1/bookmarks`. Chat responses return the same identifier as
+`session_id`, `conversation_id`, and `chat_id` for client compatibility.
+Hydration reads the persisted transcript and does not call the model.
+
+The answer pipeline retrieves hybrid dense/BM25 candidates from Qdrant,
+applies the deterministic Evidence Completeness Gate and verified-or-abstain
+contract, and uses one OpenRouter generator only for evidence-backed answers.
+Failed or unverified assistant results must not become context.
+
+> **Historical design note:** The following earlier proposal used anonymous
+> HttpOnly-cookie ownership. The active implementation instead requires a
+> Supabase Auth bearer token and scopes all chat/session reads and writes by
+> authenticated user id. Keep the cookie proposal only as historical
+> provenance; it is not an active contract.
 
 Khi gửi câu hỏi mới, workflow sử dụng các message gần nhất trong conversation trong giới hạn token. Answer chỉ được hiển thị theo contract verified-or-abstain hiện tại; message chưa qua verification không được trở thành context hợp lệ.
 
@@ -43,8 +68,6 @@ Khi gửi câu hỏi mới, workflow sử dụng các message gần nhất trong
 17. As a người dùng cuối, I want to conversation đã xóa biến mất khỏi list/search/context ngay, so that dữ liệu bị xóa không tiếp tục xuất hiện.
 18. As a người dùng cuối, I want to không có mục restore trong MVP, so that giao diện giữ đơn giản.
 19. As a người dùng cuối, I want to conversation được sort theo hoạt động message mới nhất, so that chat đang sử dụng nằm trên đầu.
-20. As a người dùng cuối, I want to rename hoặc mở chat không làm thay đổi thứ tự activity, so that thứ tự phản ánh nội dung chứ không phải thao tác quản lý.
-21. As a người dùng cuối, I want to sidebar lazy-load vừa đủ theo viewport, so that initial load không tải toàn bộ lịch sử.
 22. As a người dùng cuối, I want to scroll sidebar để tải thêm conversation, so that lịch sử dài vẫn truy cập được.
 23. As a người dùng cuối, I want to thấy trạng thái assistant đang xử lý, so that tôi biết request chưa hoàn tất.
 24. As a người dùng cuối, I want to request lỗi vẫn giữ câu hỏi của tôi, so that tôi có thể retry thay vì mất dữ liệu.
@@ -59,9 +82,9 @@ Khi gửi câu hỏi mới, workflow sử dụng các message gần nhất trong
 33. As a người dùng cuối, I want to SSE và POST fallback dùng cùng conversation identifier, so that retry không tạo nhầm chat khác.
 34. As a người dùng cuối, I want to gửi message vào conversation không thuộc owner bị từ chối, so that authorization isolation được bảo vệ.
 35. As a người dùng cuối, I want to mở conversation không tồn tại hoặc đã xóa nhận lỗi rõ ràng, so that UI không hiển thị transcript sai.
-36. As a người dùng cuối, I want to rename blank hoặc quá dài bị từ chối, so that dữ liệu title luôn hợp lệ.
-37. As a người dùng cuối, I want to tìm kiếm không phân biệt hoa thường, so that kết quả phù hợp cách tôi nhập.
-38. As a người dùng cuối, I want to search result vẫn sort theo activity mới nhất, so that tìm kiếm giữ hành vi sidebar nhất quán.
+- Supabase REST là nguồn chân lý cho `chat_sessions`, `messages`, feedback và
+  bookmarks; không dùng localStorage làm persistence chính. PostgreSQL ở đây
+  là hạ tầng do Supabase quản lý, không phải PostgreSQL app-owned runtime.
 39. As a người dùng cuối, I want to assistant trace liên kết đúng lượt trả lời, so that citation và verification có thể audit theo message.
 40. As a người dùng cuối, I want to các conversation cũ không bị reorder khi chỉ hydrate, so that việc xem lịch sử không tạo hoạt động giả.
 
@@ -69,9 +92,10 @@ Khi gửi câu hỏi mới, workflow sử dụng các message gần nhất trong
 
 - Canonical domain term là **Conversation**, không dùng `session` để tránh nhầm với browser/auth session.
 - Thêm hai aggregate chính: Conversation và Message. Conversation có owner, title, timestamps hoạt động và soft-delete marker. Message thuộc đúng một Conversation, có role user/assistant, content, status và timestamp.
-- Anonymous ownership dùng owner key do server cấp qua HttpOnly cookie. Mọi read/write conversation phải lọc theo owner key; không có global shared history.
-- Conversation lifecycle là lazy-create. Request không có conversation identifier tạo Conversation khi user message đầu tiên được chấp nhận. Request có identifier append vào Conversation hiện hữu.
-- Existing chat request contract được mở rộng bằng optional conversation identifier; client cũ không có identifier vẫn hoạt động theo lazy-create. SSE và POST fallback phải truyền cùng identifier.
+- Ownership dùng user id từ Supabase Auth bearer token; mọi read/write
+  conversation đều lọc theo user id. Client mới tạo lazy conversation bằng
+  `POST /api/v1/chat` khi request không có `session_id`; request có id append
+  vào conversation hiện hữu. Runtime không có SSE endpoint.
 - API phải hỗ trợ list conversations, lấy transcript một conversation, gửi message vào conversation, đổi title và soft-delete. Các read operation loại conversation đã soft-delete; write operation kiểm tra ownership và trạng thái tồn tại.
 - `/chat` là new-chat surface; `/chat/:conversation_id` là active conversation surface. Hydration chỉ đọc transcript, không tự khởi chạy workflow.
 - Title mặc định lấy từ user message đầu tiên, trim và normalize whitespace, sau đó truncate theo giới hạn hiển thị khoảng 60–80 ký tự. Title do user rename được đánh dấu/giữ riêng và không bị tự động cập nhật.
@@ -82,45 +106,58 @@ Khi gửi câu hỏi mới, workflow sử dụng các message gần nhất trong
 - Context builder nhận ordered, non-deleted, usable messages gần nhất trong token budget. Canonical date policy, temporal filtering, Evidence Completeness Gate, verification sáu tầng và verified-or-abstain vẫn áp dụng độc lập cho mỗi lượt.
 - Search MVP tìm case-insensitive trong title và user messages; loại soft-deleted conversation và failed assistant content khỏi kết quả. Kết quả sort theo activity mới nhất.
 - Delete là soft-delete. Conversation bị loại ngay khỏi list, search, transcript access và context. MVP không có Recently Deleted hoặc restore UI.
-- Sidebar tải trang đầu theo số conversation vừa đủ viewport và tải thêm khi cần; API pagination dùng cursor để không khóa thiết kế khi lịch sử tăng.
+- Đăng nhập, đăng ký và session Supabase Auth là một phần của runtime hiện tại;
+  account profile/multi-device synchronization vẫn ngoài phạm vi Conversation.
 - UI dùng kebab/action menu cho rename và delete; delete có confirmation. Mobile dùng drawer/sidebar responsive; desktop dùng sidebar hiện hữu.
-- Không thêm small-model title generation trong MVP. Không thêm auth account model nếu hệ thống chưa có identity provider; owner key giữ boundary để thay thế sau này.
-- PostgreSQL là nguồn chân lý cho Conversation, Message và liên kết trace. Không dùng localStorage làm nguồn persistence chính.
-- Migration phải bảo đảm foreign keys, ownership filtering, soft-delete semantics, timestamp ordering và cascade behavior không làm mất audit trace ngoài ý muốn.
+- Không thêm small-model title generation trong MVP. Supabase Auth cung cấp
+  identity hiện tại; không thêm auth account model riêng cho Conversation.
+- Migration/schema Supabase phải bảo đảm foreign keys, ownership filtering,
+  soft-delete semantics, timestamp ordering và cascade behavior không làm mất
+  audit trace ngoài ý muốn.
 
 ## Testing Decisions
 
 - Test observable behavior, không test implementation details, private helpers, ORM field copying hoặc component internals.
-- Backend seam chính là HTTP API/workflow boundary hiện có. Tests phải chứng minh owner isolation, lazy-create, append, transcript hydration, context continuity, ID correlation giữa SSE/fallback, message state transitions, trace linkage, title generation/rename validation, search ordering và soft-delete visibility.
-- Giữ các regression tests hiện tại của chat cho validation `question`, citation safety, verified response, abstention, disclaimer và feedback trace correlation.
+- Các API hiện tại dùng bearer token Supabase Auth; mọi retry phải giữ
+  `session_id` để không tạo conversation trùng. Frontend có timeout mặc định
+  120 giây qua `NEXT_PUBLIC_CHAT_TIMEOUT_MS`.
 - Bổ sung API behavior tests theo prior art trong bộ test chat hiện tại; mỗi test nên thất bại nếu thay đổi làm lẫn conversation, bỏ ownership check, trả answer pending, hoặc đưa deleted/failed content vào context.
 - Frontend seam chính là Playwright user flow trên page thật. Tests phải thao tác như người dùng và kiểm tra transcript/sidebar/URL hiển thị: new chat, chọn chat, reload/deep-link, lazy loading, search, rename, delete confirmation, loading/failure và verified/abstained rendering.
-- Mocks trong E2E chỉ mô phỏng network boundary; không assert implementation state hoặc số lần gọi helper. Response fixtures phải bao gồm conversation identifiers, timestamps, message roles và status để bắt lỗi mapping.
-- Test boundaries gồm: anonymous owner khác nhau, conversation không tồn tại, conversation đã xóa, title blank/200/201 ký tự, first message dài, empty sidebar, duplicate retry, pending assistant, failed assistant, equal activity timestamps và search không match.
+- Test boundaries gồm: owner khác nhau qua Supabase Auth, conversation không
+  tồn tại, conversation đã xóa, title blank/200/201 ký tự, first message dài,
+  empty sidebar, duplicate retry, pending assistant, failed assistant, equal
+  activity timestamps và search không match.
 - Migration/integration check phải chạy trên database test thật hoặc fixture tương đương repository convention, chứng minh foreign key/soft-delete/query ordering qua API behavior thay vì chỉ kiểm tra schema text.
 - Không cần test small-model title generation vì quyết định MVP không dùng model title.
 - Verification focused trước; sau đó chạy repository-required backend và frontend checks trên merged phase theo quy định dự án.
 
 ## Out of Scope
 
-- Đăng nhập, đăng ký, account profile, multi-device account sync và user management.
+- Account profile, multi-device account synchronization và user management vẫn
+  ngoài phạm vi Conversation; đăng nhập/đăng ký Supabase Auth là runtime
+  prerequisite chứ không phải một tính năng Conversation.
 - Khôi phục conversation đã xóa hoặc Recently Deleted UI.
 - Hard-delete, retention scheduler, data export và account erasure workflow.
 - Small model hoặc LLM tự động sinh title.
 - Full-text search ranking, semantic search, assistant-message search và search analytics.
-- Conversation sharing, public links, collaboration và permissions ngoài owner isolation.
+- Cookie ownership và SSE được giữ như các hướng thiết kế lịch sử; runtime hiện
+  tại dùng bearer-authenticated POST `/api/v1/chat`, không có SSE endpoint.
 - Conversation folders, pin, archive riêng biệt, tags, projects và bulk actions.
 - Message edit, message delete từng message, regenerate, branching conversation và response versioning.
 - Summary model cho conversation dài; chỉ dùng recent messages trong token budget.
 - Voice, mobile app và thay đổi phạm vi UI chat-only đã được docs xác định.
-- Thay đổi legal corpus, retrieval algorithm, canonical date policy, citation rendering, verifier, Evidence Completeness Gate hoặc RAGFlow baseline.
+- Thay đổi legal corpus, retrieval algorithm, canonical date policy, citation
+  rendering, verifier, Evidence Completeness Gate hoặc historical RAGFlow
+  baseline.
 - Admin review UI và các P1/P0 khác không cần cho conversation history.
 
 ## Further Notes
 
-- Local design docs hiện đánh dấu conversation history là P1; triển khai chỉ nên tiến hành khi các P0 acceptance criteria theo kế hoạch đã đạt hoặc có quyết định scope riêng.
-- Frontend hiện có SSE-first và POST fallback; cả hai đường phải tạo cùng observable conversation behavior, không để fallback sinh transcript duplicate.
-- QueryTrace hiện có giá trị audit và feedback correlation. Liên kết trace với assistant message phải giữ nguyên khả năng feedback theo trace identifier.
-- Cookie ownership cần cấu hình đúng khi frontend/backend khác origin: HttpOnly, Secure trong deployment phù hợp, SameSite theo topology, CORS credentials giới hạn origin tin cậy. Đây là security boundary, không phải UI detail.
-- Không ghi raw conversation content vào logs hoặc telemetry ngoài dữ liệu cần cho workflow/audit hiện tại.
+- Frontend hiện dùng POST fallback trực tiếp tới `/api/v1/chat`; không có SSE
+  endpoint trong runtime. Retry phải giữ cùng `session_id` để tránh duplicate.
+- QueryTrace hiện có giá trị audit và feedback correlation. Liên kết trace với
+  assistant message phải giữ nguyên khả năng feedback theo trace identifier.
+- Khi frontend/backend khác origin, bearer token Supabase Auth và CORS phải
+  được cấu hình đúng theo origin tin cậy. Không ghi raw conversation content
+  vào logs hoặc telemetry.
 - Spec này là synthesis từ glossary `CONTEXT.md`, thiết kế hệ thống, yêu cầu hệ thống và codebase hiện tại; không tạo Jira issue và không thay đổi các tài liệu scope freeze.

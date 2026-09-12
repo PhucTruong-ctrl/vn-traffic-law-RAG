@@ -1,18 +1,28 @@
-# Quy tắc Parsing và Chuẩn hóa Văn bản Pháp luật Việt Nam (VNLRAG-23)
+# Quy tắc Parsing và Chuẩn hóa Văn bản Pháp luật Việt Nam
 
-> Tài liệu này là **v2 rules spec** thay thế toàn bộ nội dung `docs/rulespec/` v1 (kỷ nguyên UDEF, đã gỡ theo ADR-001). Đây là tài liệu quy tắc (rules) — **không implement code**; Legal Structure Extractor (VNLRAG-26/28) và normalization metadata pháp lý (Sprint 2) triển khai theo đúng các quy tắc dưới đây.
+> **Trạng thái hiện tại:** rules này áp dụng cho pipeline ingestion FastAPI/Python 3.11:
+> parser output được chuẩn hóa thành canonical IR rồi legal provisions; evidence gate
+> quyết định dữ liệu có được index vào Qdrant hay không. Retrieval dùng Qdrant hybrid
+> với dense OpenRouter và FastEmbed BM25; generator chỉ có một OpenRouter provider.
+> Tài liệu không mô tả agents, LangGraph, hay external retrieval.
+>
+> Các mã VNLRAG và mô tả Sprint/W3 bên dưới là provenance lịch sử của thesis/spec cũ,
+> không phải service hoặc runtime đang hoạt động.
+
+Tài liệu này là rules spec v2, thay thế nội dung v1 (kỷ nguyên UDEF, đã gỡ theo ADR-001).
+Đây là tài liệu quy tắc, không implement code; extractor/normalization triển khai theo
+các quy tắc này trong pipeline hiện tại.
 
 ## 1. Phạm vi & mục đích
 
-- Drives **Legal Structure Extractor** (VNLRAG-26/28, W3) và normalization pháp lý trong Sprint 2.
-- Nguồn chính thức của tài liệu này:
-  - doc 00 mục 4.2 (scope & decisions);
-  - doc 03 §3.8 (Legal Structure Extractor, L1023-1139), §3.7.3 (gates, L948-999), §3.14.1 (REFERS_TO, L2874-2887), §3.15 (Temporal, L2925-2987);
-  - spike VNLRAG-22 evidence: `docs/spike-vnlrag-22-structure-extraction-evidence.md` (phân tích IR thực + gold + fixtures);
-  - spike VNLRAG-21: `docs/spike-vnlrag-21-ir-provenance-contract.md` (provenance adapter, 48 elements);
-  - gold fixtures: `backend/tests/fixtures/parser_benchmark/gold/` (+ `golden-stable-id/`);
-  - schema: `templates/legal-provision.schema.json`, `templates/corpus-manifest.schema.json`, `docs/parser_router.yaml`.
-- Tài liệu này chỉ định nghĩa **quy tắc**; extractor là nơi triển khai theo doc này. Không có code extractor trong phạm vi VNLRAG-23.
+- Drives legal-structure extraction và legal normalization sau khi PDF ingestion tạo canonical IR.
+- Nguồn schema/fixtures hiện hành:
+  - `templates/legal-provision.schema.json`;
+  - `templates/corpus-manifest.schema.json`;
+  - `backend/tests/fixtures/parser_benchmark/gold/`;
+  - `docs/parser_router.yaml`.
+- Các spike/handoff được dẫn chiếu bên dưới là bằng chứng hoặc lịch sử; không được hiểu là
+  runtime dependency.
 
 ## 2. Phân loại loại văn bản
 

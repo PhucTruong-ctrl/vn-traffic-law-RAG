@@ -190,7 +190,6 @@ class RAGService:
         chunks: Iterable[Document] | None = None,
         top_k: int = 5,
         effective_date: date | None = None,
-        history: Iterable[dict[str, Any]] = (),
     ) -> dict[str, Any]:
         analysis = analyze_question(question)
         route = classify_intent(question)

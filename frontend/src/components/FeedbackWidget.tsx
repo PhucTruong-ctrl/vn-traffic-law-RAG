@@ -17,7 +17,7 @@ export type FeedbackWidgetProps = {
 export default function FeedbackWidget({
   sessionId,
   messageId,
-  endpoint = "/api/v1/feedback",
+  endpoint = `/api/v1/chats/${encodeURIComponent(sessionId)}/messages/${encodeURIComponent(messageId)}/feedback`,
 }: FeedbackWidgetProps) {
   const supabase = useRef(createClient()).current;
   const [value, setValue] = useState<FeedbackValue | null>(null);

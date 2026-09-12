@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Clipboard } from "lucide-react";
 import type { Citation } from "./CitationCard";
 import PdfCitationViewer from "./PdfCitationViewer";
@@ -49,16 +49,15 @@ export default function LegalSourceViewer({
   mode = "chat",
   searchQuery,
 }: Props) {
-  const source = document?.source;
   const merged = {
     ...citation,
     ...document,
     document_id: document?.document_id || citation.document_id,
     provision_id: document?.provision_id ?? citation.provision_id,
-    source_kind: source?.source_kind ?? document?.source_kind,
-    pdf_url: source?.pdf_url ?? document?.pdf_url ?? citation.pdf_url,
-    source_url: source?.source_url ?? document?.source_url ?? citation.source_url,
-    source_file: source?.source_file ?? document?.source_file ?? citation.source_file,
+    source_kind: document?.source?.source_kind ?? document?.source_kind,
+    pdf_url: document?.source?.pdf_url ?? document?.pdf_url ?? citation.pdf_url,
+    source_url: document?.source?.source_url ?? document?.source_url ?? citation.source_url,
+    source_file: document?.source?.source_file ?? document?.source_file ?? citation.source_file,
   };
   const kind: SourceKind =
     merged.source_kind ??
@@ -123,7 +122,7 @@ function MarkdownSourceViewer({
     }
     return searchQuery?.trim() || "";
   }, [citation, mode, searchQuery]);
-  const findTarget = useCallback((container: HTMLElement, term: string): HTMLElement | null => {
+  const findTarget = (container: HTMLElement, term: string): HTMLElement | null => {
     const needle = term.trim().toLocaleLowerCase();
     if (!needle) return null;
     return (
@@ -142,13 +141,12 @@ function MarkdownSourceViewer({
       }) ??
       null
     );
-  }, []);
+  };
   useEffect(() => {
     const container = contentRef.current;
     if (!container) return;
-    const match = findTarget(container, mode === "chat" ? target : query);
-    match?.scrollIntoView({ block: "center" });
-  }, [mode, query, target, blocks, findTarget]);
+    findTarget(container, mode === "chat" ? target : query)?.scrollIntoView({ block: "center" });
+  }, [mode, query, target, blocks]);
   const matches = (mode === "chat" ? target : query).trim().toLowerCase();
   const copy = async () => {
     try {

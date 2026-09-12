@@ -1,13 +1,20 @@
 # VNLAW demo runbook
 
-This runbook records five fixed, reproducible checks against the local development stack. Run the API and web app with the repository's normal `dev.sh`, open `http://127.0.0.1:3000/chat`, and use a clean conversation for each scenario. Do not include account tokens, passwords, API keys, or raw session identifiers in captures.
+This runbook records five fixed, reproducible checks against the local
+development stack. Start FastAPI on `127.0.0.1:8000` and Next.js on
+`127.0.0.1:3000` using the repository's normal development command, then open
+`http://127.0.0.1:3000/chat`. The frontend calls `${NEXT_PUBLIC_API_URL}/api/v1`
+(`NEXT_PUBLIC_API_URL=http://127.0.0.1:8000` locally unless an intentional
+deployment override is configured). Supabase Auth must provide a logged-in
+session; Qdrant must contain the `traffic_law` collection. Do not include
+account tokens, passwords, API keys, or raw identifiers in captures.
 
 ## Fixed scenarios
 
 | ID | Question | Expected observable behavior | Observed status |
 | --- | --- | --- | --- |
-| G | `Xin chào` | A greeting is handled conversationally without inventing a legal citation. | The current server returned `Phản hồi từ máy chủ không hợp lệ. Vui lòng thử lại.`; retain this as a visible failure until the stack is healthy. |
-| R | `Mức phạt khi vượt đèn đỏ là bao nhiêu?` | The assistant requests vehicle class before selecting the applicable legal rule; the conversation remains in the same session. | The current UI displayed `Bạn đang hỏi về loại phương tiện nào?` with choices `ô tô`, `xe mô tô, xe gắn máy`, and `xe thô sơ` (successful clarification). |
+| G | `Xin chào` | The assistant returns a conversational greeting with status `GREETING` and no legal citation. | Record the rendered response and status. A malformed/5xx response is a failure, not a greeting. |
+| R | `Mức phạt khi vượt đèn đỏ là bao nhiêu?` | The assistant requests vehicle class before selecting the applicable legal rule; the conversation remains in the same conversation identified by the returned `session_id`/`conversation_id`. | Record clarification and identifier correlation. |
 | P | `Đi xe máy không đội mũ bảo hiểm bị phạt thế nào?` | A natural-language penalty question returns a grounded answer with an applicable citation. | Run after the stack is healthy; record whether an answer and citation are shown, and note qualitative latency (`immediate`, `a few seconds`, or `did not complete`). |
 | M | `Tôi vượt đèn đỏ bằng xe máy và không đội mũ bảo hiểm; bị phạt bao nhiêu?` | Multiple intents are separated or clarified rather than collapsed into one unsupported penalty. | Run after the stack is healthy; record the observed clarification/answer and qualitative latency. |
 | A | `Thời tiết Hà Nội ngày mai thế nào?` | The system abstains or states that the request is outside traffic-law scope; it must not fabricate a legal answer. | Run after the stack is healthy; record the abstention wording and qualitative latency. |

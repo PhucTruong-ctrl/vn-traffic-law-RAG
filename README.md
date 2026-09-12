@@ -23,11 +23,15 @@ profiles, chat sessions, messages, feedback, and bookmarks. Browser receives
 only public Supabase values; backend requires service-role credentials. Never
 commit `.env` or keys.
 
-Docker Compose is optional deployment tooling:
+Docker Compose is optional deployment tooling and currently starts only the
+frontend, backend, and Qdrant services:
 
 ```bash
-docker compose --env-file .env up --build
+docker compose --env-file .env -f deploy/compose/compose.release.yml up --build
 ```
+
+Supabase/PostgreSQL and OpenRouter remain external dependencies when configured;
+worker, Redis, MinIO, and parser services are not part of the active MVP runtime.
 
 For ingestion or a backend-only development loop, install the backend and run
 the existing scripts directly:

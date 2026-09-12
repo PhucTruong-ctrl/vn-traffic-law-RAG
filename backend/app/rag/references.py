@@ -94,9 +94,15 @@ def metadata_matches(metadata: Mapping[str, Any], reference: LegalReference) -> 
         return False
     if reference.number:
         document = normalized.get("document_number") or normalized.get("document_name")
-        if document != normalize_reference_value(reference.number):
+        if _document_number(document) != _document_number(reference.number):
             return False
     return True
+
+
+def _document_number(value: Any) -> str:
+    normalized = normalize_reference_value(value).replace("đ", "d")
+    match = re.search(r"\d+(?:/\d{4})?(?:/[a-z0-9-]+)?", normalized)
+    return match.group(0) if match else normalized
 
 
 def normalize_reference_value(value: Any) -> str:

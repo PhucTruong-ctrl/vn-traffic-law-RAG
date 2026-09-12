@@ -67,6 +67,21 @@ async def trace_id_middleware(request: Request, call_next):
     return response
 
 
+@app.exception_handler(httpx.HTTPStatusError)
+async def supabase_http_error_handler(request: Request, exc: httpx.HTTPStatusError) -> JSONResponse:
+    trace_id = getattr(request.state, "trace_id", request.headers.get("X-Trace-ID") or uuid4().hex)
+    if exc.response.status_code == 401:
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Invalid or expired token"},
+            headers={"WWW-Authenticate": "Bearer", "X-Trace-ID": trace_id},
+        )
+    return JSONResponse(
+        status_code=502,
+        content={"detail": "Upstream authentication service error", "X-Trace-ID": trace_id},
+    )
+
+
 @app.exception_handler(Exception)
 async def internal_error_handler(request: Request, _exc: Exception) -> JSONResponse:
     trace_id = getattr(request.state, "trace_id", request.headers.get("X-Trace-ID") or uuid4().hex)
@@ -83,7 +98,8 @@ async def internal_error_handler(request: Request, _exc: Exception) -> JSONRespo
 
 
 def _supabase_ready() -> bool:
-    url, key = get_supabase_settings()
+    settings = get_supabase_settings()
+    url, key = settings.url, settings.service_role_key or settings.anon_key
     if not url or not key:
         return False
     try:

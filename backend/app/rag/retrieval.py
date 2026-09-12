@@ -1,5 +1,7 @@
 """Local persistent LangChain Qdrant hybrid retrieval."""
 
+from __future__ import annotations
+
 import re
 from collections.abc import Mapping
 from datetime import date
@@ -13,15 +15,7 @@ from qdrant_client.models import Condition, FieldCondition, Filter, MatchValue
 from app.config import get_embedding_settings, get_qdrant_settings
 
 from .cross_refs import expand_cross_references, expand_sibling_completions
-from .references import LegalReference, metadata_matches
-
-_REFERENCE_RE = re.compile(
-    r"(?:(?:điểm\s+(?P<point>[a-zđ])\s+)?"
-    r"(?:khoản\s+(?P<clause>\d+)\s+)?điều\s+(?P<article>\d+)"
-    r"(?:\s+(?:của\s+)?(?P<kind>nghị\s+định|thông\s+tư)\s*"
-    r"(?:số\s+)?(?P<number>\d+(?:\s*/\s*\d{4})?(?:\s*/\s*[a-zđ0-9-]+)?))?)",
-    re.IGNORECASE,
-)
+from .references import LegalReference, metadata_matches, parse_reference
 
 _SANCTION_COMPLETION_RE = re.compile(
     r"(?:phạt\s+tiền|trừ\s+điểm|tước\s+quyền|tịch\s+thu|tạm\s+giữ)",
@@ -33,78 +27,44 @@ class RetrievalProviderError(RuntimeError):
     """Raised when the configured retrieval provider cannot be used."""
 
 
-def _normalize_document_number(value: Any) -> str:
-    """Normalize a document number for comparison while preserving separators."""
-    return re.sub(r"\s+", "", str(value or "")).casefold().replace("đ", "d")
-
-
-def _normalize_metadata_number(value: Any) -> str:
-    """Normalize metadata document names/numbers to their bare number."""
-    normalized = _normalize_document_number(value)
-    match = re.search(r"\d+(?:/\d{4})?(?:/[a-z0-9-]+)?", normalized)
-    return match.group(0) if match else normalized
-
-
 def extract_reference(question: str) -> dict[str, str]:
-    match = _REFERENCE_RE.search(question)
-    if not match:
+    """Return the legacy mapping for an explicit article reference."""
+    reference = parse_reference(question)
+    if reference is None or not reference.article:
         return {}
-    reference = {key: value.strip() for key, value in match.groupdict().items() if value}
-    if "number" in reference:
-        reference["number"] = _normalize_document_number(reference["number"])
-    for key in ("point", "kind"):
-        if key in reference:
-            reference[key] = reference[key].casefold()
-    return reference
+    return reference.as_dict()
 
 
 def _metadata(doc: Document) -> dict[str, Any]:
     return {str(key): value for key, value in doc.metadata.items()}
 
 
-def _reference_match(doc: Document, reference: Mapping[str, str]) -> bool:
-    if not reference:
-        return True
-    metadata = _metadata(doc)
-    article = str(metadata.get("article", "")).strip()
-    if article != reference.get("article", article):
-        return False
-    expected_number = reference.get("number")
-    if expected_number:
-        metadata_number = _normalize_metadata_number(
-            metadata.get("document_number") or metadata.get("document_name")
-        )
-        if metadata_number != expected_number:
-            return False
-    clause = reference.get("clause")
-    if clause and str(metadata.get("clause", "")).strip() != clause:
-        return False
-    point = reference.get("point")
-    return not point or str(metadata.get("point", "")).strip().casefold() == point
+def _reference_match(doc: Document, reference: LegalReference | None) -> bool:
+    return reference is None or metadata_matches(_metadata(doc), reference)
 
 
-def _reference_score(doc: Document, reference: Mapping[str, str]) -> int:
+def _reference_score(doc: Document, reference: LegalReference | None) -> int:
     if not reference or not _reference_match(doc, reference):
         return 0
     score = 100
-    if reference.get("clause"):
+    if reference.clause:
         score += 10
-    if reference.get("point"):
+    if reference.point:
         score += 10
     return score
 
 
-def _reference_filter(reference: Mapping[str, str]) -> Filter | None:
-    if not reference:
+def _reference_filter(reference: LegalReference | None) -> Filter | None:
+    if not reference or not reference.article:
         return None
     conditions: list[Condition] = [
         FieldCondition(
             key="metadata.article",
-            match=MatchValue(value=reference["article"]),
+            match=MatchValue(value=reference.article),
         )
     ]
     for key in ("clause", "point"):
-        value = reference.get(key)
+        value = getattr(reference, key)
         if value:
             conditions.append(
                 FieldCondition(
@@ -128,8 +88,9 @@ def _payload_document(payload: Mapping[str, Any]) -> Document | None:
     return Document(page_content=str(content), metadata=dict(metadata))
 
 
-def _exact_qdrant_documents(store: Any, reference: Mapping[str, str], limit: int) -> list[Document]:
+def _exact_qdrant_documents(store: Any, reference: LegalReference, limit: int) -> list[Document]:
     """Scroll Qdrant payloads for an explicit reference when vector hits miss."""
+    reference_data = reference.as_dict()
     client = getattr(store, "client", None)
     collection = getattr(store, "collection_name", None)
     if client is None or not collection:
@@ -138,12 +99,12 @@ def _exact_qdrant_documents(store: Any, reference: Mapping[str, str], limit: int
     structural: list[Condition] = [
         FieldCondition(
             key=f"metadata.{key}",
-            match=MatchValue(value=reference[key]),
+            match=MatchValue(value=reference_data[key]),
         )
         for key in ("article", "clause", "point")
-        if reference.get(key)
+        if reference_data.get(key)
     ]
-    number = reference.get("number")
+    number = reference_data.get("number")
     if number:
         number_values = [number]
         alternate = number.replace("d", "đ") if "d" in number else number.replace("đ", "d")
@@ -328,11 +289,10 @@ class Retriever:
         limit: int | None = None,
     ) -> list[Document]:
         """Resolve an explicit reference through exact metadata/Qdrant matching."""
-        reference_data = reference.as_dict()
-        if not reference_data.get("article"):
+        if not reference.article:
             return []
         store = self._store_for_query()
-        documents = _exact_qdrant_documents(store, reference_data, limit or self.top_k)
+        documents = _exact_qdrant_documents(store, reference, limit or self.top_k)
         return [
             document for document in documents if metadata_matches(document.metadata, reference)
         ]
@@ -347,7 +307,7 @@ class Retriever:
         limit = top_k or self.top_k
         if limit < 1:
             raise ValueError("top_k must be positive")
-        reference = extract_reference(question)
+        reference = parse_reference(question)
         query = question
         if effective_date:
             query = f"{query} (hiệu lực {effective_date.isoformat()})"
@@ -375,17 +335,10 @@ class Retriever:
             if len(ranked) < limit:
                 exact_documents = _exact_qdrant_documents(store, reference, limit)
                 existing = {
-                    (
-                        str(doc.metadata.get("chunk_id", "")),
-                        doc.page_content,
-                    )
-                    for _, doc in ranked
+                    (str(doc.metadata.get("chunk_id", "")), doc.page_content) for _, doc in ranked
                 }
                 for document in exact_documents:
-                    key = (
-                        str(document.metadata.get("chunk_id", "")),
-                        document.page_content,
-                    )
+                    key = (str(document.metadata.get("chunk_id", "")), document.page_content)
                     if key not in existing:
                         ranked.append((len(ranked), document))
                         existing.add(key)

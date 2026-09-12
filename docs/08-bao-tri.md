@@ -22,9 +22,11 @@
 
 ---
 
-Tài liệu này định nghĩa kế hoạch bảo trì (maintenance) của VNLRAG v2. Mọi nội dung phải nhất quán với [00-scope-and-decisions.md](00-scope-and-decisions.md) (mục 3, 7, 16), đặc tả yêu cầu [02-yeu-cau-he-thong.md](02-yeu-cau-he-thong.md) (NFR-05, NFR-06, NFR-09), thiết kế chi tiết [03-thiet-ke-he-thong.md](03-thiet-ke-he-thong.md) (mục 3.6, 3.7, 3.10, 3.11, 3.12, 3.13, 3.15, 3.27), nghiên cứu công nghệ [04-tech-stack-llm-research.md](04-tech-stack-llm-research.md) (mục 4.3, 4.5, 4.7, 4.8, 4.9, 4.12, 4.13, 4.14, 4.15), kế hoạch triển khai [05-ke-hoach-trien-khai.md](05-ke-hoach-trien-khai.md) (mục 5.15, 5.16), kiểm thử [06-test-evaluation.md](06-test-evaluation.md) (mục 6.4, 6.9, 6.10, 6.13) và triển khai [07-deployment.md](07-deployment.md) (mục 7.4, 7.5, 7.8, 7.9, 7.10, 7.13).
+Tài liệu này định nghĩa kế hoạch bảo trì của runtime MVP VNLRAG. Active architecture gồm frontend Next.js 16 + React 19, backend FastAPI/Python 3.11, Qdrant 1.19 hybrid dense/BM25 retrieval, Supabase REST/Auth persistence, một generator OpenRouter và các cổng evidence/citation deterministic. Corpus phục vụ là snapshot local 14 PDF; query/search không gọi web.
 
-> **Ghi chú lịch sử**: bản v1 của tài liệu này mô tả quy trình bảo trì gắn với pipeline ingestion dựa trên một tầng trích xuất trung gian với commit pin, bộ golden fixture riêng và cơ chế version hóa RuleSpec. Phiên bản v2 loại bỏ hoàn toàn tầng đó và bảo trì trực tiếp các thành phần: Parser Router (Docling chính, MinerU phụ/fallback), Canonical Document IR, Legal Structure Extractor, Legal Reference Resolver, Temporal and Amendment Resolver, PostgreSQL, Qdrant, Redis + Dramatiq, MinIO, Langfuse và gold set. Mapping đầy đủ giữa quy trình bảo trì cũ và mới tại mục 8.16.
+> **Ghi chú lịch sử**: bản v1/v2 từng mô tả pipeline parser trung gian, Parser Router, Canonical Document IR, worker/queue, Redis + Dramatiq, MinIO, LangGraph và Langfuse. Các phần đó chỉ giữ provenance nghiên cứu/thiết kế; không phải service hay dependency vận hành hiện tại. Bảo trì active tập trung vào CLI ingestion, corpus/hash, Qdrant index, Supabase schema, OpenRouter config, evidence gate, citations và frontend/backend release.
+
+Các mục mô tả Redis/Dramatiq/MinIO/LangGraph/Langfuse bên dưới phải được đọc như historical/deferred; không dùng chúng cho thao tác bảo trì active nếu không có trong compose hiện hành.
 
 ---
 
@@ -57,22 +59,15 @@ Ingestion chỉ chạy background hoặc manual CLI. Không có human approval, 
 
 ### 8.1.2. Phạm vi bảo trì
 
-| Thành phần | Nội dung bảo trì |
-|---|---|
-| Corpus | PDF, manifest, version, status, quan hệ, temporal interval |
-| Parser layer | Parser Router, Docling 2.x, MinerU 3.4.x, Canonical Document IR |
-| Legal parser | Legal Structure Extractor (phân cấp Việt Nam, nhãn Điểm a) b) c) d) đ) e), short-Point retention) |
-| Relation extraction | Legal Reference Resolver (ProvisionReference, DocumentRelation) |
-| Temporal | Temporal and Amendment Resolver, LegalEffectEvent |
-| PostgreSQL | Schema, Alembic migration, metadata, review, audit, feedback |
-| Qdrant | Collection, payload, dense/sparse vector, alias, snapshot |
-| Retrieval | Embedding, sparse BM25, RRF, reranker, filter, context expansion |
-| Workflow | LangGraph controlled workflow, repair loop |
-| Generation | Model, prompt, structured schema |
-| Verification | L1-L6 verifier, Returned Invalid Citation Rate = 0 |
-| Evaluation | Gold set, metrics, judge, run config, raw results |
-| Observability | Langfuse trace, prompt management, feedback |
+| Corpus | PDF local, manifest, SHA-256, accepted status, temporal metadata |
+| Frontend/backend | Next.js 16, React 19, FastAPI/Python 3.11, API contracts |
+| Supabase | REST/Auth configuration, schema, chat/saved-Q&A persistence |
+| Qdrant | v1.19 collection, payload, dense/sparse vectors, rebuild |
+| Retrieval | OpenRouter embedding config, FastEmbed BM25, fusion and filters |
+| Generation/verification | OpenRouter generator, deterministic evidence gate, citations, abstention |
+| Evaluation | Gold set, metrics, release evidence |
 | Frontend/API | Contract, dependency, UX |
+| Historical/deferred designs | Parser Router, IR, worker/queue, Redis, MinIO, LangGraph, Langfuse — document only; do not operate |
 | Deployment | Docker images, backup, restore, release manifest |
 | Documentation | README, ADR, report, diagram, changelog |
 
@@ -122,15 +117,7 @@ Bước cập nhật quan hệ và hiệu lực phải persist `DocumentRelation
 ### 8.3.2. Candidate status
 
 ```text
-DISCOVERED
-DOWNLOADED
-DUPLICATE
-EXTRACTION_PENDING
-NON_SERVING_CANDIDATE
-ACCEPTED
-REJECTED
-ACTIVATED
-FAILED
+PostgreSQL/Redis/MinIO worker procedures in this document are historical/deferred and do not describe the active runtime. Active recovery uses Supabase configuration/availability checks, Qdrant rebuild from local corpus artifacts, and restart of the frontend/backend/qdrant Compose services.
 ```
 
 Duplicate theo `file_hash` được liên kết với version hiện có thay vì tạo candidate mới. `ACTIVATED` chỉ là kết quả triển khai tự động sau `ACCEPTED`, không phải quyết định của con người.

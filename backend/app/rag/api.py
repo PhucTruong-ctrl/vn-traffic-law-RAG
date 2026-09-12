@@ -10,22 +10,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 
 from app.auth.api import bearer, get_current_user
-from app.chats import api as chats_api
 from app.chats.followup import build_followup_query
-from app.chats.service import (
-    add_message,
-    create_session,
-    recent_messages,
-    touch_session,
-)
+from app.chats.service import add_message, create_session, recent_messages, touch_session
 from app.database.session import SupabaseClient, get_db
 
 from .analyzer import resolve_vehicle_followup
 from .schemas import ChatRequest
+from .service import RAGService
 
 logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/v1", tags=["rag"])
-rag_service = chats_api.rag_service
+rag_service = RAGService()
 
 
 def _frontend_response(result: dict[str, Any]) -> dict[str, Any]:
@@ -50,18 +46,6 @@ def _frontend_response(result: dict[str, Any]) -> dict[str, Any]:
             "abstention": {"reason_code": result.get("reason_code", "INSUFFICIENT_EVIDENCE")},
         }
     return result
-
-
-def _canonicalize_legacy_result(result: dict[str, Any]) -> dict[str, Any]:
-    citations = []
-    for citation in result.get("citations", []):
-        if not isinstance(citation, dict):
-            continue
-        source_id = str(citation.get("source_id") or citation.get("provision_id") or "").strip()
-        document_id = str(citation.get("document_id") or "").strip()
-        if source_id and document_id:
-            citations.append({**citation, "source_id": source_id, "document_id": document_id})
-    return {**result, "citations": citations}
 
 
 @router.post("/chat")
@@ -101,13 +85,10 @@ def chat(
 
         stage_started = perf_counter()
         result = _frontend_response(
-            _canonicalize_legacy_result(
-                chats_api.rag_service.answer(
-                    query,
-                    top_k=request.top_k,
-                    effective_date=request.effective_date,
-                    history=history,
-                )
+            rag_service.answer(
+                query,
+                top_k=request.top_k,
+                effective_date=request.effective_date,
             )
         )
         stages["rag_ms"] = round((perf_counter() - stage_started) * 1000, 2)
@@ -143,9 +124,4 @@ def chat(
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
-@router.get("/health/live")
-def health_live() -> dict[str, str]:
-    return {"status": "ok"}
-
-
-__all__ = ["ChatRequest", "chat", "health_live", "router"]
+__all__ = ["ChatRequest", "chat", "router"]

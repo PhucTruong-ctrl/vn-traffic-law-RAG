@@ -1,6 +1,14 @@
 # Manual Release Checklist
 
-Record date, browser, result, and evidence path beside every item. Leave unchecked until observed in a real browser.
+Record date, browser, result, and evidence path beside every item. Leave
+unchecked until observed in a real browser. The active local surface is
+Next.js at `http://127.0.0.1:3000` with FastAPI at
+`http://127.0.0.1:8000/api/v1`; frontend API routing uses
+`NEXT_PUBLIC_API_URL` (normally `http://127.0.0.1:8000`). Authentication is
+Supabase Auth, persistence is Supabase REST, retrieval is Qdrant
+(`traffic_law`), and answers pass the deterministic evidence gate before the
+single OpenRouter generator. Superseded RAGFlow/worker/Redis/MinIO/PostgreSQL
+topologies are not release prerequisites.
 
 ## Auth
 

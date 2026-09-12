@@ -1,6 +1,7 @@
-# =============================================================================
-# Parser Router — cấu hình draft (VNLRAG-14 / VNLRAG-128)
-# Nguồn: docs/03-thiet-ke-he-thong.md §3.7 — VNLRAG v2 scope freeze M0
+# Parser Router — active ingestion policy (deterministic legal corpus)
+# Current runtime: FastAPI/Python 3.11 ingestion produces canonical IR and legal provisions;
+# retrieval is hybrid Qdrant (OpenRouter dense + FastEmbed BM25). This file describes
+# parser selection only; it does not add external retrieval, agents, or a service topology.
 #
 # Chú thích quality gates (doc 03 §3.7.3):
 # - QGA (Group A) = Parser-level gates, chạy SAU IR normalization, trước Legal
@@ -9,15 +10,12 @@
 #   Chạy trên LegalProvision[] vì cần kết quả nhận diện cấu trúc.
 # Hai nhóm đặt ở hai thời điểm khác nhau vì dùng các đầu vào khác nhau.
 #
-# Bảng quyết định routing (doc 03 §3.7.1):
-# - PDF searchable (có text layer), layout chuẩn   -> Docling trước;
-#   không cần fallback trừ khi quality gate fail.
-# - PDF scan hoặc layout lỗi                       -> Docling trước
-#   (OCR backend CPU); MinerU nếu quality gate fail.
-# - Bảng phức tạp                                  -> So sánh đầu ra hai
-#   parser khi cần; chọn kết quả theo quality gate hoặc gửi review.
-# - DOCX/HTML/EPUB (ngoài phạm vi P0)              -> Docling; không chủ
-#   động hỗ trợ trong P0; xem xét P1 nếu corpus mở rộng.
+# Bảng quyết định routing:
+# - PDF searchable (có text layer), layout chuẩn -> Docling trước; fallback chỉ khi gate fail.
+# - PDF scan hoặc layout lỗi -> Docling trước; OCR là route có provenance/quarantine,
+#   không auto-index output chưa qua gate. MinerU là alternate parser khi fallback được cấu hình.
+# - Bảng phức tạp -> so sánh đầu ra khi cần; chọn theo quality gate hoặc gửi review.
+# - DOCX/HTML/EPUB không thuộc corpus ingestion hiện tại; không xem là đường vào được hỗ trợ.
 #
 # Đầu vào quyết định routing (doc 03 §3.7.2):
 # - Loại file và MIME;
@@ -43,14 +41,8 @@
 #   partial OCR output.
 # - Group A text_extraction_rate >= 0.8 chỉ là quantity-only, không đủ cho
 #   legal correctness; Group B (d/đ, hierarchy, short-point) giữ vai trò
-#   correctness gate.
-# - OCR engine = tesseract vie (chosen by empirical spike — Suite A first pass:
-#   đúng diacritics VN; 300 DPI avg 29.78 s/page; phrase hit rate 0.5834 trên
-#   NĐ 168 1-bit CCITT scan benchmark; xem data/evaluation/ocr-dpi-benchmark/
-#   run-20260809-120116-24f592/ + docs/evaluation/suite-a-first-pass-report.md
-#   §5). CER/WER chưa được đo trong first pass — sẽ đo trong VNLRAG-97 (Suite A
-#   finalization) với human transcription.
-# - 600 DPI scan-only conditional (theo benchmark); không force_backend_text cho scan.
+# - OCR scan route hiện dùng Tesseract Vietnamese; đây là preprocessing riêng và phải
+#   giữ provenance. CER/WER chưa có trong first pass; không biến benchmark thành acceptance.
 # =============================================================================
 
 parser_router:

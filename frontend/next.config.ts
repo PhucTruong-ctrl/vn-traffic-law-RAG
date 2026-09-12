@@ -7,11 +7,7 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ?? "",
   },
   async rewrites() {
-    return [
-      { source: "/api/v1/:path*", destination: `${backendInternalUrl}/api/v1/:path*` },
-      { source: "/documents/:path*", destination: `${backendInternalUrl}/api/v1/documents/:path*` },
-    ];
+    return [{ source: "/api/v1/:path*", destination: `${backendInternalUrl}/api/v1/:path*` }];
   },
 };
-
 export default nextConfig;

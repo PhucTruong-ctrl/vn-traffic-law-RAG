@@ -18,7 +18,9 @@ def register(client: SupabaseClient, email: str, password: str) -> dict:
 def login(client: SupabaseClient, email: str, password: str) -> dict:
     try:
         return client.auth_request(
-            "POST", "token?grant_type=password", data={"email": email, "password": password}
+            "POST",
+            "token?grant_type=password",
+            data={"email": email, "password": password},
         )
     except Exception as exc:
         raise HTTPException(status_code=401, detail="Invalid email or password") from exc

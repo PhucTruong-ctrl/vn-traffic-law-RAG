@@ -96,6 +96,10 @@ export default function Sidebar({
         const result = await fetch(apiUrl(`chats?${params}`), {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
+        if (result.status === 401) {
+          await supabase.auth.signOut();
+          return;
+        }
         if (!result.ok) return;
         const payload = (await result.json()) as {
           conversations?: Conversation[];

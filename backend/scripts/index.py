@@ -46,7 +46,7 @@ def main(argv: list[str] | None = None) -> int:
         qdrant.path.mkdir(parents=True, exist_ok=True)
         dense = OpenAIEmbeddings(
             model=embedding.model,
-            dimensions=768,
+            dimensions=embedding.dimensions,
             api_key=embedding.openrouter_api_key or None,
             base_url=embedding.openrouter_base_url,
         )

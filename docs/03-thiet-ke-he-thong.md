@@ -16,9 +16,9 @@
 
 ---
 
-Tài liệu này là bản thiết kế chi tiết của VNLRAG v2. Mọi thiết kế phải tuân theo đúng [00-scope-and-decisions.md](00-scope-and-decisions.md) và đặc tả yêu cầu [02-yeu-cau-he-thong.md](02-yeu-cau-he-thong.md). Các yêu cầu chức năng được ký hiệu FR-xx và các use case được ký hiệu UC-xx theo đúng đặc tả.
+Tài liệu này ghi lại thiết kế và phân biệt rõ phần đang chạy với các thiết kế lịch sử. Runtime MVP hiện tại là single-user, corpus-local, query không gọi web; deployment authority là `deploy/compose/compose.release.yml`. Kiến trúc đang phục vụ gồm frontend Next.js 16 + React 19, backend FastAPI/Python 3.11, Qdrant 1.19 hybrid dense/sparse retrieval, Supabase REST/Auth persistence, một generator OpenRouter cấu hình được và các cổng evidence/citation deterministic.
 
-> **Ghi chú lịch sử**: thiết kế v1 dựa trên UDEF và traffic-law domain pack (pipeline `PDF -> UDEF -> Docling -> CDM`). Phiên bản v2 loại bỏ hoàn toàn UDEF và thay bằng Parser Router, Canonical Document IR và Legal Structure Extractor do dự án sở hữu. Chi tiết tại ADR-001 và mục 3.35.
+> **Ghi chú lịch sử**: thiết kế v1/v2 từng đề xuất Parser Router, Canonical Document IR, Legal Structure Extractor, worker/queue, Redis, MinIO, LangGraph và topology bảy service. Những nội dung này được giữ để bảo toàn provenance thiết kế; chúng không phải service runtime hiện tại. Ingestion hiện dùng các script/manual CLI có trong repository; không có human approval hay query-time web retrieval.
 
 ---
 
@@ -29,11 +29,11 @@ Hệ thống được thiết kế theo các nguyên tắc bắt buộc sau, có
 1. **Parser-neutral IR**
    Tài liệu sau khi parse được chuyển sang Canonical Document IR do dự án sở hữu. Không module nào khác đọc trực tiếp định dạng đầu ra của Docling hoặc MinerU. Thay đổi parser chỉ yêu cầu một adapter mới, không viết lại Legal Structure Extractor (NFR-06).
 
-2. **PostgreSQL là nguồn chân lý**
-   PostgreSQL quản lý metadata, phiên bản, quan hệ, snapshot/hash bất biến, audit kỹ thuật, query trace và feedback tối thiểu. Mọi dữ liệu pháp lý phải qua các cổng tự động trước khi phục vụ query.
+2. **Supabase là persistence boundary**
+   Supabase REST/Auth quản lý authentication, chat/saved-Q&A persistence và application metadata trong deployment hiện tại. Không vận hành PostgreSQL app-owned trong active Compose topology.
 
-3. **Qdrant là index dẫn xuất**
-   Qdrant chỉ là index retrieval có thể dựng lại hoàn toàn từ PostgreSQL. Nếu dữ liệu hai nơi lệch nhau, PostgreSQL thắng.
+3. **Qdrant là index retrieval**
+   Qdrant 1.19 phục vụ hybrid dense/sparse retrieval; dữ liệu index được rebuild từ corpus/manifest và persistence boundary của ứng dụng. Không dùng PostgreSQL app-owned làm runtime dependency.
 
 4. **Verified-or-abstain**
    Không bao giờ trả câu trả lời có citation chưa verified, claim chưa được hỗ trợ hoặc thiếu bằng chứng bắt buộc. Khi không thể xác minh, hệ thống ABSTAIN kèm lý do chuẩn.
@@ -191,41 +191,23 @@ Sửa lỗi có ý thức (failure-aware repair), không chỉ regenerate (FR-24
 Sau số lần repair có giới hạn: **ABSTAIN**. Cơ chế đếm bước nằm trong state (`repair_attempts`) kết hợp conditional edge để dừng. LangGraph checkpoint được dùng cho retry/resume idempotent khi cần, không bắt buộc cho single-request P0.
 
 ### 3.2.5. Deployment topology
-Compose MVP gồm frontend, backend, PostgreSQL, Qdrant và worker/queue/object storage tùy cấu hình triển khai; tất cả chạy trong boundary single-user localhost/private network. Ingestion chỉ được kích hoạt bằng CLI thủ công và thực hiện nền. Provider/model cụ thể chỉ được chọn từ manifest đã đo và ghi version; query không gọi web và search chỉ đọc corpus đang phục vụ. PostgreSQL là nguồn chân lý; Qdrant là index dẫn xuất.
+
+Runtime MVP deploys the three services defined in `deploy/compose/compose.release.yml`:
+frontend (Next.js), backend (FastAPI), and local Qdrant. Supabase/PostgreSQL and
+OpenRouter are external dependencies when configured. Ingestion runs through the
+existing manual CLI scripts, outside request handlers. Worker/queue/object-storage
+topologies described elsewhere in this document are historical or future design,
+not active deployment requirements. PostgreSQL/Supabase remains the application
+persistence boundary where configured; Qdrant is a derived retrieval index.
 
 ```mermaid
 graph LR
-    B["Browser"]
-    FE["Next.js :3000"]
-    API["FastAPI :8000"]
-    WK["Dramatiq Worker"]
-    PG["PostgreSQL :5432"]
-    QD["Qdrant :6333"]
-    RD["Redis :6379"]
-    MO["MinIO :9000"]
-    LF["Langfuse Cloud"]
-    LLM["Generator provider/model from measured manifest"]
-    J["Embedding/reranker provider/model from measured manifest"]
-    B --> FE
-    FE --> API
-    API --> PG
-    API --> QD
-    API --> RD
-    API --> MO
-    WK --> RD
-    WK --> PG
-    WK --> QD
-    WK --> MO
-    API --> LLM
-    API --> J
-    WK --> J
-    WK --> LLM
-    API --> O
-    WK --> O
-    API -. "trace async" .-> LF
+    B["Browser"] --> FE["frontend :3000"]
+    FE --> API["backend :8000"]
+    API --> QD["qdrant :6333"]
+    API -. "auth/app data" .-> SB["Supabase/PostgreSQL"]
+    API -. "embeddings/generation" .-> OR["OpenRouter"]
 ```
-
-Ghi chú về L5 judge: chỉ dùng provider/model đã được ghi trong manifest benchmark; chỉ xử lý semantic claim support khi deterministic rules chưa kết luận được; lỗi provider hoặc timeout phải fail-closed sang repair giới hạn hoặc ABSTAIN.
 
 Cấu hình ràng buộc cục bộ:
 

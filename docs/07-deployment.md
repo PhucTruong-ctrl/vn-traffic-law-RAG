@@ -21,7 +21,7 @@
 
 ---
 
-Tài liệu này định nghĩa phương án triển khai (deployment) của VNLRAG v2 bằng Docker Compose local-first. Mọi nội dung phải nhất quán với [00-scope-and-decisions.md](00-scope-and-decisions.md) (mục 7, 12, 16), thiết kế chi tiết [03-thiet-ke-he-thong.md](03-thiet-ke-he-thong.md) (mục 3.2.5, 3.11, 3.12, 3.13, 3.27, 3.28, 3.31), nghiên cứu công nghệ [04-tech-stack-llm-research.md](04-tech-stack-llm-research.md) (mục 4.18.6, 4.20, 4.21), kế hoạch triển khai [05-ke-hoach-trien-khai.md](05-ke-hoach-trien-khai.md) (mục 5.15.4, 5.16, 5.18) và kiểm thử [06-test-evaluation.md](06-test-evaluation.md) (mục 6.10, 6.12).
+Tài liệu này định nghĩa phương án triển khai MVP đang được phục vụ: frontend Next.js 16 + React 19, backend FastAPI/Python 3.11 và Qdrant 1.19, chạy bằng Docker Compose trên localhost hoặc private network. Supabase REST/Auth và OpenRouter là dịch vụ bên ngoài; không có PostgreSQL app-owned runtime. Ingestion vẫn là CLI thủ công/background process. Mọi nội dung phải nhất quán với [00-scope-and-decisions.md](00-scope-and-decisions.md), thiết kế chi tiết [03-thiet-ke-he-thong.md](03-thiet-ke-he-thong.md), và các tài liệu yêu cầu/kiểm thử liên quan.
 
 ### 7.0.1. Chat SSE contract and evidence boundary
 
@@ -55,85 +55,80 @@ Mục tiêu triển khai:
 8. Rebuild Qdrant theo embedding/version mới dùng collection mới và serving alias; index cũ được giữ cho tới khi rebuild và kiểm tra pass, rồi mới switch; rollback bằng cách trỏ alias về collection cũ.
 9. Release ghi corpus hash, gold-set hash, model/prompt/config versions và Git commit; không khẳng định kết quả chưa đo.
 
-> **Ghi chú lịch sử**: bản v1 của tài liệu này dựa trên pipeline UDEF (`PDF -> UDEF -> Docling -> CDM`) với bốn service Compose (frontend, backend, postgres, qdrant), Qdrant pin 1.17.0 và mounted directory làm object storage. Phiên bản v2 loại bỏ hoàn toàn UDEF, thay bằng Parser Router + Canonical Document IR + Legal Structure Extractor (ADR-001), mở rộng Compose lên bảy service (thêm worker, redis, minio), pin Qdrant v1.19.0, PostgreSQL 18 và Redis 8, và dùng MinIO làm object storage (FR-08). UDEF chỉ xuất hiện trong tài liệu này ở ghi chú lịch sử và bảng mapping mục 7.18; không còn là thành phần được triển khai.
+> **Lưu ý lịch sử**: Các thiết kế v1/v2 từng mô tả UDEF, Parser Router, Canonical Document IR, Legal Structure Extractor, worker/queue, Redis, MinIO và topology bảy service. Đó là tư liệu lịch sử/định hướng, không phải runtime MVP hiện tại; không dùng các tên service hoặc image này để triển khai nếu chúng không có trong compose đang được version hóa.
 
 ---
 
 ## 7.1. Kiến trúc triển khai (deployment architecture)
 
-### 7.1.1. Service Compose
+### 7.1.1. Runtime MVP
 
-Compose gồm frontend, backend, worker, PostgreSQL, Qdrant, Redis và MinIO. Worker là đường chạy nền cho manual CLI sync; không có service hoặc API cho human approval/reviewer.
+Compose hiện tại chỉ định nghĩa ba service:
+
+| Service | Vai trò |
+|---|---|
+| `frontend` | Next.js UI, mặc định cổng 3000 |
+| `backend` | FastAPI API, mặc định cổng 8000 |
+| `qdrant` | Local persistent vector index, mặc định cổng nội bộ 6333 |
+
+`backend` đợi Qdrant healthy; frontend đợi backend healthy. PostgreSQL/Supabase và OpenRouter là dependency ngoài khi cấu hình các chức năng tương ứng. Không có worker, Redis, MinIO, parser service, reviewer/admin service hoặc query-time web retrieval trong active MVP compose.
 
 ### 7.1.2. Ranh giới network
 
-Mọi service nằm trong Docker network nội bộ. Frontend/backend chỉ bind localhost hoặc interface private-network được chọn explícit; PostgreSQL, Qdrant, Redis và MinIO không expose công khai. Đây là boundary single-user, không phải public Internet deployment và không có authentication layer trong MVP.
+Frontend/backend chỉ bind localhost hoặc interface private-network được chọn explícit. Qdrant không expose công khai mặc định. Đây là boundary single-user, không phải public Internet deployment.
 
 ### 7.1.3. Thành phần bên ngoài
 
 | Thành phần | Vai trò |
 |---|---|
-| Gemini/Jina (nếu cấu hình) | Generation, verification/embedding/reranking theo model manifest |
-| `datafiles.chinhphu.vn` | Nguồn PDF được allowlist exact host; chỉ dùng trong manual sync hoặc source retrieval fail-closed |
+| Supabase/PostgreSQL | Auth và lưu trữ application data, khi cấu hình |
+| OpenRouter | Embedding/generation provider, khi cấu hình |
+| `datafiles.chinhphu.vn` | Nguồn chỉ dùng trong manual ingestion theo allowlist |
 | RAGFlow | Benchmark riêng, không nằm trong compose |
 
 Không có open-web search hoặc query-time web fallback.
 
-### 7.1.4. Parser service tùy chọn
+### 7.1.4. Ingestion
 
-Mặc định Docling chạy trong worker (CPU). MinerU pipeline backend CPU cũng chạy trong worker khi được Parser Router chọn (ADR-002). Nếu đo được RAM thực tế vượt budget của máy 19 GB, MinerU chuyển sang remote `*-http-client` (dedicated host) hoặc host tách biệt; trong trường hợp này có thể thêm một service parser riêng trong compose (không bắt buộc trong release cơ bản). Quyết định và số liệu đo phải được ghi vào tài liệu vận hành (doc 03 mục 3.2.5).
+Ingestion được chạy bằng các script hiện có (`fetch_sources.py`, `index.py`) ngoài request handler. Qdrant là index dẫn xuất; manifest, corpus Markdown/PDF và processed chunks là đầu vào cần giữ lại.
+
+### 7.1.5. Sơ đồ topology
+
+```mermaid
+graph LR
+    B["Browser"] --> FE["frontend (Next.js) :3000"]
+    FE --> API["backend (FastAPI) :8000"]
+    API --> QD["qdrant :6333"]
+    API -. "auth/app data" .-> SB["Supabase/PostgreSQL"]
+    API -. "embeddings/generation" .-> OR["OpenRouter"]
+```
 
 ### 7.1.5. Yêu cầu triển khai bắt buộc
 
-Compose release phải hỗ trợ đầy đủ:
+Compose active chỉ cần ba service:
 
 ```text
-persistent volumes       postgres, qdrant, redis, minio
-health checks            mọi service có healthcheck
-migrations               Alembic upgrade head qua one-shot migrate service
-background jobs          Redis + Dramatiq worker
-parser artifacts         MinIO buckets cho parser output và IR
-Qdrant rebuild           rebuild từ PostgreSQL + alias switch
-object storage backup   replication hoặc mc mirror sang nơi độc lập
-release manifest         release-manifest.json kèm hash và digest
-clean-room deployment    quy trình từ máy trống tới demo
+services                 frontend, backend, qdrant
+health checks            frontend và backend; qdrant readiness trong compose release
+persistence              Supabase REST/Auth bên ngoài; Qdrant volume là index dẫn xuất
+retrieval                Qdrant 1.19 hybrid dense + FastEmbed BM25
+providers                OpenRouter cho embedding/generation
+ingestion                manual CLI/background scripts, ngoài request handler
+corpus                   local 14-PDF snapshot, immutable hashes/manifests
 ```
+
+Không có PostgreSQL, Redis, MinIO, Dramatiq worker, parser service, LangGraph/Langfuse service hoặc query-time web retrieval trong topology active.
 
 ### 7.1.6. Sơ đồ topology
 
 ```mermaid
 graph LR
-    B["Browser"]
-    FE["frontend (Next.js) :3000"]
-    API["backend (FastAPI) :8000"]
-    WK["worker (Dramatiq)"]
-    PG["postgres :5432"]
-    QD["qdrant :6333"]
-    RD["redis :6379"]
-    MO["minio :9000"]
-    LF["Langfuse Cloud"]
-    GEN["Gemini API"]
-    JN["Jina API"]
-    GEMJ["Gemini API (semantic judge)"]
-    RAGF["RAGFlow (benchmark riêng)"]
-
-    B --> FE
-    FE --> API
-    API --> PG
-    API --> QD
-    API --> RD
-    API --> MO
-    WK --> RD
-    WK --> PG
-    WK --> QD
-    WK --> MO
-    API --> GEN
-    API --> JN
-    WK --> GEN
-    API --> OA
-    API -. "trace async" .-> LF
-    RAGF -. "chỉ benchmark, cùng corpus + eval queries" .-> DEV
-    DEV["Developer"]
+    B["Browser"] --> FE["frontend (Next.js 16 / React 19) :3000"]
+    FE --> API["backend (FastAPI / Python 3.11) :8000"]
+    API --> QD["qdrant :6333"]
+    API -. "REST/Auth + app persistence" .-> SB["Supabase"]
+    API -. "embedding + generation" .-> OR["OpenRouter"]
+    CLI["Manual ingestion CLI"] -. "offline indexing" .-> QD
 ```
 
 ---
@@ -1790,11 +1785,12 @@ evidence gate, và timeout trình duyệt có giới hạn; tuyệt đối khôn
 
 Migration corpus từ xa, manual UI còn lại và bằng chứng evaluation cuối vẫn pending.
 Tài liệu này không tuyên bố evaluation hoàn tất hoặc release readiness.
-PostgreSQL 18       +  Qdrant v1.19.0     +  Redis 8        +  MinIO
-External: Langfuse Cloud, Gemini API, Jina API
-RAGFlow: môi trường benchmark riêng
+```text
+Supabase REST/Auth + Qdrant v1.19
+External: OpenRouter
+Compose services: frontend, backend, qdrant
 ```
 
-PostgreSQL là nguồn dữ liệu nghiệp vụ chính. Qdrant là retrieval index dẫn xuất, dựng lại được từ PostgreSQL bằng alias switch. MinIO lưu PDF nguồn, parser output và artifact; backup bằng replication hoặc `mc mirror` sang nơi độc lập. Release candidate `v1.0.0-rc2` tag 12/09/2026 từ working tree sạch; rehearsal 13/09 và bảo vệ 14/09 dùng đúng tag đó.
+Supabase là persistence/auth boundary của ứng dụng; Qdrant là hybrid retrieval index dẫn xuất. Ingestion dùng CLI/background scripts với corpus local 14 PDF. Không có PostgreSQL app-owned, Redis, MinIO, worker, Langfuse, Gemini/Jina provider hay web fallback trong active deployment.
 
 Hệ thống không phụ thuộc VPS, không có web fallback, không tự động failover provider, và không còn bất kỳ dependency triển khai nào của ChromaDB, SQLite-as-primary, BM25 pickle, DuckDuckGo, SerpAPI hoặc UDEF.

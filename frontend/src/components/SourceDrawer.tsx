@@ -4,29 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import type { Citation } from "./CitationCard";
 import Modal from "./Modal";
 import LegalSourceViewer, { type LegalSourceDocument } from "./LegalSourceViewer";
-import { apiUrl } from "../lib/api";
+import { apiUrl, responseError } from "../lib/api";
 
-function responseError(response: Response) {
-  return response.text().then((body) => {
-    let detail = "";
-    try {
-      const payload = JSON.parse(body) as { detail?: unknown; message?: unknown };
-      detail =
-        typeof payload.detail === "string"
-          ? payload.detail
-          : typeof payload.message === "string"
-            ? payload.message
-            : "";
-    } catch {
-      detail = body.trim();
-    }
-    throw new Error(
-      detail
-        ? `Không thể tải nội dung nguồn pháp luật (${response.status}): ${detail}`
-        : `Không thể tải nội dung nguồn pháp luật (${response.status})`,
-    );
-  });
-}
 export default function SourceDrawer({
   citation,
   onClose,

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -15,11 +14,6 @@ _ROOT = Path(__file__).resolve().parents[2]
 class _Env(BaseSettings):
     model_config = SettingsConfigDict(env_file=None, extra="ignore", case_sensitive=False)
 
-
-class GenerationSettings(_Env):
-    model: str = Field(
-        default="deepseek/deepseek-v4-flash-0731", validation_alias="GENERATION_MODEL"
-    )
     openrouter_api_key: str = Field(default="", validation_alias="OPENROUTER_API_KEY")
     openrouter_base_url: str = Field(
         default="https://openrouter.ai/api/v1", validation_alias="OPENROUTER_BASE_URL"
@@ -27,12 +21,28 @@ class GenerationSettings(_Env):
 
 
 class EmbeddingSettings(_Env):
-    model: str = Field(default="openai/text-embedding-3-small", validation_alias="EMBEDDING_MODEL")
+    model: str = Field(default="text-embedding-3-small", validation_alias="EMBEDDING_MODEL")
     dimensions: int = Field(default=768, validation_alias="EMBEDDING_DIMENSIONS")
-    openrouter_api_key: str = Field(default="", validation_alias="OPENROUTER_API_KEY")
-    openrouter_base_url: str = Field(
-        default="https://openrouter.ai/api/v1", validation_alias="OPENROUTER_BASE_URL"
+
+
+class GenerationSettings(_Env):
+    model: str = Field(
+        default="deepseek/deepseek-v4-flash-0731", validation_alias="GENERATION_MODEL"
     )
+
+
+class SupabaseSettings(_Env):
+    url: str = Field(default="", validation_alias="SUPABASE_URL")
+    anon_key: str = Field(default="", validation_alias="SUPABASE_ANON_KEY")
+    service_role_key: str = Field(default="", validation_alias="SUPABASE_SERVICE_ROLE_KEY")
+
+    def model_post_init(self, __context: object) -> None:
+        self.url = self.url.rstrip("/")
+
+
+@lru_cache(maxsize=1)
+def get_supabase_settings() -> SupabaseSettings:
+    return SupabaseSettings()
 
 
 class QdrantSettings(_Env):
@@ -49,14 +59,6 @@ class QdrantSettings(_Env):
             path = _ROOT / path
         self.path = path.resolve()
         self.url = self.url.rstrip("/")
-
-
-@lru_cache(maxsize=1)
-def get_supabase_settings() -> tuple[str, str]:
-    return (
-        os.getenv("SUPABASE_URL", "").rstrip("/"),
-        os.getenv("SUPABASE_SERVICE_ROLE_KEY", ""),
-    )
 
 
 @lru_cache(maxsize=1)
@@ -78,6 +80,7 @@ __all__ = [
     "EmbeddingSettings",
     "GenerationSettings",
     "QdrantSettings",
+    "SupabaseSettings",
     "get_embedding_settings",
     "get_generation_settings",
     "get_qdrant_settings",

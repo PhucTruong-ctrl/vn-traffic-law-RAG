@@ -1,5 +1,10 @@
 # Implementation audit
 
+This is a snapshot of verified implementation work in the active MVP architecture:
+Next.js 16/React 19 frontend; FastAPI/Python 3.11 backend; Supabase REST/Auth persistence;
+Qdrant 1.19 hybrid dense OpenRouter + FastEmbed BM25 retrieval; deterministic evidence gate;
+one OpenRouter generator; citations; and Markdown/PDF legal exploration.
+
 ## Resolved
 
 | Area | Finding | Resolution | Evidence |
@@ -19,18 +24,18 @@
 
 ## Verification
 
-- Full backend suite: 1491+ passed (current resolved result).
+- Full backend suite: 1491+ passed (historical executed result recorded at audit time).
 - Focused current results: agentic/evidence and query-analyzer coverage passed; chat API coverage verifies question-only input, verified/abstained response shaping, citation serialization, and fail-closed citation handling.
 - Frontend lint, typecheck, and production build pass after final UI repair.
-- The audit records executed evidence only; it does not assert a PR, merge, tag, or release readiness.
+- These are recorded evidence, not a claim of current release readiness; rerun release gates before shipping.
 
 ## Intentional exclusions
 
 - Sidebar suggestions are intentionally excluded from this implementation audit and release scope.
-- Future session context is intentionally excluded; the current chat contract remains a single `{question}` request without persisted conversational session context.
+- Future session context is intentionally excluded; current chat requests and Supabase-backed sessions do not imply an agent memory layer.
+- External retrieval, Redis, MinIO, application-owned PostgreSQL, LangGraph, and multi-agent orchestration are not active components.
 
 ## Remaining release blockers
 
 - Full backend pass does not by itself prove clean-room deployment, final evaluation, or defense rehearsal; those remain separate release gates.
 - Frontend Playwright and live model scenario matrix still require execution when those gates are run.
-

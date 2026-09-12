@@ -1,6 +1,8 @@
 # Architecture — VN Traffic Law RAG MVP
 
-This document describes the implementation that is currently served by this repository.
+This document describes the active implementation served by this repository.
+Historical v1/v2 designs (including seven-service ingestion topologies) are not
+runtime claims; deployment authority is `deploy/compose/compose.release.yml`.
 
 # Data, source seam, and ingestion
 
