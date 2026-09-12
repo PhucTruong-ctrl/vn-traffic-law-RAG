@@ -7,6 +7,7 @@
 }
 
 .composer {
+  position: relative;
   margin-top: 30px;
 }
 
@@ -34,8 +35,8 @@
 }
 
 .compact-composer textarea {
-  min-height: 0;
-  max-height: calc(23px * 8 + 24px);
+  min-height: 52px;
+  max-height: calc(23px * 8 + 28px);
   overflow-y: hidden;
   resize: none;
   transition:
@@ -60,7 +61,7 @@
   width: 100%;
   min-height: 96px;
   resize: none;
-  padding: 16px 17px;
+  padding: 16px 68px 16px 17px;
   border: 1px solid #c3cbc6;
   border-radius: var(--radius-lg);
   color: var(--slate-950);
@@ -86,12 +87,11 @@
 }
 
 .composer-actions {
+  position: absolute;
+  top: calc(50% + 13px);
+  right: 8px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 10px;
-  padding-inline: 2px;
+  transform: translateY(-50%);
 }
 
 .scope-chip {
@@ -125,8 +125,8 @@
 }
 
 .composer.compact-composer textarea {
-  min-height: 0;
-  max-height: calc(23px * 8 + 24px);
+  min-height: 52px;
+  max-height: calc(23px * 8 + 28px);
   overflow-y: hidden;
   resize: none;
   transition:
@@ -207,11 +207,9 @@
 }
 
 .assistant-message {
-  display: flex;
+  display: block;
   min-width: 0;
   max-width: 100%;
-  align-items: flex-start;
-  gap: 14px;
 }
 
 .assistant-message > svg {
@@ -418,7 +416,7 @@
 .citations > summary {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
   min-height: 44px;
   padding: 11px 14px;
   list-style: none;
@@ -446,7 +444,7 @@
 .citations > summary {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
   min-height: 44px;
   padding: 11px 14px;
   list-style: none;
@@ -530,10 +528,11 @@
 }
 
 .citations > summary::after {
-  content: "⌄";
+  margin-left: auto;
   color: var(--gold-700);
   font-size: 16px;
   line-height: 1;
+  content: "⌄";
   transition: transform var(--motion-fast) var(--ease-standard);
 }
 
@@ -546,7 +545,16 @@
   transform: rotate(180deg);
 }
 
-.citations > summary span {
+.citations__label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  color: inherit;
+  font-weight: inherit;
+  white-space: nowrap;
+}
+
+.citations__label strong {
   color: var(--gold-700);
   font-weight: 700;
 }
@@ -650,4 +658,50 @@
 
 .assistant-answer :where(p, ul, ol, blockquote, pre, h1, h2, h3, h4) {
   margin: 0 0 1em;
+}
+
+.markdown-answer {
+  max-width: 100%;
+  color: var(--slate-950);
+  font-size: 15.5px;
+  line-height: 1.7;
+}
+
+.markdown-answer :where(p, ul, ol, blockquote, pre, h1, h2, h3, h4) {
+  margin: 0 0 1em;
+}
+
+.markdown-answer table {
+  width: 100%;
+  margin: 18px 0;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface-primary);
+}
+
+.markdown-answer th,
+.markdown-answer td {
+  padding: 11px 13px;
+  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdown-answer th {
+  color: var(--navy-900);
+  background: var(--surface-secondary);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.markdown-answer tr > :last-child {
+  border-right: 0;
+}
+
+.markdown-answer tbody tr:last-child td {
+  border-bottom: 0;
 }

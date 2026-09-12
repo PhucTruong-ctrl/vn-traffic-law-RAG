@@ -185,6 +185,12 @@
   font-size: 13px;
   line-height: 1.55;
 }
+.turn-status {
+  margin: 8px 0 0 auto;
+  color: var(--danger);
+  font-size: 12px;
+  text-align: right;
+}
 
 .drawer-backdrop {
   position: fixed;

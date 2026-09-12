@@ -1,19 +1,12 @@
 **APP QUẢN LÝ NHÀ TRỌ**
 
-1.  **Xác định actor:**
+**Những người muốn thuê nhà trọ và truy cập website để xem thông tin được gọi là **Khách hàng tiềm năng (Guest)**.**
 
--   Những người muốn thuê nhà trọ vào website để xem thông tin. Những
-    người này gọi là **Khách hàng tiềm năng(Guest).**
+-   Những người đã thuê phòng và thực hiện thanh toán được gọi là **Khách hàng (Customer)**.
 
--   Những người đã thuê phòng trọ, thanh toán,... gọi là **Khách
-    hàng(Custom).**
+-   Người đăng bài cho thuê, quản lý phòng, thu tiền và theo dõi giao dịch được gọi là **Chủ trọ (Manager)**.
 
--   Người đăng bài cho thuê phòng trọ, quản lý phòng trọ, thu tiền, theo
-    dõi các giao dịch, gọi là **Chủ trọ(Manager).**
-
--   Người có quyền cao nhất có thể quản lý tài khoản người dùng bao gồm
-    khách hàng và chủ trọ, quản lý dãy trọ đó, quản lý các giao dịch
-    được thực hiện được gọi là **Người quản trị hệ thống(Admin).**
+-   Người có quyền cao nhất trong việc quản lý tài khoản khách hàng, chủ trọ, dãy trọ và các giao dịch được gọi là **Người quản trị hệ thống (Admin)**.
 
 2.  **Xác định các Use-Case:**
 

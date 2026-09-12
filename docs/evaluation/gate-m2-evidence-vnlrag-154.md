@@ -1,11 +1,8 @@
-# Gate M2 Evidence — VNLRAG-154
+# Gate M2 evidence: VNLRAG-154
 
 ## Status
 
-**PASS (2026-08-29).** The production-handoff evidence test passed against
-host-mapped PostgreSQL, Qdrant, Redis, and the configured Gemini embedding
-provider. The test uses a disposable Qdrant collection and a deterministic
-dated provision hierarchy; it does not modify the production collection.
+**PASS (2026-08-29).** The production-handoff evidence test passed against host-mapped PostgreSQL, Qdrant, Redis, and the configured Gemini embedding provider. The test uses a disposable Qdrant collection and a deterministic dated provision hierarchy; it does not modify the production collection.
 
 ## Verified chain
 
@@ -26,7 +23,7 @@ embedding -> Qdrant -> direct dense search`
 
 ## Observations
 
-1. The actor registry declares the complete handoff sequence, including
+1. The actor registry declares the complete handoff sequence:
    `resolve_refs_actor -> resolve_temporal_actor -> quality_gate_actor ->
    embed_actor -> index_actor`.
 2. The temporal resolver returned accepted dated provision rows beginning at
@@ -50,8 +47,7 @@ embedding -> Qdrant -> direct dense search`
 
 ## Reproduction
 
-From `backend/`, with PostgreSQL, Qdrant, Redis, and the configured embedding
-provider available:
+From `backend/`, with PostgreSQL, Qdrant, Redis, and the configured embedding provider available:
 
 ```bash
 set -a; . ../.env; set +a

@@ -1,21 +1,22 @@
-# S3-Compatible Object Storage — Validation Spike (VNLRAG-152)
+# S3-compatible object storage: validation spike (VNLRAG-152)
 
-Spike that validates the live MinIO endpoint against the `ObjectStoragePort`
-surface designed in doc 04 §4.15 (S3-compatible implementation behind the
-abstraction; buckets and key conventions in doc 03 §3.12). The deliverable is
-the compat script `backend/scripts/validate_s3_compat.py` and this record of
-what the pinned MinIO release actually does over the S3 API, plus the
-implementation comparison that ADR-021 summarizes.
+This spike validates the live MinIO endpoint against the `ObjectStoragePort`
+surface designed in doc 04 §4.15 (an S3-compatible implementation behind the
+abstraction, with buckets and key conventions in doc 03 §3.12). The deliverable
+includes the compatibility script `backend/scripts/validate_s3_compat.py` and
+this record of the pinned MinIO release's S3 API behavior, along with the
+implementation comparison summarized by ADR-021.
 
 ## 1. Run context
 
-- **Ticket**: VNLRAG-152 — Validate S3-Compatible Object Storage + record ADR
+- **Ticket**: VNLRAG-152: Validate S3-Compatible Object Storage + record ADR
 - **Image tested**: `minio/minio:RELEASE.2025-09-07T16-13-09Z` (date-tagged
   community release, pinned in `docker-compose.yml`; both services
   `vnlaw-minio` and `extraction-core-minio` run this tag — verified via
   `docker ps` on 2026-08-14)
 - **Endpoint**: `http://localhost:9000` (service `vnlaw-minio`, healthy);
-  `secure=False` (local, plain HTTP)
+- **Client**: `minio 7.2.20` from the backend venv (pyproject `minio>=7`),
+  Python 3.11.9 (uv-managed, pyproject `requires-python >=3.11,<3.12`)
 - **Client**: `minio 7.2.20` from the backend venv (pyproject `minio>=7`),
   Python 3.11.9 (uv-managed, pyproject `requires-python >=3.11,<3.12`)
 - **Run command** (from `backend/`):
@@ -25,11 +26,11 @@ implementation comparison that ADR-021 summarizes.
   (`MINIO_ACCESS_KEY`/`MINIO_SECRET_KEY`, with Compose aliases
   `MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD` as fallback; doc 07 §7.3.3
   convention, same loader shape as `alembic/env.py`); buckets from
-  `MINIO_BUCKETS` (the six buckets of doc 03 §3.12.1). Credentials are never
-  printed by the script.
-- **Isolation**: the probe used a THROWAWAY object key
+  `MINIO_BUCKETS` (the six buckets of doc 03 §3.12.1). The script never prints
+  credentials.
+- **Isolation**: the probe used a throwaway object key
   `_compat_check_<utc-timestamp>.bin` in the first bucket
-  (`source-pdfs`); the object is removed on exit (verified: zero
+  (`source-pdfs`). The object is removed on exit (verified: zero
   `_compat_check_*` objects remain after the run). Production objects were
   never touched.
 
@@ -58,10 +59,9 @@ RESULT: PASS (11/11)
 EXIT=0
 ```
 
-Unreachable-endpoint behavior (guarded like the PG integration fixtures in
-`tests/integration/conftest.py`): every check is reported as `[skip]` and the
-script exits 2 (matching the VNLRAG-42 spike convention) — verified against a
-dead port (`RESULT: SKIP — endpoint unreachable, no check ran`).
+When the endpoint is unreachable, every check is reported as `[skip]` and the
+script exits 2 (matching the VNLRAG-42 spike convention). This behavior was
+verified against a dead port (`RESULT: SKIP — endpoint unreachable, no check ran`).
 
 ## 3. ObjectStoragePort surface coverage
 

@@ -10,19 +10,18 @@
 > không phải service hoặc runtime đang hoạt động.
 
 Tài liệu này là rules spec v2, thay thế nội dung v1 (kỷ nguyên UDEF, đã gỡ theo ADR-001).
-Đây là tài liệu quy tắc, không implement code; extractor/normalization triển khai theo
+Đây là tài liệu quy tắc, không implement code. Extractor và normalization được triển khai theo
 các quy tắc này trong pipeline hiện tại.
 
 ## 1. Phạm vi & mục đích
 
-- Drives legal-structure extraction và legal normalization sau khi PDF ingestion tạo canonical IR.
+- Legal-structure extraction và legal normalization chạy sau khi PDF ingestion tạo canonical IR.
 - Nguồn schema/fixtures hiện hành:
   - `templates/legal-provision.schema.json`;
   - `templates/corpus-manifest.schema.json`;
   - `backend/tests/fixtures/parser_benchmark/gold/`;
   - `docs/parser_router.yaml`.
-- Các spike/handoff được dẫn chiếu bên dưới là bằng chứng hoặc lịch sử; không được hiểu là
-  runtime dependency.
+- Các spike/handoff được dẫn chiếu bên dưới là bằng chứng hoặc lịch sử, không phải runtime dependency.
 
 ## 2. Phân loại loại văn bản
 
@@ -31,7 +30,7 @@ các quy tắc này trong pipeline hiện tại.
 
 ## 3. Pattern nhận diện cấu trúc (fixture-validated, từ spike VNLRAG-22)
 
-Bảng regex đã được validate trên 3 fixtures born-digital (luat-36-2024-qh15 26 el/1pg, nd-168-2024 5 el/2pg, tt-24-2024-tt-bgtvt 17 el/1pg — 48 elements tổng):
+Bảng regex đã được validate trên 3 fixtures born-digital (luat-36-2024-qh15 26 el/1pg, nd-168-2024 5 el/2pg, tt-24-2024-tt-bgtvt 17 el/1pg, tổng cộng 48 elements):
 
 | Cấp | Regex | Bằng chứng |
 |---|---|---|
@@ -43,7 +42,7 @@ Bảng regex đã được validate trên 3 fixtures born-digital (luat-36-2024-
 
 ### 3.1. LƯU Ý QUAN TRỌNG (spike 22 finding)
 
-- **Adapter hiện tại STRIP label khỏi text của `list_item`** — luat p1-e2..e5/e7 mất a)–e); tt p1-e14/e15 mất a)/b). Nhưng **KHÔNG phải luôn luôn**: tt p1-e10 là `list_item` **giữ** "đ) Ảnh chân dung theo quy định."; element loại `text` cũng giữ label (luat p1-e6 "đ) Người đi bộ...", p1-e16 "b) Đường quốc lộ;", p1-e19 "đ) Đường xã;"). Label survival không tương quan với `element_type`.
+- **Adapter hiện tại STRIP label khỏi text của `list_item`**: luat p1-e2..e5/e7 mất a)–e); tt p1-e14/e15 mất a)/b). Nhưng **KHÔNG phải luôn luôn**: tt p1-e10 là `list_item` **giữ** "đ) Ảnh chân dung theo quy định."; element loại `text` cũng giữ label (luat p1-e6 "đ) Người đi bộ...", p1-e16 "b) Đường quốc lộ;", p1-e19 "đ) Đường xã;"). Label survival không tương quan với `element_type`.
 - **Hệ quả cho extractor**:
   1. Parse label từ element text **TRƯỚC** (dùng marker còn sót nếu có);
   2. Chỉ tái dựng label khi thiếu (từ raw text/page text hoặc reading_order + vị trí);

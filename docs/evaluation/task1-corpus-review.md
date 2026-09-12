@@ -1,15 +1,15 @@
 # Task 1 — Corpus review and ingest evidence (historical record)
 
-> **Historical record generated 2026-09-05.** This report preserves the earlier Task 1 manifest-review and parser/ingest attempts. It is not an active description of the runtime. The current MVP uses source Markdown/PDF plus local Qdrant 1.19 hybrid retrieval, Supabase REST/Auth application persistence, FastAPI/Python 3.11, one OpenRouter generator, and deterministic evidence/citation/temporal gates. It does not require PostgreSQL app-owned runtime, Redis, MinIO, Dramatiq, LangGraph, external retrieval, agents, or a seven-service topology.
+> **Historical record generated 2026-09-05.** This report preserves earlier Task 1 manifest-review and parser/ingest attempts. It does not describe the active runtime. The current MVP uses source Markdown/PDF plus local Qdrant 1.19 hybrid retrieval, Supabase REST/Auth application persistence, FastAPI/Python 3.11, one OpenRouter generator, and deterministic evidence/citation/temporal gates. It does not require PostgreSQL app-owned runtime, Redis, MinIO, Dramatiq, LangGraph, external retrieval, agents, or a seven-service topology.
 >
-> Manifest hashes, reviewer decisions, and historical failures are retained as provenance. Do not change frozen corpus/gold artefacts to make this report pass. Current executable checks are in `docs/06-test-evaluation.md`; current active indexing uses `backend/scripts/fetch_sources.py` and `backend/scripts/index.py` to derive local Qdrant state.
+> Manifest hashes, reviewer decisions, and historical failures remain provenance. Do not change frozen corpus/gold artefacts to make this report pass. Current executable checks are in `docs/06-test-evaluation.md`; current indexing uses `backend/scripts/fetch_sources.py` and `backend/scripts/index.py` to derive local Qdrant state.
 
 ## Historical scope
 
 - 27 manifest files discovered.
 - 13 `PENDING` manifests reviewed: batch-04 (4), batch-05 (5), batch-06 (4).
-- Official PDFs downloaded from manifest URLs into `/tmp/vnlrag-task1-pdfs` (outside Git).
-- Historical reviewer policy: only ACCEPTED when PDF hash and provision-level legal evidence were present; otherwise PENDING.
+- Official PDFs were downloaded from manifest URLs into `/tmp/vnlrag-task1-pdfs` (outside Git).
+- Historical reviewer policy: accept only when the PDF hash and provision-level legal evidence were present; otherwise leave the item PENDING.
 
 ## Historical manifest evidence
 
@@ -56,7 +56,7 @@
 - The historical manifest validator accepted PENDING without review metadata and required metadata for ACCEPTED/REJECTED; all 27 manifests validated after review metadata was added.
 - Historical corpus QA loaded 0 provision outputs at one stage; no claim of complete extraction was made.
 - The historical pipeline expected object storage, PostgreSQL, Redis, Qdrant, parser adapters, temporal/reference resolution, and configured embeddings. That topology is superseded and is not an active prerequisite.
-- Historical Compose runs reported changing service failures and are retained only as dated diagnostic evidence.
+- Historical Compose runs reported changing service failures and remain dated diagnostic evidence only.
 
 ## Historical result and latest recorded state
 
@@ -80,4 +80,4 @@ Record manifest/source/chunk hashes, Qdrant collection and point counts, retriev
 
 ## Historical conclusion
 
-Task 1 was not evidenced as a complete 13-document parser/worker/index acceptance in this report. The record remains useful for provenance and corpus-review history; it must not be used to claim current architecture, current corpus completeness, or active release readiness.
+Task 1 was not evidenced as a complete 13-document parser/worker/index acceptance in this report. The record remains useful for provenance and corpus-review history; do not use it to claim current architecture, current corpus completeness, or active release readiness.

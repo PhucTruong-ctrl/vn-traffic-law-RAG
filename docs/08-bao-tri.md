@@ -1,7 +1,7 @@
 > **MVP đã phê duyệt — 10/09/2026**: Hệ thống single-user localhost/mạng riêng, không auth/admin/reviewer role/API/UI. Corpus cố định **14 PDF local**, deduplicate theo document/hash, allowlist chính xác `datafiles.chinhphu.vn`; ingestion background hoặc CLI, snapshot/hash bất biến, tự động quality/provenance/temporal gates, query-time chỉ phục vụ corpus và không gọi web. Gold set 200 câu/17 nhóm rủi ro chạy toàn bộ trước release. Feedback chỉ LIKE/DISLIKE tối thiểu, là tín hiệu vận hành không gating.
 >
 > **Model/benchmark policy**: Không giả định tên model hoặc ngưỡng chưa đo. Embedding local benchmark nhỏ, cache candidate; chỉ rebuild index sau khi chọn candidate.
-# 08. Bảo Trì (Maintenance)
+# 08. Bảo trì (Maintenance)
 
 > **Giai đoạn SDLC**: 7 - Bảo trì
 > **Ngày tạo**: 16/06/2026
@@ -22,11 +22,11 @@
 
 ---
 
-Tài liệu này định nghĩa kế hoạch bảo trì của runtime MVP VNLRAG. Active architecture gồm frontend Next.js 16 + React 19, backend FastAPI/Python 3.11, Qdrant 1.19 hybrid dense/BM25 retrieval, Supabase REST/Auth persistence, một generator OpenRouter và các cổng evidence/citation deterministic. Corpus phục vụ là snapshot local 14 PDF; query/search không gọi web.
+Tài liệu này định nghĩa kế hoạch bảo trì của runtime MVP VNLRAG. Kiến trúc active gồm frontend Next.js 16 + React 19, backend FastAPI/Python 3.11, Qdrant 1.19 hybrid dense/BM25 retrieval, Supabase REST/Auth persistence, một generator OpenRouter và các cổng evidence/citation deterministic. Corpus phục vụ là snapshot local 14 PDF; query/search không gọi web.
 
 > **Ghi chú lịch sử**: bản v1/v2 từng mô tả pipeline parser trung gian, Parser Router, Canonical Document IR, worker/queue, Redis + Dramatiq, MinIO, LangGraph và Langfuse. Các phần đó chỉ giữ provenance nghiên cứu/thiết kế; không phải service hay dependency vận hành hiện tại. Bảo trì active tập trung vào CLI ingestion, corpus/hash, Qdrant index, Supabase schema, OpenRouter config, evidence gate, citations và frontend/backend release.
 
-Các mục mô tả Redis/Dramatiq/MinIO/LangGraph/Langfuse bên dưới phải được đọc như historical/deferred; không dùng chúng cho thao tác bảo trì active nếu không có trong compose hiện hành.
+Các mục mô tả Redis/Dramatiq/MinIO/LangGraph/Langfuse bên dưới là historical/deferred; không dùng chúng cho thao tác bảo trì active nếu không có trong compose hiện hành.
 
 ---
 
@@ -67,7 +67,7 @@ Ingestion chỉ chạy background hoặc manual CLI. Không có human approval, 
 | Generation/verification | OpenRouter generator, deterministic evidence gate, citations, abstention |
 | Evaluation | Gold set, metrics, release evidence |
 | Frontend/API | Contract, dependency, UX |
-| Historical/deferred designs | Parser Router, IR, worker/queue, Redis, MinIO, LangGraph, Langfuse — document only; do not operate |
+| Historical/deferred designs | Parser Router, IR, worker/queue, Redis, MinIO, LangGraph, Langfuse | document only; do not operate |
 | Deployment | Docker images, backup, restore, release manifest |
 | Documentation | README, ADR, report, diagram, changelog |
 
@@ -202,7 +202,7 @@ Parser Router quyết định parser theo đặc tính tài liệu và quality g
 | PDF scan hoặc layout lỗi | Docling trước (OCR backend CPU) | MinerU nếu quality gate fail |
 | Bảng phức tạp | So sánh đầu ra hai parser khi cần | Chọn theo quality gate hoặc gửi review |
 
-Khi bảo trì, một tài liệu đã ingest có thể bị re-route sang parser thay thế (Docling <-> MinerU) nếu:
+Khi bảo trì, một tài liệu đã ingest có thể được chuyển sang parser thay thế (Docling <-> MinerU) nếu:
 
 - quality gate nhóm A (provenance coverage, text extraction rate, table detection, layout coherence) fail trên parser hiện tại;
 - quality gate nhóm B (point label detection, hierarchy completeness, short-Point retention) fail sau Legal Structure Extractor;
@@ -257,8 +257,6 @@ Không tự động nâng parser theo branch. Quy trình:
 8. Re-ingest một subset tài liệu đại diện (Luật, Nghị định, Thông tư; born-digital và scan).
 9. Review diff: chỉ khác biệt do parser mới, không phải lỗi cấu hình.
 10. Chỉ pin version mới khi mọi bước pass và Suite A không regression so với baseline.
-
-Kết quả nâng parser phải được ghi vào Suite A report (raw result) và changelog. Không xóa kết quả đo bằng parser cũ; nếu cần so sánh, ghi cả hai.
 
 ### 8.4.3. Parser golden fixtures
 
@@ -1221,7 +1219,7 @@ Thay thế bổ sung khác trong phạm vi bảo trì: ChromaDB/SQLite-as-primar
 
 ## Kết luận
 
-Bảo trì hệ thống pháp luật không phải chỉ là thêm PDF mới. Mỗi thay đổi có thể làm thay đổi câu trả lời hiện hành, câu trả lời lịch sử, citation và kết quả evaluation.
+Bảo trì hệ thống pháp luật không chỉ là thêm PDF mới. Mỗi thay đổi có thể làm thay đổi câu trả lời hiện hành, câu trả lời lịch sử, citation và kết quả evaluation.
 
 Lifecycle chốt:
 

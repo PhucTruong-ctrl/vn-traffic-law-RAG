@@ -18,26 +18,14 @@ Vì vậy người dùng không thể:
 - tìm kiếm, đổi tên hoặc xóa đoạn chat;
 ## Solution
 
-Server-side Conversation (implemented by the existing `chat_sessions` table)
-and Message records are owned by the authenticated Supabase user. A
-conversation is created when the first chat request omits `session_id`; later
-requests send that identifier. Each turn persists a user message and an
-assistant message through Supabase REST, including response/citations/metadata
-JSON fields used for reload and audit.
+Server-side Conversation and Message records are owned by the authenticated Supabase user and stored through the existing `chat_sessions` table. On the first submit, the frontend renders the user message, creates the conversation through `POST /api/v1/chats`, and updates the route to `/chat/:conversation_id` with Next.js client navigation. It then sends `POST /api/v1/chat` with that `session_id`; later requests reuse the active identifier. The chat endpoint persists user and assistant messages through Supabase REST, including the response, citations, and metadata JSON fields used for reload and audit.
 
-Frontend uses `/chat` for a new chat and `/chat/:conversation_id` for an open
-conversation. The backend currently exposes these API routes:
-`POST /api/v1/chat`, `GET|POST /api/v1/chats`,
-`GET|PATCH|DELETE /api/v1/chats/{session_id}`, and
-`POST /api/v1/chats/{session_id}/messages`; saved Q&A uses
-`/api/v1/bookmarks`. Chat responses return the same identifier as
-`session_id`, `conversation_id`, and `chat_id` for client compatibility.
-Hydration reads the persisted transcript and does not call the model.
+Frontend uses `/chat` for a new chat and `/chat/:conversation_id` for an open conversation. The first submit updates the browser URL with `history.pushState` after session creation, preserving the mounted React tree, optimistic user message, and assistant loading state while `POST /api/v1/chat` runs. Sidebar selection and explicit new-chat actions still use Next.js client routing.
 
-The answer pipeline retrieves hybrid dense/BM25 candidates from Qdrant,
-applies the deterministic Evidence Completeness Gate and verified-or-abstain
-contract, and uses one OpenRouter generator only for evidence-backed answers.
-Failed or unverified assistant results must not become context.
+The backend currently exposes these API routes: `POST /api/v1/chat`, `GET|POST /api/v1/chats`, `GET|PATCH|DELETE /api/v1/chats/{session_id}`, and `POST /api/v1/chats/{session_id}/messages`; saved Q&A uses `/api/v1/bookmarks`. Chat responses return the same identifier as `session_id`, `conversation_id`, and `chat_id` for client compatibility. Hydration reads the persisted transcript and does not call the model. An unmatched persisted user message is an interrupted turn, not legal `INSUFFICIENT_EVIDENCE`; the frontend restores its text for retry instead of rendering a false legal abstention.
+
+
+The answer pipeline retrieves hybrid dense/BM25 candidates from Qdrant, applies the deterministic Evidence Completeness Gate and verified-or-abstain contract, and uses one OpenRouter generator only for evidence-backed answers. Failed or unverified assistant results must not become context.
 
 > **Historical design note:** The following earlier proposal used anonymous
 > HttpOnly-cookie ownership. The active implementation instead requires a

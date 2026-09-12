@@ -6,7 +6,6 @@ import { Clipboard, FileDown, Share2 } from "lucide-react";
 import AbstentionResult from "./AbstentionResult";
 import CitationCard, { type Citation } from "./CitationCard";
 import FeedbackWidget, { BookmarkToggle } from "./FeedbackWidget";
-import LegalMark from "./LegalMark";
 import type { ChatResponse, ConversationTurn, ProgressEvent } from "./chat-types";
 
 function protectLegalParentheticals(markdown: string): string {
@@ -134,11 +133,7 @@ function ResponseMessage({
   const answer = response.answer ?? "";
   return (
     <div className="assistant-message response-message">
-      <LegalMark />
       <div className="response-content">
-        <div className="message-meta">
-          <strong>Trợ lý Luật Giao thông</strong>
-        </div>
         {operational ? (
           <AbstentionResult
             reason={response.abstention?.reason}
@@ -179,7 +174,10 @@ function ResponseMessage({
                   <Share2 size={17} aria-hidden="true" />
                 </button>
                 {actionState && <span role="status">{actionState}</span>}
-                <FeedbackWidget sessionId={sessionId} messageId={response.assistant_message_id ?? ""} />
+                <FeedbackWidget
+                  sessionId={sessionId}
+                  messageId={response.assistant_message_id ?? ""}
+                />
                 <BookmarkToggle
                   sessionId={sessionId}
                   messageId={response.assistant_message_id ?? ""}
@@ -198,7 +196,9 @@ function ResponseMessage({
         {verified && citations.length > 0 && (
           <details className="citations">
             <summary>
-              Căn cứ pháp lý <span>({citations.length})</span>
+              <span className="citations__label">
+                Căn cứ pháp lý <strong>({citations.length})</strong>
+              </span>
             </summary>
             <div className="citation-list">
               {citations.map((citation, index) => (
@@ -250,22 +250,24 @@ export default function ChatThread({
                 {turn.question}
               </div>
             </div>
-            <ResponseMessage
-              response={turn.response}
-              onOpenSource={onOpenSource}
-              sessionId={sessionId}
-            />
+            {turn.response && (
+              <ResponseMessage
+                response={turn.response}
+                onOpenSource={onOpenSource}
+                sessionId={sessionId}
+              />
+            )}
+            {!turn.response && turn.status === "failed" && (
+              <p className="turn-status turn-status--failed" role="status">
+                Phản hồi bị gián đoạn. Câu hỏi đã được đưa lại vào ô nhập để gửi lại.
+              </p>
+            )}
           </div>
         ))}
       {!historyLoading && loading && (
         <div className="assistant-message loading-state" role="status" aria-live="polite">
-          <LegalMark />
           <div className="loading-content">
-            <div className="message-meta">
-              <strong>Trợ lý Luật Giao thông</strong>
-              <span className="streaming-badge">Đang trả lời</span>
-            </div>
-            <span className="loading-question">{question}</span>
+            <span className="streaming-badge">Đang trả lời</span>
             <section
               className="progress-events-panel"
               aria-label="Tiến trình xử lý"

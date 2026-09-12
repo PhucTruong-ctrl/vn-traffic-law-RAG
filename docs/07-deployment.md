@@ -1,7 +1,7 @@
 > **MVP rebaseline — 10/09/2026**: Deployment là single-user localhost/private-network. Corpus MVP gồm đúng 14 PDF cục bộ, deduplicate theo document/hash; source allowlist chỉ nhận exact HTTPS host `datafiles.chinhphu.vn`. Ingestion chỉ manual CLI và xử lý nền; snapshot/hash bất biến, automatic quality/provenance/temporal gates, không human approval. Query không gọi web và search chỉ phục vụ corpus đang được index.
 >
 > **Model policy**: Embedding chọn sau benchmark nhỏ trên các ứng viên đã cài/cache. Model/version và vector dimension được ghi vào manifest; mọi thay đổi embedding yêu cầu rebuild và alias switch. Không nêu model hoặc ngưỡng chưa có kết quả đo.
-# 07. Triển Khai (Deployment)
+# 07. Triển khai (Deployment)
 
 > **Giai đoạn SDLC**: 6 - Triển khai
 > **Ngày tạo**: 16/06/2026
@@ -75,7 +75,7 @@ Compose hiện tại chỉ định nghĩa ba service:
 
 ### 7.1.2. Ranh giới network
 
-Frontend/backend chỉ bind localhost hoặc interface private-network được chọn explícit. Qdrant không expose công khai mặc định. Đây là boundary single-user, không phải public Internet deployment.
+Frontend/backend chỉ bind localhost hoặc interface private-network được chọn rõ ràng. Qdrant không expose công khai mặc định. Đây là boundary single-user, không phải public Internet deployment.
 
 ### 7.1.3. Thành phần bên ngoài
 
@@ -404,7 +404,7 @@ Ghi chú:
 - `minio` là implementation hiện tại của `ObjectStoragePort` (contract S3-compatible). Service này giữ trong compose làm mặc định cho tới khi object-storage ADR chốt implementation; cấu hình qua `S3_ENDPOINT`/`MINIO_ENDPOINT` và access/secret key (mục 7.5).
 - `restart: unless-stopped` phù hợp máy bảo vệ; với clean-room và rehearsal cũng dùng policy này.
 - Backend và frontend healthcheck gọi endpoint `live` / root trang chủ để Compose `depends_on` chờ đúng.
-- Worker healthcheck dùng `dramatiq --check app.ingestion.actors`: kiểm tra module actors import được và broker Redis reachable. Hành vi khi fail: container bị đánh dấu unhealthy; `restart: unless-stopped` không tự restart container đang chạy nhưng unhealthy, nên vận hành phải theo dõi (`dramatiq --check`, queue depth, dead-letter) và dùng `reconcile_index.py` làm đường phục hồi (mục 7.4.4).
+- Worker healthcheck dùng `dramatiq --check app.ingestion.actors`: kiểm tra module actors import được và broker Redis reachable. Khi healthcheck fail, container bị đánh dấu unhealthy. `restart: unless-stopped` không tự restart container đang chạy nhưng unhealthy, nên vận hành phải theo dõi (`dramatiq --check`, queue depth, dead-letter) và dùng `reconcile_index.py` làm đường phục hồi (mục 7.4.4).
 
 ### 7.2.3. Compose development override (`deploy/compose/compose.dev.yml`)
 
@@ -683,7 +683,7 @@ PROJECT_BUDGET_USD=40
 
 ### 7.3.6. Prompt fallback cho release (Langfuse ngoài đường tới hạn)
 
-Langfuse nằm ngoài đường tới hạn tính đúng đắn (ADR-009); để contract này deploy được, release phải có prompt fallback cục bộ:
+Langfuse nằm ngoài đường tới hạn tính đúng đắn (ADR-009). Để contract này deploy được, release phải có prompt fallback cục bộ:
 
 - Thư mục `deploy/prompts/fallback/` chứa prompt bản đóng băng cho các prompt chính: `query-analyzer.yaml`, `query-rewriter.yaml`, `hyde.yaml`, `generator.yaml`, `claim-verifier.yaml`. Thư mục này được build vào image runtime (backend/worker) và có sẵn tại `FALLBACK_PROMPTS_DIR` (ví dụ `/app/prompts/fallback`).
 - Mỗi file YAML ghi trường `version` và `hash`; version được pin trong env `FALLBACK_PROMPT_VERSION_*` và trong release manifest (mục 7.12.2).
@@ -889,8 +889,6 @@ Lập lịch ingestion batch: dừng demo (hoặc chọn thời điểm không d
 - Idempotency key cấp tài liệu chứa parser version và IR schema version; cùng file + cùng pipeline version không chạy lại mặc định (doc 03 mục 3.13.4).
 
 ---
-
-## 7.7. Provider health (external dependencies)
 
 Provider calls are optional runtime dependencies and never change the corpus acceptance decision. There is no provider-health endpoint or admin checklist; operator checks use local CLI/logs.
 
@@ -1544,7 +1542,7 @@ Provider failures are observed through local CLI/logs only; there is no admin/pr
 
 ### 7.14.1. Container
 
-Các biện pháp sau được enforce trong compose/app cho service ứng dụng (backend, worker, frontend); Dockerfile backend/frontend chạy non-root (`USER appuser` / `USER nextjs`):
+Các biện pháp sau được enforce trong compose/app cho service ứng dụng (backend, worker, frontend). Dockerfile backend/frontend chạy non-root (`USER appuser` / `USER nextjs`):
 
 ```yaml
 # Áp dụng cho backend, worker và frontend
@@ -1587,7 +1585,7 @@ secret không nằm trong image hoặc frontend public env
 .env permission 600
 ```
 
-Không triển khai public staging trong scope này; nếu mở rộng boundary sau này phải có ADR riêng.
+Không triển khai public staging trong scope này. Nếu mở rộng boundary sau này phải có ADR riêng.
 
 ## 7.15. Demo profiles (defense)
 
@@ -1778,13 +1776,9 @@ MinIO object storage
 ```
 ## 7.19. Kết luận
 
-Phương án triển khai hiện tại chỉ mô tả runtime local/private-network và các API
-đã có. Legal Explorer tìm kiếm trong serving corpus và mở deep link passage; saved
-Q&A lưu snapshot bền vững qua Supabase. Chat dùng các trạng thái chuẩn, exact
-evidence gate, và timeout trình duyệt có giới hạn; tuyệt đối không có web fallback.
+Phương án triển khai hiện tại chỉ mô tả runtime local/private-network và các API đã có. Legal Explorer tìm kiếm trong serving corpus và mở deep link passage; saved Q&A lưu snapshot bền vững qua Supabase. Chat dùng các trạng thái chuẩn, exact evidence gate và timeout trình duyệt có giới hạn; tuyệt đối không có web fallback.
 
-Migration corpus từ xa, manual UI còn lại và bằng chứng evaluation cuối vẫn pending.
-Tài liệu này không tuyên bố evaluation hoàn tất hoặc release readiness.
+Migration corpus từ xa, manual UI còn lại và bằng chứng evaluation cuối vẫn pending. Tài liệu này không tuyên bố evaluation hoàn tất hoặc release readiness.
 ```text
 Supabase REST/Auth + Qdrant v1.19
 External: OpenRouter

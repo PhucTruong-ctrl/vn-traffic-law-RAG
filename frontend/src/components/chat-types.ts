@@ -27,7 +27,11 @@ export type ChatResponse = {
   bookmarked?: boolean;
   is_bookmarked?: boolean;
 };
-export type ConversationTurn = { question: string; response: ChatResponse };
+export type ConversationTurn = {
+  question: string;
+  response?: ChatResponse;
+  status?: "pending" | "failed";
+};
 export type ProgressEvent = {
   event?: string;
   type?: string;

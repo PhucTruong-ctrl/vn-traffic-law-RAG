@@ -6,7 +6,7 @@
 
 Canonical Document IR là biểu diễn trung gian **parser-neutral** do dự án sở hữu (FR-02). Nó cô lập toàn bộ phân tích pháp lý khỏi định dạng đầu ra của Docling/MinerU: Legal Structure Extractor và các module phía sau chỉ đọc IR, không đọc `DoclingDocument` hay output JSON của MinerU.
 
-Tài liệu này là contract IR ở trạng thái **M0 scope baseline**; thiết kế contract được thực hiện ở W1 (22/07, `docs/05-ke-hoach-trien-khai.md` §5.4: "Thiết kế schema Canonical Document IR — `ParsedDocument`, `ParsedPage`, `DocumentElement`", FR-02; doc 03 mục 3.6) và làm **baseline cho triển khai** ticket VNLRAG-128 (W2). Toàn bộ field, kiểu và cấu trúc dưới đây được **đóng băng (freeze)** cho scope M0 của VNLRAG v2; thay đổi sau này phải qua quy tắc versioning ở mục 8.
+Tài liệu này mô tả contract IR ở trạng thái **M0 scope baseline**. Thiết kế contract được thực hiện ở W1 (22/07, `docs/05-ke-hoach-trien-khai.md` §5.4: "Thiết kế schema Canonical Document IR — `ParsedDocument`, `ParsedPage`, `DocumentElement`", FR-02; doc 03 mục 3.6) và làm **baseline cho triển khai** ticket VNLRAG-128 (W2). Toàn bộ field, kiểu và cấu trúc dưới đây được **đóng băng (freeze)** cho scope M0 của VNLRAG v2; thay đổi sau này phải qua quy tắc versioning ở mục 8.
 
 ## 2. Cấu trúc tổng quan
 

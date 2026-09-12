@@ -1,7 +1,7 @@
 # Domain Docs
 
-How engineering agents should consume this repository's domain documentation while
-exploring the current Vietnamese traffic-law RAG MVP.
+How engineering agents should use this repository's domain documentation while they
+explore the current Vietnamese traffic-law RAG MVP.
 
 ## Current architecture
 
@@ -14,8 +14,8 @@ exploring the current Vietnamese traffic-law RAG MVP.
   OCR/structure is quarantined or reviewed before indexing.
 
 There is no active external web retrieval, agent/LangGraph workflow, Redis, MinIO, application-owned
-PostgreSQL runtime, or seven-service topology. If an older document describes one of those, label it
-historical rather than treating it as an implementation requirement.
+PostgreSQL runtime, or seven-service topology. If an older document describes one of these, label it
+historical instead of treating it as an implementation requirement.
 
 ## Before exploring, read these
 
@@ -23,7 +23,7 @@ historical rather than treating it as an implementation requirement.
 - **`docs/adr/`**: read ADRs touching the area being changed; preserve their decision history.
 - The relevant current source under `backend/app/`, `frontend/`, `templates/`, and `data/`.
 
-If a referenced file does not exist, proceed silently. Do not propose creating it merely to satisfy
+If a referenced file does not exist, proceed silently. Do not propose creating one just to satisfy
 this guide; domain-modeling creates context artifacts lazily when terms or decisions are resolved.
 
 ## File structure

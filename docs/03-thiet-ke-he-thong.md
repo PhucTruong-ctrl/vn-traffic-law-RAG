@@ -1,4 +1,4 @@
-> **MVP rebaseline — 10/09/2026**: Hệ thống là dịch vụ single-user chạy localhost hoặc private network. Corpus MVP gồm 14 PDF cục bộ, deduplicate theo document/hash; nguồn được allowlist chính xác trên `datafiles.chinhphu.vn`. Ingestion chỉ chạy thủ công bằng CLI và xử lý nền; snapshot/hash bất biến, quality/provenance/temporal gates tự động, không có human approval. Query chỉ phục vụ corpus đã accepted và không gọi web.
+> **MVP rebaseline, 10/09/2026**: Hệ thống là dịch vụ single-user chạy localhost hoặc private network. Corpus MVP gồm 14 PDF cục bộ, deduplicate theo document/hash; nguồn được allowlist chính xác trên `datafiles.chinhphu.vn`. Ingestion chỉ chạy thủ công bằng CLI và xử lý nền; snapshot/hash bất biến, quality/provenance/temporal gates tự động, không có human approval. Query chỉ phục vụ corpus đã accepted và không gọi web.
 >
 > **Model policy**: Embedding được chọn sau benchmark nhỏ trên các ứng viên đã cài/cache; mọi lựa chọn đều ghi version và yêu cầu rebuild index. Không nêu tên model hoặc ngưỡng số học khi chưa có kết quả đo.
 # 03. Thiết Kế Hệ Thống

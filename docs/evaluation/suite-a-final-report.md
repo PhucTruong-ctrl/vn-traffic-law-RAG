@@ -4,11 +4,11 @@
 >
 > The raw numbers and hashes below are frozen provenance. Do not rewrite them to make them resemble current MVP metrics. The benchmark's parser commands are historical and may be unavailable in the active rescue checkout; run current evaluation with `backend/scripts/run_thesis_evaluation.py` and the commands in `docs/06-test-evaluation.md` instead.
 
-Nine-metric parser benchmark on the shared parser-benchmark fixtures (Luật, Nghị định, Thông tư — born-digital PDFs with a text layer): P1 (Docling), P2 (MinerU real pipeline), P3 (Parser Router). **Raw numbers only — no superiority claim between parsers where any result is incomplete** (FR-01). Source of truth: the gitignored immutable `data/evaluation/` tree (per run_id; corrections are new runs, never rewrites).
+The shared parser-benchmark fixtures support a nine-metric benchmark (Luật, Nghị định, Thông tư, all born-digital PDFs with a text layer): P1 (Docling), P2 (MinerU real pipeline), and P3 (Parser Router). **Raw numbers only — no superiority claim between parsers where any result is incomplete** (FR-01). The gitignored immutable `data/evaluation/` tree is the source of truth (per run_id; corrections are new runs, never rewrites).
 
-This report is GENERATED, not hand-edited in its originating historical environment: `python -m app.evaluation.suites.suite_a final-report --runs data/evaluation/suite-a-final --out docs/evaluation/suite-a-final-report.md --sample docs/evaluation/nd-168-ocr-regression-sample.json` reads the immutable run artifacts and rewrites this file. The command is retained as provenance only, not as an active release command.
+In its originating historical environment, this report was GENERATED rather than hand-edited: `python -m app.evaluation.suites.suite_a final-report --runs data/evaluation/suite-a-final --out docs/evaluation/suite-a-final-report.md --sample docs/evaluation/nd-168-ocr-regression-sample.json` reads immutable run artifacts and rewrites this file. The command remains provenance only, not an active release command.
 
-All three variants ran on the SAME fixtures — `input-manifest.json` is byte-identical (sha256 `6848465ff958bc577b10b7fb77a5aa10bdd50a50af76198003803a508271728b`), git `318e34f48b0c0f4fe24cec825cb66830fd3e63b0`. Runs: P1 `run-20260813-225051-5cca72`, P2 `run-20260813-225124-0dda71`, P3 `run-20260813-225310-521006`.
+All three variants ran on the SAME fixtures. `input-manifest.json` is byte-identical (sha256 `6848465ff958bc577b10b7fb77a5aa10bdd50a50af76198003803a508271728b`), with git `318e34f48b0c0f4fe24cec825cb66830fd3e63b0`. Runs: P1 `run-20260813-225051-5cca72`, P2 `run-20260813-225124-0dda71`, P3 `run-20260813-225310-521006`.
 
 ## Historical result: P1 (Docling) — run run-20260813-225051-5cca72
 
@@ -92,7 +92,7 @@ N/A reasons (availability — never fabricated 0%/100%):
 
 ## Historical aggregate comparison
 
-Pooled aggregates over the SAME fixtures. Raw numbers only — NO superiority conclusion where any parser's result is incomplete.
+These pooled aggregates use the SAME fixtures. Raw numbers only; make NO superiority conclusion where any parser result is incomplete.
 
 | metric | P1 Docling | P2 MinerU | P3 Router |
 |---|---|---|---|
@@ -141,8 +141,6 @@ The shared parser-benchmark fixtures were born-digital (text layer). Real scan-o
 - Header/Footer Leakage: the v1 fixtures carry no header/footer annotations -> N/A.
 - Parent Context Completeness on nd-168: no POINT/CLAUSE provisions in accepted parser output -> N/A.
 - Scan corpus: not run in the historical trio.
-
-## Historical reproducibility command
 
 The original command is retained only to identify the source run:
 

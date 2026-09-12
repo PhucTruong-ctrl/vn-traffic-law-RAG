@@ -27,15 +27,15 @@ are authoritative; recompute and compare before processing. Never commit PDFs or
 
 ## Runtime constraints
 
-Remote machine: RTX 3050, stronger CPU than the primary workstation.
+Remote machine: RTX 3050, with a stronger CPU than the primary workstation.
 
-Use one worker process. GPU use is optional and must follow a smoke test confirming the
+Use one worker process. GPU use is optional and must follow a smoke test confirming that the
 selected OCR runtime initializes on the RTX 3050. Keep batch size small (1–2 pages).
 Do not run RAGFlow, LightRAG, RAG-Anything, agents, LangGraph, external retrieval, Redis,
 MinIO, a local LLM, or the application API as part of this job.
 
 This handoff records the historical PaddleOCR/VietOCR experiment. The active scan policy
-in `docs/parser_router.yaml` uses Tesseract Vietnamese; whichever OCR artifact is produced
+in `docs/parser_router.yaml` uses Tesseract Vietnamese. Any OCR artifact produced
 must identify its parser/version/device in provenance and still pass the same gates.
 
 Recommended isolated environment for the historical PaddleOCR/VietOCR worker:
@@ -48,7 +48,7 @@ python -m pip install 'paddleocr==3.3.0' 'vietocr==0.3.13' PyMuPDF Pillow opencv
 ```
 
 Install a PaddlePaddle build compatible with the remote NVIDIA driver/CUDA runtime
-according to official instructions. Keep model weights outside the repository, record
+according to the official instructions. Keep model weights outside the repository, record
 their URL/version/SHA-256, and never disable TLS verification.
 
 ## Processing contract
@@ -64,7 +64,8 @@ For each PDF:
 6. Preserve page order and reading order.
 7. Write one page result atomically before starting the next page.
 8. Resume from the checkpoint after interruption.
-9. Put low-confidence/empty/structurally ambiguous lines in `quarantine.json`; never silently discard them.
+9. Put low-confidence, empty, or structurally ambiguous lines in `quarantine.json`; never
+   silently discard them.
 10. Do not mark a PDF accepted solely because OCR completed.
 
 ## Required output layout
@@ -145,7 +146,9 @@ nohup env PYTHONPATH=backend \
 echo $! > /tmp/vnlrag-task1-ocr-result/worker.pid
 ```
 
-The command must not use an application-level document timeout. Checkpointing, not a timeout, controls recovery. Stop only on explicit operator intervention, fatal hardware/system errors, or completed processing.
+The command must not use an application-level document timeout. Checkpointing, not a timeout,
+controls recovery. Stop only on explicit operator intervention, fatal hardware/system errors,
+or completed processing.
 
 ## Completion gate
 

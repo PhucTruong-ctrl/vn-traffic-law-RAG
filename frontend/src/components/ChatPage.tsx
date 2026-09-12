@@ -17,6 +17,7 @@ import { createClient } from "../../utils/supabase/client";
 import { apiUrl } from "../lib/api";
 
 const API_PATH = apiUrl("chat");
+const SESSIONS_PATH = apiUrl("chats");
 const CHAT_TIMEOUT_MS = 120_000;
 const isCitation = (value: unknown): value is Citation => {
   if (typeof value !== "object" || value === null) return false;
@@ -180,11 +181,7 @@ function turnsFromConversation(value: unknown): ConversationTurn[] {
       }
       turns.push({
         question: message.content,
-        response: {
-          status: "WORKFLOW_UNAVAILABLE",
-          answer: "Câu hỏi này chưa có phản hồi được lưu.",
-          disclaimer: "Phản hồi chưa được lưu hoàn chỉnh; vui lòng gửi lại câu hỏi.",
-        },
+        status: "failed",
       });
     }
   }
@@ -226,6 +223,11 @@ export default function ChatPage({
   const [authError, setAuthError] = useState("");
   const abortControllerRef = useRef<AbortController | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const activeIdRef = useRef(activeId);
+  const latestSubmissionRef = useRef(0);
+  useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
   const supabase = useMemo(() => createClient(), []);
   const authHeaders = useCallback(async (): Promise<Record<string, string>> => {
     const { data } = await supabase.auth.getSession();
@@ -261,6 +263,7 @@ export default function ChatPage({
       }
       return () => controller.abort();
     }
+    if (conversationId === activeId && turns.length > 0) return () => controller.abort();
     void Promise.resolve().then(() => {
       if (!controller.signal.aborted) setHistoryLoading(true);
     });
@@ -280,9 +283,11 @@ export default function ChatPage({
         return result.json();
       })
       .then((payload) => {
+        const hydratedTurns = turnsFromConversation(payload);
+        const interruptedTurn = hydratedTurns.at(-1);
         setActiveId(conversationId);
-        setTurns(turnsFromConversation(payload));
-        setQuestion("");
+        setTurns(hydratedTurns);
+        setQuestion(interruptedTurn?.status === "failed" ? interruptedTurn.question : "");
         setSubmittedQuestion("");
         setError("");
         setHistoryLoading(false);
@@ -296,7 +301,7 @@ export default function ChatPage({
         }
       });
     return () => controller.abort();
-  }, [conversationId, session, authHeaders]);
+  }, [conversationId, activeId, turns.length, session, authHeaders]);
 
   const navigateTo = useCallback(
     (id?: string) => {
@@ -323,6 +328,8 @@ export default function ChatPage({
   }
   async function submitQuestion(submitted: string) {
     if (!submitted || loading || historyLoading || !session) return;
+    const submissionId = latestSubmissionRef.current + 1;
+    latestSubmissionRef.current = submissionId;
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
     let timedOut = false;
@@ -336,15 +343,43 @@ export default function ChatPage({
     setProgressEvents([]);
     setError("");
     setSubmittedQuestion(submitted);
+    setQuestion("");
+    setTurns((previous) => [...previous, { question: submitted, status: "pending" }]);
     setLoading(true);
     try {
+      const headers = { "Content-Type": "application/json", ...(await authHeaders()) };
+      let sessionId = activeIdRef.current ?? conversationId;
+      if (!sessionId) {
+        const sessionResult = await fetch(SESSIONS_PATH, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ title: submitted.slice(0, 200) }),
+          signal: abortController.signal,
+        });
+        const sessionPayload = await sessionResult.json().catch(() => null);
+        if (sessionResult.status === 401) {
+          await supabase.auth.signOut();
+          throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+        }
+        if (!sessionResult.ok || typeof sessionPayload?.id !== "string") {
+          throw new Error(
+            sessionPayload?.detail ||
+              sessionPayload?.error?.message ||
+              "Không thể tạo cuộc trò chuyện.",
+          );
+        }
+        const createdSessionId: string = sessionPayload.id;
+        sessionId = createdSessionId;
+        activeIdRef.current = createdSessionId;
+        setActiveId(createdSessionId);
+        setConversationActivity({ id: createdSessionId, nonce: Date.now() });
+        window.history.pushState(null, "", `/chat/${encodeURIComponent(createdSessionId)}`);
+      }
+      if (!sessionId) throw new Error("Không thể xác định cuộc trò chuyện.");
       const result = await fetch(API_PATH, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-        body: JSON.stringify({
-          question: submitted,
-          ...(activeId ? { session_id: activeId } : {}),
-        }),
+        headers,
+        body: JSON.stringify({ question: submitted, session_id: sessionId }),
         signal: abortController.signal,
       });
       const payload = await result.json().catch(() => null);
@@ -355,32 +390,32 @@ export default function ChatPage({
       if (!result.ok)
         throw new Error(payload?.detail || payload?.error?.message || "Không thể xử lý câu hỏi.");
       const nextResponse = validateChatResponse(payload);
-      const responseId =
-        typeof payload?.session_id === "string"
-          ? payload.session_id
-          : typeof payload?.conversation_id === "string"
-            ? payload.conversation_id
-            : typeof payload?.chat_id === "string"
-              ? payload.chat_id
-              : activeId;
-      if (responseId && responseId !== activeId) {
-        setActiveId(responseId);
-        navigateTo(responseId);
-      }
-      setTurns((previous) => [...previous, { question: submitted, response: nextResponse }]);
-      if (responseId) setConversationActivity({ id: responseId, nonce: Date.now() });
-      setQuestion("");
+      setTurns((previous) => [
+        ...previous.slice(0, -1),
+        { question: submitted, response: nextResponse },
+      ]);
+      setConversationActivity({ id: sessionId, nonce: Date.now() });
     } catch (submissionError) {
-      if (submissionError instanceof DOMException && submissionError.name === "AbortError") {
-        setError(timedOut ? "Tra cứu quá thời gian chờ. Vui lòng thử lại." : "Đã dừng tra cứu.");
-      } else {
-        setError(
-          submissionError instanceof Error ? submissionError.message : "Không thể xử lý câu hỏi.",
-        );
+      if (latestSubmissionRef.current === submissionId) {
+        setTurns((previous) => [
+          ...previous.slice(0, -1),
+          { question: submitted, status: "failed" },
+        ]);
+        setQuestion(submitted);
+        if (submissionError instanceof DOMException && submissionError.name === "AbortError") {
+          setError(timedOut ? "Tra cứu quá thời gian chờ. Vui lòng thử lại." : "Đã dừng tra cứu.");
+        } else {
+          setError(
+            submissionError instanceof Error ? submissionError.message : "Không thể xử lý câu hỏi.",
+          );
+        }
       }
     } finally {
       window.clearTimeout(timeout);
-      if (abortControllerRef.current === abortController) {
+      if (
+        latestSubmissionRef.current === submissionId &&
+        abortControllerRef.current === abortController
+      ) {
         abortControllerRef.current = null;
         setLoading(false);
       }
@@ -398,11 +433,13 @@ export default function ChatPage({
   }
   useEffect(() => () => stopSubmission(), []);
   const resetConversation = () => {
+    latestSubmissionRef.current += 1;
     stopSubmission();
     setQuestion("");
     setTurns([]);
     setSubmittedQuestion("");
     setError("");
+    activeIdRef.current = undefined;
     setActiveId(undefined);
     navigateTo();
   };

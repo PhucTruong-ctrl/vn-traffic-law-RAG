@@ -27,8 +27,12 @@ export default function Composer({
       textarea.style.transition = "none";
       textarea.style.height = "0px";
       const lineHeight = Number.parseFloat(getComputedStyle(textarea).lineHeight) || 23;
-      const maxHeight = hero ? Number.POSITIVE_INFINITY : lineHeight * 8 + 24;
-      const nextHeight = Math.max(lineHeight + 24, Math.min(textarea.scrollHeight, maxHeight));
+      const verticalPadding = hero ? 24 : 28;
+      const maxHeight = hero ? Number.POSITIVE_INFINITY : lineHeight * 8 + verticalPadding;
+      const nextHeight = Math.max(
+        lineHeight + verticalPadding,
+        Math.min(textarea.scrollHeight, maxHeight),
+      );
       textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
       textarea.style.height = `${nextHeight}px`;
       if (hero || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -66,6 +70,7 @@ export default function Composer({
       <textarea
         ref={textareaRef}
         id={id}
+        value={value}
         onChange={(event) => {
           onChange(event.target.value);
           window.setTimeout(() => {
@@ -77,7 +82,6 @@ export default function Composer({
         rows={hero ? 2 : 1}
       />
       <div className="composer-actions">
-        <span className="scope-chip">Câu hỏi gợi ý</span>
         {loading ? (
           <button type="button" aria-label="Dừng tra cứu" title="Dừng tra cứu" onClick={onStop}>
             <Square size={17} fill="currentColor" aria-hidden="true" />

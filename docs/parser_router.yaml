@@ -4,18 +4,22 @@
 # parser selection only; it does not add external retrieval, agents, or a service topology.
 #
 # Chú thích quality gates (doc 03 §3.7.3):
-# - QGA (Group A) = Parser-level gates, chạy SAU IR normalization, trước Legal
-#   Structure Extractor. Chạy trên ParsedDocument/DocumentElement.
-# - QGB (Group B) = Structural gates, chạy SAU Legal Structure Extractor.
-#   Chạy trên LegalProvision[] vì cần kết quả nhận diện cấu trúc.
-# Hai nhóm đặt ở hai thời điểm khác nhau vì dùng các đầu vào khác nhau.
+# - QGA (Group A) = Các gate ở cấp parser, chạy SAU khi chuẩn hóa IR và trước
+#   Legal Structure Extractor. Các gate này dùng ParsedDocument/DocumentElement.
+# - QGB (Group B) = Các gate cấu trúc, chạy SAU Legal Structure Extractor.
+#   Các gate này dùng LegalProvision[] vì cần kết quả nhận diện cấu trúc.
+# Hai nhóm được đặt ở các thời điểm khác nhau vì nhận các đầu vào khác nhau.
 #
 # Bảng quyết định routing:
-# - PDF searchable (có text layer), layout chuẩn -> Docling trước; fallback chỉ khi gate fail.
-# - PDF scan hoặc layout lỗi -> Docling trước; OCR là route có provenance/quarantine,
-#   không auto-index output chưa qua gate. MinerU là alternate parser khi fallback được cấu hình.
-# - Bảng phức tạp -> so sánh đầu ra khi cần; chọn theo quality gate hoặc gửi review.
-# - DOCX/HTML/EPUB không thuộc corpus ingestion hiện tại; không xem là đường vào được hỗ trợ.
+# - PDF searchable (có text layer), layout chuẩn -> ưu tiên Docling; chỉ fallback
+#   khi gate thất bại.
+# - PDF scan hoặc layout lỗi -> vẫn chạy Docling trước; OCR là route có provenance
+#   và quarantine, không tự động index output chưa qua gate. MinerU là parser thay
+#   thế khi fallback được cấu hình.
+# - Bảng phức tạp -> so sánh các đầu ra khi cần, sau đó chọn theo quality gate
+#   hoặc chuyển sang review.
+# - DOCX/HTML/EPUB không thuộc corpus ingestion hiện tại và không phải đầu vào
+#   được hỗ trợ.
 #
 # Đầu vào quyết định routing (doc 03 §3.7.2):
 # - Loại file và MIME;
@@ -37,12 +41,41 @@
 # Chính sách scan-review routing (VNLRAG-20 OCR decision, AC 9):
 # - Scan-derived docs có d/đ ambiguity, provenance thấp (Group A
 #   provenance_coverage < 0.9 hoặc bbox thiếu), hoặc structural mismatch
-#   -> route review (VNLRAG-155 Review CLI), KHÔNG BAO GIỜ auto-index
+#   -> chuyển sang review (VNLRAG-155 Review CLI), KHÔNG BAO GIỜ auto-index
 #   partial OCR output.
-# - Group A text_extraction_rate >= 0.8 chỉ là quantity-only, không đủ cho
-#   legal correctness; Group B (d/đ, hierarchy, short-point) giữ vai trò
-# - OCR scan route hiện dùng Tesseract Vietnamese; đây là preprocessing riêng và phải
-#   giữ provenance. CER/WER chưa có trong first pass; không biến benchmark thành acceptance.
+# - Group A text_extraction_rate >= 0.8 chỉ phản ánh số lượng, không đủ cho
+#   legal correctness; Group B (d/đ, hierarchy, short-point) vẫn là gate chính.
+# - OCR scan route hiện dùng Tesseract Vietnamese; đây là preprocessing riêng
+#   và phải giữ provenance. CER/WER chưa có trong first pass, không dùng
+#   benchmark làm điều kiện acceptance.
+#
+# Đầu vào quyết định routing (doc 03 §3.7.2):
+# - Loại file và MIME;
+# - Sự hiện diện text layer (searchable hay scan);
+# - Số trang, kích thước file;
+# - Tín hiệu chất lượng OCR (nếu đã chạy);
+# - Độ phức tạp layout (số bảng, header/footer, cột);
+# - document_type từ manifest (Luật, Nghị định, Thông tư).
+#
+# Ghi chú chính sách auto-accept (doc 03 §3.7.5):
+# - Confidence score KHÔNG BAO GIỜ được dùng để quyết định sự thật pháp lý
+#   (ngày hiệu lực, quan hệ sửa đổi/thay thế/bãi bỏ). Quyết định pháp lý chỉ
+#   dựa trên nguồn xác định (manifest chính thức, pattern deterministic khớp
+#   tuyệt đối, quyết định reviewer).
+# - Mọi quyết định routing và kết quả quality gate được ghi vào
+#   ingestion_runs.parser_routing và DocumentElement.source_parser
+#   (phục vụ Suite A và corpus QA, NFR-09).
+#
+# Chính sách scan-review routing (VNLRAG-20 OCR decision, AC 9):
+# - Scan-derived docs có d/đ ambiguity, provenance thấp (Group A
+#   provenance_coverage < 0.9 hoặc bbox thiếu), hoặc structural mismatch
+#   -> chuyển sang review (VNLRAG-155 Review CLI), KHÔNG BAO GIỜ auto-index
+#   partial OCR output.
+# - Group A text_extraction_rate >= 0.8 chỉ phản ánh số lượng, không đủ cho
+#   legal correctness; Group B (d/đ, hierarchy, short-point) vẫn là gate chính.
+# - OCR scan route hiện dùng Tesseract Vietnamese; đây là preprocessing riêng
+#   và phải giữ provenance. CER/WER chưa có trong first pass, không dùng
+#   benchmark làm điều kiện acceptance.
 # =============================================================================
 
 parser_router:

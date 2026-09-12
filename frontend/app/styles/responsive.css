@@ -102,7 +102,12 @@
 
 .composer textarea {
   min-height: 104px;
-  padding: 15px;
+  padding: 15px 68px 15px 15px;
+}
+
+.compact-composer textarea {
+  min-height: 52px;
+  padding-block: 14px;
 }
 
 .source-drawer__done {
@@ -124,15 +129,6 @@
 
 .query-bubble {
   max-width: 94%;
-}
-
-.assistant-message {
-  gap: 10px;
-}
-
-.assistant-message > svg {
-  width: 32px;
-  height: 32px;
 }
 
 .answer-actions button,
@@ -174,10 +170,6 @@
 
 .welcome h1 {
   font-size: 27px;
-}
-
-.composer-actions {
-  align-items: flex-end;
 }
 
 .scope-chip {

@@ -1,12 +1,12 @@
 # 06. Kiểm Thử và Đánh Giá (Test and Evaluation)
 
-> **Active MVP baseline — 12/09/2026.** This document is the executable evaluation guide for the current rescue MVP. The runtime is a Next.js 16 / React 19 frontend, a FastAPI backend on Python 3.11, Supabase REST/Auth for application persistence, local Qdrant 1.19 hybrid retrieval (OpenRouter dense embeddings + FastEmbed BM25), one configured OpenRouter generator, deterministic evidence/citation/temporal gates, and a Markdown/PDF legal explorer. The query path is corpus-only: no web or external retrieval, autonomous agents, LangGraph, Redis, MinIO, PostgreSQL app-owned runtime, or seven-service topology.
+> **Active MVP baseline, 12/09/2026.** This document is the executable evaluation guide for the current rescue MVP. The runtime is a Next.js 16 / React 19 frontend, a FastAPI backend on Python 3.11, Supabase REST/Auth for application persistence, local Qdrant 1.19 hybrid retrieval (OpenRouter dense embeddings + FastEmbed BM25), one configured OpenRouter generator, deterministic evidence/citation/temporal gates, and a Markdown/PDF legal explorer. The query path is corpus-only: no web or external retrieval, autonomous agents, LangGraph, Redis, MinIO, PostgreSQL app-owned runtime, or seven-service topology.
 >
-> **Historical material.** Thesis plans, old reports, and design notes may mention other providers, worker queues, RAGFlow, Langfuse, PostgreSQL, or larger suites. Those passages are historical/deferred context only, not active release requirements. Never rewrite frozen gold-set data or historical raw results; label their status instead.
+> **Historical material.** Thesis plans, old reports, and design notes may mention other providers, worker queues, RAGFlow, Langfuse, PostgreSQL, or larger suites. Those passages provide historical or deferred context only, not active release requirements. Never rewrite frozen gold-set data or historical raw results; label their status instead.
 
 ## 1. Active release contract
 
-The active release evidence is the checked-in corpus, deterministic evaluation fixtures, focused backend tests, API smoke tests, and the available 40-case thesis evaluator. Do not claim a full 200-question or 14-document run unless raw artefacts and outputs exist for that run. Report unavailable metrics as `N/A`/unavailable; never turn missing evidence into a score.
+The active release evidence consists of the checked-in corpus, deterministic evaluation fixtures, focused backend tests, API smoke tests, and the available 40-case thesis evaluator. Do not claim a full 200-question or 14-document run unless raw artefacts and outputs exist for that run. Report unavailable metrics as `N/A`/unavailable; never turn missing evidence into a score.
 
 The active correctness contract is:
 
@@ -21,7 +21,7 @@ The active correctness contract is:
 
 ## 2. Executable setup and smoke checks
 
-Run commands from the repository root. Use the repository's existing `uv` and npm toolchains; do not add services to make a check pass.
+Run commands from the repository root. Use the repository's existing `uv` and npm toolchains. Do not add services to make a check pass.
 
 ```bash
 # Backend focused tests
@@ -40,7 +40,7 @@ npm --prefix frontend run typecheck
 npm --prefix frontend run build
 ```
 
-The ready response reports Supabase/Qdrant dependency status. A configured OpenRouter key is required for a live generation/embedding smoke; provider errors must remain fail-closed. For an authenticated chat smoke, obtain a Supabase access token through the configured auth flow and send it as `Authorization: Bearer <token>`:
+The ready response reports Supabase/Qdrant dependency status. A configured OpenRouter key is required for a live generation/embedding smoke, and provider errors must remain fail-closed. For an authenticated chat smoke, obtain a Supabase access token through the configured auth flow and send it as `Authorization: Bearer <token>`:
 
 ```bash
 curl -fsS http://127.0.0.1:8000/api/v1/chat \
@@ -55,7 +55,7 @@ Use only non-secret redacted output in reports. If the local corpus or provider 
 
 ### 3.1 Unit and deterministic tests
 
-Unit tests cover manifest/source metadata, Markdown/PDF ingestion adapters, legal-reference parsing, chunk metadata, temporal intervals, evidence planning, citation validation, abstention/status mapping, and metric calculations. Deterministic modules are the headline correctness evidence. A scoped coverage run may be used for the currently implemented modules, but the old blanket 80% claim is not an active release gate unless the repository's current test configuration explicitly enables it.
+Unit tests cover manifest/source metadata, Markdown/PDF ingestion adapters, legal-reference parsing, chunk metadata, temporal intervals, evidence planning, citation validation, abstention/status mapping, and metric calculations. Deterministic modules provide the main correctness evidence. A scoped coverage run may be used for the currently implemented modules, but the old blanket 80% claim is not an active release gate unless the repository's current test configuration explicitly enables it.
 
 Required boundary cases include:
 
@@ -86,11 +86,11 @@ Supabase REST/Auth is the only application persistence boundary. Focused checks 
 
 ### 3.4 API and frontend smoke checks
 
-Exercise `/api/v1/chat`, the health/readiness routes, auth routes, chat-session routes, bookmark routes, and legal explorer/search routes exposed by `backend/app/main.py`. Confirm the Next.js frontend resolves its API base, sends the bearer token, renders verified/abstention states, and opens Markdown/PDF source links. A browser failure is reported with route, HTTP status, readiness state, redacted console error, and backend trace ID; it is not hidden by retrying another route.
+Exercise `/api/v1/chat`, the health/readiness routes, auth routes, chat-session routes, bookmark routes, and legal explorer/search routes exposed by `backend/app/main.py`. Confirm that the Next.js frontend resolves its API base, sends the bearer token, renders verified/abstention states, and opens Markdown/PDF source links. Report a browser failure with its route, HTTP status, readiness state, redacted console error, and backend trace ID. Do not hide it by retrying another route.
 
 ## 4. Frozen evaluation data and metrics
 
-Frozen corpus manifests, source hashes, parser fixtures, and gold-set files are inputs, not tuning targets. Align predictions by `question_id`; preserve every failure in raw output and error analysis. The active deterministic metrics are retrieval hit/Recall@k where gold IDs exist, citation validity/precision/recall, evidence completeness, temporal validity, abstention/status accuracy, numeric grounding, and latency. Break down metrics by category and status; an aggregate must not conceal historical, comparison, out-of-scope, or insufficient-evidence failures.
+Frozen corpus manifests, source hashes, parser fixtures, and gold-set files are inputs, not tuning targets. Align predictions by `question_id`; preserve every failure in raw output and error analysis. Active deterministic metrics include retrieval hit/Recall@k where gold IDs exist, citation validity/precision/recall, evidence completeness, temporal validity, abstention/status accuracy, numeric grounding, and latency. Break metrics down by category and status; an aggregate must not conceal historical, comparison, out-of-scope, or insufficient-evidence failures.
 
 The checked-in thesis interface is executable for the available dataset:
 
@@ -106,11 +106,11 @@ The runner stores append-only JSONL and aggregate JSON output. It can instead sc
 
 ### 4.1 Suite A parser reports
 
-Suite A reports under `docs/evaluation/` are historical parser benchmarks over immutable fixtures. They remain useful provenance for parser behavior and OCR observations, but are not evidence that the current MVP has a seven-service ingestion pipeline or that a parser benchmark is a release gate. Re-run only when the corresponding suite implementation and immutable artefacts are present; use the command recorded in that report and label the run date, fixture hash, parser versions, and unavailable lanes.
+Suite A reports under `docs/evaluation/` are historical parser benchmarks over immutable fixtures. They provide provenance for parser behavior and OCR observations, but they do not show that the current MVP has a seven-service ingestion pipeline or that a parser benchmark is a release gate. Re-run only when the corresponding suite implementation and immutable artefacts are present; use the command recorded in that report and label the run date, fixture hash, parser versions, and unavailable lanes.
 
 ### 4.2 Optional semantic metrics
 
-Ragas, online judges, Langfuse, and external RAGFlow comparisons are optional thesis experiments. They are never required for the active MVP, never replace deterministic evidence/citation/temporal gates, and provider failure is reported unavailable. There is one active OpenRouter generator; do not report multiple-generator routing or silent provider fallback.
+Ragas, online judges, Langfuse, and external RAGFlow comparisons are optional thesis experiments. They are not required for the active MVP and do not replace deterministic evidence/citation/temporal gates; provider failure is reported unavailable. There is one active OpenRouter generator. Do not report multiple-generator routing or silent provider fallback.
 
 ## 5. Acceptance gates
 
@@ -129,4 +129,4 @@ Do not make Docker clean-start, PostgreSQL/Redis/MinIO snapshots, worker queues,
 
 ## 6. Historical provenance note
 
-Older sections and reports in this repository were written for a thesis architecture with Parser P1–P3, embedding/retrieval/generation ablations, PostgreSQL-owned ingestion state, Redis/Dramatiq, MinIO, LangGraph repair, RAGFlow, Langfuse, and seven-service Compose. Those records are preserved for provenance. They are not descriptions of the active runtime and must be read with the current baseline at the top of this document.
+Older sections and reports in this repository were written for a thesis architecture with Parser P1–P3, embedding/retrieval/generation ablations, PostgreSQL-owned ingestion state, Redis/Dramatiq, MinIO, LangGraph repair, RAGFlow, Langfuse, and seven-service Compose. Those records remain for provenance. They do not describe the active runtime and must be read with the current baseline at the top of this document.

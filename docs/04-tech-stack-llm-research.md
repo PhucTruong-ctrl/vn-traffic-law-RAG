@@ -1,9 +1,9 @@
-> **MVP rebaseline — 12/09/2026**: The active implementation is a local, single-user rescue MVP: FastAPI + Qdrant hybrid retrieval, OpenRouter generation/embeddings, a Next.js chat UI, deterministic citation/evidence checks, and fail-closed provider errors. The reviewed local corpus and frozen evaluation artefacts remain in scope.
+> **MVP rebaseline, 12/09/2026**: The active implementation is a local, single-user rescue MVP: FastAPI + Qdrant hybrid retrieval, OpenRouter generation/embeddings, a Next.js chat UI, deterministic citation/evidence checks, and fail-closed provider errors. The reviewed local corpus and frozen evaluation artefacts remain in scope.
 >
-> **Historical research record**: The earlier v2 design below records thesis options and planned experiments. Gemini, OpenAI, LangGraph, Langfuse, RAGFlow, Dramatiq, Redis, MinIO, Ragas, MinerU, and Jina components are not active MVP requirements unless explicitly marked as historical/challenger/baseline. Do not present their planned capabilities or versions as implemented behavior.
+> **Historical research record**: The earlier v2 design below records thesis options and planned experiments. Gemini, OpenAI, LangGraph, Langfuse, RAGFlow, Dramatiq, Redis, MinIO, Ragas, MinerU, and Jina components are not active MVP requirements unless explicitly marked as historical, challenger, or baseline. Do not present their planned capabilities or versions as implemented behavior.
 >
 > **Model policy**: The active runtime uses the configured OpenRouter model IDs (`GENERATION_MODEL` and `EMBEDDING_MODEL`); exact model selection is configuration/evaluation data, not a hard-coded Gemini/OpenAI requirement.
-# 04. Nghiên Cứu Công Nghệ và LLM (Tech Stack and LLM Research)
+# 04. Nghiên cứu công nghệ và LLM (Tech Stack and LLM Research)
 
 > **Giai đoạn SDLC**: 3 - Thiết kế  
 > **Ngày tạo**: 16/06/2026  
@@ -18,7 +18,7 @@
 
 ---
 
-Tài liệu này là bản nghiên cứu và quyết định công nghệ của VNLRAG v2. Mọi quyết định phải nhất quán với [00-scope-and-decisions.md](00-scope-and-decisions.md) (mục 7, 11, 14) và thiết kế chi tiết [03-thiet-ke-he-thong.md](03-thiet-ke-he-thong.md) (ADR-001 đến ADR-020). Tài liệu ghi lại phiên bản, khả năng, tài nguyên, chi phí và lý do chọn/bác bỏ từng công nghệ, kèm trạng thái xác minh và URL chính thức.
+Tài liệu này ghi lại nghiên cứu và các quyết định công nghệ của VNLRAG v2. Mọi quyết định phải nhất quán với [00-scope-and-decisions.md](00-scope-and-decisions.md) (mục 7, 11, 14) và thiết kế chi tiết [03-thiet-ke-he-thong.md](03-thiet-ke-he-thong.md) (ADR-001 đến ADR-020). Tài liệu nêu phiên bản, khả năng, tài nguyên, chi phí và lý do chọn hoặc loại bỏ từng công nghệ, cùng trạng thái xác minh và URL chính thức.
 
 Quy ước nhãn quyết định dùng trong toàn tài liệu:
 
@@ -97,7 +97,7 @@ Embedding model ID and vector dimensions are deployment/evaluation data, not cla
 | Deployment | Python package, CPU/CUDA/MPS/XPU | Docker Linux/WSL2 only (không macOS); hỗ trợ remote `*-http-client` |
 | Trạng thái xác minh | verified (tài liệu chính thức) | verified (tài liệu chính thức); OCR tiếng Việt 3.4.x to-verify |
 
-Không parser nào vượt trội tuyệt đối cho mọi trường hợp. Đây là kết luận thiết kế bắt buộc (doc 00 mục 4.1, ADR-002), và là lý do thiết kế Parser Router với quality gate. Kết quả so sánh chi tiết chỉ được ghi sau Suite A (P1-P3).
+Không parser nào vượt trội tuyệt đối trong mọi trường hợp. Đây là kết luận thiết kế bắt buộc (doc 00 mục 4.1, ADR-002) và là lý do có Parser Router với quality gate. Chỉ ghi kết quả so sánh chi tiết sau Suite A (P1-P3).
 
 ### 4.3.2. Docling (selected, parser chính)
 
@@ -216,7 +216,7 @@ Vai trò: lớp điều phối workflow có kiểm soát, không phải agent ha
 Phiên bản: langgraph v1.1.x (v1.1.10, 2026-04-27); pin langgraph>=1.1
 ```
 
-LangGraph là orchestration runtime, không phải agent framework. LangChain phân biệt rõ LangGraph (orchestration runtime) với agents. Trong VNLRAG v2, LangGraph điều phối đồ thị có nhánh xác định trước; LLM không tự chọn tool hoặc tự tạo kế hoạch. Hệ thống không bao giờ được mô tả là autonomous agent (doc 00 mục 1, ADR-016).
+LangGraph là orchestration runtime, không phải agent framework. LangChain phân biệt rõ LangGraph (orchestration runtime) với agents. Trong VNLRAG v2, LangGraph điều phối đồ thị có nhánh xác định trước; LLM không tự chọn tool hoặc tự tạo kế hoạch. Hệ thống không được mô tả là autonomous agent (doc 00 mục 1, ADR-016).
 
 ### 4.4.2. Khái niệm dùng trong thiết kế
 
@@ -306,7 +306,7 @@ Phiên bản: Server v4.0.0 (2026-07-29); Python SDK v4.x (OTel-based core, >= 4
 Cloud mặc định: https://cloud.langfuse.com
 ```
 
-Langfuse không nằm trên đường tới hạn tính đúng đắn. Ingest bất đồng bộ (batched -> S3 -> worker -> ClickHouse); toàn bộ callback non-mutating; nếu Langfuse không khả dụng, query vẫn hoạt động bình thường (doc 00 mục 4.11, ADR-009). Bật/tắt qua `LANGFUSE_ENABLED`.
+Langfuse nằm ngoài đường tới hạn tính đúng đắn. Ingest bất đồng bộ (batched -> S3 -> worker -> ClickHouse); toàn bộ callback non-mutating; nếu Langfuse không khả dụng, query vẫn hoạt động bình thường (doc 00 mục 4.11, ADR-009). Bật/tắt qua `LANGFUSE_ENABLED`.
 
 ### 4.5.2. Tính năng sử dụng
 
@@ -399,7 +399,7 @@ Phiên bản: v0.26.4 (2026-07-07); v0.27.0 đang phát triển
 Image: infiniflow/ragflow:v0.26.4 (~2 GB, x86 only, không ARM)
 ```
 
-RAGFlow là baseline so sánh chất lượng pipeline pháp lý riêng (doc 00 mục 4.12, ADR-010). Nó chạy trong môi trường benchmark riêng, không nằm trong compose production. Kết quả baseline không phải kết quả VNLRAG.
+RAGFlow là baseline để so sánh riêng chất lượng pipeline pháp lý (doc 00 mục 4.12, ADR-010). Nó chạy trong môi trường benchmark riêng và không nằm trong compose production. Kết quả baseline không phải kết quả VNLRAG.
 
 ### 4.6.2. Kiến trúc liên quan
 
@@ -475,7 +475,7 @@ Phiên bản: v1.19.0 (trước đó 1.18.3, 2026-07-17)
 Vai trò: retrieval engine duy nhất, index dẫn xuất dựng lại được từ PostgreSQL
 ```
 
-Qdrant là index dẫn xuất. PostgreSQL là nguồn chân lý; nếu dữ liệu hai nơi lệch nhau, PostgreSQL thắng (doc 00 mục 8.6, ADR-005). Collection được thiết kế theo doc 03 mục 3.11 (named dense vector + sparse vectors + payload + alias `legal_provisions_active`).
+Qdrant là index dẫn xuất. PostgreSQL là nguồn chân lý; nếu dữ liệu hai nơi lệch nhau, PostgreSQL thắng (doc 00 mục 8.6, ADR-005). Collection theo doc 03 mục 3.11 gồm named dense vector, sparse vectors, payload và alias `legal_provisions_active`.
 
 ### 4.7.2. Khả năng sử dụng
 
@@ -567,7 +567,7 @@ Qdrant (2026). Qdrant: AI-native vector database & semantic search engine (v1.19
 
 ### 4.8.1. Nguyên tắc
 
-Không có quyết định embedding vĩnh viễn trước khi benchmark (doc 00 mục 7, ADR-013). Đây là quyết định thiết kế bắt buộc: chỉ chọn embedding production sau khi có bằng chứng thực nghiệm từ Suite B.
+Không có quyết định embedding vĩnh viễn trước khi benchmark (doc 00 mục 7, ADR-013). Chỉ chọn embedding production sau khi có bằng chứng thực nghiệm từ Suite B.
 
 ```text
 Tiêu chí Suite B: Recall@10, MRR@10, nDCG@10 trên câu hỏi pháp luật tiếng Việt,
@@ -733,7 +733,7 @@ Nhãn: selected (MVP)
 Model: giá trị cấu hình `GENERATION_MODEL`; không khóa Gemini/OpenAI
 ```
 
-Generator chính cho grounded answer theo prompt hiện có của backend. OpenRouter errors fail closed; automatic provider fallback is not part of the active runtime.
+Generator chính tạo grounded answer theo prompt hiện có của backend. OpenRouter errors fail closed; automatic provider fallback không thuộc runtime active.
 
 ### 4.10.2. Historical model research
 
@@ -836,7 +836,7 @@ Google DeepMind (2026). Gemini 3.5 Flash - Model Card.
 Nhãn: historical/deferred
 ```
 
-The active MVP has no separate online judge requirement. Deterministic citation, temporal, evidence, and provider-failure behavior are the release contract. The following model notes are retained only as thesis research and are not installed dependencies.
+Active MVP không yêu cầu online judge riêng. Hợp đồng release gồm citation, temporal, evidence và hành vi khi provider lỗi theo cách deterministic. Các ghi chú về model dưới đây chỉ là nghiên cứu cho luận văn và không phải dependency đã cài.
 
 
 Tóm tắt hành vi khi judge không khả dụng theo từng vai trò:
@@ -979,7 +979,7 @@ Phiên bản: 8.x (8.10.0 GA 2026-07-29; 8.8.0 2026-05-25)
 Vai trò: Dramatiq broker + cache
 ```
 
-Redis dùng làm broker cho Dramatiq và cache (doc 00 mục 7, ADR-011). Không phải broker duy nhất mạnh nhất; với workload khóa luận (moderate ingestion + cache) Redis đủ. Với yêu cầu durable guaranteed delivery ở quy mô lớn, RabbitMQ mạnh hơn; không cần trong scope.
+Redis dùng làm broker cho Dramatiq và cache (doc 00 mục 7, ADR-011). Với workload khóa luận gồm ingestion vừa phải và cache, Redis đáp ứng nhu cầu. RabbitMQ phù hợp hơn khi cần durable guaranteed delivery ở quy mô lớn, nhưng không nằm trong scope.
 
 ### 4.13.2. Tính năng mới đáng chú ý
 
@@ -1017,7 +1017,7 @@ Phiên bản: v2.2.0 (2026-06-17)
 Vai trò: background ingestion, actor idempotent, Redis broker
 ```
 
-Dramatiq chạy worker ingestion phía sau; `POST /documents` trả `202 Accepted` kèm `ingestion_job_id`; không parse PDF đồng bộ trong request handler (doc 03 mục 3.13, ADR-011).
+Dramatiq chạy worker ingestion phía sau; `POST /documents` trả `202 Accepted` kèm `ingestion_job_id`; request handler không parse PDF đồng bộ (doc 03 mục 3.13, ADR-011).
 
 ### 4.14.2. Broker và middleware
 
@@ -1082,7 +1082,7 @@ Quyết định cam kết: abstraction ObjectStoragePort -> triển khai S3-comp
 Vai trò: lưu PDF nguồn, parser output, ảnh trang, artifact ingestion/review/evaluation
 ```
 
-Quyết định được cam kết ở tầng kiến trúc là **abstraction `ObjectStoragePort`** phía sau một triển khai S3-compatible, không phải hard-lock một sản phẩm cụ thể. PostgreSQL lưu object key và metadata; nội dung file nằm trong object store (doc 03 mục 3.12, ADR-012). Managed S3 không cần thiết cho khóa luận (chạy local). Thiết kế này không quay lại ad-hoc folder storage: mọi file vẫn được lưu dưới object store với object key truy vết trong PostgreSQL.
+Cam kết ở tầng kiến trúc là **abstraction `ObjectStoragePort`** phía sau một triển khai S3-compatible, không hard-lock một sản phẩm cụ thể. PostgreSQL lưu object key và metadata; nội dung file nằm trong object store (doc 03 mục 3.12, ADR-012). Managed S3 không cần thiết cho khóa luận vì hệ thống chạy local. Mọi file vẫn nằm trong object store và có object key truy vết trong PostgreSQL.
 
 ### 4.15.2. Ghi chú ADR: MinIO đang được xem xét lại
 
@@ -1466,7 +1466,7 @@ Next.js App Router:        https://nextjs.org/docs/app
 
 ## 4.23. Tổng kết
 
-Tài liệu này chốt tech stack v2 với các nhãn selected/challenger/baseline/rejected cho từng quyết định:
+Tài liệu này chốt tech stack v2 với các nhãn selected, challenger, baseline và rejected cho từng quyết định:
 
 - Parser: Docling selected (chính) + MinerU challenger (phụ/fallback) qua Parser Router; không khẳng định parser nào vượt trội tuyệt đối trước Suite A.
 - Workflow: LangGraph selected, controlled workflow, không phải agent harness.
