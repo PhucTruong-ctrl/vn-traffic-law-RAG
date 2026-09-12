@@ -107,11 +107,12 @@ function MarkdownSourceViewer({
   const blocks = useMemo(() => parseMarkdown(visibleRaw), [visibleRaw]);
 
   const [query, setQuery] = useState(searchQuery ?? "");
-  const [querySource, setQuerySource] = useState(searchQuery);
-  if (querySource !== searchQuery) {
-    setQuerySource(searchQuery);
+  const querySource = useRef(searchQuery);
+  useEffect(() => {
+    if (querySource.current === searchQuery) return;
+    querySource.current = searchQuery;
     setQuery(searchQuery ?? "");
-  }
+  }, [searchQuery]);
   const [copied, setCopied] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const target = useMemo(() => {
