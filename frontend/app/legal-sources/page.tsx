@@ -439,12 +439,7 @@ function LegalSourcesExplorer() {
           ) : (
             <LegalSourceViewer
               mode="explorer"
-              searchQuery={citationSearch(
-                article,
-                clause,
-                point,
-                selectedContent?.content || selectedContent?.markdown || "",
-              )}
+              searchQuery={citationSearch(article, clause, point, "")}
               citation={{
                 source_id: `${documentId(selected)}:explorer`,
                 document_id: documentId(selected) || "selected-document",
