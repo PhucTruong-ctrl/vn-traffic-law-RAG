@@ -10,7 +10,7 @@ import LegalMark from "./LegalMark";
 import Modal from "./Modal";
 import type { Conversation } from "./chat-types";
 import { createClient } from "../../utils/supabase/client";
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
+import { apiUrl } from "../lib/api";
 type ConversationActivity = { id: string; nonce: number } | null;
 
 type SidebarProps = {
@@ -95,7 +95,7 @@ export default function Sidebar({
       if (query.trim()) params.set("search", query.trim());
       if (nextCursor) params.set("cursor", nextCursor);
       try {
-        const result = await fetch(`${API_BASE}/api/v1/chats?${params}`, {
+        const result = await fetch(apiUrl(`chats?${params}`), {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         if (!result.ok) return;
@@ -319,7 +319,7 @@ export default function Sidebar({
     if (!authReady || !accessToken) return;
     const next = title.trim();
     if (!next) return;
-    const result = await fetch(`${API_BASE}/api/v1/chats/${encodeURIComponent(id)}`, {
+    const result = await fetch(apiUrl(`chats/${encodeURIComponent(id)}`), {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -338,7 +338,7 @@ export default function Sidebar({
 
   async function remove(id: string) {
     if (!authReady || !accessToken) return;
-    const result = await fetch(`${API_BASE}/api/v1/chats/${encodeURIComponent(id)}`, {
+    const result = await fetch(apiUrl(`chats/${encodeURIComponent(id)}`), {
       method: "DELETE",
       headers: { Authorization: `Bearer ${accessToken}` },
     });
@@ -365,11 +365,12 @@ export default function Sidebar({
         ref={mobileToggleRef}
         type="button"
         className="mobile-sidebar-toggle"
+        aria-label="Mở điều hướng"
         aria-controls="conversation-sidebar"
         aria-expanded={mobileOpen}
         onClick={() => setMobileOpen(true)}
       >
-        <PanelIcon />
+        <PanelIcon aria-hidden="true" />
         <span>Mở điều hướng</span>
       </button>
       {mobileOpen && (

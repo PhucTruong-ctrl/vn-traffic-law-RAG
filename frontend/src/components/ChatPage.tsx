@@ -15,9 +15,9 @@ import type { ProgressEvent } from "./ProgressEvents";
 import type { Citation } from "./CitationCard";
 import type { Session } from "@supabase/supabase-js";
 import { createClient } from "../../utils/supabase/client";
+import { apiUrl } from "../lib/api";
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
-const API_PATH = `${API_BASE}/api/v1/chat`;
+const API_PATH = apiUrl("chat");
 const CHAT_TIMEOUT_MS = 120_000;
 const isCitation = (value: unknown): value is Citation => {
   if (typeof value !== "object" || value === null) return false;
@@ -267,7 +267,7 @@ export default function ChatPage({
     });
     void authHeaders()
       .then((headers) =>
-        fetch(`${API_BASE}/api/v1/chats/${encodeURIComponent(conversationId)}`, {
+        fetch(apiUrl(`chats/${encodeURIComponent(conversationId)}`), {
           headers,
           signal: controller.signal,
         }),

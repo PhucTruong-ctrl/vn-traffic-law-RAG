@@ -18,7 +18,7 @@ export default function Welcome({ question, suggestions, onQuestion, onSubmit }:
       <div className="welcome-enter__item">
         <Composer id="question" value={question} hero onChange={onQuestion} onSubmit={onSubmit} />
       </div>
-      <div className="prompt-chips welcome-enter__item" aria-label="Gợi ý">
+      <div className="prompt-chips welcome-enter__item" role="group" aria-label="Gợi ý">
         {suggestions.map((item, index) => (
           <button
             key={item}

@@ -1,3 +1,5 @@
+import ChatPage from "../../src/components/ChatPage";
+
 export default function ChatRoute() {
-  return null;
+  return <ChatPage />;
 }

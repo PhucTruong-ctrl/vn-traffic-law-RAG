@@ -1,17 +1,12 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Modal from "../../src/components/Modal";
 import LegalSourceViewer from "../../src/components/LegalSourceViewer";
-
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
-const API_PREFIX = API_BASE.endsWith("/api/v1") ? API_BASE : `${API_BASE}/api/v1`;
-
-function apiUrl(path: string) {
-  return `${API_PREFIX}/${path.replace(/^\/+/, "")}`;
-}
+import { apiUrl } from "../../src/lib/api";
 
 function responseError(response: Response, fallback: string) {
   return response.text().then((body) => {
@@ -154,6 +149,7 @@ function LegalSourcesExplorer() {
   const [selected, setSelected] = useState<LegalDocument | null>(null);
   const [selectedProvisions, setSelectedProvisions] = useState<LegalProvision[]>([]);
   const [selectedLoading, setSelectedLoading] = useState(false);
+  const selectedRequest = useRef<{ id: string; controller: AbortController } | null>(null);
   const [selectedError, setSelectedError] = useState("");
 
   const updateUrl = useCallback((updates: Record<string, string>) => {
@@ -172,6 +168,12 @@ function LegalSourcesExplorer() {
     ) => {
       const id = documentId(document);
       if (!id) return;
+      const previousRequest = selectedRequest.current;
+      previousRequest?.controller.abort();
+      const controller = new AbortController();
+      selectedRequest.current = { id, controller };
+      const isCurrentRequest = () =>
+        selectedRequest.current?.id === id && selectedRequest.current.controller === controller;
       setSelected(document);
       setSelectedProvisions([]);
       setSelectedError("");
@@ -187,7 +189,7 @@ function LegalSourcesExplorer() {
       setSelectedLoading(true);
       try {
         const [detailResponse, provisionsResponse] = await Promise.all([
-          fetch(apiUrl(`legal-documents/${encodeURIComponent(id)}`)),
+          fetch(apiUrl(`legal-documents/${encodeURIComponent(id)}`), { signal: controller.signal }),
           fetch(
             apiUrl(
               `legal-documents/${encodeURIComponent(id)}/provisions?${new URLSearchParams({
@@ -196,8 +198,10 @@ function LegalSourcesExplorer() {
                 ...(selectedPoint ? { point: selectedPoint } : {}),
               })}`,
             ),
+            { signal: controller.signal },
           ),
         ]);
+        if (!isCurrentRequest()) return;
         if (!detailResponse.ok)
           await responseError(detailResponse, "Không thể tải nội dung nguồn pháp luật.");
         if (!provisionsResponse.ok)
@@ -206,17 +210,22 @@ function LegalSourcesExplorer() {
           detailResponse.json(),
           provisionsResponse.json(),
         ]);
+        if (!isCurrentRequest()) return;
         const detail = normalizeDocument(detailPayload);
         setSelected((current) =>
           documentId(current || {}) === id ? { ...current, ...detail } : current,
         );
         setSelectedProvisions(normalizeProvisions(provisionsPayload));
       } catch (cause) {
+        if (!isCurrentRequest() || controller.signal.aborted) return;
         setSelectedError(
           cause instanceof Error ? cause.message : "Không thể tải nội dung nguồn pháp luật.",
         );
       } finally {
-        setSelectedLoading(false);
+        if (isCurrentRequest()) {
+          selectedRequest.current = null;
+          setSelectedLoading(false);
+        }
       }
     },
     [article, clause, point, updateUrl],
@@ -283,10 +292,19 @@ function LegalSourcesExplorer() {
   }, [selected, selectedProvisions]);
 
   const closeSelected = () => {
+    selectedRequest.current?.controller.abort();
+    selectedRequest.current = null;
     setSelected(null);
     setSelectedProvisions([]);
+    setSelectedLoading(false);
+    setSelectedError("");
     updateUrl({ document: "", article: "", clause: "", point: "" });
   };
+  useEffect(() => {
+    return () => {
+      selectedRequest.current?.controller.abort();
+    };
+  }, []);
 
   return (
     <main className="legal-sources-page">

@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Bookmark, LoaderCircle, ThumbsDown, ThumbsUp } from "lucide-react";
 import { createClient } from "../../utils/supabase/client";
+import { apiUrl } from "../lib/api";
 
 type FeedbackValue = "LIKE" | "DISLIKE";
 type SubmissionState = "idle" | "submitting" | "success" | "error";
@@ -21,19 +22,18 @@ export default function FeedbackWidget({
   const supabase = useRef(createClient()).current;
   const [value, setValue] = useState<FeedbackValue | null>(null);
   const [state, setState] = useState<SubmissionState>("idle");
-  const [error, setError] = useState<string | null>(null);
-  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+  const [error, setError] = useState("");
+  const apiEndpoint = apiUrl(endpoint);
 
   async function submit(nextValue: FeedbackValue) {
     if (value || state === "submitting" || state === "success") return;
     setValue(nextValue);
     setState("submitting");
-    setError(null);
-    const { data } = await supabase.auth.getSession();
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (data.session?.access_token) headers.Authorization = `Bearer ${data.session.access_token}`;
     try {
-      const response = await fetch(`${apiUrl}${endpoint}`, {
+      const { data } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (data.session?.access_token) headers.Authorization = `Bearer ${data.session.access_token}`;
+      const response = await fetch(apiEndpoint, {
         method: "POST",
         headers,
         body: JSON.stringify({
@@ -124,10 +124,9 @@ export function BookmarkToggle({
   const [bookmarked, setBookmarked] = useState(initialBookmarked);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
   const url = endpoint
-    ? `${apiUrl}${endpoint}`
-    : `${apiUrl}/api/v1/chats/${encodeURIComponent(sessionId)}/bookmarks`;
+    ? apiUrl(endpoint)
+    : apiUrl(`chats/${encodeURIComponent(sessionId)}/bookmarks`);
 
   async function toggle() {
     if (submitting) return;

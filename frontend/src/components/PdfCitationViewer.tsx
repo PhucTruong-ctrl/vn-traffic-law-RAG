@@ -1,8 +1,6 @@
-"use client";
-
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, RefreshCw, ZoomIn, ZoomOut } from "lucide-react";
 import type { CSSProperties } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
 import type { Citation } from "./CitationCard";
 
 type ViewerState = "loading" | "ready" | "error";
@@ -21,6 +19,7 @@ function PdfCitationDocument({
   citation: Citation;
   initialPage: number;
 }) {
+  const pageInputId = useId();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLSpanElement>(null);
@@ -110,7 +109,15 @@ function PdfCitationDocument({
       renderTask?.cancel();
       void loadingTask?.destroy();
     };
-  }, [citation.document_id, citation.pdf_url, containerWidth, pageNumber, zoom, retryToken]);
+  }, [
+    citation.document_id,
+    citation.pdf_url,
+    citation.source_url,
+    containerWidth,
+    pageNumber,
+    zoom,
+    retryToken,
+  ]);
   const zoomLabel = zoom === "fit" ? "Vừa chiều rộng" : `${Math.round(zoom * 100)}%`;
   const changeZoom = (delta: number) =>
     setZoom((value) => Math.min(3, Math.max(0.5, (value === "fit" ? 1 : value) + delta)));
@@ -139,10 +146,10 @@ function PdfCitationDocument({
           >
             <ChevronLeft aria-hidden="true" />
           </button>
-          <label htmlFor="pdf-page-number">
+          <label htmlFor={pageInputId}>
             Trang{" "}
             <input
-              id="pdf-page-number"
+              id={pageInputId}
               type="number"
               min={1}
               max={pageCount || undefined}

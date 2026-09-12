@@ -4,13 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Citation } from "./CitationCard";
 import Modal from "./Modal";
 import LegalSourceViewer, { type LegalSourceDocument } from "./LegalSourceViewer";
-
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
-const API_PREFIX = API_BASE.endsWith("/api/v1") ? API_BASE : `${API_BASE}/api/v1`;
-
-function apiUrl(path: string) {
-  return `${API_PREFIX}/${path.replace(/^\/+/, "")}`;
-}
+import { apiUrl } from "../lib/api";
 
 function responseError(response: Response) {
   return response.text().then((body) => {

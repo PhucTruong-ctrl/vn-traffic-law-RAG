@@ -7,10 +7,12 @@ import { createClient } from "../../utils/supabase/client";
 import { MarkdownAnswer } from "../../src/components/ChatThread";
 import CitationCard, { type Citation } from "../../src/components/CitationCard";
 import SourceDrawer from "../../src/components/SourceDrawer";
+import Modal from "../../src/components/Modal";
+import { apiUrl } from "../../src/lib/api";
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 type SavedItem = {
   id: string;
+  assistant_message_id: string;
   source_session_id?: string | null;
   question: string;
   answer: string;
@@ -19,14 +21,49 @@ type SavedItem = {
   created_at?: string | null;
 };
 
+function citation(value: unknown): Citation | null {
+  if (!value || typeof value !== "object") return null;
+  const item = value as Record<string, unknown>;
+  if (typeof item.source_id !== "string" || typeof item.document_id !== "string") return null;
+  return {
+    ...item,
+    excerpt: typeof item.excerpt === "string" ? item.excerpt : "",
+  } as Citation;
+}
+
 function normalize(payload: unknown): SavedItem[] {
   const values = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
   const items = Array.isArray(payload)
     ? payload
     : (values.items ?? values.saved ?? values.results ?? values.data);
-  return Array.isArray(items)
-    ? items.filter((item): item is SavedItem => Boolean(item && typeof item === "object"))
-    : [];
+  if (!Array.isArray(items)) return [];
+  return items.flatMap((value) => {
+    if (!value || typeof value !== "object") return [];
+    const item = value as Record<string, unknown>;
+    const id = typeof item.id === "string" ? item.id : "";
+    const assistantMessageId =
+      typeof item.assistant_message_id === "string" ? item.assistant_message_id : "";
+    const question = typeof item.question === "string" ? item.question : "";
+    const answer = typeof item.answer === "string" ? item.answer : "";
+    const citations = Array.isArray(item.citations)
+      ? item.citations.flatMap((value) => {
+          const normalized = citation(value);
+          return normalized ? [normalized] : [];
+        })
+      : [];
+    return id && assistantMessageId
+      ? [
+          {
+            ...item,
+            id,
+            assistant_message_id: assistantMessageId,
+            question,
+            answer,
+            citations,
+          } as SavedItem,
+        ]
+      : [];
+  });
 }
 
 export default function SavedPage() {
@@ -38,6 +75,8 @@ export default function SavedPage() {
   const [error, setError] = useState("");
   const [drawerCitation, setDrawerCitation] = useState<Citation | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SavedItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -48,7 +87,7 @@ export default function SavedPage() {
       return;
     }
     try {
-      const response = await fetch(`${API_BASE}/api/v1/bookmarks`, {
+      const response = await fetch(apiUrl("bookmarks"), {
         headers: { Authorization: `Bearer ${data.session.access_token}` },
       });
       if (!response.ok) throw new Error("Không thể tải danh sách đã lưu.");
@@ -79,19 +118,33 @@ export default function SavedPage() {
         )
       : items;
   }, [items, query]);
-
-  async function remove(id: string) {
-    const { data } = await supabase.auth.getSession();
-    if (!data.session) {
-      router.push("/chat");
-      return;
+  async function remove(item: SavedItem) {
+    if (deleting) return;
+    setDeleting(true);
+    setError("");
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        router.push("/chat");
+        return;
+      }
+      const response = await fetch(
+        apiUrl(`bookmarks/${encodeURIComponent(item.assistant_message_id)}`),
+        { method: "DELETE", headers: { Authorization: `Bearer ${data.session.access_token}` } },
+      );
+      if (response.ok) {
+        setItems((current) =>
+          current.filter((entry) => entry.assistant_message_id !== item.assistant_message_id),
+        );
+        setDeleteTarget(null);
+      } else {
+        setError("Không thể xóa mục đã lưu.");
+      }
+    } catch {
+      setError("Không thể xóa mục đã lưu.");
+    } finally {
+      setDeleting(false);
     }
-    const response = await fetch(`${API_BASE}/api/v1/bookmarks/${encodeURIComponent(id)}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${data.session.access_token}` },
-    });
-    if (response.ok) setItems((current) => current.filter((item) => item.id !== id));
-    else setError("Không thể xóa mục đã lưu.");
   }
 
   return (
@@ -159,7 +212,8 @@ export default function SavedPage() {
                 <button
                   className="saved-card__delete"
                   type="button"
-                  onClick={() => void remove(item.id)}
+                  onClick={() => setDeleteTarget(item)}
+                  disabled={deleting}
                 >
                   Xóa
                 </button>
@@ -201,6 +255,30 @@ export default function SavedPage() {
           ))}
       </section>
       <SourceDrawer citation={drawerCitation} onClose={() => setDrawerCitation(null)} />
+      <Modal
+        open={Boolean(deleteTarget)}
+        onClose={() => {
+          if (!deleting) setDeleteTarget(null);
+        }}
+        label="Xác nhận xóa mục đã lưu"
+      >
+        <div className="account-dialog__form">
+          <h2>Xóa mục đã lưu?</h2>
+          <p>Bạn có chắc muốn xóa câu trả lời này không? Hành động này không thể hoàn tác.</p>
+          <div>
+            <button type="button" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              Hủy
+            </button>
+            <button
+              type="button"
+              onClick={() => deleteTarget && void remove(deleteTarget)}
+              disabled={deleting}
+            >
+              {deleting ? "Đang xóa…" : "Xóa"}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </main>
   );
 }
