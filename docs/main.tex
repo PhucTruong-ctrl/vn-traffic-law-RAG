@@ -38,7 +38,19 @@
 \setmathfont{latinmodern-math.otf}
 
 \hypersetup{colorlinks=false,hidelinks,pdfauthor={Quách Trường Phúc},pdftitle={Khóa luận tốt nghiệp - VN Traffic Law RAG}}
-\graphicspath{{/home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/diagrams/}}
+\graphicspath{{diagrams/}{./diagrams/}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\fontsize{13pt}{15.6pt}\selectfont\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\fancypagestyle{plain}{%
+  \fancyhf{}
+  \fancyfoot[C]{\fontsize{13pt}{15.6pt}\selectfont\thepage}
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{0pt}
+}
 
 \Urlmuskip=0mu plus 1mu
 
@@ -62,8 +74,6 @@
 \captionsetup[table]{font=schoolcaption,labelfont=normalfont,textfont=normalfont,justification=raggedright,singlelinecheck=false,labelsep=colon,position=top,skip=2pt}
 \renewcommand{\figurename}{Hình}
 \renewcommand{\tablename}{Bảng}
-
-
 % Nguồn hình và bảng theo quy định của Khoa
 \newcommand{\figsource}[1]{%
   \par\vspace{1pt}%
@@ -75,11 +85,12 @@
   {\raggedright\fontsize{10pt}{12pt}\selectfont\itshape Nguồn: #1\par}%
 }
 
+
 \newcommand{\AssetFigure}[5][0.86\textwidth]{%
   \begin{figure}[H]
     \centering
-    \IfFileExists{/home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/diagrams/#2}{%
-      \includegraphics[width=#1,height=#3,keepaspectratio]{/home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/diagrams/#2}%
+    \IfFileExists{diagrams/#2}{%
+      \includegraphics[width=#1,height=#3,keepaspectratio]{diagrams/#2}%
     }{%
       \fbox{\rule{0pt}{#3}\rule{0.82\textwidth}{0pt}}%
     }%
@@ -87,6 +98,7 @@
     \caption{#4}
   \end{figure}%
 }
+
 
 % Khung bìa
 \newcommand{\CoverFrame}{%
@@ -176,6 +188,7 @@ PHÁP LUẬT GIAO THÔNG VIỆT NAM
     left=2cm,
     right=2cm
 }
+\CoverFrame
 
 \begin{titlepage}
 \thispagestyle{empty}
@@ -209,8 +222,8 @@ BỘ GIÁO DỤC VÀ ĐÀO TẠO
 
 \vspace{0.65cm}
 
-\IfFileExists{/home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/diagrams/tdu_logo.png}{
-    \includegraphics[width=4.6cm]{/home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/diagrams/tdu_logo.png}
+\IfFileExists{diagrams/tdu_logo.png}{
+    \includegraphics[width=4.6cm]{diagrams/tdu_logo.png}
 }{
     \vspace{3.2cm}
 }
@@ -320,8 +333,8 @@ BỘ GIÁO DỤC VÀ ĐÀO TẠO
 
 \vspace{0.65cm}
 
-\IfFileExists{/home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/diagrams/tdu_logo.png}{
-    \includegraphics[width=4.6cm]{/home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/diagrams/tdu_logo.png}
+\IfFileExists{diagrams/tdu_logo.png}{
+    \includegraphics[width=4.6cm]{diagrams/tdu_logo.png}
 }{
     \vspace{3.2cm}
 }
@@ -451,32 +464,25 @@ Cần Thơ, ngày \ldots\ldots, tháng \ldots\ldots, năm \ReportYear\\[0.4cm]
 (Ký tên và ghi rõ họ và tên)\\[1.7cm]
 \textbf{\StudentName}
 \end{flushright}
-
-\clearpage
 \chapter*{TÓM TẮT}
 \addcontentsline{toc}{chapter}{TÓM TẮT}
-Khóa luận xây dựng hệ thống RAG hỗ trợ tra cứu pháp luật giao thông Việt Nam. Hệ thống tìm các đoạn văn bản pháp luật liên quan trước khi mô hình ngôn ngữ tạo câu trả lời. Người dùng đặt câu hỏi bằng tiếng Việt và có thể mở lại văn bản, Điều, Khoản hoặc Điểm được dùng làm căn cứ.
+Khóa luận xây dựng một nguyên mẫu RAG hỗ trợ tra cứu pháp luật giao thông Việt Nam trong phạm vi corpus Markdown cục bộ và các dịch vụ đang được cấu hình. Runtime hiện tại gồm FastAPI, Supabase Auth và lưu trữ dữ liệu người dùng, Qdrant hybrid, OpenRouter và các kiểm tra xác định; các thành phần như LangGraph, PostgreSQL pháp lý riêng, Redis, Dramatiq, MinIO, Langfuse, reranker và verifier đầy đủ chỉ là kiến trúc mục tiêu hoặc chưa được triển khai, không được mô tả như đã vận hành.
 
-Hệ thống quản lý dữ liệu pháp luật bằng tệp manifest và các văn bản Markdown cục bộ. Manifest hiện khai báo 17 văn bản, gồm Nghị định và Thông tư giao thông. Bộ xử lý Markdown nhận diện Điều, Khoản và Điểm theo các quy tắc đã định nghĩa, tạo đoạn dữ liệu có metadata rồi ghi ra tệp JSONL. Mỗi đoạn có mã nhận dạng, thông tin văn bản, vị trí pháp lý và mã băm SHA-256 để kiểm tra nguồn dữ liệu.
+Pipeline hiện tại đọc manifest, tách Điều/Khoản/Điểm, ghi chunks JSONL có metadata và mã băm, truy xuất dense/sparse, kiểm tra evidence, sinh câu trả lời khi đủ căn cứ và tạo citation từ metadata. Feedback chỉ là LIKE hoặc DISLIKE, được ghi cho người dùng đã xác thực và giới hạn theo chính người dùng đó.
 
-Khâu tìm kiếm dùng Qdrant ở chế độ kết hợp. Dense embedding tìm theo ý nghĩa, sparse BM25 tìm theo từ khóa và số hiệu. Khi câu hỏi nêu rõ Điều, Khoản, Điểm hoặc số hiệu văn bản, hệ thống đối chiếu metadata trước. Với câu hỏi nhiều ý, bộ phân tích tách thành các yêu cầu nhỏ, tìm kiếm riêng rồi gộp thứ hạng bằng Reciprocal Rank Fusion. Hệ thống có thể bổ sung đoạn cùng Điều hoặc đoạn được tham chiếu trong giới hạn đã cấu hình để không bỏ sót mức phạt, điểm bị trừ hoặc biện pháp liên quan.
-
+Bộ release gate là \path{data/evaluation/thesis-gold-40.json}, gồm đúng 40 trường hợp thuộc đúng 8 category. Bộ này chưa được xác minh đầy đủ trong lần chạy gần nhất. Kết quả subset trực tiếp ngày 13/09/2026 chỉ là bằng chứng chẩn đoán đã ghi nhận; các lỗi API, giá trị null và trường hợp cần review thủ công không được chuyển thành điểm đúng/sai. Vì chưa có full artifact và review semantic tương ứng, trạng thái là \textbf{UNVERIFIED / NOT RELEASE-READY}.
 Trước khi gọi mô hình ngôn ngữ, hệ thống kiểm tra các đoạn đã truy xuất. Nếu số lượng hoặc tham chiếu không đạt điều kiện, API trả thông báo chưa đủ căn cứ và dừng xử lý. Nếu đạt, OpenRouter nhận câu hỏi cùng các đoạn pháp luật để tạo phần diễn giải. Backend dựng trích dẫn từ metadata. Supabase lưu thông tin đăng ký, đăng nhập, hồ sơ, phiên chat, tin nhắn, phản hồi và bookmark. Corpus pháp luật và chỉ mục Qdrant được lưu riêng.
 
-Bộ đánh giá gồm 40 trường hợp kiểm thử. Các chỉ số tự động đo khả năng tìm căn cứ, độ chính xác ở cấp văn bản, Điều, Khoản và Điểm, tính hợp lệ của trích dẫn, độ chính xác của hành vi từ chối trả lời và thời gian phản hồi. Nội dung câu trả lời được đánh giá thủ công để tách chất lượng truy xuất khỏi chất lượng diễn giải. Tại lần chạy đại diện ngày 13/09/2026, 32/40 trường hợp (80\%, chọn bốn trường hợp đầu của mỗi tám nhóm) được gọi trực tiếp qua API. Readiness của Supabase và Qdrant đạt; kết quả chưa đủ điều kiện phát hành: retrieval hit@5 là 19,05\%, document accuracy 23,81\%, article accuracy 23,81\%, clause accuracy 25,00\%, point accuracy 14,29\%, citation validity 65,52\% và abstention accuracy 44,83\%. Có 3/32 lỗi API, semantic correctness chưa review, latency trung bình 29,0 giây, P50 26,9 giây và P95 84,0 giây. Chi tiết xem \path{docs/evaluation/thesis-api-subset-32-20260913.md}.
+Bộ release gate gồm đúng 40 trường hợp thuộc đúng 8 category. Kết quả subset trực tiếp ngày 13/09/2026 chỉ là chẩn đoán; các lỗi API, null và answer chưa review thủ công không được tính thành kết quả chất lượng. Full gate chưa được xác minh, nên trạng thái là \textbf{UNVERIFIED / NOT RELEASE-READY}.
 
 \clearpage
 \chapter*{ABSTRACT}
 \addcontentsline{toc}{chapter}{ABSTRACT}
-This thesis develops a Retrieval-Augmented Generation (RAG) system for questions about Vietnamese traffic law. The system retrieves relevant legal passages before sending the question and retrieved text to a language model. Each answer links to its legal source at document, Article, Clause, or Point level.
+This thesis documents a RAG prototype for Vietnamese traffic-law lookup. The current runtime is limited to FastAPI, Supabase Auth and user-scoped application persistence, a hybrid Qdrant index, OpenRouter, and deterministic checks. LangGraph, a separate legal PostgreSQL database, Redis, Dramatiq, MinIO, Langfuse, a reranker, and a full verifier are target or unimplemented components and are not claimed as running.
 
-The legal corpus uses a source manifest and local Markdown files. The current manifest contains 17 traffic-law documents. The Markdown ingestion module recognizes Article, Clause, and Point markers, creates LangChain Document objects with legal metadata, and writes the processed chunks to JSONL. Each chunk has an identifier, source metadata, and a SHA-256 content hash.
+The current pipeline parses local Markdown into metadata-preserving JSONL chunks, performs dense/sparse retrieval, applies an evidence check, generates only when configured evidence conditions pass, and builds citations from stored metadata. Feedback is restricted to authenticated, user-scoped LIKE/DISLIKE values.
 
-For retrieval, the system uses a local Qdrant hybrid index. Dense embeddings handle semantic similarity, while sparse BM25 handles keywords and legal identifiers. Explicit Article, Clause, Point, and document references are checked against metadata. Compound questions are split into a limited number of legal intents, retrieved separately, and merged with Reciprocal Rank Fusion. The retriever may add a limited number of sibling or cross-reference passages.
-
-Before generation, the backend checks whether the retrieved material satisfies the configured evidence conditions. If the check fails, the API returns an abstention response. If it passes, the selected passages are sent to a ChatOpenRouter model with a Vietnamese prompt. Citations come from stored metadata. Supabase stores authentication and application data, including profiles, chat sessions, messages, feedback, and bookmarks. The legal corpus and Qdrant index are stored separately.
-
-The evaluation set contains 40 cases. It measures retrieval hits, legal-coordinate accuracy, citation validity, abstention behavior, and latency. Answer correctness is reviewed manually. In the representative run on 13 September 2026, 32/40 cases (80\%, four cases from each of eight categories) were sent directly to \texttt{POST /api/v1/chat}. Supabase and Qdrant readiness passed, but the result was not release-ready: retrieval hit@5 was 19.05\%, document and article accuracy were 23.81\%, clause accuracy was 25.00\%, point accuracy was 14.29\%, citation validity was 65.52\%, and abstention accuracy was 44.83\%. Three of 32 API calls failed; semantic correctness was not reviewed. Mean latency was 29.0 seconds, P50 was 26.9 seconds, and P95 was 84.0 seconds. See \path{docs/evaluation/thesis-api-subset-32-20260913.md} for the report.
+The release gate is \path{data/evaluation/thesis-gold-40.json}: exactly 40 cases across exactly 8 categories. Full-gate evidence is not currently verified. The direct API subset run dated 13 September 2026 is diagnostic evidence only; API errors, null predictions, and manually unreviewed answers are not silently scored as successes or failures. The resulting status is \textbf{UNVERIFIED / NOT RELEASE-READY}.
 
 \clearpage
 \tableofcontents
@@ -615,6 +621,17 @@ Cần Thơ, ngày \ldots\ldots, tháng \ldots\ldots, năm \ReportYear\\[0.4cm]
 \textbf{\FacultyAdvisor}
 \end{flushright}
 
+\clearpage
+\chapter*{NHẬN XÉT CỦA GIẢNG VIÊN CHẤM}
+\addcontentsline{toc}{chapter}{NHẬN XÉT CỦA GIẢNG VIÊN CHẤM}
+\foreach \n in {1,...,15}{\commentline}
+\vfill
+\begin{flushright}
+Cần Thơ, ngày \ldots\ldots, tháng \ldots\ldots, năm \ReportYear\\[0.4cm]
+\textbf{Giảng viên chấm}\\[1.8cm]
+\makebox[6cm]{\dotfill}
+\end{flushright}
+
 
 % ============================================================
 % CHUONG I
@@ -672,18 +689,18 @@ Khóa luận tập trung vào các câu hỏi sau:
 \item Cách tổ chức metadata nào giúp trích dẫn có thể mở lại đúng văn bản, Điều, Khoản hoặc Điểm?
 \item Các chỉ số nào phù hợp để đánh giá một hệ thống tra cứu pháp luật ngoài việc đánh giá văn phong của câu trả lời?
 \end{enumerate}
-
+Tệp \path{data/sources/manifest.json} của đề tài là corpus cục bộ dùng cho nguyên mẫu; số lượng văn bản trong corpus không phải release gate và không đại diện toàn bộ pháp luật giao thông Việt Nam. Dữ liệu Markdown nằm trong \path{data/corpus/mds/}; các đoạn đã xử lý được ghi vào \path{data/processed/chunks.jsonl}. PDF chỉ được dùng khi metadata tương ứng có sẵn.
 \section{Đối tượng nghiên cứu}
 Đối tượng nghiên cứu gồm quy trình RAG cho dữ liệu pháp luật giao thông, cách chia văn bản theo Điều, Khoản và Điểm, tìm kiếm sparse và dense, gộp thứ hạng, kiểm tra căn cứ, sinh câu trả lời có nguồn, thiết kế API, giao diện Web, cơ sở dữ liệu ứng dụng và quy trình đánh giá có thể chạy lặp lại.
 
 \section{Phạm vi nghiên cứu}
 \subsection{Phạm vi dữ liệu}
-Tệp \path{data/sources/manifest.json} của đề tài hiện khai báo 17 văn bản giao thông, gồm Nghị định và Thông tư. Dữ liệu Markdown cục bộ nằm trong \path{data/corpus/mds/}. Các đoạn đã xử lý được ghi vào \path{data/processed/chunks.jsonl}. PDF được dùng trong giao diện nguồn khi metadata tương ứng có sẵn. Danh sách văn bản được xem là dữ liệu nghiên cứu của đề tài, không phải toàn bộ hệ thống pháp luật Việt Nam.
+Tệp \path{data/sources/manifest.json} của đề tài là corpus giao thông cục bộ dùng cho nguyên mẫu, gồm các Nghị định và Thông tư đã được chọn; số lượng văn bản không phải release gate và không đại diện toàn bộ pháp luật Việt Nam. Dữ liệu Markdown nằm trong \path{data/corpus/mds/}; các đoạn đã xử lý được ghi vào \path{data/processed/chunks.jsonl}. PDF chỉ được dùng khi metadata tương ứng có sẵn.
 
 \subsection{Phạm vi chức năng}
 Hệ thống có các chức năng đăng ký, đăng nhập, hỏi đáp pháp luật, xem nguồn và điều khoản, quản lý lịch sử hội thoại, gửi phản hồi và đánh dấu câu trả lời. Dự án còn có các lệnh CLI để tạo chunk, xây lại chỉ mục và chạy bộ đánh giá.
 
-\subsection{Phạm vi kỹ thuật}
+Bộ release gate là \path{data/evaluation/thesis-gold-40.json}, gồm đúng 40 trường hợp thuộc đúng 8 category. Lần chạy ngày 13/09/2026 chỉ gọi subset 32 trường hợp qua API trực tiếp; đây là chẩn đoán theo thời điểm, không phải kết quả full gate. Denominator của mỗi metric là số case có expected value và prediction hợp lệ; null do lỗi API là error, case chưa review thủ công là N/A, không được tính là đúng hoặc sai. Full data/evaluation artifact và review thủ công chưa được xác minh, nên trạng thái là \textbf{UNVERIFIED / NOT RELEASE-READY}.
 Backend sử dụng Python 3.11, FastAPI và Pydantic. Tầng RAG sử dụng LangChain Document, LangChain Qdrant, Qdrant cục bộ, OpenRouter cho embedding và sinh câu trả lời, cùng FastEmbed BM25 cho tìm kiếm sparse. Dữ liệu ứng dụng dùng Supabase. Frontend dùng Next.js App Router, React và TypeScript.
 
 Hệ thống có các chức năng đăng ký, đăng nhập, hỏi đáp pháp luật, xem nguồn và điều khoản, quản lý lịch sử hội thoại, gửi phản hồi và đánh dấu câu trả lời. Dự án còn có các lệnh CLI để tạo chunk, xây lại chỉ mục và chạy bộ đánh giá.
@@ -697,7 +714,7 @@ Bộ dữ liệu đánh giá khóa luận hiện gồm 40 trường hợp. Vì g
 \subsection{Khảo sát tài liệu kỹ thuật}
 Cơ sở kỹ thuật của đề tài được xây dựng từ các khái niệm về lập trình, phân tích hệ thống, công nghệ phần mềm và phát triển Web đã học trong chương trình Công nghệ thông tin của Trường Đại học Tây Đô \cite{tdu_laptrinhcanban,tdu_pttkhttt,tdu_nmcpm,tdu_web,tdu_cdnnlt}. Các đặc điểm của FastAPI, Qdrant, Supabase, Next.js, React, TypeScript, PDF.js, Docker và OpenRouter được mô tả theo tài liệu chính thức của từng nền tảng.
 
-\subsection{Phân tích yêu cầu hệ thống}
+Khảo sát kỹ thuật ghi nhận runtime hiện tại gồm FastAPI, Supabase Auth/user persistence, Markdown/JSONL, Qdrant hybrid, OpenRouter và các kiểm tra xác định. LangGraph, legal PostgreSQL, Redis, Dramatiq, MinIO, Langfuse, reranker và full verifier là target/unimplemented; không có bằng chứng để mô tả chúng là runtime hiện tại. Các bài kiểm thử hoặc E2E chưa có artifact xác minh được trình bày là kế hoạch hoặc N/A, không phải test pass.
 Yêu cầu hệ thống được phân tích theo tác nhân, dữ liệu đầu vào, dữ liệu đầu ra, quy tắc xử lý và ràng buộc của từng chức năng. Các yêu cầu chức năng và phi chức năng được dùng làm cơ sở cho use case, luồng dữ liệu, thiết kế API, mô hình dữ liệu và kiểm thử.
 
 \subsection{Thiết kế hệ thống}
@@ -1352,18 +1369,14 @@ STT & Thuộc tính & Khóa/ràng buộc & Kiểu dữ liệu & Diễn giải \\
 9 & metadata & NOT NULL, DEFAULT \{\} & JSONB & Metadata bổ sung \\
 \hline
 10 & created\_at & NOT NULL, DEFAULT & TIMESTAMPTZ & Thời điểm tạo \\
-\hline
-11 & updated\_at & NOT NULL, DEFAULT & TIMESTAMPTZ & Thời điểm cập nhật \\
-\hline
 \end{longtable}
 }
-
 \subsection{Bảng feedback}
-Bảng \texttt{feedback} lưu đánh giá nhị phân và ghi chú tùy chọn cho một tin nhắn.
+Bảng \texttt{feedback} lưu duy nhất một đánh giá nhị phân cho một message của người dùng đã xác thực. Giá trị hợp lệ chỉ là \texttt{LIKE} hoặc \texttt{DISLIKE}; mọi giá trị khác không thuộc contract hiện tại.
 {\fontsize{11pt}{12pt}\selectfont
 \Needspace{10\baselineskip}
 \begin{longtable}{|L{0.9cm}|L{2.9cm}|L{2.6cm}|L{3.0cm}|L{4.0cm}|}
-\caption{Thiết kế bảng feedback}\label{tab:db-feedback}\\
+\caption[]{Thiết kế bảng feedback}\label{tab:db-feedback}\\
 \hline
 STT & Thuộc tính & Khóa/ràng buộc & Kiểu dữ liệu & Diễn giải \\
 \hline
@@ -1373,17 +1386,15 @@ STT & Thuộc tính & Khóa/ràng buộc & Kiểu dữ liệu & Diễn giải \\
 \hline
 3 & user\_id & FK auth.users, NOT NULL & UUID & Người gửi phản hồi \\
 \hline
-4 & rating & NOT NULL, CHECK 0 hoặc 1 & INTEGER & Đánh giá nhị phân \\
+4 & rating & NOT NULL, CHECK LIKE hoặc DISLIKE & TEXT & Đánh giá nhị phân \\
 \hline
-5 & comment &  & TEXT & Ghi chú tùy chọn \\
+5 & created\_at & NOT NULL, DEFAULT & TIMESTAMPTZ & Thời điểm tạo \\
 \hline
-6 & created\_at & NOT NULL, DEFAULT & TIMESTAMPTZ & Thời điểm tạo \\
-\hline
-7 & updated\_at & NOT NULL, DEFAULT & TIMESTAMPTZ & Thời điểm cập nhật \\
+6 & updated\_at & NOT NULL, DEFAULT & TIMESTAMPTZ & Thời điểm cập nhật \\
 \hline
 \end{longtable}
 }
-Mỗi người dùng chỉ có một feedback cho một message nhờ ràng buộc duy nhất trên cặp \path{(message_id,user_id)}.
+Mỗi người dùng chỉ có một feedback cho một message nhờ ràng buộc duy nhất trên cặp \path{(message_id,user_id)}. API yêu cầu bearer token hợp lệ và chỉ đọc/ghi feedback thuộc user hiện tại.
 
 \subsection{Bảng bookmarks}
 Bảng \texttt{bookmarks} lưu các tin nhắn mà người dùng đánh dấu để xem lại.
@@ -1538,13 +1549,11 @@ Evidence gate chuyển iterable sang danh sách, kiểm tra số lượng tối 
 Backend duyệt các document đã dùng, tạo identity ổn định bằng chunk ID hoặc source + content để loại trùng, sau đó lấy document name/number, Article, Clause, Point, page, source file, excerpt và PDF URL. Citation này được trả thành dữ liệu có cấu trúc cho frontend.
 
 \section{Thiết kế bảo mật}
-Các khóa bí mật được đọc từ biến môi trường. Trình duyệt chỉ dùng khóa Supabase công khai phù hợp cho client. Khóa service role và OpenRouter API key nằm ở backend. RLS giới hạn quyền trên từng hàng dữ liệu. API dùng trace ID để hỗ trợ theo dõi request mà không đưa khóa bí mật vào log. Các endpoint health tách kiểm tra tiến trình đang chạy với kiểm tra khả năng kết nối các dịch vụ phụ thuộc.
+Các khóa bí mật được đọc từ biến môi trường; trình duyệt chỉ dùng khóa Supabase công khai và backend giữ service-role/OpenRouter key. Runtime hiện tại kiểm tra bearer token và user scope ở API. RLS được mô tả như một lớp dự kiến/triển khai theo môi trường, nhưng báo cáo này không claim đã kiểm thử đầy đủ mọi policy hoặc full-security coverage.
 \AssetFigure[0.94\textwidth]{ch3_security.png}{8.0cm}{Luồng xác thực, phân quyền và bảo vệ khóa bí mật}{}
-
-\section{Thiết kế kiểm thử và đánh giá}
 Kiểm thử được chia theo mức. Unit test áp dụng cho parser, regex tham chiếu, analyzer, evidence và metrics. Integration test áp dụng cho API, Supabase và Qdrant. E2E dùng Playwright để mô phỏng người dùng trên giao diện. Thesis evaluation là lớp riêng, dùng 40 case để đánh giá retrieval/citation/abstention/latency và có bước review thủ công.
 \AssetFigure[0.88\textwidth]{ch3_test_pyramid.png}{7.0cm}{Mô hình các lớp kiểm thử và đánh giá}{}
-
+Kiểm thử được chia theo mức để mô tả kế hoạch và bằng chứng riêng: unit/integration chỉ được gọi là đã thực hiện khi có artifact; E2E Playwright chưa có bằng chứng pass trong hồ sơ này nên ghi N/A/UNVERIFIED. Release evaluation dùng \path{data/evaluation/thesis-gold-40.json}, đúng 40 case thuộc đúng 8 category, với metric tự động và review thủ công tách biệt.
 \section{Kết luận chương}
 Chương 3 mô tả yêu cầu, luồng dữ liệu, mô hình tương tác, kiến trúc, API và thiết kế dữ liệu. Supabase lưu dữ liệu ứng dụng; Qdrant và corpus pháp luật được quản lý riêng cho retrieval.
 
@@ -1613,9 +1622,9 @@ Trang lịch sử hiển thị danh sách phiên chat và các thao tác quản 
 \section{Feedback và bookmark}
 Chức năng feedback cho phép người dùng gửi đánh giá đối với một câu trả lời đã lưu.
 \AssetFigure[0.88\textwidth]{ch4_feedback.png}{7.5cm}{Giao diện gửi phản hồi cho câu trả lời}{}
-\AssetFigure[0.88\textwidth]{ch4_bookmark.png}{7.5cm}{Giao diện đánh dấu câu trả lời}{}
-
-\section{API và khả năng vận hành}
+\section{Kết quả kiểm thử}
+Các nhóm unit, integration và giao diện là danh mục kiểm thử có trong repository hoặc kế hoạch kiểm tra. Report này không khẳng định toàn bộ nhóm đã chạy và pass; execution status, environment và kết quả từng ca phải được ghi bằng artifact riêng.
+\AssetFigure[0.94\textwidth]{ch4_test_report.png}{7.5cm}{Kết quả kiểm thử của hệ thống}{}
 \subsection{Health check}
 Health check trả trạng thái tiến trình API và trạng thái sẵn sàng của các dịch vụ phụ thuộc được cấu hình.
 \AssetFigure[0.90\textwidth]{ch4_health_api.png}{7.5cm}{Kết quả health/readiness API}{}
@@ -1727,10 +1736,12 @@ Hệ thống gắn căn cứ có thể mở lại với mỗi câu trả lời p
 
 % ============================================================
 % TAI LIEU THAM KHAO
+
+
 % ============================================================
+% TAI LIEU THAM KHAO
 \clearpage
 \begin{thebibliography}{99}
-\addcontentsline{toc}{chapter}{TÀI LIỆU THAM KHẢO}
 
 \bibitem{tdu_laptrinhcanban}
 \textbf{Nguyễn Chí Cường}. \textit{Lập trình căn bản}. Khoa Kỹ thuật - Công nghệ, Đại học Tây Đô, 2023.

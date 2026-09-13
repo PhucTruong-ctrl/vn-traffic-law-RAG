@@ -1,46 +1,45 @@
-# 06. Kiểm Thử và Đánh Giá (Test and Evaluation)
+# 06. Test and Evaluation
 
-> **Active MVP baseline, 12/09/2026.** This document is the executable evaluation guide for the current rescue MVP. The runtime is a Next.js 16 / React 19 frontend, a FastAPI backend on Python 3.11, Supabase REST/Auth for application persistence, local Qdrant 1.19 hybrid retrieval (OpenRouter dense embeddings + FastEmbed BM25), one configured OpenRouter generator, deterministic evidence/citation/temporal gates, and a Markdown/PDF legal explorer. The query path is corpus-only: no web or external retrieval, autonomous agents, LangGraph, Redis, MinIO, PostgreSQL app-owned runtime, or seven-service topology.
->
-> **Historical material.** Thesis plans, old reports, and design notes may mention other providers, worker queues, RAGFlow, Langfuse, PostgreSQL, or larger suites. Those passages provide historical or deferred context only, not active release requirements. Never rewrite frozen gold-set data or historical raw results; label their status instead.
+> **Status: UNVERIFIED / NOT RELEASE-READY (13 September 2026).** This is the executable evaluation guide for the audited MVP. It describes the current FastAPI/Next.js runtime and the checked-in evaluation artifacts; target or historical architecture is not treated as implemented.
 
-## 1. Active release contract
+## 1. Scope and non-negotiable release contract
 
-The active release evidence consists of the checked-in corpus, deterministic evaluation fixtures, focused backend tests, API smoke tests, and the available 40-case thesis evaluator. Do not claim a full 200-question or 14-document run unless raw artefacts and outputs exist for that run. Report unavailable metrics as `N/A`/unavailable; never turn missing evidence into a score.
+The runtime under evaluation is:
 
-The active correctness contract is:
+- FastAPI `POST /api/v1/chat`, health/readiness, auth, user-owned chat, bookmarks, feedback, and legal explorer routes;
+- Supabase Auth/REST for authentication and application persistence;
+- Qdrant hybrid retrieval with OpenRouter-compatible dense embeddings and FastEmbed BM25, including exact metadata and temporal filtering plus bounded expansion;
+- deterministic evidence/status/citation checks and one configured OpenRouter generator;
+- Markdown/JSONL source loading from `data/sources/manifest.json` and `data/corpus/mds`, with derived chunks in `data/processed/chunks.jsonl`.
 
-- `POST /api/v1/chat` is the grounded legal-query route.
-- `GET /api/v1/health`, `/api/v1/health/live`, and `/api/v1/health/ready` expose liveness/readiness without credentials.
-- Retrieval is local Qdrant hybrid search: OpenRouter dense embeddings plus FastEmbed BM25, fused with RRF and bounded expansion.
-- The generator receives only evidence accepted by deterministic checks.
-- Returned citations are metadata-derived and must identify supported provisions; unsupported, temporally invalid, or unaccepted citations are blocked.
-- Missing evidence, unsupported corpus questions, out-of-scope requests, and provider failures fail closed with the implemented status/reason code rather than an invented answer.
-- Supabase is the application persistence/auth boundary for profiles, chat sessions, messages, feedback, and bookmarks. Qdrant is derived retrieval state; source Markdown/PDF and manifest artefacts remain the corpus inputs.
-- The frontend consumes the API and provides chat plus Markdown/PDF legal-source exploration; browser checks are smoke checks, not a prerequisite for backend unit metrics.
+Query-time retrieval is corpus-only. Do not substitute web search, another model, another datastore, or a silent provider fallback when a dependency is unavailable.
 
-## 2. Executable setup and smoke checks
+The release gate uses a reviewed **40-case** fixture spanning exactly eight categories: `exact_reference`, `natural_language`, `penalty`, `multi_intent`, `cross_reference`, `follow_up`, `insufficient_evidence`, and `out_of_scope`. Coverage is limited and no fixed numeric metric thresholds are imposed. Release still requires complete artifacts, semantic review, and safety/citation/operational gates.
 
-Run commands from the repository root. Use the repository's existing `uv` and npm toolchains. Do not add services to make a check pass.
+Do not describe Parser Router/Docling/MinerU, Canonical IR, a legal relation database, PostgreSQL source of truth, Redis/Dramatiq, MinIO, LangGraph, Langfuse, production reranking, a six-verifier stack, upload/reviewer flows, or their test suites as active runtime checks. They are target or historical material only.
+
+## 2. Setup and active smoke checks
+
+Run from the repository root with the existing toolchains. These commands do not add services:
 
 ```bash
-# Backend focused tests
+# Focused backend contract and regression suite
 uv run --project backend pytest backend/tests -q
 
-# Backend API (separate terminal)
+# Start the API in another terminal
 uv run --project backend uvicorn app.main:app --host 127.0.0.1 --port 8000
 
-# Health checks
+# Liveness/readiness
 curl -fsS http://127.0.0.1:8000/api/v1/health
 curl -fsS http://127.0.0.1:8000/api/v1/health/live
 curl -fsS http://127.0.0.1:8000/api/v1/health/ready
 
-# Frontend type/build checks, when frontend changes are in scope
+# Frontend checks when frontend files are in the release scope
 npm --prefix frontend run typecheck
 npm --prefix frontend run build
 ```
 
-The ready response reports Supabase/Qdrant dependency status. A configured OpenRouter key is required for a live generation/embedding smoke, and provider errors must remain fail-closed. For an authenticated chat smoke, obtain a Supabase access token through the configured auth flow and send it as `Authorization: Bearer <token>`:
+Readiness must report the actual Supabase/Qdrant dependency state. A live chat requires the configured provider credentials and an authenticated Supabase token:
 
 ```bash
 curl -fsS http://127.0.0.1:8000/api/v1/chat \
@@ -49,84 +48,122 @@ curl -fsS http://127.0.0.1:8000/api/v1/chat \
   --data '{"question":"Xe máy vượt đèn đỏ bị phạt bao nhiêu?","top_k":5}'
 ```
 
-Use only non-secret redacted output in reports. If the local corpus or provider is unavailable, record the smoke as unavailable; do not substitute web search, another model, or another datastore.
+Keep tokens and provider secrets out of artifacts. Record unavailable dependency/provider checks as unavailable; never turn them into a pass.
 
-## 3. Test layers
+## 3. Active checks by layer
 
-### 3.1 Unit and deterministic tests
+### 3.1 Deterministic backend and API checks
 
-Unit tests cover manifest/source metadata, Markdown/PDF ingestion adapters, legal-reference parsing, chunk metadata, temporal intervals, evidence planning, citation validation, abstention/status mapping, and metric calculations. Deterministic modules provide the main correctness evidence. A scoped coverage run may be used for the currently implemented modules, but the old blanket 80% claim is not an active release gate unless the repository's current test configuration explicitly enables it.
+The maintained tests under `backend/tests/` cover the implemented ingestion metadata, reference parsing, temporal/evidence behavior, citation and response contracts, retrieval behavior, auth/session ownership, Supabase persistence, and route registration. Boundary cases include exact Điều/Khoản/Điểm references (including `d)` versus `đ)`), current/historical dates, cross-reference and follow-up questions, multi-intent and insufficient evidence, out-of-scope/provider failures, numeric claims, duplicate or malformed citation metadata, and user isolation.
 
-Required boundary cases include:
+The authenticated end-to-end contract check is:
 
-- exact `Điều`/`Khoản`/`Điểm` references and Vietnamese `d)` versus `đ)` labels;
-- current and historical `effective_date` queries;
-- compound questions requiring multiple evidence types;
-- cross-reference and follow-up questions;
-- `CORPUS_NOT_COVERED`, `OUT_OF_SCOPE`, `INSUFFICIENT_EVIDENCE`, and provider-unavailable outcomes;
-- duplicate citation IDs, missing citation metadata, unaccepted provisions, and temporally invalid provisions;
-- numeric grounding for monetary penalties, licence points, dates, ages, durations, and quantities.
+```bash
+uv run --project backend python backend/scripts/verify_release_authenticated.py
+```
 
-Do not describe a LangGraph repair workflow, Dramatiq actor, Redis retry queue, MinIO bucket round-trip, or PostgreSQL migration test as active: those are superseded design material.
+It uses configured test users and exercises legal list/provisions/search, authenticated chat, persisted transcript, rename/search/delete, and cross-user concealment. Treat missing credentials or external-service failure as an unavailable check, not as a successful substitute.
 
-### 3.2 Qdrant retrieval checks
+### 3.2 Corpus loading and Qdrant retrieval
 
-The active retrieval smoke uses the local Qdrant 1.19 client and the configured collection (default `traffic_law`, path from `QDRANT_PATH`). Rebuild derived vectors with the repository indexing script after regenerating chunks:
+The active source/index path is Markdown/JSONL:
 
 ```bash
 uv run --project backend python backend/scripts/fetch_sources.py
 uv run --project backend python backend/scripts/index.py
 ```
 
-Verify dense OpenRouter vectors, FastEmbed BM25 sparse vectors, payload metadata, temporal filtering, exact-reference priority, RRF fusion, document diversity, and empty/insufficient-evidence behavior. Record the Qdrant version, collection name, source/chunk hash, embedding model/dimensions, sparse encoder version, and whether OpenRouter was reachable.
+`backend/scripts/ingest.py` is not a general PDF extractor; it fails when a PDF checkpoint is absent and directs operators to the tracked Markdown fetch path. After indexing, the retrieval probe can be run against a question fixture:
 
-### 3.3 Supabase persistence and auth checks
+```bash
+uv run --project backend python backend/scripts/eval.py <questions.json> --top-k 8
+```
 
-Supabase REST/Auth is the only application persistence boundary. Focused checks must cover registration/login/current-user behavior, bearer-token enforcement, session/message ownership, feedback, bookmark save/list/status/delete, and response/citation/metadata JSON payload persistence. Do not call these PostgreSQL application-runtime tests; Supabase may use PostgreSQL internally, but the application contract is Supabase REST/Auth.
+Record collection name, source/chunk hashes, embedding model and dimensions, sparse encoder, Qdrant endpoint/path, and provider reachability. Check exact-reference priority, temporal filtering, hybrid fusion, diversity, bounded expansion, and empty/insufficient-evidence outcomes. Qdrant is derived state, not the legal source of truth.
 
-### 3.4 API and frontend smoke checks
+### 3.3 Browser smoke
 
-Exercise `/api/v1/chat`, the health/readiness routes, auth routes, chat-session routes, bookmark routes, and legal explorer/search routes exposed by `backend/app/main.py`. Confirm that the Next.js frontend resolves its API base, sends the bearer token, renders verified/abstention states, and opens Markdown/PDF source links. Report a browser failure with its route, HTTP status, readiness state, redacted console error, and backend trace ID. Do not hide it by retrying another route.
+When frontend evidence is claimed, manually exercise the existing chat, conversation/history, citation/source viewer, legal search, auth, saved-item, and LIKE/DISLIKE flows against the API build tested above. Record route, HTTP status, readiness state, redacted console error, and trace ID for every failure. A browser smoke does not replace the full gold gate.
 
-## 4. Frozen evaluation data and metrics
+## 4. Diagnostic 40-case evaluation
 
-Frozen corpus manifests, source hashes, parser fixtures, and gold-set files are inputs, not tuning targets. Align predictions by `question_id`; preserve every failure in raw output and error analysis. Active deterministic metrics include retrieval hit/Recall@k where gold IDs exist, citation validity/precision/recall, evidence completeness, temporal validity, abstention/status accuracy, numeric grounding, and latency. Break metrics down by category and status; an aggregate must not conceal historical, comparison, out-of-scope, or insufficient-evidence failures.
+The checked-in 40-case fixture is exactly:
 
-The checked-in thesis interface is executable for the available dataset:
+```text
+data/evaluation/thesis-gold-40.json
+```
+
+It contains 40 cases, five in each of the runner's eight categories: `exact_reference`, `natural_language`, `penalty`, `multi_intent`, `cross_reference`, `follow_up`, `insufficient_evidence`, and `out_of_scope`. It is a limited-coverage diagnostic fixture; it is the release evaluation fixture, but cannot be interpreted as comprehensive legal-question coverage.
+
+Run the HTTP diagnostic from a live authenticated API:
 
 ```bash
 uv run --project backend python backend/scripts/run_thesis_evaluation.py \
-  data/gold-sets/thesis-evaluation.json \
+  data/evaluation/thesis-gold-40.json \
   --endpoint http://127.0.0.1:8000/api/v1/chat \
   --top-k 5 \
-  --output-dir data/evaluation/thesis
+  --timeout 300 \
+  --output-dir data/evaluation/thesis-run
 ```
 
-The runner stores append-only JSONL and aggregate JSON output. It can instead score a complete prediction JSONL with `--predictions`; missing predictions are an error, not an omitted case. The active runner's dataset size and schema are authoritative. Do not infer a 200-question release result from a 40-case run.
+The runner obtains a test token when `TEST_BEARER_TOKEN` is absent. To score an existing prediction JSONL instead of calling the API:
 
-### 4.1 Suite A parser reports
+```bash
+uv run --project backend python backend/scripts/run_thesis_evaluation.py \
+  data/evaluation/thesis-gold-40.json \
+  --predictions path/to/predictions.jsonl \
+  --output-dir data/evaluation/thesis-score
+```
 
-Suite A reports under `docs/evaluation/` are historical parser benchmarks over immutable fixtures. They provide provenance for parser behavior and OCR observations, but they do not show that the current MVP has a seven-service ingestion pipeline or that a parser benchmark is a release gate. Re-run only when the corresponding suite implementation and immutable artefacts are present; use the command recorded in that report and label the run date, fixture hash, parser versions, and unavailable lanes.
+The runner requires all 40 case IDs and writes append-only JSONL plus an aggregate JSON. Preserve raw output and errors; do not rewrite frozen fixture or prior run artifacts.
 
-### 4.2 Optional semantic metrics
+### Result semantics
 
-Ragas, online judges, Langfuse, and external RAGFlow comparisons are optional thesis experiments. They are not required for the active MVP and do not replace deterministic evidence/citation/temporal gates; provider failure is reported unavailable. There is one active OpenRouter generator. Do not report multiple-generator routing or silent provider fallback.
+- **`true` / `false`**: the metric was computable for that case and the observed outcome matched or did not match the gold expectation.
+- **`null`**: the metric is not computable or not observed. This includes no gold IDs for a coordinate level, a timeout/error/failed request, and manual semantic correctness before human review. `null` is not zero and must not be counted as a pass or failure without an explicit denominator.
+- **API `ERROR`, `FAILED`, or `TIMEOUT`**: the request did not produce a completed prediction. Keep the error and case ID in raw/error artifacts; do not infer answer status, citations, abstention, or correctness.
+- **Abstention accuracy**: the runner treats `INSUFFICIENT_EVIDENCE` and `OUT_OF_SCOPE` as abstention. Other statuses are non-abstention. A timeout/error is `null`.
+- **Citation validity**: it is `null` for timeout/error; otherwise citations must exist when gold provisions are expected and each citation must resolve to a canonical coordinate. An empty citation list is valid only when no provision is expected.
+- **`answer_correctness_manual`**: always starts `null` and becomes boolean only through a documented human semantic review. The diagnostic runner never infers it from generated text or citation flags.
 
-## 5. Acceptance gates
+Metrics must be reported with their observed denominators and broken down by category/status. Never infer comprehensive legal coverage, semantic correctness, or release readiness from this runner; no fixed numeric threshold is defined in the release contract.
 
-A release candidate is supported only when the following evidence exists:
+## 5. Current diagnostic evidence and disposition
 
-1. Focused backend tests pass for deterministic contracts and the implemented API routes.
-2. Qdrant hybrid retrieval returns expected local-corpus provisions for the checked-in smoke cases.
-3. Supabase auth/persistence checks pass for ownership and saved-Q&A payloads.
-4. `/api/v1/chat` returns verified answers with valid citations or a truthful fail-closed status; invalid citation rate at the API boundary is zero for the exercised cases.
-5. Temporal and evidence gates block unsupported or wrong-period claims.
-6. Provider failures are observable and fail closed without substituting a different provider.
-7. Frontend type/build and a representative browser chat/legal-explorer smoke pass when frontend release evidence is claimed.
-8. Corpus, source, chunk, and frozen-gold hashes are recorded; no frozen artefact is rewritten.
+The fresh full diagnostic run is identified by run ID `20260913T172158Z`. It exercised all 40 cases against `POST /api/v1/chat` with `top_k=5`; raw JSONL and aggregate artifacts are `/tmp/thesis-release-full/20260913T172158Z.jsonl` and `/tmp/thesis-release-full/20260913T172158Z.aggregate.json`.
 
-Do not make Docker clean-start, PostgreSQL/Redis/MinIO snapshots, worker queues, external retrieval, agent workflows, RAGFlow, Langfuse, or a full 14-document/200-question suite acceptance blockers. If historical documents list them as gates, retain them as dated historical claims and supersede them here.
+| Metric | Fresh 40-case result |
+|---|---:|
+| Retrieval hit@5 | 0.0 |
+| Document / article / clause / point accuracy | 0.0 / 0.0 / 0.0 / 0.0 |
+| Citation validity | 0.7368 |
+| Abstention accuracy | 0.6579 |
+| Latency mean / P50 / P95 | 23096.09 / 11024.33 / 63738.4 ms |
+| Timeout/null predictions | Cases 08 and 20 |
 
-## 6. Historical provenance note
+Manual semantic strict review found **19 correct, 9 partial, 8 incorrect, and 4 unavailable**. Relative to the earlier subset, the fixes improved API success and latency, but retrieval and legal-coordinate metrics remain zero, citation validity fails the hard gate, and incorrect/partial semantic outcomes remain. Disposition is **UNVERIFIED / NOT RELEASE-READY**; the active acceptance contract is unchanged.
 
-Older sections and reports in this repository were written for a thesis architecture with Parser P1–P3, embedding/retrieval/generation ablations, PostgreSQL-owned ingestion state, Redis/Dramatiq, MinIO, LangGraph repair, RAGFlow, Langfuse, and seven-service Compose. Those records remain for provenance. They do not describe the active runtime and must be read with the current baseline at the top of this document.
+The earlier 32/40 API subset report [`docs/evaluation/thesis-api-subset-32-20260913.md`](evaluation/thesis-api-subset-32-20260913.md) is retained as historical diagnostic evidence: 3 calls errored, retrieval hit@5 was `0.1905`, citation validity `0.6552`, abstention accuracy `0.4483`, and P95 latency `84,036.78 ms`; semantic review was not performed. It must not be merged with or used instead of the fresh run.
+
+The separate 40-row report [`docs/evaluation/thesis-api-run-20260913T113553Z.md`](evaluation/thesis-api-run-20260913T113553Z.md) contains 39 predictions and one timeout. Its emitted aggregate is explicitly unreliable because of scorer identity/category aggregation defects; its independent recomputation is still only a recomputation of recorded flags, not semantic correctness. Disposition: `UNVERIFIED / NOT RELEASE-READY`.
+
+The checked-in rerun manifest under `data/evaluation/final/release-20260912-rerun/` is also `AUTOMATED_FAIL`: three cases have no completed prediction and manual answer correctness is unmeasured. Preserve these artifacts as provenance; do not merge their numbers into a release score.
+
+## 6. Release integrity and gate
+
+The checked-in evaluation artifacts and runner must be used without modifying the frozen fixture. The run must execute all 40 cases against the pinned corpus/index, model/config/prompt and commit, preserve every response/error, and include deterministic metrics, category/status breakdowns, error analysis, required semantic review, and an immutable run manifest containing all relevant hashes.
+
+A release is blocked unless all of the following evidence exists:
+
+1. The frozen 14-PDF candidate corpus has verified identity/file hashes, allowlist provenance, and accepted publish evidence.
+2. The complete 40-case run covers all eight categories and reports honest denominators and limited coverage.
+3. Retrieval, evidence completeness, temporal validity, citation/claim/numeric grounding, abstention, and latency metrics are reported from preserved raw outputs.
+4. Deterministic citation safety holds for the release run; unsupported or wrong-period claims fail closed.
+5. All release-run errors are classified, required semantic review is complete, and manual browser/auth/session/persistence checks pass for the shipped build.
+
+Missing any required artifact, review, or safety/citation gate keeps the status `UNVERIFIED / NOT RELEASE-READY`. No fixed numeric threshold substitutes for judgment across these gates.
+
+
+## 7. Historical and optional material
+
+Reports under `docs/evaluation/` may preserve parser benchmarks, RAGFlow comparisons, or earlier experiment outputs. Cite them as dated provenance only. They do not establish current runtime capabilities or release gates. Optional semantic/judge experiments may supplement deterministic evidence when actually run, but provider failure is unavailable and no external evaluator replaces the 40-case gate.
