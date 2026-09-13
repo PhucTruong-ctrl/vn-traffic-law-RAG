@@ -13,6 +13,13 @@ export type ChatStatus =
   | "CORPUS_NOT_COVERED"
   | "INSUFFICIENT_EVIDENCE"
   | "WORKFLOW_UNAVAILABLE";
+export type AbstentionReasonCode =
+  | "missing_vehicle_type"
+  | "missing_context"
+  | "reference_not_found"
+  | "temporal_mismatch"
+  | "no_relevant_provision"
+  | "insufficient_evidence";
 export type ChatResponse = {
   status?: ChatStatus;
   answer?: string | null;
@@ -20,8 +27,8 @@ export type ChatResponse = {
   citations?: Citation[];
   abstention?: {
     reason?: string;
-    reason_code?: string;
-    reasonCode?: string;
+    reason_code?: AbstentionReasonCode | string;
+    reasonCode?: AbstentionReasonCode | string;
     evidence_gaps?: string[];
   } | null;
   disclaimer?: string;

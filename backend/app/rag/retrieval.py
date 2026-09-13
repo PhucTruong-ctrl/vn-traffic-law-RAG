@@ -119,14 +119,22 @@ def _exact_qdrant_documents(store: Any, reference: LegalReference, limit: int) -
     if client is None or not collection:
         return []
 
-    structural: list[Condition] = [
+    structural: list[Condition] = []
+    if reference.document_id:
+        structural.append(
+            FieldCondition(
+                key="metadata.document_id",
+                match=MatchValue(value=reference.document_id),
+            )
+        )
+    structural.extend(
         FieldCondition(
             key=f"metadata.{key}",
             match=MatchValue(value=reference_data[key]),
         )
         for key in ("article", "clause", "point")
         if reference_data.get(key)
-    ]
+    )
     number = reference_data.get("number")
     if number:
         number_values = [number]
@@ -181,7 +189,81 @@ def _exact_qdrant_documents(store: Any, reference: LegalReference, limit: int) -
     return documents
 
 
-def complete_family(
+_CONTEXT_ACTION_MARKERS = {
+    "railway_crossing": ("đường ngang", "cầu chung", "đường sắt"),
+}
+
+
+def _normalized_action(value: object) -> str:
+    return re.sub(r"[^\w]+", " ", str(value).casefold(), flags=re.UNICODE).strip()
+
+
+def _action_matches(value: object, expected: str, context: str = "") -> bool:
+    normalized = _normalized_action(value)
+    if normalized == expected:
+        return True
+    markers = _CONTEXT_ACTION_MARKERS.get(context, ())
+    return bool(markers and "đèn đỏ" in normalized and any(item in normalized for item in markers))
+
+
+def _metadata_text_documents(
+    store: Any, field: str, text: str, limit: int, *, context: str = ""
+) -> list[Document]:
+    client = getattr(store, "client", None)
+    collection = getattr(store, "collection_name", None)
+    normalized_text = _normalized_action(text)
+    if client is None or not collection or not normalized_text:
+        return []
+    documents: list[Document] = []
+    offset: Any = None
+    try:
+        while len(documents) < limit:
+            points, next_offset = client.scroll(
+                collection_name=collection,
+                offset=offset,
+                limit=max(limit * 4, 64),
+                with_payload=True,
+            )
+            documents.extend(
+                document
+                for point in points
+                if isinstance((payload := getattr(point, "payload", None)), Mapping)
+                and (document := _payload_document(payload)) is not None
+                and _action_matches(document.metadata.get(field, ""), normalized_text, context)
+            )
+            if next_offset is None or next_offset == offset:
+                break
+            offset = next_offset
+    except Exception:
+        return []
+    return documents[:limit]
+
+
+def _date_eligible(metadata: Mapping[str, Any], effective_date: date | None) -> bool:
+    if effective_date is None:
+        return True
+    for key in ("effective_from", "valid_from"):
+        value = metadata.get(key)
+        if value:
+            try:
+                if effective_date < date.fromisoformat(str(value)[:10]):
+                    return False
+            except ValueError:
+                pass
+            break
+    for key in ("effective_to", "valid_to"):
+        value = metadata.get(key)
+        if value:
+            try:
+                if effective_date > date.fromisoformat(str(value)[:10]):
+                    return False
+            except ValueError:
+                pass
+            break
+    return True
+
+
+def _sibling_completion_documents(
     store: Any,
     original: Document,
     limit: int,
@@ -208,7 +290,7 @@ def complete_family(
     collection = getattr(store, "collection_name", None)
     if client is None or not collection:
         return []
-    must = [
+    must: list[Condition] = [
         FieldCondition(key=f"metadata.{document_key}", match=MatchValue(value=document_id)),
         FieldCondition(key="metadata.article", match=MatchValue(value=article)),
     ]
@@ -255,7 +337,18 @@ def complete_family(
     return result
 
 
-_sibling_completion_documents = complete_family
+_sibling_completion_documents_impl = _sibling_completion_documents
+
+
+def complete_family(
+    store: Any,
+    original: Document,
+    *,
+    limit: int = 2,
+    effective_date: date | None = None,
+) -> list[Document]:
+    """Return bounded structural provision-family context for an original."""
+    return _sibling_completion_documents_impl(store, original, limit, effective_date)
 
 
 def _identity(document: Document) -> tuple[str, str]:
@@ -343,6 +436,18 @@ class Retriever:
             document for document in documents if metadata_matches(document.metadata, reference)
         ]
 
+    def complete_family(
+        self,
+        document: Document,
+        *,
+        limit: int = 2,
+        effective_date: date | None = None,
+    ) -> list[Document]:
+        """Return bounded sanction siblings from the same provision family."""
+        return _sibling_completion_documents(
+            self._store_for_query(), document, limit, effective_date
+        )
+
     def retrieve(
         self,
         question: str,
@@ -375,6 +480,30 @@ class Retriever:
             raise
         except Exception as exc:
             raise RetrievalProviderError("hybrid retrieval provider is unavailable") from exc
+        if not reference and ";" in question:
+            from .query_rules import requested_context
+
+            expanded_terms = [part.strip() for part in question.split(";")[1:] if part.strip()]
+            normalized_action = max(expanded_terms, key=len, default="")
+            action_documents = _metadata_text_documents(
+                store,
+                "normalized_action",
+                normalized_action,
+                max(limit * 2, limit),
+                context=requested_context(question),
+            )
+            existing = {
+                (str(doc.metadata.get("chunk_id", "")), doc.page_content)
+                for doc in action_documents
+            }
+            documents = [
+                *action_documents,
+                *[
+                    doc
+                    for doc in documents
+                    if (str(doc.metadata.get("chunk_id", "")), doc.page_content) not in existing
+                ],
+            ]
         ranked = sorted(
             enumerate(documents),
             key=lambda item: (-_reference_score(item[1], reference), item[0]),

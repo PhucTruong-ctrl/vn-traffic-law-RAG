@@ -9,6 +9,7 @@ import pytest
 
 from app.chats.service import add_feedback, touch_session
 from app.legal import api as legal_api
+from app.rag.analyzer import VEHICLE_LABELS
 from app.rag.schemas import ChatResponse, Citation
 from app.rag.service import RAGService
 
@@ -182,15 +183,12 @@ def test_vehicle_penalty_query_retrieves_all_categories(monkeypatch) -> None:
     assert result["status"] == "complete"
     assert result["citations"]
     vehicle_queries = [query for query in retriever.queries if "đối với" in query]
-    assert len(vehicle_queries) == 3
-    for category in (
-        "đối với ô tô",
-        "đối với xe mô tô, xe gắn máy",
-        "đối với xe thô sơ",
-    ):
-        matching = [query for query in vehicle_queries if query.endswith(category)]
-        assert len(matching) == 1
-        assert "vượt đèn đỏ" in matching[0].lower()
+    assert len(vehicle_queries) == len(set(VEHICLE_LABELS.values()))
+    assert all(
+        any(f"đối với {scope}" in query for query in vehicle_queries)
+        for scope in VEHICLE_LABELS.values()
+    )
+    assert all("vượt đèn đỏ" in query.casefold() for query in vehicle_queries)
 
 
 def test_phone_use_while_driving_reaches_retrieval_and_returns_evidence(monkeypatch) -> None:
@@ -229,11 +227,11 @@ def test_phone_use_while_driving_reaches_retrieval_and_returns_evidence(monkeypa
 
     assert result["status"] == "complete"
     assert result["citations"][0]["source_id"] == "nd-168-2024:phone"
-    assert retriever.queries == [
-        "Có được dùng điện thoại khi đang lái xe không đối với ô tô",
-        "Có được dùng điện thoại khi đang lái xe không đối với xe mô tô, xe gắn máy",
-        "Có được dùng điện thoại khi đang lái xe không đối với xe thô sơ",
-    ]
+    assert len(retriever.queries) == len(set(VEHICLE_LABELS.values()))
+    assert all(
+        any(f"đối với {scope}" in query for query in retriever.queries)
+        for scope in VEHICLE_LABELS.values()
+    )
 
 
 @dataclass

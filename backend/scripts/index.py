@@ -82,7 +82,8 @@ def main(argv: list[str] | None = None) -> int:
         info = store.client.get_collection(collection)
         if info.points_count != len(documents):
             raise RuntimeError(
-                f"collection {collection!r} has expected {len(documents)} points, found {info.points_count}"
+                f"collection {collection!r} has expected {len(documents)} points, "
+                f"found {info.points_count}"
             )
         print(f"indexed {len(documents)} chunks in HYBRID collection {store.collection_name}")
     except Exception as exc:

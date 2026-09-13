@@ -47,6 +47,7 @@ class LegalReference:
                 "point": self.point,
                 "kind": self.kind,
                 "number": self.number,
+                "document_id": self.document_id,
             }.items()
             if value is not None
         }
@@ -84,7 +85,10 @@ def extract_references(text: str, *, limit: int = 4) -> list[LegalReference]:
         (_NUMBER_RE, lambda m: LegalReference(number=m.group("number"))),
         (_ABBREVIATED_NUMBER_RE, lambda m: LegalReference(number=m.group("number"))),
     ):
-        matches.extend((match.start(), parser(match)) for match in pattern.finditer(text))
+        for match in pattern.finditer(text):
+            reference = parser(match)
+            if reference is not None:
+                matches.append((match.start(), reference))
     found: list[LegalReference] = []
     seen: set[tuple[tuple[str, str], ...]] = set()
     for _, reference in sorted(matches, key=lambda item: item[0]):
@@ -105,12 +109,21 @@ def metadata_matches(metadata: Mapping[str, Any], reference: LegalReference) -> 
         actual_id = normalized.get("document_id")
         if actual_id != normalize_reference_value(reference.document_id):
             return False
-    for key in ("article", "clause", "point"):
+    if reference.article:
+        actual_article = normalized.get("article", "").removeprefix("điều")
+        expected_article = normalize_reference_value(reference.article).removeprefix("điều")
+        if actual_article != expected_article:
+            return False
+    for key in ("clause", "point"):
         expected = getattr(reference, key)
         if expected and normalized.get(key) != normalize_reference_value(expected):
             return False
     if reference.number:
-        document = normalized.get("document_number") or normalized.get("document_name")
+        document = (
+            normalized.get("document_number")
+            or normalized.get("document_name")
+            or normalized.get("document_id")
+        )
         actual = _document_number(document)
         expected = _document_number(reference.number)
         if actual != expected and not (
@@ -140,6 +153,9 @@ def _parse_canonical(value: str) -> LegalReference | None:
 
 def _document_number(value: Any) -> str:
     normalized = normalize_reference_value(value).replace("đ", "d")
+    canonical_id = re.fullmatch(r"(?:nd|tt)-(?P<number>\d+)-(?P<year>\d{4})", normalized)
+    if canonical_id:
+        return f"{canonical_id.group('number')}/{canonical_id.group('year')}"
     match = re.search(r"\d+(?:/\d{4})?(?:/[a-z0-9-]+)?", normalized)
     return match.group(0) if match else normalized
 

@@ -112,16 +112,11 @@ def analyze_question(question: str, model: object | None = None) -> Analysis:
     if not normalized:
         return Analysis(())
     normalized = re.sub(r"\bko\b", "không", normalized, flags=re.I)
-    violation_phrases = ("vượt đèn đỏ", "không đội mũ bảo hiểm")
     clauses = [
         piece.strip(" .?!")
         for piece in re.split(r"\s+(?:và|đồng thời|ngoài ra)\s+", normalized, flags=re.I)
         if piece.strip(" .?!")
     ]
-    if len(clauses) == 1 and all(
-        re.search(rf"\b{re.escape(phrase)}\b", normalized, re.I) for phrase in violation_phrases
-    ):
-        clauses = list(violation_phrases)
     dimensions = [
         (label, match.start())
         for label, pattern in _DIMENSION_PATTERNS
@@ -184,7 +179,7 @@ def classify_intent(text: str) -> str:
         return "chitchat"
     if re.search(r"\b(google|web|internet|trên mạng|tin tức)\b", lowered):
         return "web"
-    if re.search(
+    if re.search(r"\b(?:nd|tt)-\d+-\d{4}__dieu-\d+\b", lowered) or re.search(
         r"\b(luật|điều|khoản|nghị định|thông tư|phạt|giao thông|đường bộ|"
         r"tốc độ|km/?h|khu vực đông dân cư|vượt đèn đỏ|điện thoại|lái xe|"
         r"không đội mũ bảo hiểm|trừ điểm|tước quyền|tạm giữ|phương tiện|"

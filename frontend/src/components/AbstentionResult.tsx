@@ -1,5 +1,13 @@
 import React from "react";
 
+export type AbstentionReasonCode =
+  | "missing_vehicle_type"
+  | "missing_context"
+  | "reference_not_found"
+  | "temporal_mismatch"
+  | "no_relevant_provision"
+  | "insufficient_evidence";
+
 export type AbstentionResultProps = {
   status?:
     | "GREETING"
@@ -8,7 +16,8 @@ export type AbstentionResultProps = {
     | "INSUFFICIENT_EVIDENCE"
     | "WORKFLOW_UNAVAILABLE";
   reason?: string | null;
-  reasonCode?: string | null;
+  reason_code?: AbstentionReasonCode | string | null;
+  reasonCode?: AbstentionReasonCode | string | null;
   disclaimer?: string | null;
 };
 
@@ -16,6 +25,10 @@ type ReasonCopy = { reason: string; action: string };
 
 const REASON_COPY: Record<string, ReasonCopy> = {
   missing_vehicle: {
+    reason: "Chưa xác định được loại phương tiện liên quan.",
+    action: "Bổ sung loại phương tiện, chẳng hạn ô tô, xe máy hoặc xe đạp.",
+  },
+  missing_vehicle_type: {
     reason: "Chưa xác định được loại phương tiện liên quan.",
     action: "Bổ sung loại phương tiện, chẳng hạn ô tô, xe máy hoặc xe đạp.",
   },
@@ -27,13 +40,29 @@ const REASON_COPY: Record<string, ReasonCopy> = {
     reason: "Chưa có số văn bản hoặc điều khoản đủ cụ thể để đối chiếu.",
     action: "Bổ sung số văn bản, điều hoặc khoản cần tra cứu.",
   },
+  reference_not_found: {
+    reason: "Chưa tìm thấy văn bản hoặc điều khoản được viện dẫn.",
+    action: "Kiểm tra và bổ sung số văn bản, điều hoặc khoản cần tra cứu.",
+  },
   temporal_ambiguity: {
     reason: "Thời điểm áp dụng quy định chưa được xác định rõ.",
+    action: "Cho biết thời điểm xảy ra hoặc phiên bản quy định cần tra cứu.",
+  },
+  temporal_mismatch: {
+    reason: "Thời điểm áp dụng của nguồn được tìm thấy không khớp với thời điểm bạn hỏi.",
     action: "Cho biết thời điểm xảy ra hoặc phiên bản quy định cần tra cứu.",
   },
   relevance_low: {
     reason: "Nguồn tìm được chưa đủ liên quan đến câu hỏi.",
     action: "Diễn đạt lại câu hỏi với hành vi, phương tiện hoặc điều khoản cụ thể hơn.",
+  },
+  no_relevant_provision: {
+    reason: "Chưa tìm thấy quy định phù hợp trực tiếp với câu hỏi.",
+    action: "Diễn đạt lại câu hỏi với hành vi, phương tiện hoặc điều khoản cụ thể hơn.",
+  },
+  insufficient_evidence: {
+    reason: "Nguồn tìm được chưa đủ để đưa ra kết luận chắc chắn.",
+    action: "Bổ sung tình tiết, loại phương tiện, thời điểm hoặc điều khoản cần tra cứu.",
   },
 };
 
@@ -73,11 +102,13 @@ const COPY = {
 export default function AbstentionResult({
   status = "INSUFFICIENT_EVIDENCE",
   reason,
+  reason_code,
   reasonCode,
   disclaimer,
 }: AbstentionResultProps) {
-  const copy = COPY[status];
-  const reasonCopy = reasonCode ? REASON_COPY[reasonCode] : undefined;
+  const copy = COPY[status] ?? COPY.INSUFFICIENT_EVIDENCE;
+  const resolvedReasonCode = reason_code ?? reasonCode;
+  const reasonCopy = resolvedReasonCode ? REASON_COPY[resolvedReasonCode] : undefined;
   return (
     <section
       className="abstention-result alert warning motion-entrance"
@@ -88,14 +119,14 @@ export default function AbstentionResult({
         <span className="abstention-result__eyebrow">{copy.eyebrow}</span>
         <h3>{copy.title}</h3>
       </div>
-      <p className="abstention-result__reason">{reason || reasonCopy?.reason || copy.reason}</p>
-      {reasonCode && (
+      <p className="abstention-result__reason">{reason ?? reasonCopy?.reason ?? copy.reason}</p>
+      {resolvedReasonCode && (
         <p className="abstention-result__code">
-          <span>Mã lý do:</span> <code>{reasonCode}</code>
+          <span>Mã lý do:</span> <code>{resolvedReasonCode}</code>
         </p>
       )}
       <p className="abstention-result__disclaimer">
-        {disclaimer || reasonCopy?.action || copy.action}
+        {disclaimer ?? reasonCopy?.action ?? copy.action}
       </p>
     </section>
   );

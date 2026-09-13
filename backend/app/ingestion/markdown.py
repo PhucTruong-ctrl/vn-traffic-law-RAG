@@ -44,6 +44,27 @@ def _heading_metadata(text: str) -> dict[str, list[str]]:
     return {"vehicle_categories": categories, "context_scope": scopes}
 
 
+_VEHICLE_CATEGORIES = {
+    "car": re.compile(r"\b(?:ô tô|xe ô tô)\b", re.IGNORECASE),
+    "motorcycle": re.compile(r"\b(?:mô tô|xe máy|xe gắn máy)\b", re.IGNORECASE),
+    "bicycle": re.compile(r"\b(?:xe đạp|xe thô sơ)\b", re.IGNORECASE),
+    "specialized": re.compile(r"\b(?:máy kéo|xe máy chuyên dùng)\b", re.IGNORECASE),
+}
+_CONTEXT_SCOPES = {
+    "driver_testing": re.compile(
+        r"\b(?:sát hạch|đào tạo lái xe|cấp giấy phép lái xe)\b", re.IGNORECASE
+    ),
+    "railway_crossing": re.compile(
+        r"\b(?:đường ngang|cầu chung|đường sắt|rào chắn)\b", re.IGNORECASE
+    ),
+    "expressway": re.compile(r"\b(?:đường cao tốc|cao tốc)\b", re.IGNORECASE),
+    "road_traffic": re.compile(
+        r"\b(?:giao thông đường bộ|an toàn giao thông đường bộ|trên đường bộ)\b",
+        re.IGNORECASE,
+    ),
+}
+
+
 def _scalar(value: str) -> Any:
     value = value.strip()
     if value[:1] == value[-1:] and value[:1] in {"'", '"'}:
@@ -101,7 +122,22 @@ def _chunks(body: str) -> list[tuple[str, dict[str, Any]]]:
             if article_heading:
                 metadata["article_heading"] = article_heading
                 metadata.update(_heading_metadata(article_heading))
-            if provision_text is not None:
+                metadata["vehicle_categories"] = [
+                    category
+                    for category, pattern in _VEHICLE_CATEGORIES.items()
+                    if pattern.search(article_heading)
+                ]
+                metadata["context_scope"] = [
+                    scope
+                    for scope, pattern in _CONTEXT_SCOPES.items()
+                    if pattern.search(article_heading)
+                ]
+            if article is not None:
+                family = f"article:{article}"
+                if clause is not None:
+                    family += f":clause:{clause}"
+                metadata["provision_family"] = family
+            if clause is not None or point is not None:
                 metadata["normalized_action"] = text
             sections.append((text, metadata))
         buffer = []
@@ -176,15 +212,15 @@ def load_markdown(
     }
     if document_number or front.get("document_number"):
         common["document_number"] = str(document_number or front["document_number"])
-    if status or front.get("status"):
-        common["status"] = str(status or front["status"])
-    if (status or front.get("status")) == "EFFECTIVE":
-        if effective_from or front.get("effective_from"):
-            common["effective_from"] = effective_from or front["effective_from"]
-        if effective_to or front.get("effective_to") is not None:
-            common["effective_to"] = (
-                effective_to if effective_to is not None else front["effective_to"]
-            )
+    effective_status = str(status or front.get("status") or "")
+    if effective_status:
+        common["status"] = effective_status
+    start = effective_from or front.get("effective_from")
+    end = effective_to if effective_to is not None else front.get("effective_to")
+    if start and effective_status != "PARTIALLY_EFFECTIVE":
+        common["effective_from"] = str(start)
+    if end and effective_status != "PARTIALLY_EFFECTIVE":
+        common["effective_to"] = str(end)
     result: list[Document] = []
     for number, (text, location) in enumerate(_chunks(body), 1):
         location = dict(location)
@@ -196,6 +232,7 @@ def load_markdown(
         metadata = {
             **common,
             **location,
+            "provision_family": f"{doc_id}:{location.get('provision_family', 'document')}",
             "chunk_id": f"{doc_id}:{number:04d}",
             "content_sha256": digest,
         }

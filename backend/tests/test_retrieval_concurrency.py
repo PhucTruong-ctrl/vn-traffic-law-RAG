@@ -1,30 +1,37 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from threading import Lock
+from threading import Barrier, Lock
 from time import sleep
+from unittest.mock import patch
+
+from app.rag.retrieval import Retriever
 
 
-def test_store_for_query_creates_store_once_under_concurrency(monkeypatch) -> None:
-    from app.rag import retrieval
-
-    retriever = retrieval.Retriever()
+def test_cold_start_creates_store_once_for_concurrent_callers() -> None:
+    retriever = Retriever()
+    callers = 12
+    start = Barrier(callers)
+    create_lock = Lock()
+    created: list[object] = []
     store = object()
-    calls = 0
-    calls_lock = Lock()
 
-    def create_store():
-        nonlocal calls
-        with calls_lock:
-            calls += 1
+    def create_store() -> object:
+        with create_lock:
+            created.append(store)
         sleep(0.01)
         retriever._store = store
         return store
 
-    monkeypatch.setattr(retriever, "_create_store", create_store)
+    def get_store() -> object:
+        start.wait()
+        return retriever._store_for_query()
 
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        stores = list(executor.map(lambda _: retriever._store_for_query(), range(8)))
+    with (
+        patch.object(retriever, "_create_store", side_effect=create_store),
+        ThreadPoolExecutor(max_workers=callers) as pool,
+    ):
+        results = list(pool.map(lambda _: get_store(), range(callers)))
 
-    assert stores == [store] * 8
-    assert calls == 1
+    assert len(created) == 1
+    assert all(result is store for result in results)

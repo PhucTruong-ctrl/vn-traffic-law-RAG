@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from langchain_core.documents import Document
 
-from app.rag.analyzer import analyze_question, resolve_vehicle_followup
+from app.rag.analyzer import VEHICLE_LABELS, analyze_question, resolve_vehicle_followup
 from app.rag.generator import build_prompt
 from app.rag.service import RAGService
 
@@ -113,16 +113,16 @@ class FakeRetriever:
 
     def retrieve(self, query: str, **_: object) -> list[Document]:
         self.queries.append(query)
-        return list(self.responses.get(query, []))
+        return list(self.responses.get(query, self.responses.get(query.split(";", 1)[0], [])))
 
 
 def test_retrieve_query_fanout_is_bounded_and_preserves_vehicle_scopes() -> None:
     cases = [
         (
             "Vượt đèn đỏ bị phạt thế nào?",
-            3,
+            len(set(VEHICLE_LABELS.values())),
             ("vượt đèn đỏ",),
-            ("ô tô", "xe mô tô, xe gắn máy", "xe thô sơ"),
+            tuple(VEHICLE_LABELS.values()),
         ),
         (
             "Xe máy và ô tô vượt đèn đỏ bị phạt thế nào?",
@@ -153,9 +153,10 @@ def test_retrieve_query_fanout_is_bounded_and_preserves_vehicle_scopes() -> None
             for token in expected_tokens
         )
         if expected_suffixes:
-            assert sorted(
-                query.casefold().rsplit(" đối với ", maxsplit=1)[-1] for query in retriever.queries
-            ) == sorted(expected_suffixes)
+            assert all(
+                any(f"đối với {scope}" in query.casefold() for query in retriever.queries)
+                for scope in expected_suffixes
+            )
         else:
             assert all(" đối với " not in query.casefold() for query in retriever.queries)
         assert len(retriever.queries) <= 12
@@ -331,7 +332,10 @@ def test_retrieve_deduplicates_documents_in_first_seen_order() -> None:
 
     assert [document.page_content for document in documents] == ["first", "second"]
     assert [document.metadata["chunk_id"] for document in documents] == ["a", "b"]
-    assert retriever.queries == ["vượt đèn đỏ", "không đội mũ bảo hiểm"]
+    assert [query.split(";", 1)[0] for query in retriever.queries] == [
+        "vượt đèn đỏ",
+        "không đội mũ bảo hiểm",
+    ]
     assert [document.metadata["intent"] for document in documents] == [
         ["không đội mũ bảo hiểm", "vượt đèn đỏ"],
         ["không đội mũ bảo hiểm"],

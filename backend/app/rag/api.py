@@ -42,19 +42,12 @@ def _frontend_response(result: dict[str, Any]) -> dict[str, Any]:
             "status": "VERIFIED",
             "claims": claims,
         }
-    if result.get("status") == "out_of_scope":
+    if result.get("status") == "out_of_scope" or result.get("reason_code") == "out_of_scope":
         return {
             **result,
             "status": "OUT_OF_SCOPE",
             "claims": [],
             "abstention": {"reason_code": result.get("reason_code", "OUT_OF_SCOPE")},
-        }
-    if result.get("status") == "insufficient_evidence":
-        return {
-            **result,
-            "status": "INSUFFICIENT_EVIDENCE",
-            "claims": [],
-            "abstention": {"reason_code": result.get("reason_code", "INSUFFICIENT_EVIDENCE")},
         }
     return result
 

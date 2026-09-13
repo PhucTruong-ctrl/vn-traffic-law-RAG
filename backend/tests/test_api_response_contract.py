@@ -39,7 +39,22 @@ def test_legacy_complete_derives_only_identity_backed_claims() -> None:
     assert response["claims"] == [{"claim": "Supported", "provision_ids": ["chunk-1"]}]
 
 
-def test_out_of_scope_maps_to_distinct_status_and_preserves_reason() -> None:
+def test_out_of_scope_maps_internal_reason_to_public_status() -> None:
+    result = {
+        "answer": "This is outside scope.",
+        "citations": [],
+        "reason_code": "out_of_scope",
+        "status": "insufficient_evidence",
+    }
+
+    response = _frontend_response(result)
+
+    assert response["status"] == "OUT_OF_SCOPE"
+    assert response["claims"] == []
+    assert response["abstention"] == {"reason_code": "out_of_scope"}
+
+
+def test_explicit_out_of_scope_status_preserves_reason() -> None:
     result = {
         "answer": "This is outside scope.",
         "citations": [],

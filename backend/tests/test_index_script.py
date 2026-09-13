@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "index.py"
+
 _spec = importlib.util.spec_from_file_location("index_script", SCRIPT)
 assert _spec and _spec.loader
 index_script = importlib.util.module_from_spec(_spec)
