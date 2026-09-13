@@ -438,6 +438,40 @@ def test_unauthenticated_chat_is_rejected(client) -> None:
     assert response.status_code == 401
 
 
+def test_chat_provider_failure_returns_persisted_abstention(
+    client, supabase_client, monkeypatch
+) -> None:
+    supabase_client.auth_response = {"id": "user-1"}
+    monkeypatch.setattr(
+        "app.rag.api.rag_service.answer",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("provider timeout")),
+    )
+    supabase_client.responses.extend(
+        [
+            [{"id": "user-1"}],
+            [{"id": "session-1", "user_id": "user-1"}],
+            [{"id": "user-message"}],
+            [{"id": "assistant-message"}],
+        ]
+    )
+    response = client.post(
+        "/api/v1/chat",
+        json={"question": "Tốc độ tối đa là bao nhiêu?"},
+        headers={"Authorization": "Bearer user-token"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "insufficient_evidence"
+    assert body["reason_code"] == "generation_failed"
+    assert body["citations"] == []
+    assert body["claims"] == []
+    assert all(
+        call["data"].get("status") != "VERIFIED"
+        for call in supabase_client.calls
+        if call["method"] == "POST"
+    )
+
+
 def test_rename_requires_non_blank_title(client) -> None:
     response = client.patch(
         "/api/v1/chats/session-1", json={"title": "   "}, headers={"Authorization": "Bearer token"}

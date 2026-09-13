@@ -9,7 +9,7 @@ from typing import Any
 
 _CANONICAL_RE = re.compile(
     r"(?<![a-z0-9-])(?P<document_id>nd-\d+-\d{4}__dieu-\d+"
-    r"(?:__khoan-\d+)?(?:__diem-[a-z])?)(?![a-z0-9-])",
+    r"(?:__khoan-\d+)?(?:__diem-[a-zđ])?)(?![a-z0-9_-])",
     re.IGNORECASE,
 )
 _REFERENCE_RE = re.compile(
@@ -91,12 +91,19 @@ def extract_references(text: str, *, limit: int = 4) -> list[LegalReference]:
                 matches.append((match.start(), reference))
     found: list[LegalReference] = []
     seen: set[tuple[tuple[str, str], ...]] = set()
+    covered_numbers: set[str] = set()
     for _, reference in sorted(matches, key=lambda item: item[0]):
         key = tuple(sorted(reference.as_dict().items()))
         if key in seen:
             continue
+        if reference.number:
+            number_key = _document_number(reference.number)
+            if number_key in covered_numbers:
+                continue
         seen.add(key)
         found.append(reference)
+        if reference.article and reference.number:
+            covered_numbers.add(_document_number(reference.number))
         if len(found) >= limit:
             break
     return found
@@ -110,7 +117,9 @@ def metadata_matches(metadata: Mapping[str, Any], reference: LegalReference) -> 
         if actual_id != normalize_reference_value(reference.document_id):
             return False
     if reference.article:
-        actual_article = normalized.get("article", "").removeprefix("điều")
+        actual_article = normalize_reference_value(normalized.get("article", "")).removeprefix(
+            "điều"
+        )
         expected_article = normalize_reference_value(reference.article).removeprefix("điều")
         if actual_article != expected_article:
             return False
@@ -127,7 +136,7 @@ def metadata_matches(metadata: Mapping[str, Any], reference: LegalReference) -> 
         actual = _document_number(document)
         expected = _document_number(reference.number)
         if actual != expected and not (
-            "/" not in reference.number and actual.startswith(expected + "/")
+            actual.startswith(expected + "/") and "/" in reference.number
         ):
             return False
     return True

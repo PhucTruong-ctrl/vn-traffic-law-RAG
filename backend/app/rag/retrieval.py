@@ -458,21 +458,51 @@ class Retriever:
         limit = top_k or self.top_k
         if limit < 1:
             raise ValueError("top_k must be positive")
-        reference = parse_reference(question)
+        from .references import extract_references
+
+        references = extract_references(question)
+        if references:
+            canonical_references = [reference for reference in references if reference.document_id]
+            if canonical_references and len(canonical_references) > limit:
+                raise RetrievalProviderError("top_k is too small for all explicit references")
+            exact: list[Document] = []
+            seen: set[tuple[str, str]] = set()
+            for reference in references:
+                matches = self.resolve_reference(reference, limit=limit)
+                if effective_date:
+                    matches = [
+                        document
+                        for document in matches
+                        if _temporal_match(document, effective_date)
+                    ]
+                if not matches:
+                    continue
+                for document in matches:
+                    identity = _identity(document)
+                    if identity not in seen:
+                        exact.append(document)
+                        seen.add(identity)
+                        break
+            if canonical_references and len(exact) < len(canonical_references):
+                return []
+            if exact:
+                if len(exact) < limit:
+                    for sibling in self.complete_family(
+                        exact[0], limit=limit - len(exact), effective_date=effective_date
+                    ):
+                        if _identity(sibling) not in seen:
+                            exact.append(sibling)
+                            seen.add(_identity(sibling))
+                            if len(exact) >= limit:
+                                break
+                return exact[:limit]
+
         query = question
         if effective_date:
             query = f"{query} (hiệu lực {effective_date.isoformat()})"
-        query_filter = _reference_filter(reference)
         try:
             store = self._store_for_query()
-            if query_filter:
-                documents = store.similarity_search(
-                    query,
-                    k=max(limit * 3, limit),
-                    filter=query_filter,
-                )
-            else:
-                documents = store.similarity_search(query, k=max(limit * 3, limit))
+            documents = store.similarity_search(query, k=max(limit * 3, limit))
             documents = [
                 document for document in documents if _temporal_match(document, effective_date)
             ]
@@ -480,7 +510,7 @@ class Retriever:
             raise
         except Exception as exc:
             raise RetrievalProviderError("hybrid retrieval provider is unavailable") from exc
-        if not reference and ";" in question:
+        if ";" in question:
             from .query_rules import requested_context
 
             expanded_terms = [part.strip() for part in question.split(";")[1:] if part.strip()]
@@ -492,39 +522,16 @@ class Retriever:
                 max(limit * 2, limit),
                 context=requested_context(question),
             )
-            existing = {
-                (str(doc.metadata.get("chunk_id", "")), doc.page_content)
-                for doc in action_documents
-            }
+            existing = {_identity(doc) for doc in action_documents}
             documents = [
                 *action_documents,
-                *[
-                    doc
-                    for doc in documents
-                    if (str(doc.metadata.get("chunk_id", "")), doc.page_content) not in existing
-                ],
+                *[doc for doc in documents if _identity(doc) not in existing],
             ]
         ranked = sorted(
             enumerate(documents),
-            key=lambda item: (-_reference_score(item[1], reference), item[0]),
+            key=lambda item: (-_reference_score(item[1], None), item[0]),
         )
-        if reference:
-            ranked = [item for item in ranked if _reference_match(item[1], reference)]
-            if not ranked:
-                ranked = list(enumerate(documents))
-            if len(ranked) < limit:
-                exact_documents = _exact_qdrant_documents(store, reference, limit)
-                existing = {
-                    (str(doc.metadata.get("chunk_id", "")), doc.page_content) for _, doc in ranked
-                }
-                for document in exact_documents:
-                    key = (str(document.metadata.get("chunk_id", "")), document.page_content)
-                    if key not in existing:
-                        ranked.append((len(ranked), document))
-                        existing.add(key)
-                    if len(ranked) >= limit:
-                        break
-        originals = [doc for _, doc in ranked[: max(0, limit - 1)]]
+        originals = [doc for _, doc in ranked[:limit]]
         with_siblings = expand_sibling_completions(
             originals,
             lambda document, **kwargs: _sibling_completion_documents(
@@ -533,11 +540,10 @@ class Retriever:
             max_documents=limit,
             max_siblings=2,
         )
-        return expand_cross_references(
-            with_siblings,
-            self.resolve_reference,
-            max_documents=limit,
+        expanded = expand_cross_references(
+            with_siblings, self.resolve_reference, max_documents=limit
         )
+        return expanded[:limit]
 
 
 __all__ = ["Retriever", "RetrievalProviderError", "extract_reference", "complete_family"]

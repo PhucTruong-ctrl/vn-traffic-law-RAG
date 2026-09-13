@@ -83,6 +83,25 @@ def test_retrieve_keeps_original_when_explicit_reference_is_unresolved() -> None
     assert retriever.retrieve("Tìm quy định", top_k=1) == [original]
 
 
+def test_retrieve_keeps_exact_reference_target_when_limit_one() -> None:
+    original = Document(
+        "Dẫn chiếu Điều 12.",
+        metadata={"chunk_id": "original", "document_id": "law", "article": "7"},
+    )
+    target = Document(
+        "Nội dung Điều 12.",
+        metadata={"chunk_id": "target", "document_id": "law", "article": "12"},
+    )
+    store = FakeStore([original, target])
+    retriever = Retriever(top_k=1)
+    retriever._store = store
+
+    result = retriever.retrieve("Điều 7 dẫn chiếu Điều 12", top_k=1)
+
+    assert len(result) == 1
+    assert result[0].metadata["chunk_id"] == "original"
+
+
 def test_retrieve_reserves_capacity_for_same_clause_sanction_and_filters_temporal_metadata() -> (
     None
 ):

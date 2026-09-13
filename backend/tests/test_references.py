@@ -75,3 +75,71 @@ def test_extracts_mixed_references_in_source_order() -> None:
 
 def test_malformed_canonical_id_does_not_parse() -> None:
     assert parse_reference("nd-119-2024__dieu-x") is None
+
+
+STRUCTURAL_GOLD = [
+    ("00", "nd-119-2024__dieu-10", 1, ["nd-119-2024"]),
+    ("01", "Điều 6 Nghị định 168/2024", 1, ["168/2024"]),
+    ("02", "Khoản 2 Điều 10 Nghị định 119/2024", 1, ["119/2024"]),
+    ("03", "Điểm a khoản 2 Điều 10 Nghị định 119/2024", 1, ["119/2024"]),
+    ("04", "Điều 12 của Nghị định số 168/2024/NĐ-CP", 1, ["168/2024/NĐ-CP"]),
+    ("15", "nd-119-2024__dieu-10 và Điều 6 Nghị định 168/2024", 2, ["nd-119-2024", "168/2024"]),
+    ("16", "Điều 10 Nghị định 119/2024; Điều 6 Nghị định 168/2024", 2, ["119/2024", "168/2024"]),
+    (
+        "17",
+        "Khoản 2 Điều 10 Nghị định 119/2024 và Điều 12 Nghị định 168/2024",
+        2,
+        ["119/2024", "168/2024"],
+    ),
+    (
+        "18",
+        "Điểm a khoản 2 Điều 10 Nghị định 119/2024 và Điều 12 Nghị định 168/2024",
+        2,
+        ["119/2024", "168/2024"],
+    ),
+    (
+        "19",
+        "nd-119-2024__dieu-10__khoan-2__diem-a; nd-168-2024__dieu-6",
+        2,
+        ["nd-119-2024", "nd-168-2024"],
+    ),
+    (
+        "20",
+        "Điều 10 Nghị định 119/2024, theo Điều 6 Nghị định 168/2024",
+        2,
+        ["119/2024", "168/2024"],
+    ),
+    (
+        "21",
+        "Khoản 2 Điều 10 Nghị định 119/2024 và quy định liên quan Điều 6 Nghị định 168/2024",
+        2,
+        ["119/2024", "168/2024"],
+    ),
+    (
+        "22",
+        "Điểm a khoản 2 Điều 10 Nghị định 119/2024, đối chiếu Điều 12 Nghị định 168/2024",
+        2,
+        ["119/2024", "168/2024"],
+    ),
+    (
+        "23",
+        "nd-119-2024__dieu-10 và tham chiếu Điều 6 Nghị định 168/2024",
+        2,
+        ["nd-119-2024", "168/2024"],
+    ),
+    (
+        "24",
+        "Điều 10 Nghị định 119/2024; xem thêm Điều 12 Nghị định 168/2024",
+        2,
+        ["119/2024", "168/2024"],
+    ),
+]
+
+
+def test_structural_gold_references_are_bounded_and_source_ordered() -> None:
+    for _, question, expected_count, expected_numbers in STRUCTURAL_GOLD:
+        references = extract_references(question)
+        assert len(references) == expected_count
+        assert [
+            reference.number or reference.document_id for reference in references
+        ] == expected_numbers

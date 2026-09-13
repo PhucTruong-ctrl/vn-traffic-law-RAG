@@ -132,6 +132,9 @@ def analyze_question(question: str, model: object | None = None) -> Analysis:
             continue
         if classify_intent(clause) == "legal" and _is_meaningful_clause(clause):
             intents.append(Intent(_strip_conversational_prefix(clause), "legal"))
+    for clause in clauses:
+        if "điện thoại" in clause.casefold():
+            intents.append(Intent(clause, "legal"))
     for label, _ in sorted(dimensions, key=lambda item: item[1]):
         intents.append(Intent(f"{context}; {label}", "legal"))
     stable: list[Intent] = []
@@ -179,12 +182,14 @@ def classify_intent(text: str) -> str:
         return "chitchat"
     if re.search(r"\b(google|web|internet|trên mạng|tin tức)\b", lowered):
         return "web"
-    if re.search(r"\b(?:nd|tt)-\d+-\d{4}__dieu-\d+\b", lowered) or re.search(
+    if re.search(r"\b(?:nd|tt)-\d+-\d{4}__dieu-\d+(?:__khoan-\d+)?(?:__diem-[a-z])?\b", lowered):
+        return "legal"
+    if re.search(
         r"\b(luật|điều|khoản|nghị định|thông tư|phạt|giao thông|đường bộ|"
         r"tốc độ|km/?h|khu vực đông dân cư|vượt đèn đỏ|điện thoại|lái xe|"
         r"không đội mũ bảo hiểm|trừ điểm|tước quyền|tạm giữ|phương tiện|"
         r"đai an toàn|thắt dây|dây an toàn|số người|chở người|"
-        r"dừng xe|đỗ xe|đậu xe|quay đầu|đi lùi|lùi xe|vỉa hè|"
+        r"chở tối đa|tối đa bao nhiêu người|"
         r"đèn chiếu sáng|bật đèn|còi|bấm còi|đi ngược chiều|ngược chiều|"
         r"làn đường|lấn làn|rượu|bia|nồng độ cồn|ma túy|chất kích thích|"
         r"mũ bảo hiểm|thiết bị điện tử|điện tử|đèn tín hiệu|xi nhan|"

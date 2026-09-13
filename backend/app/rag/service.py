@@ -272,7 +272,7 @@ class RAGService:
             scopes = (
                 tuple(VEHICLE_LABELS[i] for i in vehicle_types)
                 if vehicle_types
-                else _GENERIC_VEHICLE_CATEGORIES
+                else tuple(VEHICLE_LABELS.values())
             )
             queries = [(f"{q} đối với {scope}", label) for q, label in queries for scope in scopes][
                 :12
@@ -303,8 +303,13 @@ class RAGService:
                 representatives.setdefault(key, doc)
                 labels.setdefault(key, set()).add(queries[list_index][1])
         counts: dict[tuple[str | None, ...], int] = {}
-        result: list[Document] = []
-        for key in sorted(scores, key=lambda k: (-scores[k], first_seen[k])):
+        legal_labels = list(dict.fromkeys(label for _, label in queries))
+        selected: list[tuple[str, ...]] = []
+        selected_set: set[tuple[str, ...]] = set()
+
+        def add_candidate(key: tuple[str, ...]) -> None:
+            if key in selected_set:
+                return
             doc = representatives[key]
             metadata = doc.metadata or {}
             bucket = (
@@ -315,12 +320,29 @@ class RAGService:
                 metadata.get("clause"),
             )
             if counts.get(bucket, 0) >= 3:
-                continue
+                return
             counts[bucket] = counts.get(bucket, 0) + 1
-            result.append(
-                Document(doc.page_content, metadata={**metadata, "intent": sorted(labels[key])})
+            selected.append(key)
+            selected_set.add(key)
+
+        # Reserve capacity for distinct intents, but never emit beyond top_k.
+        for label in legal_labels[:top_k]:
+            candidates = [
+                key for key in scores if label in labels.get(key, set()) and key not in selected_set
+            ]
+            if candidates:
+                add_candidate(min(candidates, key=lambda item: (-scores[item], first_seen[item])))
+        for key in sorted(scores, key=lambda k: (-scores[k], first_seen[k])):
+            if len(selected) >= top_k:
+                break
+            add_candidate(key)
+        return [
+            Document(
+                representatives[key].page_content,
+                metadata={**(representatives[key].metadata or {}), "intent": sorted(labels[key])},
             )
-        return result[:top_k]
+            for key in selected[:top_k]
+        ]
 
     def answer(
         self,
@@ -331,11 +353,14 @@ class RAGService:
         effective_date: date | None = None,
     ) -> dict[str, Any]:
         analysis = analyze_question(question)
+        references = extract_references(question)
         route = classify_intent(question)
         if route == "chitchat":
             return {**CHITCHAT_RESPONSE, "claims": []}
-        if route in {"web", "out_of_scope"} and not any(
-            i.kind == "legal" for i in analysis.intents
+        if (
+            route in {"web", "out_of_scope"}
+            and not references
+            and not any(i.kind == "legal" for i in analysis.intents)
         ):
             return {
                 "answer": "Tôi chỉ có thể hỗ trợ các câu hỏi về pháp luật giao thông.",
@@ -344,7 +369,6 @@ class RAGService:
                 "status": "insufficient_evidence",
                 "reason_code": "out_of_scope",
             }
-        references = extract_references(question)
         documents = (
             list(chunks)
             if chunks is not None
@@ -379,9 +403,13 @@ class RAGService:
             d
             for d in documents
             if _document_matches_filters(
-                d, question=question, references=references, effective_date=effective_date
+                d, question=question, references=references[:1], effective_date=effective_date
             )
         ]
+        if not direct and documents and not references:
+            mismatch_reason = "no_relevant_provision"
+        else:
+            mismatch_reason = None
         if not references and effective_date is None:
             direct = _prefer_current_versions(direct)
         families = {_provision_family(d) for d in direct}
@@ -391,20 +419,26 @@ class RAGService:
             for d in documents
             if d not in filtered and _is_sanction(d) and _provision_family(d) in families
         )
-        if not filtered:
-            return {
-                "answer": ABSTENTION_MESSAGE,
-                "citations": [],
-                "claims": [],
-                "status": "insufficient_evidence",
-                "reason_code": "no_relevant_provision",
-            }
         decision = assess_evidence(
             filtered,
             required_reference=references[0].as_dict() if references else None,
-            required_intents=(i.text for i in analysis.intents if i.kind == "legal")
-            if not references
-            else (r.as_dict().get("number", "") for r in references),
+            required_intents=(
+                (
+                    i.text
+                    for i in analysis.intents
+                    if i.kind == "legal"
+                    and len(analysis.intents) > 1
+                    and i.text.rsplit(";", 1)[-1].strip()
+                    not in {
+                        "mức phạt",
+                        "trừ điểm GPLX",
+                        "tước quyền sử dụng",
+                        "xử lý/tạm giữ phương tiện",
+                    }
+                )
+                if not references
+                else None
+            ),
         )
         if not decision.allowed:
             return {
@@ -412,14 +446,21 @@ class RAGService:
                 "citations": [],
                 "claims": [],
                 "status": "insufficient_evidence",
-                "reason_code": decision.reason or "insufficient_evidence",
+                "reason_code": mismatch_reason or decision.reason or "insufficient_evidence",
             }
         try:
             cited = []
             seen = set()
             for doc in filtered:
                 source_id = str((doc.metadata or {}).get("chunk_id", "")).strip()
-                if source_id and source_id not in seen:
+                document_id = str((doc.metadata or {}).get("document_id", "")).strip()
+                has_location = bool(
+                    str((doc.metadata or {}).get("article") or "").strip()
+                    or str((doc.metadata or {}).get("provision_family") or "").strip()
+                )
+                if not source_id or not document_id or not has_location:
+                    raise ValueError("retrieved document is missing citation identity")
+                if source_id not in seen:
                     seen.add(source_id)
                     cited.append(doc)
             citations = [_citation(d) for d in cited]
@@ -429,7 +470,7 @@ class RAGService:
                 if docs
             }
             answer = generate_answer(question, filtered, evidence_groups=groups or None)
-        except (ValueError, Exception):
+        except Exception:
             return {
                 "answer": ABSTENTION_MESSAGE,
                 "citations": [],

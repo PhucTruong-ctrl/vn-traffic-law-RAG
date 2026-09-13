@@ -4,7 +4,66 @@ from langchain_core.documents import Document
 
 from app.rag.analyzer import VEHICLE_LABELS, analyze_question, resolve_vehicle_followup
 from app.rag.generator import build_prompt
+from app.rag.references import extract_references
 from app.rag.service import RAGService
+
+STRUCTURAL_GOLD = [
+    ("00", "nd-119-2024__dieu-10", 1, ["nd-119-2024"]),
+    ("01", "Điều 6 Nghị định 168/2024", 1, ["168/2024"]),
+    ("02", "Khoản 2 Điều 10 Nghị định 119/2024", 1, ["119/2024"]),
+    ("03", "Điểm a khoản 2 Điều 10 Nghị định 119/2024", 1, ["119/2024"]),
+    ("04", "Điều 12 của Nghị định số 168/2024/NĐ-CP", 1, ["168/2024/NĐ-CP"]),
+    ("15", "nd-119-2024__dieu-10 và Điều 6 Nghị định 168/2024", 2, ["nd-119-2024", "168/2024"]),
+    ("16", "Điều 10 Nghị định 119/2024; Điều 6 Nghị định 168/2024", 2, ["119/2024", "168/2024"]),
+    (
+        "17",
+        "Khoản 2 Điều 10 Nghị định 119/2024 và Điều 12 Nghị định 168/2024",
+        2,
+        ["119/2024", "168/2024"],
+    ),
+    (
+        "18",
+        "Điểm a khoản 2 Điều 10 Nghị định 119/2024 và Điều 12 Nghị định 168/2024",
+        2,
+        ["119/2024", "168/2024"],
+    ),
+    (
+        "19",
+        "nd-119-2024__dieu-10__khoan-2__diem-a; nd-168-2024__dieu-6",
+        2,
+        ["nd-119-2024", "nd-168-2024"],
+    ),
+    (
+        "20",
+        "Điều 10 Nghị định 119/2024, theo Điều 6 Nghị định 168/2024",
+        2,
+        ["119/2024", "168/2024"],
+    ),
+    (
+        "21",
+        "Khoản 2 Điều 10 Nghị định 119/2024 và quy định liên quan Điều 6 Nghị định 168/2024",
+        2,
+        ["119/2024", "168/2024"],
+    ),
+    (
+        "22",
+        "Điểm a khoản 2 Điều 10 Nghị định 119/2024, đối chiếu Điều 12 Nghị định 168/2024",
+        2,
+        ["119/2024", "168/2024"],
+    ),
+    (
+        "23",
+        "nd-119-2024__dieu-10 và tham chiếu Điều 6 Nghị định 168/2024",
+        2,
+        ["nd-119-2024", "168/2024"],
+    ),
+    (
+        "24",
+        "Điều 10 Nghị định 119/2024; xem thêm Điều 12 Nghị định 168/2024",
+        2,
+        ["119/2024", "168/2024"],
+    ),
+]
 
 
 def test_generator_prompt_addresses_legal_audience_without_internal_fallback_terms() -> None:
@@ -317,6 +376,37 @@ def test_retrieve_uses_rrf_and_diversity_cap_with_deterministic_ties() -> None:
     ]
 
 
+def test_retrieve_reserves_evidence_for_each_intent_before_top_k_truncation() -> None:
+    red_light = Document(
+        "Quy định vượt đèn đỏ",
+        metadata={"chunk_id": "red", "document_id": "law-red"},
+    )
+    helmet = Document(
+        "Quy định không đội mũ bảo hiểm",
+        metadata={"chunk_id": "helmet", "document_id": "law-helmet"},
+    )
+    retriever = FakeRetriever(
+        {
+            "vượt đèn đỏ": [red_light],
+            "không đội mũ bảo hiểm": [helmet],
+        }
+    )
+
+    documents = RAGService(retriever).retrieve(
+        "Khi vượt đèn đỏ và ko đội mũ bảo hiểm",
+        top_k=2,
+    )
+
+    assert {document.page_content for document in documents} == {
+        red_light.page_content,
+        helmet.page_content,
+    }
+    assert {document.metadata["intent"][0] for document in documents} == {
+        "vượt đèn đỏ",
+        "không đội mũ bảo hiểm",
+    }
+
+
 def test_retrieve_deduplicates_documents_in_first_seen_order() -> None:
     first = Document("first", metadata={"chunk_id": "a"})
     duplicate = Document("first", metadata={"chunk_id": "a"})
@@ -396,3 +486,30 @@ def test_answer_generates_with_partial_evidence_and_abstains_when_empty(
     assert partial["citations"] == []
     assert empty["status"] == "insufficient_evidence"
     assert empty["citations"] == []
+
+
+def test_structural_gold_queries_route_as_legal_without_live_providers(monkeypatch) -> None:
+    from app.rag.analyzer import classify_intent
+
+    for _, question, expected_count, _ in STRUCTURAL_GOLD:
+        monkeypatch.setattr("app.rag.service.generate_answer", lambda *args, **kwargs: "Có căn cứ")
+        references = extract_references(question)
+        assert len(references) == expected_count
+        assert classify_intent(question) == "legal"
+        result = RAGService(FakeRetriever()).answer(
+            question,
+            chunks=[
+                Document(
+                    "Điều khoản",
+                    metadata={
+                        "document_number": reference.number or "119/2024/NĐ-CP",
+                        "document_id": reference.document_id or "nd-119-2024",
+                        "article": reference.article or "10",
+                        "clause": reference.clause,
+                        "point": reference.point,
+                    },
+                )
+                for reference in references
+            ],
+        )
+        assert result["reason_code"] != "out_of_scope"

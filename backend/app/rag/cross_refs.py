@@ -95,29 +95,70 @@ def expand_cross_references(
         if len(references) >= max_references:
             break
     remaining = max_documents - len(originals)
-    per_reference_limit = max(1, remaining) if remaining else 0
-    for reference in references:
-        if not remaining:
+    if not references:
+        return originals
+    # A full initial result still needs one resolution call to annotate an
+    # exact target; expansion must stop as soon as the cap is reached.
+    if remaining == 0:
+        reference = references[0]
+        try:
+            resolved = resolver(reference, limit=1)
+        except TypeError:
+            resolved = resolver(reference)
+        for document in resolved:
+            identity = _identity(document)
+            if identity not in seen:
+                continue
+            provenance = _with_provenance(
+                document,
+                reference_sources.get(reference, ""),
+                "CROSS_REFERENCE",
+                1,
+            )
+            for index, original in enumerate(originals):
+                if _identity(original) == identity:
+                    originals[index] = provenance
+                    break
             break
+        return originals
+    per_reference_limit = remaining
+    for reference in references:
         try:
             resolved = resolver(reference, limit=per_reference_limit)
         except TypeError:
             resolved = resolver(reference)
         for document in resolved:
             identity = _identity(document)
-            if identity not in seen:
-                seen.add(identity)
-                expanded.append(
-                    _with_provenance(
-                        document,
-                        reference_sources.get(reference, ""),
-                        "CROSS_REFERENCE",
-                        1,
-                    )
+            if identity in seen:
+                # An exact target already occupying an initial slot was reached
+                # through a legal reference; keep that slot and annotate it.
+                for index, original in enumerate(originals):
+                    if _identity(original) == identity:
+                        if not (getattr(original, "metadata", {}) or {}).get("added_by"):
+                            originals[index] = _with_provenance(
+                                original,
+                                reference_sources.get(reference, ""),
+                                "CROSS_REFERENCE",
+                                1,
+                            )
+                        break
+                continue
+            if not remaining:
+                break
+            seen.add(identity)
+            expanded.append(
+                _with_provenance(
+                    document,
+                    reference_sources.get(reference, ""),
+                    "CROSS_REFERENCE",
+                    1,
                 )
-                remaining -= 1
-                if not remaining:
-                    break
+            )
+            remaining -= 1
+            if not remaining:
+                break
+        if not remaining:
+            break
     return originals + expanded
 
 
