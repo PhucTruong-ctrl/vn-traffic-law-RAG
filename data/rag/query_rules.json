@@ -1,0 +1,22 @@
+{
+  "action_aliases": {
+    "vượt đèn đỏ": "không chấp hành hiệu lệnh của đèn tín hiệu giao thông",
+    "xài điện thoại": "dùng tay cầm và sử dụng điện thoại",
+    "dùng điện thoại": "dùng tay cầm và sử dụng điện thoại",
+    "không thắt dây an toàn": "không thắt dây an toàn khi xe chạy",
+    "đi sai làn": "không đúng phần đường hoặc làn đường quy định"
+  },
+  "context_aliases": {
+    "railway_crossing": [
+      "đường ngang",
+      "cầu chung",
+      "đường sắt",
+      "rào chắn"
+    ],
+    "expressway": [
+      "đường cao tốc",
+      "cao tốc"
+    ]
+  },
+  "default_context": "road_traffic"
+}

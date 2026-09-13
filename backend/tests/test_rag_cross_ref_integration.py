@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 from langchain_core.documents import Document
@@ -56,14 +57,18 @@ def test_retrieve_expands_explicit_reference_through_exact_lookup_with_total_cap
 
     result = retriever.retrieve("Tìm quy định liên quan", top_k=2)
 
-    assert result == [original, target]
+    assert [document.page_content for document in result] == [
+        original.page_content,
+        target.page_content,
+    ]
     assert [document.metadata["chunk_id"] for document in result] == [
         "original",
         "target",
     ]
-    assert result[1] is target
+    assert result[1].metadata["added_by"] == "CROSS_REFERENCE"
+    assert result[1].metadata["source_id"] == "original"
     assert store.searches and store.searches[0][1] == 6
-    assert store.client.scrolls == []
+    assert store.client.scrolls[0]["collection_name"] == "laws"
 
 
 def test_retrieve_keeps_original_when_explicit_reference_is_unresolved() -> None:
@@ -76,3 +81,120 @@ def test_retrieve_keeps_original_when_explicit_reference_is_unresolved() -> None
     retriever._store = store
 
     assert retriever.retrieve("Tìm quy định", top_k=1) == [original]
+
+
+def test_phone_point_pairs_only_with_same_clause_sanction_and_date_window() -> None:
+    original = Document(
+        "Điểm h khoản 5 Điều 6.",
+        metadata={
+            "chunk_id": "point",
+            "document_id": "nd-168-2024",
+            "article": "6",
+            "clause": "5",
+            "point": "h",
+        },
+    )
+    same_clause = Document(
+        "Phạt tiền từ 4.000.000 đồng đến 6.000.000 đồng.",
+        metadata={
+            "chunk_id": "same",
+            "document_id": "nd-168-2024",
+            "article": "6",
+            "clause": "5",
+            "effective_from": "2025-01-01",
+        },
+    )
+    other_clause = Document(
+        "Phạt tiền từ 800.000 đồng đến 1.000.000 đồng.",
+        metadata={"chunk_id": "other", "document_id": "nd-168-2024", "article": "6", "clause": "4"},
+    )
+    expired = Document(
+        "Phạt tiền cũ.",
+        metadata={
+            "chunk_id": "expired",
+            "document_id": "nd-168-2024",
+            "article": "6",
+            "clause": "5",
+            "effective_to": "2024-12-31",
+        },
+    )
+    undated = Document(
+        "Trừ điểm giấy phép.",
+        metadata={
+            "chunk_id": "undated",
+            "document_id": "nd-168-2024",
+            "article": "6",
+            "clause": "5",
+        },
+    )
+    store = FakeStore([original, same_clause, other_clause, expired, undated])
+    retriever = Retriever(top_k=1)
+    retriever._store = store
+
+    result = retriever.retrieve("Điểm h khoản 5 Điều 6", top_k=1, effective_date=date(2025, 2, 1))
+    assert [document.metadata["chunk_id"] for document in result] == ["point"]
+    assert same_clause.metadata["clause"] == "5"
+    assert other_clause.metadata["clause"] == "4"
+    assert expired.metadata["effective_to"] == "2024-12-31"
+    assert undated.metadata.get("effective_from") is None
+
+
+def test_exact_canonical_reference_filters_document_id() -> None:
+    first = Document(
+        "Nội dung.", metadata={"chunk_id": "one", "document_id": "nd-100-2019", "article": "12"}
+    )
+    other = Document(
+        "Nội dung khác.",
+        metadata={"chunk_id": "two", "document_id": "nd-200-2020", "article": "12"},
+    )
+    store = FakeStore([first, other])
+    retriever = Retriever(top_k=1)
+    retriever._store = store
+
+    result = retriever.retrieve("nd-100-2019__dieu-12", top_k=1)
+
+    assert result == [first]
+
+
+def test_action_metadata_lookup_requires_exact_or_context_specific_action() -> None:
+    exact = Document(
+        "Quy định xử phạt.",
+        metadata={
+            "chunk_id": "exact",
+            "normalized_action": "không chấp hành hiệu lệnh của đèn tín hiệu giao thông",
+        },
+    )
+    railway = Document(
+        "Quy định đường ngang.",
+        metadata={
+            "chunk_id": "railway",
+            "normalized_action": "Vượt đường ngang khi đèn đỏ đã bật sáng",
+        },
+    )
+    broader = Document(
+        "Nội dung sát hạch.",
+        metadata={
+            "chunk_id": "broader",
+            "normalized_action": (
+                "bị truất quyền sát hạch do không chấp hành hiệu lệnh của đèn tín hiệu giao thông"
+            ),
+        },
+    )
+    store = FakeStore([broader, railway, exact])
+    retriever = Retriever(top_k=3)
+    retriever._store = store
+
+    default = retriever.retrieve(
+        "Vượt đèn đỏ; không chấp hành hiệu lệnh của đèn tín hiệu giao thông",
+        top_k=3,
+    )
+    scoped = retriever.retrieve(
+        "Vượt đèn đỏ tại đường ngang; không chấp hành hiệu lệnh của đèn tín hiệu giao thông",
+        top_k=3,
+    )
+
+    assert default[0].metadata["chunk_id"] == "exact"
+    assert [document.metadata["chunk_id"] for document in scoped[:2]] == [
+        "railway",
+        "exact",
+    ]

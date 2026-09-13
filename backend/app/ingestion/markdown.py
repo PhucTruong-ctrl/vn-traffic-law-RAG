@@ -19,6 +19,25 @@ _HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 _ARTICLE = re.compile(r"^(?:Điều|ĐIỀU)\s+(\d+)(?:\.\s*(.*))?$")
 _CLAUSE = re.compile(r"^(\d+)[.)]\s+(.+)$")
 _POINT = re.compile(r"^([a-zđ])[.)]\s+(.+)$", re.IGNORECASE)
+_VEHICLE_CATEGORIES = {
+    "car": re.compile(r"\b(?:ô tô|xe ô tô)\b", re.IGNORECASE),
+    "motorcycle": re.compile(r"\b(?:mô tô|xe máy|xe gắn máy)\b", re.IGNORECASE),
+    "bicycle": re.compile(r"\b(?:xe đạp|xe thô sơ)\b", re.IGNORECASE),
+    "specialized": re.compile(r"\b(?:máy kéo|xe máy chuyên dùng)\b", re.IGNORECASE),
+}
+_CONTEXT_SCOPES = {
+    "driver_testing": re.compile(
+        r"\b(?:sát hạch|đào tạo lái xe|cấp giấy phép lái xe)\b", re.IGNORECASE
+    ),
+    "railway_crossing": re.compile(
+        r"\b(?:đường ngang|cầu chung|đường sắt|rào chắn)\b", re.IGNORECASE
+    ),
+    "expressway": re.compile(r"\b(?:đường cao tốc|cao tốc)\b", re.IGNORECASE),
+    "road_traffic": re.compile(
+        r"\b(?:giao thông đường bộ|an toàn giao thông đường bộ|trên đường bộ)\b",
+        re.IGNORECASE,
+    ),
+}
 
 
 def _scalar(value: str) -> Any:
@@ -58,6 +77,7 @@ def _chunks(body: str) -> list[tuple[str, dict[str, Any]]]:
     lines = body.splitlines()
     sections: list[tuple[str, dict[str, Any]]] = []
     article: str | None = None
+    article_heading: str | None = None
     clause: str | None = None
     point: str | None = None
     buffer: list[str] = []
@@ -73,6 +93,25 @@ def _chunks(body: str) -> list[tuple[str, dict[str, Any]]]:
                 metadata["clause"] = clause
             if point is not None:
                 metadata["point"] = point
+            if article_heading:
+                metadata["article_heading"] = article_heading
+                metadata["vehicle_categories"] = [
+                    category
+                    for category, pattern in _VEHICLE_CATEGORIES.items()
+                    if pattern.search(article_heading)
+                ]
+                metadata["context_scope"] = [
+                    scope
+                    for scope, pattern in _CONTEXT_SCOPES.items()
+                    if pattern.search(article_heading)
+                ]
+            if article is not None:
+                family = f"article:{article}"
+                if clause is not None:
+                    family += f":clause:{clause}"
+                metadata["provision_family"] = family
+            if clause is not None or point is not None:
+                metadata["normalized_action"] = text
             sections.append((text, metadata))
         buffer = []
 
@@ -84,9 +123,9 @@ def _chunks(body: str) -> list[tuple[str, dict[str, Any]]]:
         if article_match:
             flush()
             article, clause, point = article_match.group(1), None, None
-            title = article_match.group(2)
-            if title:
-                buffer.append(title)
+            article_heading = article_match.group(2)
+            if article_heading:
+                buffer.append(article_heading)
             continue
         clause_match = _CLAUSE.match(marker)
         if clause_match and article is not None:
@@ -118,6 +157,9 @@ def load_markdown(
     source_type: str | None = None,
     source_kind: str | None = None,
     retrieved_at: str | None = None,
+    effective_from: str | None = None,
+    effective_to: str | None = None,
+    status: str | None = None,
 ) -> list[Document]:
     source = Path(path)
     raw = source.read_text(encoding="utf-8")
@@ -140,11 +182,21 @@ def load_markdown(
     }
     if document_number or front.get("document_number"):
         common["document_number"] = str(document_number or front["document_number"])
+    effective_status = str(status or front.get("status") or "")
+    if effective_status:
+        common["status"] = effective_status
+    start = effective_from or front.get("effective_from")
+    end = effective_to or front.get("effective_to")
+    if start and effective_status != "PARTIALLY_EFFECTIVE":
+        common["effective_from"] = str(start)
+    if end and effective_status != "PARTIALLY_EFFECTIVE":
+        common["effective_to"] = str(end)
     result: list[Document] = []
     for number, (text, location) in enumerate(_chunks(body), 1):
         metadata = {
             **common,
             **location,
+            "provision_family": f"{doc_id}:{location.get('provision_family', 'document')}",
             "chunk_id": f"{doc_id}:{number:04d}",
             "content_sha256": digest,
         }
@@ -184,9 +236,15 @@ def load_manifest(
             load_markdown(
                 candidate,
                 document_id=entry.get("document_id"),
+                document_number=entry.get("document_number"),
+                document_name=entry.get("document_name"),
                 source_url=entry.get("source_url"),
                 source_type=entry.get("source_type"),
                 source_kind=entry.get("source_kind"),
+                retrieved_at=entry.get("retrieved_at"),
+                effective_from=entry.get("effective_from"),
+                effective_to=entry.get("effective_to"),
+                status=entry.get("status"),
             )
         )
     return loaded

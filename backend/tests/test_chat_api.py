@@ -9,6 +9,7 @@ import pytest
 
 from app.chats.service import add_feedback, touch_session
 from app.legal import api as legal_api
+from app.rag.analyzer import VEHICLE_LABELS
 from app.rag.schemas import ChatResponse, Citation
 from app.rag.service import RAGService
 
@@ -101,15 +102,15 @@ def test_exact_reference_match_allows_answer(monkeypatch) -> None:
 
     monkeypatch.setattr("app.rag.service.generate_answer", lambda *_args, **_kwargs: "Đáp án")
     result = RAGService().answer(
-        "Điều 6 Nghị định 100/2019 quy định gì?",
+        "Điều 6 Nghị định 168/2024 quy định gì?",
         chunks=[
             Document(
-                page_content="Nội dung điều 6.",
+                page_content="Nội dung Điều 6.",
                 metadata={
                     "chunk_id": "chunk-6",
-                    "document_id": "100/2019",
-                    "article": "Điều 6",
-                    "document_number": "100/2019",
+                    "document_id": "nd-168-2024",
+                    "article": "6",
+                    "document_number": "168/2024/NĐ-CP",
                 },
             )
         ],
@@ -157,13 +158,16 @@ def test_vehicle_penalty_query_retrieves_all_categories(monkeypatch) -> None:
             self.queries.append(query)
             return [
                 Document(
-                    page_content="Theo quy định hiện hành, hành vi này bị xử phạt.",
+                    page_content=(
+                        "Không chấp hành hiệu lệnh của đèn tín hiệu giao thông; "
+                        "áp dụng cho ô tô, xe mô tô, xe gắn máy và xe thô sơ."
+                    ),
                     metadata={
                         "chunk_id": "chunk-vehicle",
-                        "document_id": "law-168",
+                        "document_id": "nd-168-2024",
                         "source_file": "traffic-law.md",
-                        "document_name": "Nghị định về xử phạt giao thông",
-                        "article": "Điều 6",
+                        "document_name": "Nghị định 168/2024/NĐ-CP",
+                        "article": "6",
                     },
                 )
             ]
@@ -174,15 +178,12 @@ def test_vehicle_penalty_query_retrieves_all_categories(monkeypatch) -> None:
     assert result["status"] == "complete"
     assert result["citations"]
     vehicle_queries = [query for query in retriever.queries if "đối với" in query]
-    assert len(vehicle_queries) == 3
-    for category in (
-        "đối với ô tô",
-        "đối với xe mô tô, xe gắn máy",
-        "đối với xe thô sơ",
-    ):
-        matching = [query for query in vehicle_queries if query.endswith(category)]
-        assert len(matching) == 1
-        assert "vượt đèn đỏ" in matching[0].lower()
+    assert len(vehicle_queries) == len(set(VEHICLE_LABELS.values()))
+    assert all(
+        any(f"đối với {scope}" in query for query in vehicle_queries)
+        for scope in VEHICLE_LABELS.values()
+    )
+    assert all("vượt đèn đỏ" in query.casefold() for query in vehicle_queries)
 
 
 def test_phone_use_while_driving_reaches_retrieval_and_returns_evidence(monkeypatch) -> None:
@@ -221,11 +222,11 @@ def test_phone_use_while_driving_reaches_retrieval_and_returns_evidence(monkeypa
 
     assert result["status"] == "complete"
     assert result["citations"][0]["source_id"] == "nd-168-2024:phone"
-    assert retriever.queries == [
-        "Có được dùng điện thoại khi đang lái xe không đối với ô tô",
-        "Có được dùng điện thoại khi đang lái xe không đối với xe mô tô, xe gắn máy",
-        "Có được dùng điện thoại khi đang lái xe không đối với xe thô sơ",
-    ]
+    assert len(retriever.queries) == len(set(VEHICLE_LABELS.values()))
+    assert all(
+        any(f"đối với {scope}" in query for query in retriever.queries)
+        for scope in VEHICLE_LABELS.values()
+    )
 
 
 @dataclass
