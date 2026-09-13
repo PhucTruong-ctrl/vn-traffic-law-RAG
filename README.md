@@ -104,6 +104,18 @@ validity, and abstention behavior; semantic answer correctness is deliberately
 left for a human reviewer. It writes raw JSONL and an aggregate JSON report and
 does not contain or infer a score until predictions are supplied.
 
+The latest representative release-gate run covered 32/40 cases (80%; four
+cases from each of eight categories), sent directly to `POST /api/v1/chat`
+without the UI. Supabase and Qdrant readiness passed, using collection
+`traffic_law_enriched_20260913_v3` and `top_k=5`. Results: retrieval hit@5
+19.05%, document accuracy 23.81%, article accuracy 23.81%, clause accuracy
+25.00%, point accuracy 14.29%, citation validity 65.52%, abstention accuracy
+44.83%, mean latency 29.0 seconds, P50 26.9 seconds, P95 84.0 seconds, and
+3/32 API errors (`thesis-gold-40-27`, `thesis-gold-40-06`,
+`thesis-gold-40-12`). Semantic correctness was not reviewed. This is
+`UNVERIFIED / NOT RELEASE-READY`; it must not be presented as a full 40-case
+pass. See `docs/evaluation/thesis-api-subset-32-20260913.md`.
+
 Run against the local chat endpoint:
 
 ```bash

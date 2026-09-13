@@ -75,7 +75,7 @@ Hệ thống được thiết kế theo các nguyên tắc bắt buộc sau, có
     Câu trả lời pháp lý chỉ dựa trên corpus đã kiểm chứng. Không có web search actor trong online query path (NFR-01).
 
 17. **Reproducible experiments**
-    Mọi evaluation run phải pin corpus version/hash, gold-set version/hash, model IDs, prompt versions, config và Git commit. Kết quả thực nghiệm chỉ được ghi sau khi chạy evaluation (NFR-08). Chính sách split bắt buộc: dev set dùng để lặp phát triển, validation set dùng để chọn ngưỡng/model/prompt, final test set đóng băng và KHÔNG BAO GIỜ dùng để tuning. Run và raw artifact bất biến/append-only (ghi `run_manifest_hash`, đường dẫn artifact chỉ ghi một lần, trạng thái chuyển một chiều); mọi query fail và provider/error outcome được giữ trong error analysis.
+    Mọi evaluation run phải pin corpus version/hash, gold-set version/hash, model IDs, prompt versions, config và Git commit. Kết quả thực nghiệm chỉ được ghi sau khi chạy evaluation (NFR-08). Chính sách split bắt buộc: dev set dùng để lặp phát triển, validation set dùng để chọn ngưỡng/model/prompt, final test set đóng băng và KHÔNG BAO GIỜ dùng để tuning. Run và raw artifact bất biến/append-only (ghi `run_manifest_hash`, đường dẫn artifact). Kết quả representative hiện tại chỉ bao phủ 32/40 case và được xem là bằng chứng chưa đủ cho release.
 
 18. **Local-first defense**
     Toàn bộ hạ tầng dữ liệu chạy bằng Docker Compose trên máy bảo vệ, không phụ thuộc VPS (NFR-03).

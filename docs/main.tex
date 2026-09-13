@@ -463,7 +463,7 @@ Khâu tìm kiếm dùng Qdrant ở chế độ kết hợp. Dense embedding tìm
 
 Trước khi gọi mô hình ngôn ngữ, hệ thống kiểm tra các đoạn đã truy xuất. Nếu số lượng hoặc tham chiếu không đạt điều kiện, API trả thông báo chưa đủ căn cứ và dừng xử lý. Nếu đạt, OpenRouter nhận câu hỏi cùng các đoạn pháp luật để tạo phần diễn giải. Backend dựng trích dẫn từ metadata. Supabase lưu thông tin đăng ký, đăng nhập, hồ sơ, phiên chat, tin nhắn, phản hồi và bookmark. Corpus pháp luật và chỉ mục Qdrant được lưu riêng.
 
-Bộ đánh giá gồm 40 trường hợp kiểm thử. Các chỉ số tự động đo khả năng tìm căn cứ, độ chính xác ở cấp văn bản, Điều, Khoản và Điểm, tính hợp lệ của trích dẫn, độ chính xác của hành vi từ chối trả lời và thời gian phản hồi. Nội dung câu trả lời được đánh giá thủ công để tách chất lượng truy xuất khỏi chất lượng diễn giải.
+Bộ đánh giá gồm 40 trường hợp kiểm thử. Các chỉ số tự động đo khả năng tìm căn cứ, độ chính xác ở cấp văn bản, Điều, Khoản và Điểm, tính hợp lệ của trích dẫn, độ chính xác của hành vi từ chối trả lời và thời gian phản hồi. Nội dung câu trả lời được đánh giá thủ công để tách chất lượng truy xuất khỏi chất lượng diễn giải. Tại lần chạy đại diện ngày 13/09/2026, 32/40 trường hợp (80\%, chọn bốn trường hợp đầu của mỗi tám nhóm) được gọi trực tiếp qua API. Readiness của Supabase và Qdrant đạt; kết quả chưa đủ điều kiện phát hành: retrieval hit@5 là 19,05\%, document accuracy 23,81\%, article accuracy 23,81\%, clause accuracy 25,00\%, point accuracy 14,29\%, citation validity 65,52\% và abstention accuracy 44,83\%. Có 3/32 lỗi API, semantic correctness chưa review, latency trung bình 29,0 giây, P50 26,9 giây và P95 84,0 giây. Chi tiết xem \path{docs/evaluation/thesis-api-subset-32-20260913.md}.
 
 \clearpage
 \chapter*{ABSTRACT}
@@ -476,7 +476,7 @@ For retrieval, the system uses a local Qdrant hybrid index. Dense embeddings han
 
 Before generation, the backend checks whether the retrieved material satisfies the configured evidence conditions. If the check fails, the API returns an abstention response. If it passes, the selected passages are sent to a ChatOpenRouter model with a Vietnamese prompt. Citations come from stored metadata. Supabase stores authentication and application data, including profiles, chat sessions, messages, feedback, and bookmarks. The legal corpus and Qdrant index are stored separately.
 
-The evaluation set contains 40 cases. It measures retrieval hits, legal-coordinate accuracy, citation validity, abstention behavior, and latency. Answer correctness is reviewed manually. The design documentation covers the data model, use cases, system-flow diagrams, API, deployment, and user-interface views.
+The evaluation set contains 40 cases. It measures retrieval hits, legal-coordinate accuracy, citation validity, abstention behavior, and latency. Answer correctness is reviewed manually. In the representative run on 13 September 2026, 32/40 cases (80\%, four cases from each of eight categories) were sent directly to \texttt{POST /api/v1/chat}. Supabase and Qdrant readiness passed, but the result was not release-ready: retrieval hit@5 was 19.05\%, document and article accuracy were 23.81\%, clause accuracy was 25.00\%, point accuracy was 14.29\%, citation validity was 65.52\%, and abstention accuracy was 44.83\%. Three of 32 API calls failed; semantic correctness was not reviewed. Mean latency was 29.0 seconds, P50 was 26.9 seconds, and P95 was 84.0 seconds. See \path{docs/evaluation/thesis-api-subset-32-20260913.md} for the report.
 
 \clearpage
 \tableofcontents
@@ -686,8 +686,10 @@ Hệ thống có các chức năng đăng ký, đăng nhập, hỏi đáp pháp 
 \subsection{Phạm vi kỹ thuật}
 Backend sử dụng Python 3.11, FastAPI và Pydantic. Tầng RAG sử dụng LangChain Document, LangChain Qdrant, Qdrant cục bộ, OpenRouter cho embedding và sinh câu trả lời, cùng FastEmbed BM25 cho tìm kiếm sparse. Dữ liệu ứng dụng dùng Supabase. Frontend dùng Next.js App Router, React và TypeScript.
 
+Hệ thống có các chức năng đăng ký, đăng nhập, hỏi đáp pháp luật, xem nguồn và điều khoản, quản lý lịch sử hội thoại, gửi phản hồi và đánh dấu câu trả lời. Dự án còn có các lệnh CLI để tạo chunk, xây lại chỉ mục và chạy bộ đánh giá.
+
 \subsection{Phạm vi đánh giá}
-Bộ dữ liệu đánh giá khóa luận hiện gồm 40 trường hợp. Hệ thống tự tính retrieval hit, độ chính xác ở cấp văn bản/Điều/Khoản/Điểm, tính hợp lệ của citation, abstention accuracy và độ trễ. Việc nhận xét nội dung câu trả lời cuối cùng được thực hiện thủ công, do đó khóa luận không tự suy diễn một ``điểm đúng nội dung'' từ các chỉ số retrieval.
+Bộ dữ liệu đánh giá khóa luận hiện gồm 40 trường hợp. Vì giới hạn thời gian, lần kiểm tra release gần nhất chạy subset đại diện 32/40 trường hợp (80\%), gồm bốn trường hợp đầu trong mỗi tám category, qua API trực tiếp và không qua UI. Kết quả là một ảnh chụp thực nghiệm cho cấu hình collection \texttt{traffic\_law\_enriched\_20260913\_v3}, \texttt{top\_k=5}; không được suy rộng thành kết quả của toàn bộ 40 trường hợp. Hệ thống tự tính retrieval hit, độ chính xác ở cấp văn bản/Điều/Khoản/Điểm, tính hợp lệ của citation, abstention accuracy và độ trễ. Việc nhận xét nội dung câu trả lời cuối cùng được thực hiện thủ công, do đó semantic correctness của subset hiện chưa có kết quả.
 
 \AssetFigure[0.88\textwidth]{ch1_research_scope.png}{7.2cm}{Phạm vi dữ liệu, chức năng và đánh giá của khóa luận}{}
 
@@ -701,8 +703,7 @@ Yêu cầu hệ thống được phân tích theo tác nhân, dữ liệu đầu
 \subsection{Thiết kế hệ thống}
 Từ yêu cầu chức năng, đề tài xây dựng Use Case, FDD, DFD, Activity Diagram, Sequence Diagram, Component Diagram, Deployment Diagram và các mô hình dữ liệu CDM, LDM, PDM/ERD. Mỗi mô hình mô tả một góc nhìn riêng, từ chức năng, luồng xử lý, tương tác giữa các thành phần đến cấu trúc dữ liệu.
 
-\subsection{Kiểm thử và đánh giá}
-Backend sử dụng pytest cho unit test và integration test. Giao diện dùng Playwright cho các luồng kiểm thử trình duyệt. Bộ đánh giá 40 trường hợp cho phép kiểm tra khả năng truy xuất căn cứ, vị trí pháp lý, trích dẫn, hành vi từ chối trả lời và thời gian phản hồi.
+Backend sử dụng pytest cho unit test và integration test. Giao diện dùng Playwright cho các luồng kiểm thử trình duyệt. Bộ đánh giá 40 trường hợp cho phép kiểm tra khả năng truy xuất căn cứ, vị trí pháp lý, trích dẫn, hành vi từ chối trả lời và thời gian phản hồi. Trong lần chạy representative, API readiness đạt nhưng có 3/32 lỗi và P95 đạt 84,0 giây; do đó readiness của hạ tầng không đồng nghĩa với chất lượng retrieval hoặc độ ổn định end-to-end.
 
 \AssetFigure[0.86\textwidth]{ch1_methodology.png}{7.2cm}{Quy trình nghiên cứu và phát triển hệ thống}{}
 
@@ -1016,10 +1017,10 @@ Citation validity kiểm tra các citation trả về có được đánh dấu 
 Bộ dữ liệu có các trường hợp kỳ vọng hệ thống từ chối trả lời. Abstention accuracy so sánh trạng thái thực tế với kỳ vọng. Một hệ thống luôn trả lời có thể có trải nghiệm ``mạnh'' nhưng không phù hợp nếu dữ liệu thiếu.
 
 \subsection{Độ trễ}
-Mô-đun đánh giá tính mean, p50 và p95 latency. P50 cho biết trung vị, còn p95 phản ánh nhóm truy vấn có thời gian xử lý cao hơn. Trong hệ thống RAG, độ trễ đến từ retrieval, quá trình gọi mô hình và các truy vấn con khi câu hỏi có nhiều intent.
+Mô-đun đánh giá tính mean, p50 và p95 latency. P50 cho biết trung vị, còn p95 phản ánh nhóm truy vấn có thời gian xử lý cao hơn. Trong lần chạy 32 case, latency mean là 29,0 giây, P50 là 26,9 giây và P95 là 84,0 giây. Độ trễ đến từ retrieval, quá trình gọi mô hình và các truy vấn con khi câu hỏi có nhiều intent.
 
 \subsection{Đánh giá nội dung thủ công}
-Answer correctness được xác định qua bước review thủ công. Mô-đun đánh giá chỉ tính các metric có thể xác định trực tiếp từ prediction và expected data. Bộ 40 case cho phép chạy lại cùng một quy trình để so sánh các lần thử nghiệm.
+Answer correctness được xác định qua bước review thủ công. Mô-đun đánh giá chỉ tính các metric có thể xác định trực tiếp từ prediction và expected data. Subset representative 32 case chưa được review semantic correctness, nên không được gán điểm đúng nội dung từ các metric tự động.
 
 \AssetFigure[0.90\textwidth]{ch2_evaluation.png}{7.0cm}{Các nhóm chỉ số trong bộ đánh giá 40 trường hợp}{}
 
@@ -1627,10 +1628,9 @@ Kiểm thử được thực hiện theo các nhóm unit test, integration test 
 \AssetFigure[0.94\textwidth]{ch4_test_report.png}{7.5cm}{Kết quả kiểm thử của hệ thống}{}
 
 \section{Kết quả đánh giá khóa luận}
-Bộ đánh giá 40 trường hợp sử dụng các chỉ số sau để đo chất lượng truy xuất, vị trí pháp lý, trích dẫn, hành vi từ chối trả lời và độ trễ.
+Bảng dưới đây mô tả các chỉ số. Kết quả đo thực tế gần nhất được trình bày sau bảng chỉ số, tại Bảng~\ref{tab:subset-results}; đây là subset 32/40 case (80\%), không phải kết quả full evaluation.
 \begin{table}[H]
 \caption{Các chỉ số dùng trong bộ đánh giá 40 trường hợp}
-\label{tab:evaluation-metrics}
 \centering
 \begin{tabularx}{\textwidth}{|L{4.2cm}|Y|}
 \hline
@@ -1656,10 +1656,48 @@ Mean, P50, P95 latency & Thời gian phản hồi trung bình và các phân v�
 \hline
 \end{tabularx}
 \end{table}
+\begin{table}[H]
+\caption{Kết quả chạy representative API subset 32/40 trường hợp}
+\label{tab:subset-results}
+\centering
+\begin{tabularx}{\textwidth}{|L{5.0cm}|Y|}
+\hline
+\textbf{Chỉ số} & \textbf{Kết quả} \\
+\hline
+Retrieval hit@5 & 19,05\% \\
+\hline
+Document accuracy & 23,81\% \\
+\hline
+Article accuracy & 23,81\% \\
+\hline
+Clause accuracy & 25,00\% \\
+\hline
+Point accuracy & 14,29\% \\
+\hline
+Citation validity & 65,52\% \\
+\hline
+Abstention accuracy & 44,83\% \\
+\hline
+API errors & 3/32 \\
+\hline
+Latency mean / P50 / P95 & 29,0 / 26,9 / 84,0 giây \\
+\hline
+Semantic correctness & Chưa review \\
+\hline
+\end{tabularx}
+\tabsource{Báo cáo \path{docs/evaluation/thesis-api-subset-32-20260913.md}, chạy ngày 13/09/2026.}
+\end{table}
+
+\subsection{Diễn giải kết quả và khoảng trống}
+Kết quả cho thấy readiness của Supabase và Qdrant chỉ xác nhận dịch vụ có thể nhận request; readiness không chứng minh retrieval tìm đúng căn cứ hoặc câu trả lời đúng. Retrieval hit@5 thấp (19,05\%) và các chỉ số tọa độ pháp lý thấp (14,29--25,00\%) cho thấy khoảng trống chính đang nằm ở việc chọn đúng văn bản và đúng vị trí Điều/Khoản/Điểm. Citation validity 65,52\% cho thấy vẫn còn trích dẫn không hợp lệ hoặc không khớp hoàn toàn với dữ liệu nguồn. Abstention accuracy 44,83\% cho thấy evidence gate chưa phân biệt ổn định giữa trường hợp đủ và thiếu căn cứ; không nên xem cơ chế từ chối hiện tại là bảo đảm an toàn tuyệt đối.
+
+Ba lỗi API làm giảm độ tin cậy vận hành của kết quả và cần được phân tích riêng theo log/request id; không được coi prediction null là câu trả lời sai hay là abstention đúng. Semantic correctness chưa được đánh giá, vì vậy chưa có bằng chứng về độ đúng nội dung, mức độ bao phủ đủ ý hoặc việc diễn giải con số pháp lý. P95 84,0 giây cũng cho thấy trải nghiệm đuôi dài chưa đáp ứng mục tiêu vận hành.
+
+Vì subset chỉ gồm 32/40 case và được chọn theo quy tắc cố định, kết quả chỉ là bằng chứng đại diện cho lần chạy này. Các gap còn lại gồm: chạy và lưu artifact cho full 40 case; sửa nguyên nhân 3 lỗi API; cải thiện retrieval và legal-coordinate matching; kiểm tra citation end-to-end; hiệu chỉnh evidence gate/abstention; review thủ công semantic correctness; và đo lại latency sau khi sửa. Cho đến khi các gap này được kiểm chứng, trạng thái là \textbf{UNVERIFIED / NOT RELEASE-READY}.
 \AssetFigure[0.94\textwidth]{ch4_evaluation_report.png}{8.2cm}{Tổng hợp kết quả đánh giá hệ thống}{}
 
 \section{Phân tích lỗi}
-Lỗi được phân loại theo vị trí phát sinh. Các nhóm chính gồm không tìm được chunk đúng, tìm đúng văn bản nhưng sai Điều hoặc Khoản, truy xuất đủ căn cứ nhưng phần diễn giải sai và hành vi từ chối trả lời khác với kỳ vọng. Việc phân loại theo nhóm giúp xác định lỗi thuộc dữ liệu, truy xuất, kiểm tra căn cứ hay sinh câu trả lời.
+Các lỗi được phân loại theo vị trí phát sinh. Kết quả subset hiện tại cho thấy bốn nhóm cần ưu tiên: (1) retrieval và mapping legal-coordinate, thể hiện qua retrieval hit@5 19,05\% và point accuracy 14,29\%; (2) citation, với citation validity 65,52\%; (3) evidence gate và abstention, với abstention accuracy 44,83\%; (4) độ ổn định vận hành, với 3/32 lỗi API và P95 84,0 giây. Chưa thể tách riêng lỗi generation khỏi retrieval vì semantic correctness chưa được review. Việc phân loại tiếp theo phải gắn từng case lỗi với request log, retrieved passages, trạng thái evidence gate và response cuối.
 
 \section{Kết luận chương}
 Chương 4 ghi nhận các chức năng giao diện, API, kiểm thử và bộ chỉ số đánh giá. Các phần này cho phép xem kết quả từ thao tác người dùng đến retrieval và hành vi từ chối trả lời.
@@ -1676,11 +1714,10 @@ Chương 4 ghi nhận các chức năng giao diện, API, kiểm thử và bộ 
 \chapter*{CHƯƠNG V. KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN}
 \addcontentsline{toc}{chapter}{CHƯƠNG V. KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN}
 
-\section{Kết quả đạt được}
-Hệ thống đã hình thành các thành phần chính: xử lý dữ liệu pháp luật, tìm kiếm kết hợp, phân tích câu hỏi, kiểm tra căn cứ, sinh câu trả lời, tạo trích dẫn, xác thực người dùng, lưu lịch sử hội thoại, feedback, bookmark và tra cứu nguồn pháp luật. Bộ đánh giá 40 trường hợp hỗ trợ kiểm tra retrieval, vị trí pháp lý, trích dẫn, hành vi từ chối trả lời và độ trễ. Các kết luận định lượng chỉ có ý nghĩa khi đi kèm số liệu đo tương ứng.
+Hệ thống đã hình thành các thành phần chính: xử lý dữ liệu pháp luật, tìm kiếm kết hợp, phân tích câu hỏi, kiểm tra căn cứ, sinh câu trả lời, tạo trích dẫn, xác thực người dùng, lưu lịch sử hội thoại, feedback, bookmark và tra cứu nguồn pháp luật. Bộ đánh giá 40 trường hợp hỗ trợ kiểm tra retrieval, vị trí pháp lý, trích dẫn, hành vi từ chối trả lời và độ trễ. Trong phạm vi xác minh gần nhất, hệ thống đã chạy được 32/40 case trực tiếp qua API với readiness của Supabase/Qdrant đạt, nhưng kết quả định lượng còn thấp và chưa release-ready; không có bằng chứng để khẳng định full 40 case hoặc semantic correctness đã đạt.
 
 \section{Hạn chế}
-Phạm vi dữ liệu hiện là corpus cục bộ, chưa đại diện toàn bộ pháp luật giao thông. Các quy tắc analyzer và reference parser tập trung vào một số mẫu câu tiếng Việt thường gặp nên không bao phủ mọi cách diễn đạt. Retrieval còn phụ thuộc chất lượng embedding và metadata đầu vào. Việc review độ đúng nội dung vẫn cần con người. Hệ thống cũng phụ thuộc OpenRouter cho model provider khi generation trực tuyến.
+Phạm vi dữ liệu hiện là corpus cục bộ, chưa đại diện toàn bộ pháp luật giao thông. Các quy tắc analyzer và reference parser tập trung vào một số mẫu câu tiếng Việt thường gặp nên không bao phủ mọi cách diễn đạt. Retrieval còn phụ thuộc chất lượng embedding và metadata đầu vào. Lần chạy representative chỉ bao phủ 32/40 case; có 3 lỗi API, citation validity 65,52\%, abstention accuracy 44,83\% và P95 latency 84,0 giây. Semantic correctness chưa review, nên chưa thể kết luận chất lượng nội dung. Ngoài ra, báo cáo hiện chưa có raw artifact subset trong Git để replay độc lập; việc tái lập đầy đủ cần lưu prediction JSONL cùng manifest cấu hình. Hệ thống cũng phụ thuộc OpenRouter cho model provider khi generation trực tuyến.
 
 \section{Hướng phát triển}
 Các phần còn có thể phát triển sau khóa luận gồm mở rộng corpus theo quy trình kiểm chứng nguồn, quản lý phiên bản văn bản và ngày hiệu lực, tăng số trường hợp trong bộ đánh giá, thử thêm embedding hoặc reranker, xử lý cross-reference chi tiết hơn, kiểm tra claim sau generation, bổ sung tracing và xây quy trình cập nhật corpus có kiểm thử hồi quy.

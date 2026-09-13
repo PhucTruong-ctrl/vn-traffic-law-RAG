@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.9.13)  13 SEP 2026 18:34
+This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.9.13)  13 SEP 2026 21:28
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1232,7 +1232,29 @@ agrams/tdu_logo.png>
 ] [2
 
 
-] [3
+]
+Package microtype Info: Loading generic protrusion settings for font family
+(microtype)             `lmtt' (encoding: TU).
+(microtype)             For optimal results, create family-specific settings.
+(microtype)             See the microtype manual for details.
+LaTeX Font Info:    Calculating math sizes for size <13> on input line 466.
+Package microtype Info: Loading generic protrusion settings for font family
+(microtype)             `latinmodern-math.otf' (encoding: TU).
+(microtype)             For optimal results, create family-specific settings.
+(microtype)             See the microtype manual for details.
+LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
+(Font)              scaled to size 13.00139pt on input line 466.
+LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
+(Font)              scaled to size 9.10092pt on input line 466.
+LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
+(Font)              scaled to size 6.50069pt on input line 466.
+LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
+(Font)              scaled to size 12.99861pt on input line 466.
+LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
+(Font)              scaled to size 9.09898pt on input line 466.
+LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
+(Font)              scaled to size 6.4993pt on input line 466.
+ [3
 
 
 ]
@@ -1250,25 +1272,7 @@ at sessions, messages,
 [4
 
 
-] (./main.toc
-LaTeX Font Info:    Calculating math sizes for size <13> on input line 2.
-Package microtype Info: Loading generic protrusion settings for font family
-(microtype)             `latinmodern-math.otf' (encoding: TU).
-(microtype)             For optimal results, create family-specific settings.
-(microtype)             See the microtype manual for details.
-LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
-(Font)              scaled to size 13.00139pt on input line 2.
-LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
-(Font)              scaled to size 9.10092pt on input line 2.
-LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
-(Font)              scaled to size 6.50069pt on input line 2.
-LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
-(Font)              scaled to size 12.99861pt on input line 2.
-LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
-(Font)              scaled to size 9.09898pt on input line 2.
-LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
-(Font)              scaled to size 6.4993pt on input line 2.
- [5
+] (./main.toc [5
 
 ] [6] [7] [8])
 \tf@toc=\write4
@@ -1317,26 +1321,22 @@ agrams/ch1_problem_context.png>
  [1
 
 
-] [2]
-Package microtype Info: Loading generic protrusion settings for font family
-(microtype)             `lmtt' (encoding: TU).
-(microtype)             For optimal results, create family-specific settings.
-(microtype)             See the microtype manual for details.
+] [2] [3]
 File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch1_research_scope.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
 agrams/ch1_research_scope.png>
- [3]
+ [4]
 File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch1_methodology.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
 agrams/ch1_methodology.png>
- [4]
+ [5]
 File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch1_schedule.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
 agrams/ch1_schedule.png>
- [5] [6]
+ [6] [7]
 File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_rag_overview.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
@@ -1345,7 +1345,7 @@ File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_legal_hierarchy.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
 agrams/ch2_legal_hierarchy.png>
- [7
+ [8
 
 
 ]
@@ -1353,7 +1353,7 @@ File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_chunk_structure.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
 agrams/ch2_chunk_structure.png>
- [8]
+ [9]
 File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_ingestion_pipeline.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
@@ -1362,12 +1362,12 @@ File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_exact_lookup.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
 agrams/ch2_exact_lookup.png>
- [9]
+ [10]
 File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_sparse_bm25.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
 agrams/ch2_sparse_bm25.png>
- [10]
+ [11]
 File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_dense_embedding.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
@@ -1376,13 +1376,13 @@ File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_hybrid_retrieval.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
 agrams/ch2_hybrid_retrieval.png>
- [11]
+
+[12]
 File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_question_analysis.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
 agrams/ch2_question_analysis.png>
-
-[12]
+ [13]
 File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_rrf.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
@@ -1391,12 +1391,12 @@ File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_cross_reference.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
 agrams/ch2_cross_reference.png>
- [13]
+ [14]
 File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_evidence_gate.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
 agrams/ch2_evidence_gate.png>
- [14]
+ [15]
 File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_generation.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
@@ -1405,32 +1405,32 @@ File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_citation_flow.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
 agrams/ch2_citation_flow.png>
- [15]
+ [16]
 File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_api_architecture.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
 agrams/ch2_api_architecture.png>
- [16]
+ [17]
 File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_python_backend.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
 agrams/ch2_python_backend.png>
- [17]
+ [18]
 File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_http_rest.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
 agrams/ch2_http_rest.png>
- [18]
+ [19]
 File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_security_rls.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
 agrams/ch2_security_rls.png>
- [19]
+ [20]
 File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_postgresql_relational.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
 agrams/ch2_postgresql_relational.png>
- [20]
+ [21]
 File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_supabase_auth.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
@@ -1439,17 +1439,17 @@ File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_frontend_architecture.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
 agrams/ch2_frontend_architecture.png>
- [21]
+ [22]
 File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_react_state.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
 agrams/ch2_react_state.png>
- [22]
+ [23]
 File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_pdfjs_viewer.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
 agrams/ch2_pdfjs_viewer.png>
- [23]
+ [24]
 File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_docker_compose.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
@@ -1458,52 +1458,216 @@ File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_toolchain.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
 agrams/ch2_toolchain.png>
- [24]
+ [25]
 File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_data_architecture.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
 agrams/ch2_data_architecture.png>
- [25]
+ [26]
+[27]
 File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
 cs/diagrams/ch2_evaluation.png Graphic file (type bmp)
 </home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
 agrams/ch2_evaluation.png>
- [26]
-ignored: Infinite glue shrinkage found in box being split
-[27] [28]
-ignored: Infinite glue shrinkage found in box being split [29
+ [28] [29]
+ignored: Infinite glue shrinkage found in box being split [30
 
 
-] [30] [31] [32] [33] [34] [35] [36] [37] [38] [39] [40] [41]
-[42] [43] [44] [45]
-ignored: Infinite glue shrinkage found in box being split [46] [47] [
-48] [49]
-ignored: Infinite glue shrinkage found in box being split [50] [51] [52] [53] [5
-4] [55
+]
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_fdd.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_fdd.png>
+ [31]
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_dfd_context.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_dfd_context.png>
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_dfd_level0.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_dfd_level0.png>
+ [32]
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_usecase_overall.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_usecase_overall.png>
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_usecase_auth.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_usecase_auth.png>
+ [33]
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_usecase_chat.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_usecase_chat.png>
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_usecase_legal_sources.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_usecase_legal_sources.png>
+ [34]
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_usecase_history.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_usecase_history.png>
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_usecase_feedback_bookmark.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_usecase_feedback_bookmark.png>
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_usecase_ingestion.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_usecase_ingestion.png>
+ [35]
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_activity_auth.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_activity_auth.png>
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_activity_chat.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_activity_chat.png>
+ [36]
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_activity_legal_sources.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_activity_legal_sources.png>
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_activity_ingestion.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_activity_ingestion.png>
+ [37]
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_activity_evaluation.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_activity_evaluation.png>
+ [38]
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_sequence_auth.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_sequence_auth.png>
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_sequence_chat.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_sequence_chat.png>
+ [39]
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_sequence_citation.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_sequence_citation.png>
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_sequence_ingestion.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_sequence_ingestion.png>
+ [40]
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_sequence_feedback.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_sequence_feedback.png>
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_component.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_component.png>
+ [41]
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_deployment.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_deployment.png>
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_package_backend.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_package_backend.png>
+
+[42]
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_package_frontend.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_package_frontend.png>
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_cdm.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_cdm.png>
+ [43]
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_ldm.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_ldm.png>
+ [44]
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_pdm.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_pdm.png>
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_erd.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_erd.png>
+ [45] [46] [47] [48]
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_qdrant_payload.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_qdrant_payload.png>
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_manifest_schema.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_manifest_schema.png>
+ [49]
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_jsonl_schema.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_jsonl_schema.png>
+ [50]
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_api_map.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_api_map.png>
+ [51] [52]
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_security.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_security.png>
+ [53]
+File: /home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/do
+cs/diagrams/ch3_test_pyramid.png Graphic file (type bmp)
+</home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/di
+agrams/ch3_test_pyramid.png>
+ [54] [55] [56
 
 
-] [56]
-[57] [58] [59] [60] [61] [62] [63] [64] [65] [66
+]
+[57] [58] [59] [60] [61] [62] [63] [64]
+LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
+(Font)              scaled to size 10.00107pt on input line 1688.
+LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
+(Font)              scaled to size 7.00075pt on input line 1688.
+LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
+(Font)              scaled to size 5.00053pt on input line 1688.
+LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
+(Font)              scaled to size 9.99893pt on input line 1688.
+LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
+(Font)              scaled to size 6.99925pt on input line 1688.
+LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
+(Font)              scaled to size 4.99947pt on input line 1688.
+ [65] [66] [67
 
 
-] [67
+] [68
 
 
-] [68] (./main.aux)
+] [69] (./main.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
  ***********
 Package rerunfilecheck Info: File `main.out' has not changed.
-(rerunfilecheck)             Checksum: C1FBDACB7A1151F6C22FE8399A6BD86A;32175.
+(rerunfilecheck)             Checksum: 6816CB5D1F4C0F3DDDEFE754CD26DA48;32083.
  ) 
 Here is how much of TeX's memory you used:
- 27303 strings out of 470191
- 547860 string characters out of 5479697
- 1140209 words of memory out of 5000000
- 55489 multiletter control sequences out of 15000+600000
- 633492 words of font info for 111 fonts, out of 8000000 for 9000
+ 27588 strings out of 470191
+ 573141 string characters out of 5479697
+ 1143209 words of memory out of 5000000
+ 55725 multiletter control sequences out of 15000+600000
+ 634117 words of font info for 125 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
- 73i,12n,107p,1001b,635s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 73i,12n,107p,1001b,783s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on main.pdf (86 pages).
+Output written on main.xdv (87 pages, 1333640 bytes).

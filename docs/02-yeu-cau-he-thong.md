@@ -469,7 +469,7 @@ Admin/reviewer UI, upload API và approval workflow không thuộc MVP. CLI JSON
 | Thuộc tính | Mô tả |
 |---|---|
 | Mô tả | Chạy toàn bộ 200 gold questions risk-weighted thuộc 17 category trước release |
-| Tiêu chí kiểm chứng | 200 câu đều chạy; ghi corpus/gold/config hashes bất biến; chỉ công bố metric có evidence chạy thực tế |
+| Tiêu chí kiểm chứng | 200 câu đều chạy; ghi corpus/gold/config hashes bất biến; chỉ công bố metric có evidence chạy thực tế. Lần kiểm tra representative hiện mới chạy 32/40 case của bộ thesis cũ; kết quả được ghi tại `docs/evaluation/thesis-api-subset-32-20260913.md` và có trạng thái `UNVERIFIED / NOT RELEASE-READY`, không thay thế full gate. |
 | Priority | P0 |
 ### FR-32: Hiển thị answer và citation từ metadata
 

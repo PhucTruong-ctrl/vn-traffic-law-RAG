@@ -544,6 +544,7 @@ Chỉ số: Recall@10, MRR@10, nDCG@10 trên câu hỏi pháp luật tiếng Vi�
 
 Toàn bộ **200 câu gold đã review**, chia 40 development / 40 validation / 120 final test, phải chạy trước release. Bộ câu hỏi gồm đúng 17 category: CURRENT, HISTORICAL, COMPARISON, EXACT_REFERENCE, PENALTY, LICENSE_POINTS, CONDITION, EXCEPTION, PROCEDURE, CROSS_REFERENCE, MULTI_PROVISION, MULTI_DOCUMENT, COLLOQUIAL_QUERY, AMBIGUOUS, MISSING_INFORMATION, OUT_OF_SCOPE và ADVERSARIAL_CITATION. Phân bổ là risk-weighted; không dùng feedback để thay đổi gate.
 
+Kết quả chạy representative ngày 13/09/2026 trên bộ thesis 40 case cũ chỉ bao phủ 32/40 case (80%), trực tiếp qua API, không qua UI. Kết quả ghi tại `docs/evaluation/thesis-api-subset-32-20260913.md`: retrieval hit@5 19,05%, citation validity 65,52%, abstention accuracy 44,83%, 3/32 lỗi API và P95 84,0 giây; semantic correctness chưa review. Đây là bằng chứng chẩn đoán, không phải bằng chứng đạt release gate. Trạng thái hiện tại: **UNVERIFIED / NOT RELEASE-READY**.
 Mỗi câu ghi expected/acceptable provisions, required evidence, must-include/must-not-include facts, temporal metadata, category và hash. Các metric/ngưỡng release chỉ được ghi khi đã có kết quả chạy thực tế.
 | G2 | Structured output |
 | G3 | G2 + citation ID verifier |
