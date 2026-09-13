@@ -185,6 +185,49 @@ def test_vehicle_penalty_query_retrieves_all_categories(monkeypatch) -> None:
         assert "vượt đèn đỏ" in matching[0].lower()
 
 
+def test_phone_use_while_driving_reaches_retrieval_and_returns_evidence(monkeypatch) -> None:
+    from langchain_core.documents import Document
+
+    monkeypatch.setattr(
+        "app.rag.service.generate_answer",
+        lambda *_args, **_kwargs: "Không được dùng tay cầm điện thoại khi xe đang di chuyển.",
+    )
+
+    class PhoneRetriever:
+        def __init__(self) -> None:
+            self.queries: list[str] = []
+
+        def retrieve(self, query: str, **_: object) -> list[Document]:
+            self.queries.append(query)
+            return [
+                Document(
+                    page_content=(
+                        "Dùng tay cầm và sử dụng điện thoại khi điều khiển "
+                        "phương tiện đang di chuyển trên đường bộ."
+                    ),
+                    metadata={
+                        "chunk_id": "nd-168-2024:phone",
+                        "document_id": "nd-168-2024",
+                        "document_name": "Nghị định 168/2024/NĐ-CP",
+                        "article": "6",
+                        "clause": "5",
+                        "point": "h",
+                    },
+                )
+            ]
+
+    retriever = PhoneRetriever()
+    result = RAGService(retriever).answer("Có được dùng điện thoại khi đang lái xe không?")
+
+    assert result["status"] == "complete"
+    assert result["citations"][0]["source_id"] == "nd-168-2024:phone"
+    assert retriever.queries == [
+        "Có được dùng điện thoại khi đang lái xe không đối với ô tô",
+        "Có được dùng điện thoại khi đang lái xe không đối với xe mô tô, xe gắn máy",
+        "Có được dùng điện thoại khi đang lái xe không đối với xe thô sơ",
+    ]
+
+
 @dataclass
 class Chunk:
     text: str

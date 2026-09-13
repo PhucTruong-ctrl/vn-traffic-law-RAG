@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from datetime import date
+from threading import Lock
 from typing import Any
 
 from langchain_core.documents import Document
@@ -236,10 +237,18 @@ class Retriever:
             raise ValueError("top_k must be positive")
         self.top_k = top_k
         self._store: Any = None
+        self._store_lock = Lock()
 
     def _store_for_query(self) -> Any:
         if self._store is not None:
             return self._store
+        with self._store_lock:
+            if self._store is not None:
+                return self._store
+            return self._create_store()
+
+    def _create_store(self) -> Any:
+        """Create the configured hybrid store exactly once."""
         try:
             from langchain_openai import OpenAIEmbeddings
             from langchain_qdrant import FastEmbedSparse, QdrantVectorStore, RetrievalMode
