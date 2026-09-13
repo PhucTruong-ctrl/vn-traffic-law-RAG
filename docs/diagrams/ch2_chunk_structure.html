@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cấu trúc một chunk pháp luật</title>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f5f5f5; color: #2d3142; font-family: 'Be Vietnam Pro', sans-serif; }
+    .page { width: min(960px, 100%); margin: auto; padding: 32px 40px 24px; }
+    .eyebrow { margin: 0 0 8px; color: #4f5d75; font: 500 8px 'Be Vietnam Pro', sans-serif; letter-spacing: .16em; }
+    h1 { margin: 0 0 24px; font: 400 28px/1.15 'Be Vietnam Pro', sans-serif; }
+    svg { display: block; width: 100%; height: auto; }
+    .name { fill: #2d3142; font: 600 16px 'Be Vietnam Pro', sans-serif; }
+    .field { fill: #2d3142; font: 500 12px 'Be Vietnam Pro', sans-serif; }
+    .sub { fill: #4f5d75; font: 400 12px 'Be Vietnam Pro', sans-serif; }
+    .tag { fill: #4f5d75; font: 500 8px 'Be Vietnam Pro', sans-serif; letter-spacing: .08em; }
+    .use { fill: #2d3142; font: 500 12px 'Be Vietnam Pro', sans-serif; }
+    .legend { fill: #4f5d75; font: 500 8px 'Be Vietnam Pro', sans-serif; letter-spacing: .06em; }
+  </style>
+</head>
+<body>
+<main class="page">
+  <p class="eyebrow">CHƯƠNG 2 · 2.2.2 METADATA</p>
+  <h1>Cấu trúc một chunk pháp luật</h1>
+  <svg viewBox="0 0 960 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="ch2-chunk-structure-title ch2-chunk-structure-desc">
+    <title id="ch2-chunk-structure-title">Cấu trúc một chunk pháp luật</title>
+    <desc id="ch2-chunk-structure-desc">Một chunk có page_content và metadata. Metadata ghi định danh, vị trí pháp lý và nguồn để hệ thống lọc quy định, tạo trích dẫn và mở tài liệu gốc.</desc>
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+      <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+      <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+    </defs>
+
+    <rect width="960" height="600" fill="#f5f5f5"/>
+
+    <!-- Output connectors, drawn before nodes. -->
+    <path d="M736 232 H760 Q768 232 768 240 V248 Q768 256 776 256 H804" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+    <path d="M736 292 H772 Q780 292 780 300 V320 Q780 328 788 328 H804" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+    <path d="M736 352 H760 Q768 352 768 360 V392 Q768 400 776 400 H804" fill="none" stroke="#2e5aa8" stroke-width="1.2" marker-end="url(#arrow-link)"/>
+
+    <!-- Chunk outer container. -->
+    <rect x="40" y="40" width="696" height="456" rx="8" fill="rgba(45,49,66,.015)" stroke="rgba(45,49,66,.35)"/>
+    <rect x="56" y="32" width="88" height="16" rx="4" fill="#f5f5f5"/>
+    <text x="100" y="44" class="tag" text-anchor="middle">LEGAL CHUNK</text>
+
+    <!-- page_content -->
+    <rect x="72" y="72" width="632" height="96" rx="8" fill="rgba(235,108,54,.08)" stroke="#eb6c36" stroke-width="1.2"/>
+    <text x="92" y="96" class="tag">PAGE_CONTENT</text>
+    <text x="92" y="124" class="name">Nội dung nguyên văn của Điều, Khoản hoặc Điểm</text>
+    <text x="92" y="148" class="sub">Dùng để truy xuất và trích dẫn</text>
+
+    <!-- metadata container -->
+    <rect x="72" y="200" width="632" height="264" rx="8" fill="rgba(45,49,66,.025)" stroke="#4f5d75"/>
+    <rect x="88" y="192" width="72" height="16" rx="4" fill="#f5f5f5"/>
+    <text x="124" y="204" class="tag" text-anchor="middle">METADATA</text>
+
+    <!-- Identity group -->
+    <rect x="96" y="232" width="176" height="200" rx="8" fill="#fff" stroke="#2d3142"/>
+    <text x="112" y="256" class="tag">ĐỊNH DANH</text>
+    <text x="112" y="288" class="field">document_id</text>
+    <text x="112" y="320" class="field">document_name</text>
+    <text x="112" y="352" class="field">document_number</text>
+    <text x="112" y="384" class="field">chunk_id</text>
+
+    <!-- Legal position group -->
+    <rect x="300" y="232" width="176" height="200" rx="8" fill="#fff" stroke="#2d3142"/>
+    <text x="316" y="256" class="tag">VỊ TRÍ PHÁP LÝ</text>
+    <text x="316" y="288" class="field">article</text>
+    <text x="316" y="320" class="field">clause</text>
+    <text x="316" y="352" class="field">point</text>
+
+    <!-- Source group -->
+    <rect x="504" y="232" width="176" height="200" rx="8" fill="#fff" stroke="#2d3142"/>
+    <text x="520" y="256" class="tag">NGUỒN</text>
+    <text x="520" y="288" class="field">source_file</text>
+    <text x="520" y="320" class="field">source_url</text>
+    <text x="520" y="352" class="field">source_kind</text>
+    <text x="520" y="384" class="field">content_sha256</text>
+
+    <!-- Uses -->
+    <rect x="804" y="224" width="120" height="64" rx="8" fill="rgba(45,49,66,.05)" stroke="#4f5d75"/>
+    <text x="864" y="252" class="use" text-anchor="middle">Lọc theo vị trí</text>
+    <text x="864" y="272" class="sub" text-anchor="middle">Điều/Khoản/Điểm</text>
+
+    <rect x="804" y="296" width="120" height="64" rx="8" fill="rgba(235,108,54,.08)" stroke="#eb6c36"/>
+    <text x="864" y="324" class="use" text-anchor="middle">Tạo trích dẫn</text>
+    <text x="864" y="344" class="sub" text-anchor="middle">từ đúng chunk</text>
+
+    <rect x="804" y="368" width="120" height="64" rx="8" fill="rgba(45,49,66,.03)" stroke="#2e5aa8"/>
+    <text x="864" y="396" class="use" text-anchor="middle">Mở nguồn</text>
+    <text x="864" y="416" class="sub" text-anchor="middle">tệp hoặc URL</text>
+
+    <line x1="40" y1="520" x2="920" y2="520" stroke="rgba(45,49,66,.10)" stroke-width="0.8"/>
+    <text x="40" y="552" class="legend">CHÚ GIẢ</text>
+    <rect x="132" y="536" width="20" height="16" rx="4" fill="rgba(235,108,54,.08)" stroke="#eb6c36"/>
+    <text x="164" y="548" class="legend">NỘI DUNG PHÁP LÝ</text>
+    <rect x="336" y="536" width="20" height="16" rx="4" fill="#fff" stroke="#2d3142"/>
+    <text x="368" y="548" class="legend">TRƯỜNG METADATA</text>
+    <line x1="548" y1="544" x2="592" y2="544" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+    <text x="604" y="548" class="legend">GIÁ TRỊ SỬ DỤNG</text>
+  </svg>
+</main>
+</body>
+</html>

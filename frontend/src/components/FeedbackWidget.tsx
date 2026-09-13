@@ -37,8 +37,6 @@ export default function FeedbackWidget({
         method: "POST",
         headers,
         body: JSON.stringify({
-          session_id: sessionId,
-          message_id: messageId,
           rating: nextValue === "LIKE" ? 1 : 0,
         }),
       });

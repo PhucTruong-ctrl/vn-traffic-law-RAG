@@ -4,9 +4,10 @@ import sys
 from dataclasses import dataclass
 from types import ModuleType
 
+import httpx
 import pytest
 
-from app.chats.service import add_feedback
+from app.chats.service import add_feedback, touch_session
 from app.legal import api as legal_api
 from app.rag.schemas import ChatResponse, Citation
 from app.rag.service import RAGService
@@ -222,6 +223,55 @@ def test_feedback_duplicate_is_rejected(supabase_client) -> None:
         "user_id": "eq.owner-1",
         "select": "*",
     }
+
+
+def test_feedback_schema_mismatch_is_actionable(supabase_client) -> None:
+    request = httpx.Request("POST", "https://example.test/rest/v1/feedback")
+    response = httpx.Response(
+        400,
+        request=request,
+        json={
+            "code": "23514",
+            "message": 'new row violates check constraint "feedback_rating_check"',
+        },
+    )
+    supabase_client.responses.extend(
+        [
+            [{"id": "message-1"}],
+            httpx.HTTPStatusError(
+                "constraint violation",
+                request=request,
+                response=response,
+            ),
+        ]
+    )
+
+    original_request = supabase_client.request
+
+    def request_with_error(method, table, **kwargs):
+        result = original_request(method, table, **kwargs)
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    supabase_client.request = request_with_error
+    with pytest.raises(Exception) as exc:
+        add_feedback(supabase_client, "owner-1", "session-1", "message-1", {"rating": 0})
+
+    assert getattr(exc.value, "status_code", None) == 503
+    assert "binary feedback rating migration" in getattr(exc.value, "detail", "")
+
+
+def test_touch_session_does_not_depend_on_empty_patch_representation(supabase_client) -> None:
+    supabase_client.responses.extend(
+        [[{"id": "session-1", "user_id": "owner-1", "deleted": False}], []]
+    )
+
+    session = touch_session(supabase_client, "owner-1", "session-1", "user-token")
+
+    assert session["id"] == "session-1"
+    assert supabase_client.calls[1]["method"] == "PATCH"
+    assert supabase_client.calls[1]["data"] == {"updated_at": "now()"}
 
 
 def test_authenticated_chat_creates_session_and_persists_snapshots(

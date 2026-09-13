@@ -68,6 +68,7 @@ fi
 # Pass the validated values explicitly so child processes cannot fall back to
 # unrelated environment files or inherited values.
 export NEXT_PUBLIC_API_URL NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY BACKEND_INTERNAL_URL
+export HF_HUB_DISABLE_PROGRESS_BARS="${HF_HUB_DISABLE_PROGRESS_BARS:-1}"
 for key in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY BACKEND_INTERNAL_URL; do
   if [[ -z "${!key:-}" ]]; then
     echo "Missing required environment variable: $key" >&2
@@ -101,8 +102,9 @@ cleanup() { trap - INT TERM EXIT; ((${#child_pids[@]})) && kill "${child_pids[@]
 trap cleanup INT TERM EXIT
 (
   cd "$ROOT/backend"
-  exec env PYTHONPATH=. \
+  exec env \
     SUPABASE_URL="$SUPABASE_URL" SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}" SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY:-}" \
+    HF_HUB_DISABLE_PROGRESS_BARS="$HF_HUB_DISABLE_PROGRESS_BARS" \
     QDRANT_PATH="$QDRANT_PATH" QDRANT_COLLECTION="${QDRANT_COLLECTION:-traffic_law}" \
     OPENROUTER_API_KEY="$OPENROUTER_API_KEY" OPENROUTER_BASE_URL="${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}" \
     GENERATION_MODEL="${GENERATION_MODEL:-deepseek/deepseek-v4-flash-0731}" EMBEDDING_MODEL="${EMBEDDING_MODEL:-openai/text-embedding-3-small}" \

@@ -30,7 +30,7 @@ export type ChatResponse = {
 export type ConversationTurn = {
   question: string;
   response?: ChatResponse;
-  status?: "pending" | "failed";
+  status?: "pending" | "failed" | "stopped";
 };
 export type ProgressEvent = {
   event?: string;
