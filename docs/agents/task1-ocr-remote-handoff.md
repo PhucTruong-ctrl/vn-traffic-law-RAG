@@ -1,26 +1,44 @@
 # Task 1 OCR remote-worker handoff
 
+## Status and ownership
+
+This is a historical one-time preprocessing handoff, not an active runtime service.
+The remote worker may produce immutable OCR/canonical-IR artifacts only. The primary
+FastAPI ingestion owner validates hashes and provenance, applies legal parsing/evidence
+gates, persists accepted application data through Supabase REST/Auth where applicable,
+then indexes approved legal provisions into Qdrant hybrid retrieval. The single
+OpenRouter generator is never part of OCR.
+
 ## Objective
 
-Run the one-time OCR preprocessing for the 13 Task 1 PDFs on the stronger RTX 3050 machine. Return immutable OCR/Canonical IR artifacts to the primary workstation. Do not change legal verification semantics.
+Run OCR preprocessing for the Task 1 corpus PDFs on the RTX 3050 machine and return
+immutable artifacts to the primary workstation. Do not change legal verification semantics.
 
 ## Input PDFs
 
-The primary workstation currently stores the 13 PDFs at:
+The primary workstation stores the input PDFs in the handoff staging directory:
 
 ```text
 /tmp/vnlrag-task1-pdfs/
 ```
 
-Transfer this directory to the remote machine. The exact PDF SHA-256 values are authoritative in the matching files under `data/manifests/`. Recompute and compare before processing. Never commit the PDFs or model weights.
+Transfer only the staged inputs. SHA-256 values in the matching `data/manifests/` files
+are authoritative; recompute and compare before processing. Never commit PDFs or model weights.
 
 ## Runtime constraints
 
-Remote machine: RTX 3050, stronger CPU than the primary workstation.
+Remote machine: RTX 3050, with a stronger CPU than the primary workstation.
 
-Use one worker process. Use GPU only after a smoke test confirms the selected Paddle runtime can initialize on the RTX 3050. Keep batch size small (1–2 pages). Do not run RAGFlow, LightRAG, RAG-Anything, or a local LLM as part of this job.
+Use one worker process. GPU use is optional and must follow a smoke test confirming that the
+selected OCR runtime initializes on the RTX 3050. Keep batch size small (1–2 pages).
+Do not run RAGFlow, LightRAG, RAG-Anything, agents, LangGraph, external retrieval, Redis,
+MinIO, a local LLM, or the application API as part of this job.
 
-Recommended isolated environment:
+This handoff records the historical PaddleOCR/VietOCR experiment. The active scan policy
+in `docs/parser_router.yaml` uses Tesseract Vietnamese. Any OCR artifact produced
+must identify its parser/version/device in provenance and still pass the same gates.
+
+Recommended isolated environment for the historical PaddleOCR/VietOCR worker:
 
 ```bash
 python3.11 -m venv /tmp/vnlrag-ocr-venv
@@ -29,9 +47,9 @@ python -m pip install --upgrade pip
 python -m pip install 'paddleocr==3.3.0' 'vietocr==0.3.13' PyMuPDF Pillow opencv-python
 ```
 
-Install a PaddlePaddle build compatible with the remote NVIDIA driver/CUDA runtime according to the official PaddleOCR installation instructions. Do not copy the primary workstation's CPU-only Torch/Paddle environment blindly.
-
-VietOCR model weights must be downloaded outside the repository. Record the URL, version, and SHA-256 in the output manifest. Do not disable TLS verification in the worker; if `vocr.vn` certificate validation fails, obtain the public artifact through a trusted verified source and record its checksum.
+Install a PaddlePaddle build compatible with the remote NVIDIA driver/CUDA runtime
+according to the official instructions. Keep model weights outside the repository, record
+their URL/version/SHA-256, and never disable TLS verification.
 
 ## Processing contract
 
@@ -40,12 +58,14 @@ For each PDF:
 1. Verify the source SHA-256 against its manifest.
 2. Detect whether a usable text layer exists.
 3. For scanned pages, render at 250–300 DPI.
-4. Run PaddleOCR detection/recognition using a Vietnamese-capable model.
-5. Use VietOCR only for low-confidence detected lines or explicitly selected difficult samples; do not run it blindly over every line.
+4. Run the configured Vietnamese-capable OCR engine.
+5. Use any secondary recognizer only for low-confidence lines or explicitly selected difficult
+   samples; do not run it blindly over every line.
 6. Preserve page order and reading order.
 7. Write one page result atomically before starting the next page.
 8. Resume from the checkpoint after interruption.
-9. Put low-confidence/empty/structurally ambiguous lines in `quarantine.json`; never silently discard them.
+9. Put low-confidence, empty, or structurally ambiguous lines in `quarantine.json`; never
+   silently discard them.
 10. Do not mark a PDF accepted solely because OCR completed.
 
 ## Required output layout
@@ -76,10 +96,9 @@ Each page JSON must contain:
 {
   "document_id": "nd-166-2024",
   "page_number": 1,
-  "source_pdf_sha256": "<64 hex characters>",
-  "parser": "PADDLEOCR_VIETOCR",
-  "parser_version": "paddleocr-3.3.0+vietocr-0.3.13",
-  "ocr_device": "gpu",
+  "parser": "OCR_ENGINE_AND_VERSION",
+  "parser_version": "<record exact package/model versions>",
+  "ocr_device": "cpu|gpu",
   "lines": [
     {
       "text": "...",
@@ -127,27 +146,30 @@ nohup env PYTHONPATH=backend \
 echo $! > /tmp/vnlrag-task1-ocr-result/worker.pid
 ```
 
-The command must not use an application-level document timeout. Checkpointing, not a timeout, controls recovery. Stop only on explicit operator intervention, fatal hardware/system errors, or completed processing.
+The command must not use an application-level document timeout. Checkpointing, not a timeout,
+controls recovery. Stop only on explicit operator intervention, fatal hardware/system errors,
+or completed processing.
 
 ## Completion gate
 
-The remote worker is complete only when:
-
-- all 13 `state.json` document entries are terminal;
+- all document state entries are terminal;
 - every PDF hash matches its manifest;
 - page coverage equals the PDF page count;
 - every page has a JSON artifact or an explicit quarantine record;
 - `canonical_ir.json` validates against `document-ir-v2`;
-- `samples.json` exists for all 13 PDFs;
+- `samples.json` exists for every input PDF;
 - `run.json` records package/model/device versions and output hash;
 - no secrets are present in logs or artifacts.
 
-Transfer the entire output directory back to the primary workstation. The primary agent will independently validate hashes, inspect samples, persist IR/provisions, run legal gates, embed, and index. Do not mark Task 1 Done from the remote OCR result alone.
+Transfer the entire output directory back to the primary workstation. The primary agent
+independently validates hashes, inspects samples, persists accepted IR/provisions, runs
+legal/evidence gates, embeds, and indexes into Qdrant. Do not mark Task 1 done from OCR
+completion alone.
 
 ## Do not do
 
 - Do not commit PDFs, model weights, `.env`, credentials, or caches.
 - Do not mark quarantined pages as valid.
-- Do not replace PostgreSQL/Qdrant with a new database.
+- Do not introduce another database or replace Supabase application persistence/Qdrant retrieval.
 - Do not change citation IDs or legal relation semantics.
 - Do not claim evaluation metrics without a real provider-backed run.

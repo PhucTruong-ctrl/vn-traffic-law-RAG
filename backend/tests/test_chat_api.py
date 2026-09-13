@@ -1,316 +1,513 @@
-"""Behavior tests for the verified chat API."""
-
 from __future__ import annotations
 
-import uuid
-from datetime import date
-from types import SimpleNamespace
+import sys
+from dataclasses import dataclass
+from types import ModuleType
 
+import httpx
 import pytest
-from fastapi.testclient import TestClient
 
-from app.api import chat as chat_api
-from app.api import feedback as feedback_api
-from app.main import app
-from app.observability.query_trace import QueryTrace as ObservabilityQueryTrace
-from app.persistence.models import QueryFeedback, QueryTrace
-from app.workflow.graph import GraphServices
+from app.chats.service import add_feedback, touch_session
+from app.legal import api as legal_api
+from app.rag.schemas import ChatResponse, Citation
+from app.rag.service import RAGService
 
 
-def test_chat_accepts_only_question() -> None:
-    client = TestClient(app)
-    assert client.post("/api/v1/chat", json={"question": "   "}).status_code == 422
-    assert client.post("/api/v1/chat", json={"question": "x", "extra": 1}).status_code == 422
-    assert client.post("/api/v1/chat", json={"question": 1}).status_code == 422
-    assert client.post("/api/v1/chat", json={"question": None}).status_code == 422
+def test_retriever_uses_remote_qdrant_settings(monkeypatch) -> None:
+    from app.rag import retrieval
+
+    class Settings:
+        url = "https://qdrant.example"
+        timeout = 17
+        collection = "legal_hybrid"
+        path = "/tmp/unused"
+
+    class EmbeddingSettings:
+        model = "embedding-model"
+        openrouter_api_key = "key"
+        openrouter_base_url = "https://openrouter.example"
+
+    class Client:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    class Store:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    class RetrievalMode:
+        HYBRID = "hybrid"
+
+    class Embeddings:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    class Sparse:
+        def __init__(self, name):
+            self.name = name
+
+    openai_module = ModuleType("langchain_openai")
+    openai_module.OpenAIEmbeddings = Embeddings
+    qdrant_module = ModuleType("langchain_qdrant")
+    qdrant_module.FastEmbedSparse = Sparse
+    qdrant_module.QdrantVectorStore = Store
+    qdrant_module.RetrievalMode = RetrievalMode
+
+    monkeypatch.setattr(retrieval, "get_qdrant_settings", lambda: Settings())
+    monkeypatch.setattr(retrieval, "get_embedding_settings", lambda: EmbeddingSettings())
+    monkeypatch.setattr(retrieval, "QdrantClient", Client)
+    monkeypatch.setitem(sys.modules, "langchain_openai", openai_module)
+    monkeypatch.setitem(sys.modules, "langchain_qdrant", qdrant_module)
+
+    store = retrieval.Retriever()._store_for_query()
+
+    assert store.kwargs["client"].kwargs == {
+        "url": "https://qdrant.example",
+        "timeout": 17,
+    }
+    assert store.kwargs["collection_name"] == "legal_hybrid"
+    assert store.kwargs["retrieval_mode"] == "hybrid"
 
 
-def test_chat_events_returns_sse_result(monkeypatch: pytest.MonkeyPatch) -> None:
-    class Graph:
-        async def astream(self, state: dict[str, object], stream_mode: str):
-            assert state["question"] == "hello"
-            assert stream_mode == "updates"
-            yield {
-                "final_response": {"answer_summary": "answer", "claims": []},
-                "verification_result": {"status": "INVALID", "reason_code": "NO_SUPPORT"},
-            }
+def test_chitchat_does_not_call_retriever() -> None:
+    class NeverRetriever:
+        def retrieve(self, *args, **kwargs):
+            raise AssertionError("chitchat must not retrieve")
 
-    monkeypatch.setattr(chat_api, "build_query_graph", lambda _services: Graph())
-    app.dependency_overrides[chat_api._optional_db] = lambda: None
-    try:
-        response = TestClient(app).get("/api/v1/chat/events?question=hello")
-    finally:
-        app.dependency_overrides.pop(chat_api._optional_db, None)
-
-    assert response.status_code == 200
-    assert response.headers["content-type"].startswith("text/event-stream")
-    assert "event: result" in response.text
-    assert '"status": "ABSTAINED"' in response.text
+    result = RAGService(NeverRetriever()).answer("hi")
+    assert result["answer"]
+    assert result["status"] == "GREETING"
 
 
-@pytest.mark.parametrize(
-    "verification, expected",
-    [
-        ({"status": "VALID"}, "VERIFIED"),
-        ({"status": "INVALID", "reason_code": "NO_SUPPORT"}, "ABSTAINED"),
-    ],
-)
-def test_chat_disclaimer_trace_citations_and_abstention(
-    monkeypatch: pytest.MonkeyPatch, verification: dict[str, str], expected: str
-) -> None:
-    context = SimpleNamespace(
-        provision_id="p-1",
-        provision_version=3,
-        document_version_id="dv-1",
-        effective_from=date(2024, 1, 1),
-        effective_to=date(2025, 1, 1),
-        document_id="d-1",
-        document_number="12/2024",
-        article="Điều 1",
-        clause="Khoản 2",
-        point="a",
-        parent_context="Khoản 2. Phạt tiền từ 1 đến 2 triệu đồng.",
-        source_url="https://example.test",
-        source_text="a) Cited point text.",
-        text="a) Cited point text.",
-        page_number=1,
-        bbox={"left": 10, "top": 20, "right": 100, "bottom": 40},
-    )
+def test_exact_reference_mismatch_abstains() -> None:
+    from langchain_core.documents import Document
 
-    class Graph:
-        async def ainvoke(self, state: dict[str, object]) -> dict[str, object]:
-            assert state["question"] == "hello"
-            assert state["query_date"] == date.today()
-            assert "vehicle_type" not in state
-            return {
-                "verification_result": verification,
-                "final_response": {
-                    "answer_summary": "answer",
-                    "claims": [{"provision_ids": ["p-1"]}],
-                },
-                "expanded_context": [context],
-            }
-
-    monkeypatch.setattr(chat_api, "build_query_graph", lambda _services: Graph())
-
-    app.dependency_overrides[chat_api._optional_db] = lambda: None
-    try:
-        response = TestClient(app).post("/api/v1/chat", json={"question": "hello"})
-    finally:
-        app.dependency_overrides.pop(chat_api._optional_db, None)
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["status"] == expected
-    assert payload["disclaimer"] == chat_api.DISCLAIMER
-    assert len(payload["trace_id"]) == 32
-    if expected == "ABSTAINED":
-        assert payload["citations"] == []
-    else:
-        assert payload["citations"] == [
-            {
-                "provision_id": "p-1",
-                "document_id": "d-1",
-                "document_number": "12/2024",
-                "article": "Điều 1",
-                "clause": "Khoản 2",
-                "point": "a",
-                "parent_context": "Khoản 2. Phạt tiền từ 1 đến 2 triệu đồng.",
-                "source_url": "https://example.test",
-                "source_text": "a) Cited point text.",
-                "page_number": 1,
-                "legal_context": (
-                    "Khoản 2. Phạt tiền từ 1 đến 2 triệu đồng.\n\na) Cited point text."
-                ),
-                "bbox": {"left": 10.0, "top": 20.0, "right": 100.0, "bottom": 40.0},
-                "provision_version": 3,
-                "document_version_id": "dv-1",
-                "effective_from": "2024-01-01",
-                "effective_to": "2025-01-01",
-            }
-        ]
-        assert payload["answer"] == "answer"
-
-
-def test_chat_uses_injected_production_composition(monkeypatch: pytest.MonkeyPatch) -> None:
-    class Analyzer:
-        def analyze(self, question, **kwargs):
-            return SimpleNamespace(
-                intent="CURRENT",
-                effective_date=date(2024, 1, 2),
-                normalized_query=question,
-                missing_query_information=[],
-                vehicle_type=None,
+    result = RAGService().answer(
+        "Điều 6 Nghị định 100/2019 quy định gì?",
+        chunks=[
+            Document(
+                page_content="Nội dung điều 6.",
+                metadata={"article": "Điều 7", "document_number": "100/2019"},
             )
-
-    class Temporal:
-        def resolve(self, plan, **kwargs):
-            return date(2024, 1, 2)
-
-    class Expander:
-        def expand(self, plan, **kwargs):
-            return []
-
-    class Retriever:
-        def retrieve(self, query, **kwargs):
-            return []
-
-    class Fusion:
-        def fuse(self, candidates):
-            return candidates
-
-    class Reranker:
-        def rerank(self, question, candidates):
-            return candidates
-
-    class Context:
-        def build(self, candidates):
-            return "evidence"
-
-    class Generator:
-        def generate(self, question, context):
-            return {"should_abstain": True, "claims": []}
-
-    services = GraphServices(
-        analyzer=Analyzer(),
-        temporal=Temporal(),
-        expander=Expander(),
-        retriever=Retriever(),
-        dense_retriever=Retriever(),
-        fusion=Fusion(),
-        reranker=Reranker(),
-        context_expander=Expander(),
-        context_builder=Context(),
-        generator=Generator(),
+        ],
     )
-    monkeypatch.setattr(chat_api, "production_services", lambda session: services)
-    from app.api.db import get_db
 
-    def override_db():
-        yield object()
-
-    app.dependency_overrides[get_db] = override_db
-    try:
-        response = TestClient(app).post("/api/v1/chat", json={"question": "hello"})
-    finally:
-        app.dependency_overrides.pop(get_db, None)
-    assert response.status_code == 200
-    assert response.json()["status"] == "ABSTAINED"
+    assert result["status"] == "insufficient_evidence"
+    assert result["reason_code"] == "reference_not_found"
 
 
-class ChatFeedbackSession:
-    """Fake request session shared by chat and feedback calls."""
+def test_exact_reference_match_allows_answer(monkeypatch) -> None:
+    from langchain_core.documents import Document
 
-    def __init__(self) -> None:
-        self.traces: dict[str, object] = {}
-        self.added: list[object] = []
-        self.persistence_traces: dict[str, object] = {}
-        self.committed = False
-        self._filtered_trace_id: str | None = None
+    monkeypatch.setattr("app.rag.service.generate_answer", lambda *_args, **_kwargs: "Đáp án")
+    result = RAGService().answer(
+        "Điều 6 Nghị định 168/2024 quy định gì?",
+        chunks=[
+            Document(
+                page_content=(
+                    "Nghị định 168/2024/NĐ-CP, Điều 6 quy định nội dung áp dụng "
+                    "cho hành vi vi phạm giao thông."
+                ),
+                metadata={
+                    "chunk_id": "nd-168-2024:article-6",
+                    "document_id": "nd-168-2024",
+                    "article": "6",
+                    "document_number": "168/2024/NĐ-CP",
+                },
+            )
+        ],
+    )
 
-    def add(self, row: object) -> None:
-        self.added.append(row)
-        if isinstance(row, (ObservabilityQueryTrace, QueryTrace)):
-            self.traces[row.trace_id] = row
-        elif isinstance(row, QueryFeedback):
-            row.id = uuid.uuid4()
-
-    def commit(self) -> None:
-        self.committed = True
-
-    def query(self, model: object) -> ChatFeedbackSession:
-        assert model is QueryTrace
-        return self
-
-    def filter(self, expression: object) -> ChatFeedbackSession:
-        self._filtered_trace_id = expression.right.value
-        return self
-
-    def first(self) -> object | None:
-        return self.traces.get(self._filtered_trace_id)
-
-    def refresh(self, row: object) -> None:
-        assert getattr(row, "id", None) is not None
+    assert result["status"] == "complete"
 
 
-def test_chat_never_returns_verified_without_serialized_citations(
-    monkeypatch: pytest.MonkeyPatch,
+def test_release_chat_contract_rejects_wrong_reference_or_citation() -> None:
+    from scripts.verify_release_authenticated import require_chat_contract
+
+    valid = {
+        "status": "complete",
+        "answer": "Theo quy định.",
+        "citations": [
+            {
+                "source_id": "chunk-1",
+                "document_id": "nd-168-2024",
+                "article": "Điều 6",
+                "excerpt": "Nội dung.",
+            }
+        ],
+    }
+    require_chat_contract(valid, "valid", required_reference="168")
+    with pytest.raises(RuntimeError, match="required reference"):
+        require_chat_contract(valid, "wrong-reference", required_reference="100")
+    invalid = {**valid, "citations": [{**valid["citations"][0], "excerpt": ""}]}
+    with pytest.raises(RuntimeError, match="excerpt"):
+        require_chat_contract(invalid, "missing-excerpt")
+
+
+def test_vehicle_penalty_query_retrieves_all_categories(monkeypatch) -> None:
+    from langchain_core.documents import Document
+
+    monkeypatch.setattr(
+        "app.rag.service.generate_answer",
+        lambda *_args, **_kwargs: "Mức phạt được xác định theo từng loại phương tiện.",
+    )
+
+    class RecordingRetriever:
+        def __init__(self) -> None:
+            self.queries: list[str] = []
+
+        def retrieve(self, query: str, **_: object) -> list[Document]:
+            self.queries.append(query)
+            return [
+                Document(
+                    page_content=(
+                        "Hành vi không chấp hành hiệu lệnh của đèn tín hiệu giao "
+                        "thông (vượt đèn đỏ) bị xử phạt theo từng loại phương tiện: "
+                        "ô tô, xe mô tô, xe gắn máy và xe thô sơ."
+                    ),
+                    metadata={
+                        "chunk_id": "chunk-vehicle",
+                        "document_id": "nd-168-2024",
+                        "source_file": "traffic-law.md",
+                        "document_name": "Nghị định 168/2024/NĐ-CP",
+                        "document_number": "168/2024/NĐ-CP",
+                        "article": "6",
+                    },
+                )
+            ]
+
+    retriever = RecordingRetriever()
+    result = RAGService(retriever).answer("Vượt đèn đỏ thì mức phạt bao nhiêu?")
+
+    assert result["status"] == "complete"
+    assert result["citations"]
+    vehicle_queries = [query for query in retriever.queries if "đối với" in query]
+    assert len(vehicle_queries) == 3
+    for category in (
+        "đối với ô tô",
+        "đối với xe mô tô, xe gắn máy",
+        "đối với xe thô sơ",
+    ):
+        matching = [query for query in vehicle_queries if query.endswith(category)]
+        assert len(matching) == 1
+        assert "vượt đèn đỏ" in matching[0].lower()
+
+
+def test_phone_use_while_driving_reaches_retrieval_and_returns_evidence(monkeypatch) -> None:
+    from langchain_core.documents import Document
+
+    monkeypatch.setattr(
+        "app.rag.service.generate_answer",
+        lambda *_args, **_kwargs: "Không được dùng tay cầm điện thoại khi xe đang di chuyển.",
+    )
+
+    class PhoneRetriever:
+        def __init__(self) -> None:
+            self.queries: list[str] = []
+
+        def retrieve(self, query: str, **_: object) -> list[Document]:
+            self.queries.append(query)
+            return [
+                Document(
+                    page_content=(
+                        "Dùng tay cầm và sử dụng điện thoại khi điều khiển "
+                        "phương tiện đang di chuyển trên đường bộ."
+                    ),
+                    metadata={
+                        "chunk_id": "nd-168-2024:phone",
+                        "document_id": "nd-168-2024",
+                        "document_name": "Nghị định 168/2024/NĐ-CP",
+                        "article": "6",
+                        "clause": "5",
+                        "point": "h",
+                    },
+                )
+            ]
+
+    retriever = PhoneRetriever()
+    result = RAGService(retriever).answer("Có được dùng điện thoại khi đang lái xe không?")
+
+    assert result["status"] == "complete"
+    assert result["citations"][0]["source_id"] == "nd-168-2024:phone"
+    assert retriever.queries == [
+        "Có được dùng điện thoại khi đang lái xe không đối với ô tô",
+        "Có được dùng điện thoại khi đang lái xe không đối với xe mô tô, xe gắn máy",
+        "Có được dùng điện thoại khi đang lái xe không đối với xe thô sơ",
+    ]
+
+
+@dataclass
+class Chunk:
+    text: str
+    metadata: dict
+
+
+def test_feedback_checks_message_ownership_before_insert(supabase_client) -> None:
+    supabase_client.responses.append([])
+    with pytest.raises(Exception) as exc:
+        add_feedback(supabase_client, "owner-1", "session-1", "message-1", {"rating": 1})
+    assert getattr(exc.value, "status_code", None) == 404
+    assert len(supabase_client.calls) == 1
+    assert supabase_client.calls[0]["params"] == {
+        "id": "eq.message-1",
+        "session_id": "eq.session-1",
+        "user_id": "eq.owner-1",
+        "select": "*",
+    }
+
+
+def test_feedback_duplicate_is_rejected(supabase_client) -> None:
+    supabase_client.responses.extend(
+        [[{"id": "message-1"}], [{"id": "feedback-1"}], [{"id": "message-1"}], []]
+    )
+    assert add_feedback(supabase_client, "owner-1", "session-1", "message-1", {"rating": 1}) == {
+        "id": "feedback-1"
+    }
+
+    with pytest.raises(Exception) as exc:
+        add_feedback(supabase_client, "owner-1", "session-1", "message-1", {"rating": 0})
+
+    assert getattr(exc.value, "status_code", None) == 409
+    assert supabase_client.calls[2]["params"] == {
+        "id": "eq.message-1",
+        "session_id": "eq.session-1",
+        "user_id": "eq.owner-1",
+        "select": "*",
+    }
+
+
+def test_feedback_schema_mismatch_is_actionable(supabase_client) -> None:
+    request = httpx.Request("POST", "https://example.test/rest/v1/feedback")
+    response = httpx.Response(
+        400,
+        request=request,
+        json={
+            "code": "23514",
+            "message": 'new row violates check constraint "feedback_rating_check"',
+        },
+    )
+    supabase_client.responses.extend(
+        [
+            [{"id": "message-1"}],
+            httpx.HTTPStatusError(
+                "constraint violation",
+                request=request,
+                response=response,
+            ),
+        ]
+    )
+
+    original_request = supabase_client.request
+
+    def request_with_error(method, table, **kwargs):
+        result = original_request(method, table, **kwargs)
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    supabase_client.request = request_with_error
+    with pytest.raises(Exception) as exc:
+        add_feedback(supabase_client, "owner-1", "session-1", "message-1", {"rating": 0})
+
+    assert getattr(exc.value, "status_code", None) == 503
+    assert "binary feedback rating migration" in getattr(exc.value, "detail", "")
+
+
+def test_touch_session_does_not_depend_on_empty_patch_representation(supabase_client) -> None:
+    supabase_client.responses.extend(
+        [[{"id": "session-1", "user_id": "owner-1", "deleted": False}], []]
+    )
+
+    session = touch_session(supabase_client, "owner-1", "session-1", "user-token")
+
+    assert session["id"] == "session-1"
+    assert supabase_client.calls[1]["method"] == "PATCH"
+    assert supabase_client.calls[1]["data"] == {"updated_at": "now()"}
+
+
+def test_authenticated_chat_creates_session_and_persists_snapshots(
+    client, supabase_client, monkeypatch
 ) -> None:
-    class Graph:
-        async def ainvoke(self, state: dict[str, object]) -> dict[str, object]:
-            return {
-                "verification_result": {"status": "VALID"},
-                "final_response": {
-                    "answer_summary": "answer",
-                    "claims": [{"provision_ids": ["missing"]}],
-                },
-                "expanded_context": [],
-            }
-
-    monkeypatch.setattr(chat_api, "build_query_graph", lambda _services: Graph())
-    app.dependency_overrides[chat_api._optional_db] = lambda: None
-    try:
-        payload = TestClient(app).post("/api/v1/chat", json={"question": "hello"}).json()
-    finally:
-        app.dependency_overrides.pop(chat_api._optional_db, None)
-    assert payload["status"] != "VERIFIED"
-    assert payload["citations"] == []
-
-
-def test_chat_trace_is_available_to_feedback(monkeypatch: pytest.MonkeyPatch) -> None:
-    class Graph:
-        async def ainvoke(self, state: dict[str, object]) -> dict[str, object]:
-            return {"verification_result": {"status": "ABSTAIN"}, "final_response": {}}
-
-    session = ChatFeedbackSession()
-    monkeypatch.setattr(chat_api, "build_query_graph", lambda _services: Graph())
-    app.dependency_overrides[chat_api._optional_db] = lambda: session
-    app.dependency_overrides[feedback_api.get_db] = lambda: session
-    try:
-        client = TestClient(app)
-        chat_response = client.post("/api/v1/chat", json={"question": "hello"})
-        assert chat_response.status_code == 200
-        trace_id = chat_response.json()["trace_id"]
-        assert trace_id in session.traces
-
-        feedback_response = client.post(
-            "/api/v1/feedback",
-            json={"trace_id": trace_id, "correctness": "correct"},
-        )
-    finally:
-        app.dependency_overrides.pop(chat_api._optional_db, None)
-        app.dependency_overrides.pop(feedback_api.get_db, None)
-    assert feedback_response.status_code == 201
-    assert feedback_response.json()["trace_id"] == trace_id
-    assert session.committed
+    supabase_client.auth_response = {"id": "user-1", "email": "person@example.com"}
+    citation = {
+        "source_id": "chunk-1",
+        "document_id": "nd-100-2019",
+        "document_title": "Nghị định 100",
+        "source_file": "nd100.md",
+        "excerpt": "Tốc độ tối đa...",
+    }
+    rag_result = {
+        "answer": "Được đi tối đa 50 km/h.",
+        "citations": [citation],
+        "status": "complete",
+    }
+    monkeypatch.setattr("app.rag.api.rag_service.answer", lambda question, **kwargs: rag_result)
+    supabase_client.responses.extend(
+        [
+            [{"id": "user-1", "email": "person@example.com"}],
+            [{"id": "session-1", "user_id": "user-1", "title": "New chat"}],
+            [{"id": "user-message", "role": "user", "content": "Tốc độ?"}],
+            [{"id": "assistant-message", "role": "assistant", "content": rag_result["answer"]}],
+            [{"id": "session-1", "user_id": "user-1", "deleted": False}],
+        ]
+    )
+    response = client.post(
+        "/api/v1/chat",
+        json={"question": "Tốc độ?", "title": "New chat"},
+        headers={"Authorization": "Bearer user-token"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    inserts = [call for call in supabase_client.calls if call["method"] == "POST"]
+    assistant_insert = next(
+        call["data"] for call in inserts if call["data"].get("role") == "assistant"
+    )
+    assert assistant_insert["response"]["answer"] == rag_result["answer"]
+    assert assistant_insert["citations"] == [citation]
+    assert body["session_id"] == "session-1"
+    assert body["answer"] == rag_result["answer"]
+    assert body["citations"] == [citation]
 
 
-def test_chat_rejects_duplicate_claim_citations(monkeypatch: pytest.MonkeyPatch) -> None:
-    record = SimpleNamespace(
-        provision_id="p-1",
-        document_id="d",
-        document_number="n",
-        article="1",
-        source_text="x",
-        page_number=1,
-        review_status="ACCEPTED",
+def test_authenticated_chat_normalizes_legacy_rag_result_for_frontend(
+    client, supabase_client, monkeypatch
+) -> None:
+    supabase_client.auth_response = {"id": "user-1"}
+    citation = {
+        "source_id": "chunk-1",
+        "document_id": "nd-168-2024",
+        "document_title": "Nghị định 168/2024/NĐ-CP",
+        "source_file": "nd168.md",
+        "excerpt": "Dùng tay cầm và sử dụng điện thoại...",
+    }
+    rag_result = {
+        "answer": "Không được dùng điện thoại khi điều khiển xe.",
+        "citations": [citation],
+        "status": "complete",
+    }
+    monkeypatch.setattr("app.rag.api.rag_service.answer", lambda question, **kwargs: rag_result)
+    supabase_client.responses.extend(
+        [
+            [{"id": "user-1"}],
+            [{"id": "session-1", "user_id": "user-1"}],
+            [{"id": "user-message"}],
+            [{"id": "assistant-message"}],
+            [{"id": "session-1", "user_id": "user-1", "deleted": False}],
+        ]
+    )
+    response = client.post(
+        "/api/v1/chat",
+        json={"question": "Có được dùng điện thoại khi đang lái xe không?"},
+        headers={"Authorization": "Bearer user-token"},
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "VERIFIED"
+    assert response.json()["claims"] == [
+        {"claim": citation["excerpt"], "provision_ids": [citation["source_id"]]}
+    ]
+
+
+def test_cross_owner_session_is_not_visible(client, supabase_client) -> None:
+    supabase_client.auth_response = {"id": "user-2"}
+    supabase_client.responses.extend([[{"id": "user-2"}], []])
+    response = client.get(
+        "/api/v1/chats/session-1",
+        headers={"Authorization": "Bearer user-token"},
+    )
+    assert response.status_code == 404
+
+
+def test_chat_response_preserves_citation_metadata_shape() -> None:
+    citation = Citation(
+        source_id="chunk-1",
+        document_id="nd-100-2019",
+        document_number="100/2019/NĐ-CP",
+        document_title="Nghị định 100/2019/NĐ-CP",
+        article="Điều 6",
+        clause="Khoản 1",
+        point="a",
+        page=4,
+        source_file="data/sources/nd100.md",
+        excerpt="Tốc độ tối đa...",
+        pdf_url="https://example.test/nd100.pdf",
+    )
+    response = ChatResponse(answer="Theo quy định.", citations=[citation])
+    assert response.model_dump()["citations"] == [citation.model_dump()]
+
+
+def test_unauthenticated_chat_is_rejected(client) -> None:
+    response = client.post("/api/v1/chat", json={"question": "Tốc độ tối đa là bao nhiêu?"})
+    assert response.status_code == 401
+
+
+def test_rename_requires_non_blank_title(client) -> None:
+    response = client.patch(
+        "/api/v1/chats/session-1", json={"title": "   "}, headers={"Authorization": "Bearer token"}
+    )
+    assert response.status_code == 401
+
+
+def test_authenticated_chat_listing_forwards_raw_bearer_token(client, supabase_client) -> None:
+    supabase_client.auth_response = {"id": "user-1"}
+    supabase_client.responses.append([])
+
+    response = client.get(
+        "/api/v1/chats",
+        headers={"Authorization": "Bearer user-token"},
     )
 
-    class Graph:
-        async def ainvoke(self, state):
-            return {
-                "verification_result": {"status": "VALID"},
-                "final_response": {
-                    "answer_summary": "x",
-                    "claims": [{"provision_ids": ["p-1", "p-1"]}],
-                },
-                "expanded_context": [record],
-            }
+    assert response.status_code == 200
+    assert supabase_client.calls[-1]["headers"] == {"Authorization": "Bearer user-token"}
 
-    monkeypatch.setattr(chat_api, "build_query_graph", lambda _: Graph())
-    app.dependency_overrides[chat_api._optional_db] = lambda: None
-    try:
-        payload = TestClient(app).post("/api/v1/chat", json={"question": "hello"}).json()
-    finally:
-        app.dependency_overrides.pop(chat_api._optional_db, None)
-    assert payload["status"] == "ABSTAINED"
-    assert payload["citations"] == []
+
+def test_invalid_bearer_token_for_chat_listing_is_rejected(client, supabase_client) -> None:
+    supabase_client.auth_response = {}
+
+    response = client.get(
+        "/api/v1/chats",
+        headers={"Authorization": "Bearer stale-or-invalid-token"},
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Invalid or expired token"}
+
+
+def test_legal_explorer_route_returns_document_provisions(client, monkeypatch) -> None:
+    monkeypatch.setattr(
+        legal_api,
+        "chunks",
+        lambda: [
+            Chunk(
+                text="Người lái xe phải chấp hành hiệu lệnh.",
+                metadata={
+                    "chunk_id": "c-1",
+                    "document_id": "nd100",
+                    "document_name": "Nghị định 100",
+                    "article": "Điều 6",
+                    "source_file": "nd100.md",
+                    "source_type": "markdown",
+                },
+            )
+        ],
+    )
+    response = client.get("/api/v1/legal-documents/nd100/provisions?article=Điều%206")
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "chunk_id": "c-1",
+            "document_id": "nd100",
+            "document_name": "Nghị định 100",
+            "article": "Điều 6",
+            "clause": None,
+            "point": None,
+            "text": "Người lái xe phải chấp hành hiệu lệnh.",
+            "source": {
+                "source_file": "nd100.md",
+                "source_url": None,
+                "source_kind": "markdown",
+                "source_type": "markdown",
+                "pdf_url": None,
+                "retrieved_at": None,
+            },
+        }
+    ]

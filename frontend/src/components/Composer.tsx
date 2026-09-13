@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
-import { SendIcon } from "./Icons";
-
+import { Square, Send } from "lucide-react";
 type ComposerProps = {
   id: string;
   value: string;
@@ -23,31 +22,35 @@ export default function Composer({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [resizing, setResizing] = useState(false);
   const resizePulseRef = useRef<number | null>(null);
-  const resizeTargetRef = useRef<number | null>(null);
-  const resizeTextarea = (textarea: HTMLTextAreaElement) => {
-    textarea.style.transition = "none";
-    textarea.style.height = "0px";
-    const lineHeight = Number.parseFloat(getComputedStyle(textarea).lineHeight) || 23;
-    const maxHeight = hero ? Number.POSITIVE_INFINITY : lineHeight * 8 + 24;
-    const nextHeight = Math.max(lineHeight + 24, Math.min(textarea.scrollHeight, maxHeight));
-    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
-    textarea.style.height = `${nextHeight}px`;
-    if (hero || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    setResizing(false);
-    void textarea.offsetHeight;
-    setResizing(true);
-    if (resizePulseRef.current !== null) window.clearTimeout(resizePulseRef.current);
-    resizePulseRef.current = window.setTimeout(() => {
+  const resizeTextarea = useCallback(
+    (textarea: HTMLTextAreaElement) => {
+      textarea.style.transition = "none";
+      textarea.style.height = "0px";
+      const lineHeight = Number.parseFloat(getComputedStyle(textarea).lineHeight) || 23;
+      const verticalPadding = hero ? 72 : 28;
+      const minHeight = hero ? 132 : lineHeight + verticalPadding;
+      const maxHeight = hero ? 220 : lineHeight * 8 + verticalPadding;
+      const nextHeight = Math.max(minHeight, Math.min(textarea.scrollHeight, maxHeight));
+      textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+      textarea.style.height = `${nextHeight}px`;
+      if (hero || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
       setResizing(false);
-      resizePulseRef.current = null;
-    }, 220);
-  };
+      void textarea.offsetHeight;
+      setResizing(true);
+      if (resizePulseRef.current !== null) window.clearTimeout(resizePulseRef.current);
+      resizePulseRef.current = window.setTimeout(() => {
+        setResizing(false);
+        resizePulseRef.current = null;
+      }, 220);
+    },
+    [hero],
+  );
   useEffect(() => {
     const timer = window.setTimeout(() => {
       if (textareaRef.current) resizeTextarea(textareaRef.current);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [hero]);
+  }, [resizeTextarea]);
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
@@ -65,7 +68,6 @@ export default function Composer({
       <textarea
         ref={textareaRef}
         id={id}
-        required
         value={value}
         onChange={(event) => {
           onChange(event.target.value);
@@ -77,15 +79,18 @@ export default function Composer({
         placeholder={hero ? "Bạn muốn hỏi điều gì?" : "Hỏi tiếp..."}
         rows={hero ? 2 : 1}
       />
+      <div className="composer-context">
+        <span>Nguồn: Văn bản pháp luật đã lập chỉ mục</span>
+        {hero && <span>Enter ↵ gửi · Shift+Enter xuống dòng</span>}
+      </div>
       <div className="composer-actions">
-        <span className="scope-chip">Luật giao thông</span>
         {loading ? (
-          <button type="button" aria-label="Dừng tra cứu" onClick={onStop}>
-            Dừng
+          <button type="button" aria-label="Dừng tra cứu" title="Dừng tra cứu" onClick={onStop}>
+            <Square size={17} fill="currentColor" aria-hidden="true" />
           </button>
         ) : (
-          <button type="submit" aria-label="Gửi" disabled={!value.trim()}>
-            <SendIcon />
+          <button type="submit" aria-label="Gửi" title="Gửi" disabled={!value.trim()}>
+            <Send size={17} aria-hidden="true" />
           </button>
         )}
       </div>

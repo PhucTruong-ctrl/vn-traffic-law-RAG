@@ -1,7 +1,9 @@
-> **MVP rebaseline — 06/09/2026**: The defense release scope is reduced to a fixed 5–10-document reviewed corpus, 30–50 evaluation questions, current and as-of-date retrieval, structure-aware citations, evidence gating, abstention, and a working chat UI. RAGFlow comparison, feedback, large-scale background ingestion, advanced observability/security, and production backup automation are deferred.
+> **MVP rebaseline, 12/09/2026**: The active implementation is a local, single-user rescue MVP: FastAPI + Qdrant hybrid retrieval, OpenRouter generation/embeddings, a Next.js chat UI, deterministic citation/evidence checks, and fail-closed provider errors. The reviewed local corpus and frozen evaluation artefacts remain in scope.
 >
-> **Model policy**: Gemini 3.7 Flash is the primary structured-answer generator. Gemini 3.5 Flash Lite is the independent semantic judge. OpenAI/GPT-5.4 is not used. Earlier scope/model statements in this document are superseded by this rebaseline.
-# 04. Nghiên Cứu Công Nghệ và LLM (Tech Stack and LLM Research)
+> **Historical research record**: The earlier v2 design below records thesis options and planned experiments. Gemini, OpenAI, LangGraph, Langfuse, RAGFlow, Dramatiq, Redis, MinIO, Ragas, MinerU, and Jina components are not active MVP requirements unless explicitly marked as historical, challenger, or baseline. Do not present their planned capabilities or versions as implemented behavior.
+>
+> **Model policy**: The active runtime uses the configured OpenRouter model IDs (`GENERATION_MODEL` and `EMBEDDING_MODEL`); exact model selection is configuration/evaluation data, not a hard-coded Gemini/OpenAI requirement.
+# 04. Nghiên cứu công nghệ và LLM (Tech Stack and LLM Research)
 
 > **Giai đoạn SDLC**: 3 - Thiết kế  
 > **Ngày tạo**: 16/06/2026  
@@ -16,7 +18,7 @@
 
 ---
 
-Tài liệu này là bản nghiên cứu và quyết định công nghệ của VNLRAG v2. Mọi quyết định phải nhất quán với [00-scope-and-decisions.md](00-scope-and-decisions.md) (mục 7, 11, 14) và thiết kế chi tiết [03-thiet-ke-he-thong.md](03-thiet-ke-he-thong.md) (ADR-001 đến ADR-020). Tài liệu ghi lại phiên bản, khả năng, tài nguyên, chi phí và lý do chọn/bác bỏ từng công nghệ, kèm trạng thái xác minh và URL chính thức.
+Tài liệu này ghi lại nghiên cứu và các quyết định công nghệ của VNLRAG v2. Mọi quyết định phải nhất quán với [00-scope-and-decisions.md](00-scope-and-decisions.md) (mục 7, 11, 14) và thiết kế chi tiết [03-thiet-ke-he-thong.md](03-thiet-ke-he-thong.md) (ADR-001 đến ADR-020). Tài liệu nêu phiên bản, khả năng, tài nguyên, chi phí và lý do chọn hoặc loại bỏ từng công nghệ, cùng trạng thái xác minh và URL chính thức.
 
 Quy ước nhãn quyết định dùng trong toàn tài liệu:
 
@@ -31,20 +33,18 @@ Mọi giá tiền trong tài liệu là đơn giá tham chiếu tại thời đi
 
 ---
 
-## 4.1. Nguyên tắc lựa chọn công nghệ
+## 4.1. Nguyên tắc lựa chọn công nghệ (active MVP)
 
-Tech stack v2 phải đáp ứng đồng thời các yêu cầu sau:
+Active stack ưu tiên ít thành phần, chạy được trên máy cá nhân và giữ đường đi kiểm chứng được:
 
-1. Chạy được trên máy cá nhân: CPU Intel Core i5-1035G1, RAM 19 GB, NVIDIA MX330 2 GB VRAM, NVMe còn trống khoảng 185 GB.
-2. GPU local không dùng được cho LLM, embedding hoặc reranker; toàn bộ LLM/embedding/reranker chạy qua API online.
-3. Hỗ trợ legal structure-aware và temporal retrieval (Parser Router, Canonical Document IR, Legal Structure Extractor, khoảng hiệu lực [effective_from, effective_to)).
-4. Dense và sparse retrieval trong một hệ lưu trữ (Qdrant) thay vì hai hệ tách rời.
-5. Buộc LLM trả structured output để citation có thể kiểm chứng (citation-by-ID, Returned Invalid Citation Rate = 0).
-6. Cho phép pin model, config, corpus, gold set và experiment (reproducible evaluation).
-7. Chạy local bằng Docker Compose trong buổi bảo vệ, không phụ thuộc VPS.
-8. Không phụ thuộc open web search hoặc autonomous agent; câu trả lời pháp lý chỉ dựa trên corpus đã kiểm chứng.
-9. Giảm số framework trung gian và glue code (không full LangChain, không Haystack, không LlamaIndex trong core).
-10. Mọi quyết định về quality (parser, embedding, reranker) phải dựa trên benchmark (Suite A-D), không dựa trên tuyên bố nhà cung cấp.
+1. Frontend Next.js 16 + React 19; backend FastAPI trên Python 3.11.
+2. Supabase REST/Auth là ranh giới persistence/auth của ứng dụng; không vận hành PostgreSQL app-owned.
+3. Qdrant 1.19 là retrieval index với dense OpenRouter embeddings và sparse BM25/FastEmbed hybrid retrieval.
+4. Evidence gate, temporal checks và citation construction là deterministic; chỉ một generator OpenRouter được gọi sau khi evidence đầy đủ.
+5. Query/search chỉ phục vụ corpus local đã accepted; không external retrieval, agents hay query-time web fallback.
+6. Docker Compose là topology vận hành; ingestion là manual CLI/background process, không phải API upload hay bảy-service platform.
+
+Các phần nghiên cứu bên dưới được giữ làm historical/challenger/baseline khi không thuộc runtime nói trên.
 
 Nguyên tắc bổ sung theo canonical spec mục 38:
 
@@ -61,51 +61,23 @@ config-only   giá trị cấu hình khởi điểm, không phải kết quả �
 
 ---
 
-## 4.2. Tóm tắt tech stack chốt
 
-Bảng này đồng bộ với mục 7 của doc 00. Mọi khác biệt phải được ghi ADR và cập nhật đồng bộ.
+## 4.2. Tóm tắt tech stack chốt (active runtime)
 
 | Thành phần | Công nghệ | Phiên bản / policy | Vai trò | Nhãn |
 |---|---|---|---|---|
-| Ngôn ngữ | Python | 3.11.x | Backend, ingestion, retrieval, workflow, evaluation | selected |
-| Package manager | uv | Pin bằng `uv.lock` | Dependency và virtual environment | selected |
-| API | FastAPI | Minor ổn định đã lock | REST API, OpenAPI, validation | selected |
-| Workflow | LangGraph | 1.x stable (pin `langgraph>=1.1`) | Controlled workflow orchestration | selected |
-| Parser chính | Docling | 2.x line, pin exact | PDF/DOCX/PPTX/XLSX/HTML parse, OCR, hierarchy, provenance | selected |
-| Parser phụ / fallback | MinerU | 3.4.x, pipeline backend CPU | Parser thay thế khi quality gate fail | challenger |
-| Parser routing | Parser Router | Quy tắc doc 03 mục 3.7 | Chọn parser theo đặc tính tài liệu và quality gate | selected |
-| IR trung gian | Canonical Document IR | `document-ir-v1` | Biểu diễn parser-neutral do dự án sở hữu | selected |
-| Relational database | PostgreSQL | 18.x (18.4) | Source of truth dữ liệu pháp lý, metadata, relation, version, review, audit | selected |
-| ORM | SQLAlchemy | 2.0.x | Persistence và transaction | selected |
-| Migration | Alembic | 1.18.x | Database migrations | selected |
-| Vector database | Qdrant | v1.19.0 | Dense + sparse + payload filter + RRF fusion, index dẫn xuất | selected |
-| Dense embedding | Ứng viên E1/E2/E3 | Chưa chốt vĩnh viễn, chọn sau Suite B | Semantic retrieval | selected (ứng viên) |
-| Sparse retrieval | Qdrant sparse BM25 | `qdrant/bm25` hoặc encoder tiếng Việt nếu cần | Lexical retrieval trong cùng collection | selected |
-| Fusion | Qdrant RRF | Query API prefetch + fusion, k và weights configurable | Kết hợp dense + sparse | selected |
-| Reranker | Jina Reranker v3 | `jina-reranker-v3` (ứng viên chính) | Rerank sau RRF | selected (ứng viên) |
-| Generator | Gemini 3.7 Flash | `gemini-3.7-flash` | Structured legal answer theo schema cấp claim | selected |
-| Judge độc lập | Gemini 3.5 Flash Lite | `gemini-3.5-flash-lite` | L5 semantic judge + evaluation metric thứ cấp | selected |
-| Evaluation | Ragas | 0.4.x (0.4.3), pin exact | Faithfulness, relevancy, factual correctness (thứ cấp) | selected (thứ cấp) |
-| Background jobs | Dramatiq | v2.2.0 | Actor ingestion idempotent, Redis broker | selected |
-| Cache / broker | Redis | 8.10.0 | Dramatiq broker + cache | selected |
-| Object storage | ObjectStoragePort (S3-compatible); MinIO là ứng viên hiện tại | MinIO date-tagged community release (AIStor) | PDF nguồn, parser output, artifact review/evaluation | selected (ứng viên) |
-| Observability | Langfuse | Server v4, SDK v4.x | Trace, prompt management, experiments; ngoài đường tới hạn | selected |
-| Frontend | Next.js | 16.x App Router | Chat, search, citation panel | selected |
-| UI | React + TypeScript + Tailwind + shadcn/ui | Pin lock file | Giao diện | selected |
-| Testing | pytest + Playwright | Pin exact | Unit, integration, E2E | selected |
-| Container | Docker + Compose Spec | Pin image tags | Local deployment | selected |
-| CI/CD | GitHub Actions | Action SHA hoặc major pin | Automated checks | selected |
-| Benchmark platform | RAGFlow | v0.26.x, môi trường benchmark riêng | Baseline so sánh bên ngoài | baseline |
+| Frontend | Next.js + React | Next.js 16, React 19 | Chat, Markdown/PDF legal explorer, citations | selected |
+| Backend | FastAPI | Python 3.11 | API, orchestration, evidence/verification | selected |
+| Persistence/Auth | Supabase REST/Auth | Configured project | Auth, chat/saved Q&A, metadata | selected |
+| Retrieval | Qdrant | 1.19.x | Hybrid dense/sparse serving index | selected |
+| Dense embedding | OpenRouter-compatible embedding | `EMBEDDING_MODEL` config; benchmark/manifest controlled | Dense vectors | selected/configured |
+| Sparse retrieval | FastEmbed BM25 | Backend dependency | Sparse lexical retrieval | selected |
+| Generation | OpenRouter-compatible chat model | `GENERATION_MODEL` config | One grounded generator; fail closed | selected/configured |
+| Ingestion | Repository CLI/scripts | Manual/background operation | Local corpus ingest and indexing | selected |
+| Runtime | Docker Compose | `deploy/compose/compose.release.yml` | frontend/backend/qdrant topology | selected |
+| Historical/deferred | Gemini, OpenAI, LangGraph, Langfuse, RAGFlow, Dramatiq, Redis, MinIO, Ragas, alternate parsers/rerankers | Thesis research only unless separately marked | Not active runtime requirements | historical/deferred |
 
-Lưu ý theo doc 00 mục 7:
-
-- Embedding chưa được chốt vĩnh viễn. Gemini Embedding 2 là ứng viên mặc định với cấu hình thử nghiệm 768 chiều (model default là 3072 chiều, 768/1536/3072 là các mức Matryoshka được khuyến nghị), phải benchmark với Jina Embeddings v5 text-nano và text-small trước khi chọn production.
-- Reranker chưa được khẳng định cải thiện chất lượng. Jina Reranker v3 là ứng viên chính; không tuyên bố cải thiện trước benchmark.
-- Không dùng pgvector trong thiết kế này: vector retrieval nằm trong Qdrant, PostgreSQL giữ metadata và quan hệ pháp lý.
-- Trên máy phát triển cá nhân, ingestion chạy với `MAX_INGESTION_WORKERS=1`; toàn bộ LLM, embedding và reranker dùng API online.
-- Langfuse Cloud là lựa chọn mặc định cho dev và evaluation; self-hosting là tùy chọn (cần ClickHouse, Redis/Valkey, blob storage, PostgreSQL, web và worker service).
-
----
+Embedding model ID and vector dimensions are deployment/evaluation data, not claims that a particular Gemini/OpenAI model is active. Any embedding change requires a full Qdrant rebuild and controlled switch.
 
 ## 4.3. Document parser: Docling và MinerU
 
@@ -125,7 +97,7 @@ Lưu ý theo doc 00 mục 7:
 | Deployment | Python package, CPU/CUDA/MPS/XPU | Docker Linux/WSL2 only (không macOS); hỗ trợ remote `*-http-client` |
 | Trạng thái xác minh | verified (tài liệu chính thức) | verified (tài liệu chính thức); OCR tiếng Việt 3.4.x to-verify |
 
-Không parser nào vượt trội tuyệt đối cho mọi trường hợp. Đây là kết luận thiết kế bắt buộc (doc 00 mục 4.1, ADR-002), và là lý do thiết kế Parser Router với quality gate. Kết quả so sánh chi tiết chỉ được ghi sau Suite A (P1-P3).
+Không parser nào vượt trội tuyệt đối trong mọi trường hợp. Đây là kết luận thiết kế bắt buộc (doc 00 mục 4.1, ADR-002) và là lý do có Parser Router với quality gate. Chỉ ghi kết quả so sánh chi tiết sau Suite A (P1-P3).
 
 ### 4.3.2. Docling (selected, parser chính)
 
@@ -244,7 +216,7 @@ Vai trò: lớp điều phối workflow có kiểm soát, không phải agent ha
 Phiên bản: langgraph v1.1.x (v1.1.10, 2026-04-27); pin langgraph>=1.1
 ```
 
-LangGraph là orchestration runtime, không phải agent framework. LangChain phân biệt rõ LangGraph (orchestration runtime) với agents. Trong VNLRAG v2, LangGraph điều phối đồ thị có nhánh xác định trước; LLM không tự chọn tool hoặc tự tạo kế hoạch. Hệ thống không bao giờ được mô tả là autonomous agent (doc 00 mục 1, ADR-016).
+LangGraph là orchestration runtime, không phải agent framework. LangChain phân biệt rõ LangGraph (orchestration runtime) với agents. Trong VNLRAG v2, LangGraph điều phối đồ thị có nhánh xác định trước; LLM không tự chọn tool hoặc tự tạo kế hoạch. Hệ thống không được mô tả là autonomous agent (doc 00 mục 1, ADR-016).
 
 ### 4.4.2. Khái niệm dùng trong thiết kế
 
@@ -334,7 +306,7 @@ Phiên bản: Server v4.0.0 (2026-07-29); Python SDK v4.x (OTel-based core, >= 4
 Cloud mặc định: https://cloud.langfuse.com
 ```
 
-Langfuse không nằm trên đường tới hạn tính đúng đắn. Ingest bất đồng bộ (batched -> S3 -> worker -> ClickHouse); toàn bộ callback non-mutating; nếu Langfuse không khả dụng, query vẫn hoạt động bình thường (doc 00 mục 4.11, ADR-009). Bật/tắt qua `LANGFUSE_ENABLED`.
+Langfuse nằm ngoài đường tới hạn tính đúng đắn. Ingest bất đồng bộ (batched -> S3 -> worker -> ClickHouse); toàn bộ callback non-mutating; nếu Langfuse không khả dụng, query vẫn hoạt động bình thường (doc 00 mục 4.11, ADR-009). Bật/tắt qua `LANGFUSE_ENABLED`.
 
 ### 4.5.2. Tính năng sử dụng
 
@@ -427,7 +399,7 @@ Phiên bản: v0.26.4 (2026-07-07); v0.27.0 đang phát triển
 Image: infiniflow/ragflow:v0.26.4 (~2 GB, x86 only, không ARM)
 ```
 
-RAGFlow là baseline so sánh chất lượng pipeline pháp lý riêng (doc 00 mục 4.12, ADR-010). Nó chạy trong môi trường benchmark riêng, không nằm trong compose production. Kết quả baseline không phải kết quả VNLRAG.
+RAGFlow là baseline để so sánh riêng chất lượng pipeline pháp lý (doc 00 mục 4.12, ADR-010). Nó chạy trong môi trường benchmark riêng và không nằm trong compose production. Kết quả baseline không phải kết quả VNLRAG.
 
 ### 4.6.2. Kiến trúc liên quan
 
@@ -503,7 +475,7 @@ Phiên bản: v1.19.0 (trước đó 1.18.3, 2026-07-17)
 Vai trò: retrieval engine duy nhất, index dẫn xuất dựng lại được từ PostgreSQL
 ```
 
-Qdrant là index dẫn xuất. PostgreSQL là nguồn chân lý; nếu dữ liệu hai nơi lệch nhau, PostgreSQL thắng (doc 00 mục 8.6, ADR-005). Collection được thiết kế theo doc 03 mục 3.11 (named dense vector + sparse vectors + payload + alias `legal_provisions_active`).
+Qdrant là index dẫn xuất. PostgreSQL là nguồn chân lý; nếu dữ liệu hai nơi lệch nhau, PostgreSQL thắng (doc 00 mục 8.6, ADR-005). Collection theo doc 03 mục 3.11 gồm named dense vector, sparse vectors, payload và alias `legal_provisions_active`.
 
 ### 4.7.2. Khả năng sử dụng
 
@@ -595,7 +567,7 @@ Qdrant (2026). Qdrant: AI-native vector database & semantic search engine (v1.19
 
 ### 4.8.1. Nguyên tắc
 
-Không có quyết định embedding vĩnh viễn trước khi benchmark (doc 00 mục 7, ADR-013). Đây là quyết định thiết kế bắt buộc: chỉ chọn embedding production sau khi có bằng chứng thực nghiệm từ Suite B.
+Không có quyết định embedding vĩnh viễn trước khi benchmark (doc 00 mục 7, ADR-013). Chỉ chọn embedding production sau khi có bằng chứng thực nghiệm từ Suite B.
 
 ```text
 Tiêu chí Suite B: Recall@10, MRR@10, nDCG@10 trên câu hỏi pháp luật tiếng Việt,
@@ -752,16 +724,20 @@ Jina AI (2025). jina-reranker-v3 - Listwise Multilingual Reranker. Hugging Face.
 
 ---
 
-## 4.10. Generator: Gemini 3.5 Flash
+## 4.10. Generator: configured OpenRouter model (active MVP)
 
 ### 4.10.1. Vai trò và nhãn
 
 ```text
-Nhãn: selected
-Model: gemini-3.5-flash (GA 2026-05-19, thay gemini-3-flash-preview)
+Nhãn: selected (MVP)
+Model: giá trị cấu hình `GENERATION_MODEL`; không khóa Gemini/OpenAI
 ```
 
-Generator chính cho structured answer theo schema cấp claim (doc 03 mục 3.23, ADR-018).
+Generator chính tạo grounded answer theo prompt hiện có của backend. OpenRouter errors fail closed; automatic provider fallback không thuộc runtime active.
+
+### 4.10.2. Historical model research
+
+The Gemini model discussion formerly in this section is retained below as thesis research only. Its capabilities, prices, and version claims are not active runtime requirements.
 
 ### 4.10.2. Khả năng phù hợp
 
@@ -852,28 +828,16 @@ Google DeepMind (2026). Gemini 3.5 Flash - Model Card.
 
 ---
 
-## 4.11. Independent judge: GPT-5.4 mini
+## 4.11. Independent judge (historical/deferred)
 
 ### 4.11.1. Vai trò và nhãn
 
 ```text
-Nhãn: selected
-Model: gpt-5.4-mini (snapshot gpt-5.4-mini-2026-03-17)
-Vai trò: (1) online L5 semantic judge với fail-closed behavior;
-         (2) judge cho metric thứ cấp trong evaluation
+Nhãn: historical/deferred
 ```
 
-Judge không bao giờ là nguồn sự thật cho metric xác định (citation ID, temporal validity, numeric grounding). Quyết định này nhất quán với doc 03 mục 3.24.2 và ADR-008.
+Active MVP không yêu cầu online judge riêng. Hợp đồng release gồm citation, temporal, evidence và hành vi khi provider lỗi theo cách deterministic. Các ghi chú về model dưới đây chỉ là nghiên cứu cho luận văn và không phải dependency đã cài.
 
-### 4.11.2. Quyết định L5 judge (nhất quán với doc 03)
-
-Doc 03 mục 3.24.2 quyết định: L5 semantic judge được phép chạy online trong verifier với fail-closed behavior:
-
-- Judge timeout (config, khởi điểm 10s) hoặc provider error -> claim được đánh giá `L5_JUDGE_UNAVAILABLE`, xử lý qua repair path có giới hạn; nếu không xác minh được, claim bị loại hoặc dẫn tới ABSTAIN;
-- Khi judge online bị tắt bằng config: mọi claim mà deterministic không kết luận được sẽ bị đánh giá fail theo fail-closed (`L5_CLAIM_NOT_SUPPORTED`), không đổi hành vi verified-or-abstain;
-- Judge chỉ nhận một claim + các provision được cite, không nhìn answer tổng thể hay gold answer;
-- Judge không bao giờ quyết định citation ID hay temporal validity (ADR-008);
-- Cả hai chế độ online và evaluation dùng cùng model snapshot pin.
 
 Tóm tắt hành vi khi judge không khả dụng theo từng vai trò:
 
@@ -1015,7 +979,7 @@ Phiên bản: 8.x (8.10.0 GA 2026-07-29; 8.8.0 2026-05-25)
 Vai trò: Dramatiq broker + cache
 ```
 
-Redis dùng làm broker cho Dramatiq và cache (doc 00 mục 7, ADR-011). Không phải broker duy nhất mạnh nhất; với workload khóa luận (moderate ingestion + cache) Redis đủ. Với yêu cầu durable guaranteed delivery ở quy mô lớn, RabbitMQ mạnh hơn; không cần trong scope.
+Redis dùng làm broker cho Dramatiq và cache (doc 00 mục 7, ADR-011). Với workload khóa luận gồm ingestion vừa phải và cache, Redis đáp ứng nhu cầu. RabbitMQ phù hợp hơn khi cần durable guaranteed delivery ở quy mô lớn, nhưng không nằm trong scope.
 
 ### 4.13.2. Tính năng mới đáng chú ý
 
@@ -1053,7 +1017,7 @@ Phiên bản: v2.2.0 (2026-06-17)
 Vai trò: background ingestion, actor idempotent, Redis broker
 ```
 
-Dramatiq chạy worker ingestion phía sau; `POST /documents` trả `202 Accepted` kèm `ingestion_job_id`; không parse PDF đồng bộ trong request handler (doc 03 mục 3.13, ADR-011).
+Dramatiq chạy worker ingestion phía sau; `POST /documents` trả `202 Accepted` kèm `ingestion_job_id`; request handler không parse PDF đồng bộ (doc 03 mục 3.13, ADR-011).
 
 ### 4.14.2. Broker và middleware
 
@@ -1118,7 +1082,7 @@ Quyết định cam kết: abstraction ObjectStoragePort -> triển khai S3-comp
 Vai trò: lưu PDF nguồn, parser output, ảnh trang, artifact ingestion/review/evaluation
 ```
 
-Quyết định được cam kết ở tầng kiến trúc là **abstraction `ObjectStoragePort`** phía sau một triển khai S3-compatible, không phải hard-lock một sản phẩm cụ thể. PostgreSQL lưu object key và metadata; nội dung file nằm trong object store (doc 03 mục 3.12, ADR-012). Managed S3 không cần thiết cho khóa luận (chạy local). Thiết kế này không quay lại ad-hoc folder storage: mọi file vẫn được lưu dưới object store với object key truy vết trong PostgreSQL.
+Cam kết ở tầng kiến trúc là **abstraction `ObjectStoragePort`** phía sau một triển khai S3-compatible, không hard-lock một sản phẩm cụ thể. PostgreSQL lưu object key và metadata; nội dung file nằm trong object store (doc 03 mục 3.12, ADR-012). Managed S3 không cần thiết cho khóa luận vì hệ thống chạy local. Mọi file vẫn nằm trong object store và có object key truy vết trong PostgreSQL.
 
 ### 4.15.2. Ghi chú ADR: MinIO đang được xem xét lại
 
@@ -1186,33 +1150,9 @@ Judge:      GPT-5.4 mini (mục 4.11)
 Embedding:  Gemini Embedding 2 (ứng viên) hoặc Jina (ứng viên)
 Reranker:   Jina Reranker v3 (ứng viên)
 ```
+## 4.16. Provider policy (active MVP)
 
-### 4.16.2. Lý do provider independence
-
-- Generator và judge độc lập nhà cung cấp: giảm rủi ro cả hai chức năng chính cùng lỗi/quota từ một provider;
-- GPT-5.4 mini có hai vai trò (nhất quán doc 03 mục 3.24.2 và ADR-008): (1) online L5 semantic claim-support verifier cho các trường hợp ngữ nghĩa mà deterministic rule không kết luận được, với fail-closed behavior (judge timeout/provider error -> claim `L5_JUDGE_UNAVAILABLE` -> repair path có giới hạn hoặc ABSTAIN); (2) judge cho metric thứ cấp trong evaluation (faithfulness, relevancy, factual correctness);
-- Judge không bao giờ là nguồn sự thật cho L2-L4 (citation ID, temporal validity, numeric grounding) hay metric deterministic headline; do đó không tạo dependency correctness vào OpenAI cho generation;
-- Cho phép thay đổi từng vai trò độc lập nếu giá, chất lượng hoặc policy thay đổi;
-- Structured outputs của cả hai provider đều tương thích Pydantic nên adapter chỉ gồm mapping response -> domain model.
-
-### 4.16.3. Nguyên tắc vận hành
-
-- Không có automatic fallback giữa provider trong final evaluation (mục 4.10.5);
-- Trace ghi model thực tế cho từng span (Langfuse);
-- Provider data disclosure: câu hỏi + context pháp lý (không PII) tới generator/judge/embedding/reranker (doc 03 mục 3.31.6).
-
----
-
-## 4.17. Ragas: evaluation framework (thứ cấp)
-
-### 4.17.1. Vai trò và nhãn
-
-```text
-Nhãn: selected (thứ cấp)
-Phiên bản: v0.4.3 (2026-01-13), repo vibrantlabsai/ragas (trước là explodinggradients)
-Vai trò: metric ngữ nghĩa phụ; deterministic metrics vẫn là headline
-```
-
+The active runtime uses the configured OpenRouter-compatible generation and embedding clients. OpenAI and Gemini are not required providers; any configured model must preserve grounded output, citation validation, and fail-closed errors. The earlier provider-independence discussion is historical research.
 Ragas dùng cho Faithfulness, Response Relevancy, Factual Correctness khi cần (doc 00 mục 11.4). Headline result của VNLRAG không phụ thuộc Ragas hay judge.
 
 ### 4.17.2. Metric và custom metric
@@ -1239,98 +1179,16 @@ DiscreteMetric / AspectCritic
 hoặc subclass MetricWithLLM / SingleTurnMetric / MultiTurnMetric với PydanticPrompt
 ```
 
-Lưu ý API:
+## 4.17. Ragas (historical/deferred evaluation option)
 
-```text
-LEGACY metrics API deprecated trong v0.4, sẽ bị xóa trong v1.0
-Bắt buộc dùng collections-based API theo version đã pin
-Ví dụ: from ragas.metrics.collections import Faithfulness (xác nhận theo lock version)
-```
-
-Judge pluggable: gpt-5.4-mini, Gemini đều dùng được.
-
-### 4.17.3. Deterministic metrics là headline
-
-Toàn bộ metric deterministic (Recall@k, MRR, nDCG, citation P/R/F1, Invalid Citation Rate, Temporal Validity Accuracy, evidence metrics, corpus metrics, abstention P/R/F1) tự triển khai bằng Python, không cần LLM call (doc 03 mục 3.9.13). Ragas chỉ bổ sung metric ngữ nghĩa thứ cấp.
-
-### 4.17.4. Trạng thái xác minh
-
-```text
-Ragas v0.4.3 (2026-01-13): verified (docs.ragas.io, github.com/vibrantlabsai/ragas)
-Repo chuyển sang vibrantlabsai/ragas: verified
-LEGACY API deprecated v0.4, xóa v1.0: verified
-Chi tiết metric cụ thể theo lock version: verified (phải xác nhận tại setup)
-```
-
-### 4.17.5. URL chính thức và trích dẫn
-
-```text
-Docs: https://docs.ragas.io/en/stable/
-Repo: https://github.com/vibrantlabsai/ragas
-```
-
-Trích dẫn thư mục:
-
-```text
-VibrantLabs (2026). Ragas: Evaluation framework (v0.4.3). https://docs.ragas.io/
-```
-
----
-
-## 4.18. Các lựa chọn khác
-
-### 4.18.1. Next.js (frontend)
-
-```text
-Nhãn: selected
-Phiên bản: 16.x App Router
-```
-
-Next.js 16 thay Next.js 14 vì App Router, React 19.2, TypeScript-first, Turbopack stable, documentation hiện hành, dễ build citation panel và server/client boundaries. Minimum runtime: Node.js 20.9+, TypeScript 5.1+. Dùng Node LTS. Next.js không phải backend chính; FastAPI giữ vai trò application backend, Next.js chỉ render UI và gọi FastAPI (doc 03 mục 3.29).
-
-State management: ưu tiên React state, server/client components, TanStack Query nếu cần cache request, URL search params cho filter. Không mặc định thêm Zustand.
-
-UI streaming: không stream raw answer token; hiển thị progress events và render final response sau verification (FR-32, NFR-10).
-
-### 4.18.2. FastAPI (backend)
-
-```text
-Nhãn: selected
-```
-
-FastAPI: Pydantic request/response, OpenAPI, dependency injection, async I/O, multipart upload, test bằng HTTPX. Pin exact patch bằng lock file. Router không chứa business logic (SQL, Qdrant query, prompt, citation validation) theo doc 03 mục 3.28. CPU-heavy parsing không chạy trực tiếp trong async event loop (qua Dramatiq worker).
-
-### 4.18.3. uv (package management)
-
-```text
-Nhãn: selected
-```
-
-uv quản lý dependency và virtual environment, pin bằng `uv.lock`. Mọi version trong `pyproject.toml` là range định hướng; lock file là nguồn version chính xác (giữ nguyên policy; quy tắc dependency của module theo doc 03 mục 3.2.6).
-
-### 4.18.4. pytest + Playwright (testing)
-
-```text
-Nhãn: selected
-```
-
-pytest cho unit/integration, Playwright cho E2E. Integration test bắt buộc chạy PostgreSQL và Qdrant (testcontainers), không dùng SQLite thay thế (doc 06 mục 6.2.2).
-
-### 4.18.5. GitHub Actions (CI/CD)
-
-```text
-Nhãn: selected
+Ragas is not an active MVP requirement and is not present in the backend dependency set. Deterministic metrics in the evaluation document remain the source of release evidence. Any Ragas comparison is optional thesis work and must be labelled secondary, never a release gate.
 ```
 
 Jobs: backend-quality, backend-unit, backend-integration, retrieval-regression, frontend-quality, frontend-e2e-smoke, docker-build, docs-build. Actions pin bằng commit SHA hoặc trusted major version. CI không chạy full LLM evaluation trên mọi PR (tốn tiền, chậm, provider nondeterminism); full evaluation chạy manual workflow / feature freeze / release candidate.
 
 ### 4.18.6. Docker Compose (deployment)
 
-```text
-Nhãn: selected
-```
-
-Compose production: frontend, backend, worker, PostgreSQL, Qdrant, Redis, MinIO. Provider bên ngoài tùy chọn: Langfuse Cloud, Gemini API, OpenAI API, Jina API. RAGFlow trong môi trường benchmark riêng. Không dùng floating tags (`latest`, `alpine`, `main`) cho production compose; pin image tag đã test.
+The active compose deployment is the local backend/frontend stack shown in the repository compose file. The historical multi-service design (worker, PostgreSQL, Qdrant, Redis, MinIO, external observability) is deferred and must not be presented as an active MVP requirement.
 
 ### 4.18.7. Vì sao không dùng full LangChain (rejected)
 
@@ -1608,7 +1466,7 @@ Next.js App Router:        https://nextjs.org/docs/app
 
 ## 4.23. Tổng kết
 
-Tài liệu này chốt tech stack v2 với các nhãn selected/challenger/baseline/rejected cho từng quyết định:
+Tài liệu này chốt tech stack v2 với các nhãn selected, challenger, baseline và rejected cho từng quyết định:
 
 - Parser: Docling selected (chính) + MinerU challenger (phụ/fallback) qua Parser Router; không khẳng định parser nào vượt trội tuyệt đối trước Suite A.
 - Workflow: LangGraph selected, controlled workflow, không phải agent harness.

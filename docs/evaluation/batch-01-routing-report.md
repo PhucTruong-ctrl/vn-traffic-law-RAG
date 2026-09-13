@@ -1,17 +1,17 @@
-# Batch 01 Routing Report — VNLRAG-35 (W3, routing-only)
+# Batch 01 routing report — VNLRAG-35 (W3, routing-only)
 
 - Artifact: `data/ingestion/batch-01-routing.json` (version `batch-01-routing-v1`)
 - Generated at: `2026-08-13T22:32:41.838145+00:00` (UTC)
 - Command: `cd backend && uv run python scripts/run_batch01_routing.py`
 - Base commit: `88774063c5f5262304538bb50808fff366873214`
 
-## 1. Scope — W3 routing-only, NO indexing
+## 1. Scope: W3 routing-only, NO indexing
 
-This run executes the batch-01 ingestion pipeline **up to review routing only** (doc 05 §5.6, 09/08 row: “Chạy pipeline ingestion tới quality gate và review routing trên batch 01; accept+index E2E chưa chốt vì resolver có từ W4”). **NO indexing was performed**; Gate M2 (accept+index E2E) is **not** closed and is deferred to VNLRAG-154/W4 (doc 05 §5.6 Gate M2 note). No provision may be indexed without a resolver-derived effective interval (VNLRAG-136, W4); ACCEPTED routing decisions here are provisional and stay PENDING for indexing until the W4 resolvers assign final intervals.
+This run executes the batch-01 ingestion pipeline **through review routing only** (doc 05 §5.6, 09/08 row: “Chạy pipeline ingestion tới quality gate và review routing trên batch 01; accept+index E2E chưa chốt vì resolver có từ W4”). **NO indexing was performed**; Gate M2 (accept+index E2E) is **not** closed and is deferred to VNLRAG-154/W4 (doc 05 §5.6 Gate M2 note). No provision may be indexed without a resolver-derived effective interval (VNLRAG-136, W4). The ACCEPTED routing decisions here are provisional and remain PENDING for indexing until the W4 resolvers assign final intervals.
 
 ## 2. Inputs and method
 
-Real OCR of the scan-only batch-01 PDFs (1-bit CCITT, no text layer) is infeasible for this W3 run (≈30 s/page at 300 DPI, 100+ page documents; VNLRAG-20/97). Per the ticket, the pipeline ran on the **committed fixture text / extracted IR where real OCR is infeasible — the exact input used per document is recorded in the artifact (`extraction_input`) and in the table below.** Only `luat-36-2024-qh15` has a born-digital text layer; its fixture is a genuine excerpt of that text. `nd-168-2024`’s fixture is a curated excerpt stand-in (NOT real OCR output), so its routing Group A is marked failed on extraction/provenance grounds (scan-review policy, `docs/parser_router.yaml`) → `LOW_OCR_COVERAGE`.
+Real OCR of the scan-only batch-01 PDFs (1-bit CCITT, no text layer) is infeasible for this W3 run (≈30 s/page at 300 DPI, 100+ page documents; VNLRAG-20/97). Per the ticket, the pipeline ran on the **committed fixture text / extracted IR where real OCR is infeasible. The exact input used per document is recorded in the artifact (`extraction_input`) and in the table below.** Only `luat-36-2024-qh15` has a born-digital text layer; its fixture is a genuine excerpt of that text. `nd-168-2024`’s fixture is a curated excerpt stand-in (NOT real OCR output), so its routing Group A is marked failed on extraction/provenance grounds (scan-review policy, `docs/parser_router.yaml`) and receives `LOW_OCR_COVERAGE`.
 
 | document_id | source PDF | extraction input | notes |
 |---|---|---|---|
@@ -33,7 +33,7 @@ Real OCR of the scan-only batch-01 PDFs (1-bit CCITT, no text layer) is infeasib
 
 Aggregate: 5/5 documents routed; provisions {'ACCEPTED': 22, 'NEEDS_REVIEW': 61, 'DROPPED': 0}.
 
-The document-level decision mirrors the quality-gate actor job outcome (`actors/quality_gate.py`): any NEEDS_REVIEW provision -> document NEEDS_REVIEW (PENDING_REVIEW — embed/index never runs); else any DROPPED -> DROPPED; else all ACCEPTED -> ACCEPTED. A document can therefore carry ACCEPTED provisions and still route NEEDS_REVIEW as a whole.
+The document-level decision mirrors the quality-gate actor job outcome (`actors/quality_gate.py`): any NEEDS_REVIEW provision produces a document-level NEEDS_REVIEW (PENDING_REVIEW; embed/index never runs); otherwise, any DROPPED provision produces DROPPED, and a document with only ACCEPTED provisions produces ACCEPTED. A document can therefore contain ACCEPTED provisions and still route NEEDS_REVIEW as a whole.
 
 ## 4. Extraction quality stats
 
@@ -47,15 +47,15 @@ Per-document stats below reuse the corpus QA metrics (`app.evaluation.corpus_qa.
 | `tt-79-2024` | 0 (0/0/0) | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 |
 | `tt-24-2023` | 0 (0/0/0) | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 |
 
-Highlights:
+Summary:
 
-- `luat-36-2024-qh15` extracts cleanly from born-digital text (Group A passed, Group B passed); {luat_states['ACCEPTED']}/25 provisions route ACCEPTED (auto-accept), the exceptions being the d/đ-ambiguous bare `d)` labels (`D_D_AMBIGUITY`, 2) and the out-of-primary-run `g)` label (`POINT_LABEL_AMBIGUOUS`, 1).
-- `nd-168-2024` measures 1.0 on the fixture IR but the source is scan-only: every provision routes NEEDS_REVIEW (`LOW_OCR_COVERAGE`, 58; plus `D_D_AMBIGUITY` on the 6 bare `d)` points).
-- `nd-100-2019`, `tt-79-2024`, `tt-24-2023`: no extraction input in this W3 run — zero provisions, document-level NEEDS_REVIEW (`LOW_OCR_COVERAGE`).
+- `luat-36-2024-qh15` extracts cleanly from born-digital text (Group A passed, Group B passed). {luat_states['ACCEPTED']}/25 provisions route ACCEPTED (auto-accept); the exceptions are the d/đ-ambiguous bare `d)` labels (`D_D_AMBIGUITY`, 2) and the out-of-primary-run `g)` label (`POINT_LABEL_AMBIGUOUS`, 1).
+- `nd-168-2024` measures 1.0 on the fixture IR, but the source is scan-only. Every provision routes NEEDS_REVIEW (`LOW_OCR_COVERAGE`, 58; plus `D_D_AMBIGUITY` on the 6 bare `d)` points).
+- `nd-100-2019`, `tt-79-2024`, and `tt-24-2023` had no extraction input in this W3 run. They have zero provisions and a document-level NEEDS_REVIEW decision (`LOW_OCR_COVERAGE`).
 
 ## 5. Review backlog summary
 
-**61 provisions route NEEDS_REVIEW** in batch 01 (the would-be `ReviewItem` rows, status PENDING, that the quality-gate actor (`actors/quality_gate.py`) creates in the queue flow; no database is touched by this W3 script). They are reviewed with the review CLI (`backend/scripts/review_item.py`, VNLRAG-155) once the queue flow persists them. Full item list (provision_id + reason codes) is in the artifact (`documents.<id>.review_backlog.items`).
+**61 provisions route NEEDS_REVIEW** in batch 01. These are the would-be `ReviewItem` rows with status PENDING that the quality-gate actor (`actors/quality_gate.py`) creates in the queue flow; this W3 script does not touch the database. The review CLI (`backend/scripts/review_item.py`, VNLRAG-155) handles them once the queue flow persists them. The full item list (provision_id plus reason codes) is in the artifact (`documents.<id>.review_backlog.items`).
 
 | document_id | review items | reason histogram |
 |---|---|---|
@@ -67,7 +67,7 @@ Highlights:
 
 ## 6. Manifest update (sidecar)
 
-The frozen schema `templates/corpus-manifest.schema.json` uses `additionalProperties: false` and does not allow ingestion-result fields, so the manifests are **unchanged** and the ingestion results live in the sidecar artifact `data/ingestion/batch-01-routing.json` (per the ticket: “if the schema doesn’t allow ingestion-result fields, add a separate sidecar … and note why; do NOT change the frozen schema”). All five manifests still validate:
+The frozen schema `templates/corpus-manifest.schema.json` uses `additionalProperties: false` and does not allow ingestion-result fields. The manifests are therefore **unchanged**, and the ingestion results live in the sidecar artifact `data/ingestion/batch-01-routing.json` (per the ticket: “if the schema doesn’t allow ingestion-result fields, add a separate sidecar … and note why; do NOT change the frozen schema”). All five manifests still validate:
 
     `uv run python -m scripts.validate_manifest ../data/manifests/batch-01/nd-168-2024.manifest.json` → PASS
     `uv run python -m scripts.validate_manifest ../data/manifests/batch-01/nd-100-2019.manifest.json` → PASS

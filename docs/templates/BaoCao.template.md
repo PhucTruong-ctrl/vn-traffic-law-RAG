@@ -340,28 +340,15 @@ height="1.6076388888888888in"}
 
 []{#_Toc206157148 .anchor}**LỜI CẢM ƠN**
 
-Lời đầu tiên, xin gửi lời cảm ơn chân thành tới Thầy Nguyễn Chí Cường,
-người đã tận tình hướng dẫn và chỉ bảo trong suốt quá trình thực hiện
-bài niên luận này. Thầy đã giúp vượt qua nhiều khó khăn và cung cấp
-những kiến thức quý báu, góp phần quan trọng vào việc hoàn thành nghiên
-cứu này. Bên cạnh đó, xin bày tỏ lòng biết ơn sâu sắc tới các thầy cô
-trong Khoa Kỹ Thuật Công Nghệ, Trường Đại học Tây Đô, vì đã tạo điều
-kiện thuận lợi trong quá trình học tập và nghiên cứu. Cảm ơn gia đình,
-cha mẹ và những người thân yêu đã luôn động viên, khích lệ cả về tinh
-thần lẫn vật chất trong suốt chặng đường học tập. Cuối cùng, xin cảm ơn
-bạn bè đã luôn hỗ trợ và đóng góp ý kiến quý báu, giúp hoàn thiện bài
-niên luận này. Những lời động viên và sự giúp đỡ của mọi người chính là
-nguồn động lực to lớn giúp hoàn thành tốt công việc nghiên cứu. Xin chân
-thành cảm ơn!
+Xin gửi lời cảm ơn chân thành tới Thầy Nguyễn Chí Cường, người đã tận tình hướng dẫn và hỗ trợ trong suốt quá trình thực hiện bài niên luận. Những góp ý và kiến thức thầy chia sẻ đã giúp nhóm vượt qua khó khăn và hoàn thiện nghiên cứu.
+
+Nhóm trân trọng cảm ơn các thầy cô Khoa Kỹ thuật Công nghệ, Trường Đại học Tây Đô vì đã tạo điều kiện thuận lợi trong học tập và nghiên cứu. Xin cảm ơn gia đình, cha mẹ, người thân và bạn bè đã luôn động viên, hỗ trợ và đóng góp những ý kiến hữu ích trong suốt quá trình thực hiện. Xin chân thành cảm ơn!
 
 []{#_Toc183868910 .anchor}**LỜI CAM ĐOAN**
 
-Tôi xin cam đoan rằng Niên luận này là do chính tôi thực hiện, không sao
-chép dưới bất kỳ hình thức nào hay thuê hoặc nhờ người khác thực hiện.
+Tôi xin cam đoan niên luận này do chính tôi thực hiện, không sao chép dưới bất kỳ hình thức nào và không thuê hoặc nhờ người khác thực hiện.
 
-Dữ liệu và kết quả phân tích trong Niên luận đảm bảo tính chính xác,
-khách quan và trung thực, không có bất kỳ sự ngụy tạo và điều chỉnh kết
-quả nghiên cứu bằng sự chủ quan của tác giả.
+Dữ liệu và kết quả phân tích trong niên luận được trình bày chính xác, khách quan và trung thực; nghiên cứu không có hành vi ngụy tạo hoặc điều chỉnh kết quả theo chủ quan của tác giả.
 
 > *Cần Thơ, ngày.....tháng 8 năm 2025*
 
@@ -378,68 +365,25 @@ quả nghiên cứu bằng sự chủ quan của tác giả.
 
 []{#_Toc206157150 .anchor}**TÓM TẮT**
 
-Ứng dụng Quản Lý Nhà Trọ hỗ trợ chủ trọ quản lý phòng ốc, thông tin
-khách thuê, giao dịch tài chính và kết nối với khách hàng trên cùng một
-nền tảng. Giao diện được thiết kế trực quan, đồng bộ dữ liệu giữa các
-thiết bị, giúp giảm thời gian thao tác và hạn chế sai sót trong quản lý.
+Ứng dụng Quản Lý Nhà Trọ hỗ trợ chủ trọ quản lý phòng, thông tin khách thuê, giao dịch tài chính và kết nối với khách hàng trên cùng một nền tảng. Giao diện rõ ràng, dữ liệu được đồng bộ giữa các thiết bị, giúp giảm thời gian thao tác và hạn chế sai sót.
 
-Chủ trọ có thể đăng ký tài khoản, được cấp quyền quản lý và đăng tải
-thông tin nhà trọ gồm tên, địa chỉ, số liên hệ và hình ảnh minh họa để
-tăng độ tin cậy. Họ tạo, chỉnh sửa hoặc xóa phòng, khai báo số phòng,
-loại phòng (có gác, máy lạnh, nội thất, an ninh...), thiết lập giá thuê,
-và cập nhật thông tin cá nhân bất kỳ lúc nào. Hệ thống cung cấp báo cáo
-thu -- chi hàng tháng, giúp theo dõi doanh thu, chi phí và lợi nhuận.
-Mỗi giao dịch được lập hóa đơn rõ ràng, lưu trữ và dễ dàng tra cứu khi
-cần.
+Chủ trọ có thể đăng ký tài khoản, được cấp quyền quản lý và đăng tải thông tin nhà trọ gồm tên, địa chỉ, số liên hệ và hình ảnh minh họa. Họ có thể tạo, chỉnh sửa hoặc xóa phòng, khai báo số phòng, loại phòng (có gác, máy lạnh, nội thất, an ninh...), thiết lập giá thuê và cập nhật thông tin cá nhân. Hệ thống cung cấp báo cáo thu -- chi hằng tháng để theo dõi doanh thu, chi phí và lợi nhuận. Mỗi giao dịch được lập hóa đơn rõ ràng, lưu trữ và dễ tra cứu.
 
-Khách thuê có thể đăng ký tài khoản, cung cấp thông tin cơ bản và tìm
-kiếm phòng theo nhu cầu. Họ xem chi tiết phòng qua hình ảnh và mô tả,
-sau đó gửi yêu cầu thuê. Chủ trọ liên hệ, cho xem phòng, thống nhất điều
-khoản và hoàn tất giao dịch. Chủ trọ sẽ gửi thông báo nhắc thanh toán
-hàng tháng. Thanh toán được hỗ trợ qua chuyển khoản ngân hàng hoặc tiền
-mặt. Thông tin cá nhân của khách thuê được bảo mật và chỉnh sửa trong
-mục tài khoản.
+Khách thuê có thể đăng ký tài khoản, cung cấp thông tin cơ bản và tìm kiếm phòng theo nhu cầu. Họ xem chi tiết phòng qua hình ảnh và mô tả, sau đó gửi yêu cầu thuê. Chủ trọ liên hệ, cho xem phòng, thống nhất điều khoản và hoàn tất giao dịch. Chủ trọ gửi thông báo nhắc thanh toán hằng tháng. Hệ thống hỗ trợ thanh toán qua chuyển khoản ngân hàng hoặc tiền mặt; thông tin cá nhân của khách thuê được bảo mật và chỉnh sửa trong mục tài khoản.
 
-Admin giám sát toàn hệ thống, xử lý vi phạm, kiểm duyệt nội dung, phân
-tích dữ liệu, tối ưu giao diện -- hiệu năng -- tính năng, và hỗ trợ kỹ
-thuật. Vai trò này đảm bảo hệ thống vận hành ổn định, an toàn và minh
-bạch cho cả chủ trọ lẫn khách thuê.
+Admin giám sát toàn hệ thống, xử lý vi phạm, kiểm duyệt nội dung, phân tích dữ liệu, cải thiện giao diện, hiệu năng và tính năng, đồng thời hỗ trợ kỹ thuật. Vai trò này góp phần bảo đảm hệ thống vận hành ổn định, an toàn và minh bạch cho chủ trọ và khách thuê.
 
 .
 
 []{#_Toc206157151 .anchor}**ABSTRACT**
 
-The Rental Management Application helps landlords manage rooms, tenant
-information, financial transactions, and customer interactions on a
-single platform. Its interface is designed to be clear and intuitive,
-with data synced across devices to reduce manual effort and minimize
-errors in management.
+The Rental Management Application helps landlords manage rooms, tenant information, financial transactions, and customer interactions on one platform. Its clear interface and synchronized data reduce manual effort and minimize management errors.
 
-Landlords can register for an account, gain management privileges, and
-post complete information about their rental properties, including the
-name, address, contact number, and illustrative images to increase
-credibility. They can create, edit, or delete rooms, specify room
-numbers, room types (such as with mezzanine, air conditioning,
-furniture, security), set rental prices, and update personal information
-at any time. The system provides monthly income--expense reports,
-allowing landlords to track revenue, costs, and profitability. Each
-transaction is recorded with a detailed invoice, securely stored, and
-easy to retrieve.
+Landlords can register for an account, receive management privileges, and post rental-property information such as the property name, address, contact number, and illustrative images. They can create, edit, or delete rooms, specify room numbers and types (such as rooms with mezzanines, air conditioning, furniture, or security), set rental prices, and update personal information. Monthly income--expense reports help them track revenue, costs, and profitability. Each transaction is recorded in a detailed invoice that can be stored and retrieved when needed.
 
-Tenants can register an account, provide basic personal details, and
-search for rooms that meet their needs. They can view property details
-through images and descriptions, then send a rental request. The
-landlord will contact them, arrange a viewing, finalize rental terms,
-and complete the transaction. The app sends monthly reminders for rent
-payments along with requests to submit electricity and water meter
-readings for cost calculation. Payments can be made via bank transfer or
-in cash. Tenants' personal information is protected and can be updated
-in the account section.
+Tenants can register, provide basic personal details, and search for suitable rooms. They can review property descriptions and images before submitting a rental request. The landlord then contacts them, arranges a viewing, agrees on the rental terms, and completes the transaction. The application sends monthly rent reminders and requests electricity and water meter readings for cost calculation. Payments can be made by bank transfer or in cash. Tenant information is protected and can be updated in the account section.
 
-Admins oversee the entire system, handle violations, moderate content,
-analyze data, improve the interface, performance, and features, and
-provide technical support. This role ensures stable, secure, and
-transparent operations for both landlords and tenants..
+Admins oversee the entire system, handle violations, moderate content, analyze data, improve the interface, performance, and features, and provide technical support. This role helps keep operations stable, secure, and transparent for landlords and tenants.
 
 **\
 **

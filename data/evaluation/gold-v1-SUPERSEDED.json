@@ -1,0 +1,14 @@
+{
+  "status": "SUPERSEDED",
+  "reason": "Gold-v1 outcome contract and hashes changed; prior evaluation checkpoints and reports are invalidated.",
+  "superseded_gold_hash": "7c946735a1f47be4723d0c718a402a068cc6ee504af6e0091f6e804b1905ba67",
+  "superseded_artifacts": [
+    "data/evaluation/release-run-v2",
+    "data/evaluation/release-run-v3",
+    "data/evaluation/release-run-v4",
+    "data/evaluation/release-run-v5",
+    "data/evaluation/probe",
+    "data/evaluation/release-run/final-report.json"
+  ],
+  "superseded_at": "2026-09-11T00:00:00Z"
+}

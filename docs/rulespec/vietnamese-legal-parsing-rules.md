@@ -1,18 +1,27 @@
-# Quy tắc Parsing và Chuẩn hóa Văn bản Pháp luật Việt Nam (VNLRAG-23)
+# Quy tắc Parsing và Chuẩn hóa Văn bản Pháp luật Việt Nam
 
-> Tài liệu này là **v2 rules spec** thay thế toàn bộ nội dung `docs/rulespec/` v1 (kỷ nguyên UDEF, đã gỡ theo ADR-001). Đây là tài liệu quy tắc (rules) — **không implement code**; Legal Structure Extractor (VNLRAG-26/28) và normalization metadata pháp lý (Sprint 2) triển khai theo đúng các quy tắc dưới đây.
+> **Trạng thái hiện tại:** rules này áp dụng cho pipeline ingestion FastAPI/Python 3.11:
+> parser output được chuẩn hóa thành canonical IR rồi legal provisions; evidence gate
+> quyết định dữ liệu có được index vào Qdrant hay không. Retrieval dùng Qdrant hybrid
+> với dense OpenRouter và FastEmbed BM25; generator chỉ có một OpenRouter provider.
+> Tài liệu không mô tả agents, LangGraph, hay external retrieval.
+>
+> Các mã VNLRAG và mô tả Sprint/W3 bên dưới là provenance lịch sử của thesis/spec cũ,
+> không phải service hoặc runtime đang hoạt động.
+
+Tài liệu này là rules spec v2, thay thế nội dung v1 (kỷ nguyên UDEF, đã gỡ theo ADR-001).
+Đây là tài liệu quy tắc, không implement code. Extractor và normalization được triển khai theo
+các quy tắc này trong pipeline hiện tại.
 
 ## 1. Phạm vi & mục đích
 
-- Drives **Legal Structure Extractor** (VNLRAG-26/28, W3) và normalization pháp lý trong Sprint 2.
-- Nguồn chính thức của tài liệu này:
-  - doc 00 mục 4.2 (scope & decisions);
-  - doc 03 §3.8 (Legal Structure Extractor, L1023-1139), §3.7.3 (gates, L948-999), §3.14.1 (REFERS_TO, L2874-2887), §3.15 (Temporal, L2925-2987);
-  - spike VNLRAG-22 evidence: `docs/spike-vnlrag-22-structure-extraction-evidence.md` (phân tích IR thực + gold + fixtures);
-  - spike VNLRAG-21: `docs/spike-vnlrag-21-ir-provenance-contract.md` (provenance adapter, 48 elements);
-  - gold fixtures: `backend/tests/fixtures/parser_benchmark/gold/` (+ `golden-stable-id/`);
-  - schema: `templates/legal-provision.schema.json`, `templates/corpus-manifest.schema.json`, `docs/parser_router.yaml`.
-- Tài liệu này chỉ định nghĩa **quy tắc**; extractor là nơi triển khai theo doc này. Không có code extractor trong phạm vi VNLRAG-23.
+- Legal-structure extraction và legal normalization chạy sau khi PDF ingestion tạo canonical IR.
+- Nguồn schema/fixtures hiện hành:
+  - `templates/legal-provision.schema.json`;
+  - `templates/corpus-manifest.schema.json`;
+  - `backend/tests/fixtures/parser_benchmark/gold/`;
+  - `docs/parser_router.yaml`.
+- Các spike/handoff được dẫn chiếu bên dưới là bằng chứng hoặc lịch sử, không phải runtime dependency.
 
 ## 2. Phân loại loại văn bản
 
@@ -21,7 +30,7 @@
 
 ## 3. Pattern nhận diện cấu trúc (fixture-validated, từ spike VNLRAG-22)
 
-Bảng regex đã được validate trên 3 fixtures born-digital (luat-36-2024-qh15 26 el/1pg, nd-168-2024 5 el/2pg, tt-24-2024-tt-bgtvt 17 el/1pg — 48 elements tổng):
+Bảng regex đã được validate trên 3 fixtures born-digital (luat-36-2024-qh15 26 el/1pg, nd-168-2024 5 el/2pg, tt-24-2024-tt-bgtvt 17 el/1pg, tổng cộng 48 elements):
 
 | Cấp | Regex | Bằng chứng |
 |---|---|---|
@@ -33,7 +42,7 @@ Bảng regex đã được validate trên 3 fixtures born-digital (luat-36-2024-
 
 ### 3.1. LƯU Ý QUAN TRỌNG (spike 22 finding)
 
-- **Adapter hiện tại STRIP label khỏi text của `list_item`** — luat p1-e2..e5/e7 mất a)–e); tt p1-e14/e15 mất a)/b). Nhưng **KHÔNG phải luôn luôn**: tt p1-e10 là `list_item` **giữ** "đ) Ảnh chân dung theo quy định."; element loại `text` cũng giữ label (luat p1-e6 "đ) Người đi bộ...", p1-e16 "b) Đường quốc lộ;", p1-e19 "đ) Đường xã;"). Label survival không tương quan với `element_type`.
+- **Adapter hiện tại STRIP label khỏi text của `list_item`**: luat p1-e2..e5/e7 mất a)–e); tt p1-e14/e15 mất a)/b). Nhưng **KHÔNG phải luôn luôn**: tt p1-e10 là `list_item` **giữ** "đ) Ảnh chân dung theo quy định."; element loại `text` cũng giữ label (luat p1-e6 "đ) Người đi bộ...", p1-e16 "b) Đường quốc lộ;", p1-e19 "đ) Đường xã;"). Label survival không tương quan với `element_type`.
 - **Hệ quả cho extractor**:
   1. Parse label từ element text **TRƯỚC** (dùng marker còn sót nếu có);
   2. Chỉ tái dựng label khi thiếu (từ raw text/page text hoặc reading_order + vị trí);

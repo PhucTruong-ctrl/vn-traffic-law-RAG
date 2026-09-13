@@ -74,9 +74,9 @@
 
 \section{Bối cảnh và bài toán}
 
-Người dân khi tra cứu pháp luật giao thông đường bộ Việt Nam thường phải đọc nhiều văn bản dài, tự đối chiếu giữa Luật, Nghị định, Thông tư và các văn bản sửa đổi hoặc thay thế. Một câu hỏi tưởng như đơn giản, chẳng hạn mức xử phạt đối với một hành vi, có thể có đáp án khác nhau tùy loại phương tiện, điều kiện áp dụng và thời điểm xảy ra hành vi. Câu trả lời đúng cho một hành vi năm 2023 chưa chắc đúng cho hành vi tương tự năm 2026.
+Người dân khi tra cứu pháp luật giao thông đường bộ Việt Nam thường phải đọc nhiều văn bản dài và đối chiếu giữa Luật, Nghị định, Thông tư cùng các văn bản sửa đổi hoặc thay thế. Một câu hỏi tưởng như đơn giản, chẳng hạn mức xử phạt cho một hành vi, có thể có đáp án khác nhau tùy loại phương tiện, điều kiện áp dụng và thời điểm xảy ra hành vi. Vì vậy, câu trả lời đúng cho hành vi năm 2023 chưa chắc đúng cho hành vi tương tự năm 2026.
 
-Các chatbot dựa trên mô hình ngôn ngữ lớn có thể trả lời nhanh nhưng vẫn tồn tại nguy cơ tạo sai mức phạt, ghép nội dung từ nhiều phiên bản hoặc đưa ra Điều, Khoản, Điểm không tồn tại. Cách tiếp cận RAG thông thường theo chuỗi PDF - chunk - vector database - LLM cũng chưa giải quyết đầy đủ các đặc điểm quan trọng của dữ liệu pháp luật:
+Các chatbot dựa trên mô hình ngôn ngữ lớn trả lời nhanh nhưng vẫn có nguy cơ đưa sai mức phạt, trộn nội dung từ nhiều phiên bản hoặc viện dẫn Điều, Khoản, Điểm không tồn tại. Cách tiếp cận RAG thông thường theo chuỗi PDF - chunk - vector database - LLM cũng chưa xử lý đầy đủ các đặc điểm quan trọng của dữ liệu pháp luật:
 
 \begin{itemize}
   \item cấu trúc phân cấp Chương, Mục, Điều, Khoản và Điểm với nhãn Điểm tiếng Việt a) b) c) d) đ) e), trong đó ranh giới pháp lý phải trùng ranh giới trích dẫn;
@@ -87,7 +87,7 @@ Các chatbot dựa trên mô hình ngôn ngữ lớn có thể trả lời nhanh
   \item câu hỏi đa bằng chứng: một câu hỏi có thể yêu cầu vừa mức phạt vừa số điểm trừ, hệ thống không được trả lời một nửa dễ của câu hỏi.
 \end{itemize}
 
-Đề tài xây dựng một hệ thống RAG chuyên biệt cho pháp luật giao thông đường bộ Việt Nam. Hệ thống không chỉ tìm đoạn văn có nội dung gần với câu hỏi mà còn phải xác định đúng đơn vị pháp lý, đúng phiên bản văn bản tại thời điểm được hỏi, mở rộng đúng các quy định liên quan và kiểm chứng từng trích dẫn trước khi trả kết quả.
+Đề tài xây dựng một hệ thống RAG chuyên biệt cho pháp luật giao thông đường bộ Việt Nam. Hệ thống không chỉ tìm các đoạn văn gần với câu hỏi mà còn xác định đúng đơn vị pháp lý, đúng phiên bản văn bản tại thời điểm được hỏi, mở rộng các quy định liên quan và kiểm chứng từng trích dẫn trước khi trả kết quả.
 
 \section{Mục tiêu hệ thống}
 

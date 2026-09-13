@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Citation } from "./CitationCard";
 import Modal from "./Modal";
-import PdfCitationViewer from "./PdfCitationViewer";
+import LegalSourceViewer, { type LegalSourceDocument } from "./LegalSourceViewer";
+import { apiUrl, responseError } from "../lib/api";
 
 export default function SourceDrawer({
   citation,
@@ -13,13 +14,18 @@ export default function SourceDrawer({
   onClose: () => void;
 }) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const [sourceDocument, setSourceDocument] = useState<LegalSourceDocument | undefined>();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   useEffect(() => {
     if (!citation) return;
     const previousFocus =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      globalThis.document.activeElement instanceof HTMLElement
+        ? globalThis.document.activeElement
+        : null;
     const background = [
-      document.querySelector<HTMLElement>(".sidebar"),
-      document.querySelector<HTMLElement>(".main-panel"),
+      globalThis.document.querySelector<HTMLElement>(".sidebar"),
+      globalThis.document.querySelector<HTMLElement>(".main-panel"),
     ].filter((element): element is HTMLElement => element !== null);
     const previousInert = background.map((element) => element.hasAttribute("inert"));
     background.forEach((element) => element.setAttribute("inert", ""));
@@ -31,56 +37,83 @@ export default function SourceDrawer({
       previousFocus?.focus();
     };
   }, [citation]);
+  useEffect(() => {
+    if (!citation) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setLoading(true);
+      setSourceDocument(undefined);
+      fetch(apiUrl(`legal-documents/${encodeURIComponent(citation.document_id)}`), {
+        signal: controller.signal,
+      })
+        .then((response) => {
+          if (!response.ok) return responseError(response);
+          return response.json() as Promise<LegalSourceDocument | { data?: LegalSourceDocument }>;
+        })
+        .then((payload) => {
+          if (!controller.signal.aborted) {
+            const document =
+              payload && typeof payload === "object" && "data" in payload
+                ? payload.data
+                : (payload as LegalSourceDocument);
+            setSourceDocument(document || undefined);
+          }
+        })
+        .catch((reason: unknown) => {
+          if (reason instanceof DOMException && reason.name === "AbortError") return;
+          if (!controller.signal.aborted)
+            setError(
+              reason instanceof Error ? reason.message : "Không thể tải nội dung nguồn pháp luật.",
+            );
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setLoading(false);
+        });
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [citation]);
 
   if (!citation) return null;
   const title =
     citation.document_title ||
     citation.document_number ||
-    citation.provision_id ||
+    citation.document_id ||
     "Nguồn pháp luật";
-  const excerpt = (
-    citation.legal_context ||
-    citation.source_text ||
-    citation.snippet ||
-    ""
-  ).replace(/\r?\n/g, "\n");
 
   return (
     <Modal
-      open={Boolean(citation)}
+      open
       onClose={onClose}
       label="Nguồn pháp luật"
-      className="source-drawer pdf-source-drawer"
+      className="source-drawer legal-source-drawer"
     >
-      <header className="source-drawer__header">
-        <div>
-          <span className="source-drawer__eyebrow">NGUỒN TRÍCH DẪN</span>
-          <h2>{title}</h2>
-          <p className="source-drawer__document">Trang {citation.page_number || 1}</p>
-        </div>
-      </header>
-      <div className="source-drawer__body">
-        <PdfCitationViewer citation={citation} />
-        <details className="source-excerpt">
-          <summary>Đọc đoạn trích dạng văn bản</summary>
-          <blockquote>{excerpt || "Nguồn không cung cấp nội dung đoạn trích."}</blockquote>
-        </details>
-      </div>
-      <footer className="source-drawer__footer">
-        <button
-          ref={closeButtonRef}
-          className="source-drawer__done"
-          type="button"
-          onClick={onClose}
-        >
-          Đóng
-        </button>
-        {citation.source_url && (
-          <a href={citation.source_url} target="_blank" rel="noreferrer">
-            Mở bản gốc ↗
-          </a>
-        )}
-      </footer>
+      {loading ? (
+        <p className="legal-source-viewer__state">Đang tải nội dung nguồn pháp luật…</p>
+      ) : error ? (
+        <p className="legal-source-viewer__state" role="alert">
+          {error}
+        </p>
+      ) : (
+        <LegalSourceViewer
+          citation={citation}
+          mode="chat"
+          document={
+            sourceDocument || {
+              document_title: title,
+              document_id: citation.document_id || citation.document || undefined,
+              article: citation.article,
+              clause: citation.clause,
+              point: citation.point,
+              source_url: citation.source_url,
+              pdf_url: citation.pdf_url,
+              source_file: citation.source_file,
+            }
+          }
+        />
+      )}
     </Modal>
   );
 }

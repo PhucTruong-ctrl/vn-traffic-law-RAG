@@ -1,4 +1,4 @@
-> **MVP rebaseline — 10/09/2026**: Hệ thống là dịch vụ single-user chạy localhost hoặc private network. Corpus MVP gồm 14 PDF cục bộ, deduplicate theo document/hash; nguồn được allowlist chính xác trên `datafiles.chinhphu.vn`. Ingestion chỉ chạy thủ công bằng CLI và xử lý nền; snapshot/hash bất biến, quality/provenance/temporal gates tự động, không có human approval. Query chỉ phục vụ corpus đã accepted và không gọi web.
+> **MVP rebaseline, 10/09/2026**: Hệ thống là dịch vụ single-user chạy localhost hoặc private network. Corpus MVP gồm 14 PDF cục bộ, deduplicate theo document/hash; nguồn được allowlist chính xác trên `datafiles.chinhphu.vn`. Ingestion chỉ chạy thủ công bằng CLI và xử lý nền; snapshot/hash bất biến, quality/provenance/temporal gates tự động, không có human approval. Query chỉ phục vụ corpus đã accepted và không gọi web.
 >
 > **Model policy**: Embedding được chọn sau benchmark nhỏ trên các ứng viên đã cài/cache; mọi lựa chọn đều ghi version và yêu cầu rebuild index. Không nêu tên model hoặc ngưỡng số học khi chưa có kết quả đo.
 # 03. Thiết Kế Hệ Thống
@@ -16,9 +16,9 @@
 
 ---
 
-Tài liệu này là bản thiết kế chi tiết của VNLRAG v2. Mọi thiết kế phải tuân theo đúng [00-scope-and-decisions.md](00-scope-and-decisions.md) và đặc tả yêu cầu [02-yeu-cau-he-thong.md](02-yeu-cau-he-thong.md). Các yêu cầu chức năng được ký hiệu FR-xx và các use case được ký hiệu UC-xx theo đúng đặc tả.
+Tài liệu này ghi lại thiết kế và phân biệt rõ phần đang chạy với các thiết kế lịch sử. Runtime MVP hiện tại là single-user, corpus-local, query không gọi web; deployment authority là `deploy/compose/compose.release.yml`. Kiến trúc đang phục vụ gồm frontend Next.js 16 + React 19, backend FastAPI/Python 3.11, Qdrant 1.19 hybrid dense/sparse retrieval, Supabase REST/Auth persistence, một generator OpenRouter cấu hình được và các cổng evidence/citation deterministic.
 
-> **Ghi chú lịch sử**: thiết kế v1 dựa trên UDEF và traffic-law domain pack (pipeline `PDF -> UDEF -> Docling -> CDM`). Phiên bản v2 loại bỏ hoàn toàn UDEF và thay bằng Parser Router, Canonical Document IR và Legal Structure Extractor do dự án sở hữu. Chi tiết tại ADR-001 và mục 3.35.
+> **Ghi chú lịch sử**: thiết kế v1/v2 từng đề xuất Parser Router, Canonical Document IR, Legal Structure Extractor, worker/queue, Redis, MinIO, LangGraph và topology bảy service. Những nội dung này được giữ để bảo toàn provenance thiết kế; chúng không phải service runtime hiện tại. Ingestion hiện dùng các script/manual CLI có trong repository; không có human approval hay query-time web retrieval.
 
 ---
 
@@ -29,11 +29,11 @@ Hệ thống được thiết kế theo các nguyên tắc bắt buộc sau, có
 1. **Parser-neutral IR**
    Tài liệu sau khi parse được chuyển sang Canonical Document IR do dự án sở hữu. Không module nào khác đọc trực tiếp định dạng đầu ra của Docling hoặc MinerU. Thay đổi parser chỉ yêu cầu một adapter mới, không viết lại Legal Structure Extractor (NFR-06).
 
-2. **PostgreSQL là nguồn chân lý**
-   PostgreSQL quản lý metadata, phiên bản, quan hệ, snapshot/hash bất biến, audit kỹ thuật, query trace và feedback tối thiểu. Mọi dữ liệu pháp lý phải qua các cổng tự động trước khi phục vụ query.
+2. **Supabase là persistence boundary**
+   Supabase REST/Auth quản lý authentication, chat/saved-Q&A persistence và application metadata trong deployment hiện tại. Không vận hành PostgreSQL app-owned trong active Compose topology.
 
-3. **Qdrant là index dẫn xuất**
-   Qdrant chỉ là index retrieval có thể dựng lại hoàn toàn từ PostgreSQL. Nếu dữ liệu hai nơi lệch nhau, PostgreSQL thắng.
+3. **Qdrant là index retrieval**
+   Qdrant 1.19 phục vụ hybrid dense/sparse retrieval; dữ liệu index được rebuild từ corpus/manifest và persistence boundary của ứng dụng. Không dùng PostgreSQL app-owned làm runtime dependency.
 
 4. **Verified-or-abstain**
    Không bao giờ trả câu trả lời có citation chưa verified, claim chưa được hỗ trợ hoặc thiếu bằng chứng bắt buộc. Khi không thể xác minh, hệ thống ABSTAIN kèm lý do chuẩn.
@@ -124,40 +124,20 @@ Pipeline worker: `snapshot -> parse -> normalize -> legal extract -> reference r
 
 ### 3.2.2. Online query pipeline
 
-```mermaid
-flowchart TB
-    UQ["Câu hỏi người dùng"]
-    QU["Query Understanding (intent, query_date, comparison dates, vehicle_type, legal entities, normalized query, số văn bản/Điều/Khoản/Điểm, evidence plan)"]
-    TR["Temporal Resolution"]
-    QE["Query Expansion (original | normalized | multi-query rewrite | conditional HyDE)"]
-    RECALL["Parallel Multi-Recall (exact legal lookup | dense | sparse BM25)"]
-    FUSE["RRF Fusion"]
-    RERANK["Reranking"]
-    LCE["Legal Context Expansion (parent | sibling | cross-reference | penalty companion)"]
-    EGG["Evidence Completeness Gate"]
-    CB["Context Builder"]
-    GEN["Structured Answer Generator"]
-    VER["Verification (schema, citation ID, temporal, numeric grounding, claim support, evidence completeness)"]
-    OUT["Verified Answer | Abstention"]
-    TARGET["Targeted Retrieval (missing evidence categories)"]
+Online query is corpus-only: classification and retrieval never call the open web.
+The legal explorer has its own API-backed search/deep-link path over the serving
+provisions; it does not broaden chat evidence. Chat classification preserves the
+canonical public statuses `VERIFIED`, `GREETING`, `OUT_OF_SCOPE`,
+`CORPUS_NOT_COVERED`, `INSUFFICIENT_EVIDENCE`, and `WORKFLOW_UNAVAILABLE`.
+`GREETING` is returned before legal retrieval, while a traffic question unsupported
+by the serving corpus returns `CORPUS_NOT_COVERED`.
 
-    UQ --> QU
-    QU --> TR
-    TR --> QE
-    QE --> RECALL
-    RECALL --> FUSE
-    FUSE --> RERANK
-    RERANK --> LCE
-    LCE --> EGG
-    EGG -- "complete" --> CB
-    EGG -- "incomplete" --> TARGET
-    TARGET --> EGG
-    CB --> GEN
-    GEN --> VER
-    VER --> OUT
-```
+The exact Evidence Completeness Gate runs before generation. It compares the query's
+evidence plan with the retrieved and expanded context; any required evidence gap
+routes to bounded targeted retrieval/repair and then abstention if unresolved.
+The browser uses a bounded chat timeout (120 seconds by default, configurable with
+`NEXT_PUBLIC_CHAT_TIMEOUT_MS`); timeout aborts the request and does not emit a draft.
 
-Query expansion luôn giữ câu hỏi gốc của người dùng. HyDE chỉ dùng có điều kiện (câu ngắn, khẩu ngữ, ngữ nghĩa yếu hoặc bằng chứng chưa đủ). Không có vòng rewrite không giới hạn (FR-12). Context Builder là node riêng giữa Evidence Completeness Gate và generator: nhận `reranked + expanded_context`, chuyển thành `context_package` cho `generate` (xem 3.22).
 
 ### 3.2.3. LangGraph controlled workflow
 
@@ -211,41 +191,23 @@ Sửa lỗi có ý thức (failure-aware repair), không chỉ regenerate (FR-24
 Sau số lần repair có giới hạn: **ABSTAIN**. Cơ chế đếm bước nằm trong state (`repair_attempts`) kết hợp conditional edge để dừng. LangGraph checkpoint được dùng cho retry/resume idempotent khi cần, không bắt buộc cho single-request P0.
 
 ### 3.2.5. Deployment topology
-Compose MVP gồm frontend, backend, PostgreSQL, Qdrant và worker/queue/object storage tùy cấu hình triển khai; tất cả chạy trong boundary single-user localhost/private network. Ingestion chỉ được kích hoạt bằng CLI thủ công và thực hiện nền. Provider/model cụ thể chỉ được chọn từ manifest đã đo và ghi version; query không gọi web và search chỉ đọc corpus đang phục vụ. PostgreSQL là nguồn chân lý; Qdrant là index dẫn xuất.
+
+Runtime MVP deploys the three services defined in `deploy/compose/compose.release.yml`:
+frontend (Next.js), backend (FastAPI), and local Qdrant. Supabase/PostgreSQL and
+OpenRouter are external dependencies when configured. Ingestion runs through the
+existing manual CLI scripts, outside request handlers. Worker/queue/object-storage
+topologies described elsewhere in this document are historical or future design,
+not active deployment requirements. PostgreSQL/Supabase remains the application
+persistence boundary where configured; Qdrant is a derived retrieval index.
 
 ```mermaid
 graph LR
-    B["Browser"]
-    FE["Next.js :3000"]
-    API["FastAPI :8000"]
-    WK["Dramatiq Worker"]
-    PG["PostgreSQL :5432"]
-    QD["Qdrant :6333"]
-    RD["Redis :6379"]
-    MO["MinIO :9000"]
-    LF["Langfuse Cloud"]
-    LLM["Generator provider/model from measured manifest"]
-    J["Embedding/reranker provider/model from measured manifest"]
-    B --> FE
-    FE --> API
-    API --> PG
-    API --> QD
-    API --> RD
-    API --> MO
-    WK --> RD
-    WK --> PG
-    WK --> QD
-    WK --> MO
-    API --> LLM
-    API --> J
-    WK --> J
-    WK --> LLM
-    API --> O
-    WK --> O
-    API -. "trace async" .-> LF
+    B["Browser"] --> FE["frontend :3000"]
+    FE --> API["backend :8000"]
+    API --> QD["qdrant :6333"]
+    API -. "auth/app data" .-> SB["Supabase/PostgreSQL"]
+    API -. "embeddings/generation" .-> OR["OpenRouter"]
 ```
-
-Ghi chú về L5 judge: chỉ dùng provider/model đã được ghi trong manifest benchmark; chỉ xử lý semantic claim support khi deterministic rules chưa kết luận được; lỗi provider hoặc timeout phải fail-closed sang repair giới hạn hoặc ABSTAIN.
 
 Cấu hình ràng buộc cục bộ:
 
@@ -441,33 +403,12 @@ sequenceDiagram
 
 Chính sách canonical date (FR-11, UC-02): câu hỏi chỉ có năm và không có sự kiện pháp lý thay đổi hiệu lực trong năm thì áp dụng ngày chuẩn được ghi rõ (ví dụ 01/07 của năm đó) và BẮT BUỘC hiển thị ngày đã áp dụng; nếu có sự kiện thay đổi thì yêu cầu ngày cụ thể hoặc ABSTAIN với `MISSING_QUERY_DATE`. Không dùng văn bản hiện hành làm mặc định cho câu hỏi lịch sử.
 
-### 3.3.4. Comparison query flow
+### 3.3.4. Historical version separation
 
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant QU as Query Understanding
-    participant G as LangGraph
-    participant PG as PostgreSQL
-    participant QD as Qdrant
-    participant GEN as Generator
-    participant VER as Verifier
-
-    U->>QU: "Quy định trước và sau 01/01/2025 khác nhau thế nào?"
-    QU->>QU: intent = COMPARISON, comparison dates = (before, after)
-    QU-->>G: two temporal contexts A, B
-    G->>PG: exact lookup context A (date A)
-    G->>QD: dense + sparse context A (filter interval A)
-    G->>PG: exact lookup context B (date B)
-    G->>QD: dense + sparse context B (filter interval B)
-    G->>G: expand + evidence check riêng cho từng phía
-    G->>GEN: generate comparison (không trộn context hai mốc)
-    GEN-->>G: structured answer
-    G->>VER: verify citation A theo interval A, citation B theo interval B
-    alt đủ bằng chứng cả hai phía
-        G-->>U: structured comparison + citation riêng từng giai đoạn
-    else một phía thiếu sau repair
-        G-->>U: ABSTAIN INSUFFICIENT_EVIDENCE
+Historical queries resolve the requested effective date and keep citations tied to
+that interval. The active MVP does not expose a separate comparison workflow;
+comparison remains an earlier design concept and is not an implemented chat/API
+capability.
     end
 ```
 
@@ -3403,7 +3344,7 @@ Không retry chặn, không ghi lỗi vào response pháp lý. Bật/tắt bằn
 
 ---
 
-## 3.28. API Contracts
+### 3.28. API Contracts
 
 Base path: `/api/v1`. Boundary là single-user localhost/private network; không có authentication, admin, reviewer role hoặc public multi-tenant contract. Mọi response nghiệp vụ có `trace_id`; lỗi kỹ thuật dùng 4xx/5xx; abstention dùng HTTP 200.
 
@@ -3413,17 +3354,41 @@ Base path: `/api/v1`. Boundary là single-user localhost/private network; không
 POST /api/v1/chat
 ```
 
-Chat response luôn là verified hoặc abstained; citation được dựng từ metadata đã kiểm chứng. Query không gọi web.
+Chat trả về trạng thái công khai chuẩn: `VERIFIED`, `GREETING`, `OUT_OF_SCOPE`,
+`CORPUS_NOT_COVERED`, `INSUFFICIENT_EVIDENCE`, hoặc `WORKFLOW_UNAVAILABLE`.
+`GREETING` không chạy legal retrieval; `CORPUS_NOT_COVERED` là câu hỏi giao thông
+ngoài corpus đang phục vụ. Query không gọi web. Evidence Completeness Gate là cổng
+chặn chính xác trước generation: thiếu bất kỳ evidence type bắt buộc nào thì không
+được sinh câu trả lời đã verify.
 
-### 3.28.2. Search
+### 3.28.2. Legal explorer search and deep links
 
 ```http
-POST /api/v1/search
+GET /api/v1/legal-search?q={text}&document_id={id}&article={article}&clause={clause}&point={point}&limit={1..100}
+GET /api/v1/legal-documents
+GET /api/v1/legal-documents/{document_id}
+GET /api/v1/legal-documents/{document_id}/provisions
 ```
 
-Search không bắt buộc gọi generator và chỉ tìm trong corpus `ACCEPTED` đang được phục vụ.
+`legal-search` performs bounded text search over the local serving corpus and
+returns provision metadata and score. Document/provision responses preserve source
+metadata used by `/legal-sources` deep links to Markdown passages or PDF pages.
+There is no web fallback.
 
-### 3.28.3. Job status
+### 3.28.3. Saved Q&A snapshots
+
+```http
+POST /api/v1/chats/{session_id}/bookmarks
+GET /api/v1/saved
+GET /api/v1/saved/{assistant_message_id}/status
+DELETE /api/v1/saved/{assistant_message_id}
+```
+
+The bookmark operation persists a durable Q&A snapshot: question, answer, citations,
+response payload, session/message IDs, and user ownership. `/bookmarks` aliases are
+also available for list/status/save/delete compatibility.
+
+### 3.28.4. Job status
 
 ```http
 GET /api/v1/jobs/{job_id}
@@ -3431,7 +3396,7 @@ GET /api/v1/jobs/{job_id}
 
 Trạng thái trả về gồm `QUEUED`, các stage xử lý nền, `ACCEPTED`, `REJECTED`, `INDEXED` hoặc `FAILED`, kèm snapshot/hash và gate summary.
 
-### 3.28.4. Feedback
+### 3.28.5. Feedback
 
 ```http
 POST /api/v1/feedback

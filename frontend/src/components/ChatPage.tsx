@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import type { FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import AppHeader from "./AppHeader";
 import ChatThread from "./ChatThread";
@@ -9,31 +10,46 @@ import Composer from "./Composer";
 import Sidebar from "./Sidebar";
 import SourceDrawer from "./SourceDrawer";
 import Welcome from "./Welcome";
-import type { ChatResponse, ConversationTurn } from "./chat-types";
-import type { ProgressEvent } from "./ProgressEvents";
+import type { ChatResponse, ConversationTurn, ProgressEvent } from "./chat-types";
 import type { Citation } from "./CitationCard";
+import type { Session } from "@supabase/supabase-js";
+import { createClient } from "../../utils/supabase/client";
+import { apiUrl } from "../lib/api";
 
-const API_PATH = "/api/v1/chat";
-const isCitation = (value: unknown): value is Citation =>
-  typeof value === "object" &&
-  value !== null &&
-  typeof (value as Citation).provision_id === "string";
+const API_PATH = apiUrl("chat");
+const SESSIONS_PATH = apiUrl("chats");
+const CHAT_TIMEOUT_MS = 120_000;
+const isCitation = (value: unknown): value is Citation => {
+  if (typeof value !== "object" || value === null) return false;
+  const citation = value as Record<string, unknown>;
+  return (
+    (typeof citation.provision_id === "string" && Boolean(citation.provision_id.trim())) ||
+    (typeof citation.document === "string" && Boolean(citation.document.trim())) ||
+    (typeof citation.document_title === "string" && Boolean(citation.document_title.trim())) ||
+    (typeof citation.document_id === "string" && Boolean(citation.document_id.trim()))
+  );
+};
 const validateChatResponse = (payload: unknown): ChatResponse => {
   if (typeof payload !== "object" || payload === null)
     throw new Error("Phản hồi từ máy chủ không hợp lệ. Vui lòng thử lại.");
   const value = payload as Record<string, unknown>;
-  if (
-    value.status === "ABSTAINED" &&
-    typeof value.abstention === "object" &&
-    value.abstention !== null
-  )
+  const NON_VERIFIED_STATUS: Record<string, true> = {
+    GREETING: true,
+    OUT_OF_SCOPE: true,
+    CORPUS_NOT_COVERED: true,
+    INSUFFICIENT_EVIDENCE: true,
+    WORKFLOW_UNAVAILABLE: true,
+  };
+  if (typeof value.status === "string" && NON_VERIFIED_STATUS[value.status]) {
     return payload as ChatResponse;
-  const claims = value.claims;
+  }
+  const answer = value.answer;
   const citations = value.citations;
-  if (
-    value.status === "VERIFIED" &&
-    typeof value.answer === "string" &&
-    Boolean(value.answer.trim()) &&
+  const validAnswer = typeof answer === "string" && Boolean(answer.trim());
+  const validCitations =
+    Array.isArray(citations) && citations.length > 0 && citations.every(isCitation);
+  const claims = value.claims;
+  const validClaims =
     Array.isArray(claims) &&
     claims.length > 0 &&
     claims.every(
@@ -42,23 +58,88 @@ const validateChatResponse = (payload: unknown): ChatResponse => {
         claim !== null &&
         typeof (claim as { claim?: unknown }).claim === "string" &&
         Boolean((claim as { claim: string }).claim.trim()),
-    ) &&
-    Array.isArray(citations) &&
-    citations.length > 0 &&
-    citations.every(isCitation)
-  )
-    return payload as ChatResponse;
+    );
+  if (
+    (value.status === "VERIFIED" && validAnswer && validClaims && validCitations) ||
+    (value.status === undefined && validAnswer && validCitations)
+  ) {
+    const normalizedClaims = validClaims
+      ? (claims as ChatResponse["claims"])
+      : (citations as Array<Record<string, unknown>>).map((citation) => ({
+          claim:
+            (typeof citation.excerpt === "string" && citation.excerpt) ||
+            (typeof citation.source_text === "string" && citation.source_text) ||
+            (typeof citation.snippet === "string" && citation.snippet) ||
+            (typeof answer === "string" ? answer : ""),
+        }));
+    return {
+      ...value,
+      status: "VERIFIED",
+      claims: normalizedClaims,
+      citations: citations as Citation[],
+    } as ChatResponse;
+  }
   throw new Error("Phản hồi từ máy chủ không hợp lệ. Vui lòng thử lại.");
 };
 
 function responseFromMessage(message: Record<string, unknown>): ChatResponse | null {
   const candidate = message.response ?? message.payload ?? message;
-  try {
-    return validateChatResponse(candidate);
-  } catch {
-    return null;
+  const enrich = (response: ChatResponse): ChatResponse => ({
+    ...response,
+    ...(typeof message.id === "string" ? { assistant_message_id: message.id } : {}),
+    ...(typeof message.session_id === "string" ? { conversation_id: message.session_id } : {}),
+    ...(typeof message.bookmarked === "boolean" ? { bookmarked: message.bookmarked } : {}),
+    ...(typeof message.is_bookmarked === "boolean" ? { is_bookmarked: message.is_bookmarked } : {}),
+  });
+  if (typeof candidate === "string") {
+    const citations = Array.isArray(message.citations) ? message.citations.filter(isCitation) : [];
+    const answer = candidate.trim();
+    if (!answer) return null;
+    return enrich({
+      status: message.status === "insufficient_evidence" ? "INSUFFICIENT_EVIDENCE" : "VERIFIED",
+      answer,
+      citations,
+      claims: citations.map((citation) => ({
+        claim:
+          (typeof citation.excerpt === "string" && citation.excerpt) ||
+          (typeof citation.source_text === "string" && citation.source_text) ||
+          (typeof citation.snippet === "string" && citation.snippet) ||
+          answer,
+      })),
+    });
   }
+  if (!candidate || typeof candidate !== "object") return null;
+  const value = candidate as Record<string, unknown>;
+  const answer = typeof value.answer === "string" ? value.answer.trim() : "";
+  const citations = Array.isArray(value.citations)
+    ? value.citations.filter(isCitation)
+    : Array.isArray(message.citations)
+      ? message.citations.filter(isCitation)
+      : [];
+  if (!answer) return null;
+  if (value.status && typeof value.status === "string" && value.status !== "complete") {
+    return enrich({
+      ...value,
+      answer,
+      citations,
+      ...(typeof value.bookmarked === "boolean" ? { bookmarked: value.bookmarked } : {}),
+      ...(typeof value.is_bookmarked === "boolean" ? { is_bookmarked: value.is_bookmarked } : {}),
+    } as ChatResponse);
+  }
+  return enrich({
+    ...value,
+    status: "VERIFIED",
+    answer,
+    citations,
+    claims:
+      Array.isArray(value.claims) && value.claims.length
+        ? value.claims
+        : citations.map((citation) => ({ claim: citation.excerpt || answer })),
+    ...(typeof value.bookmarked === "boolean" ? { bookmarked: value.bookmarked } : {}),
+    ...(typeof value.is_bookmarked === "boolean" ? { is_bookmarked: value.is_bookmarked } : {}),
+  } as ChatResponse);
 }
+
 function turnsFromConversation(value: unknown): ConversationTurn[] {
   if (!value || typeof value !== "object") return [];
   const raw = value as Record<string, unknown>;
@@ -68,13 +149,13 @@ function turnsFromConversation(value: unknown): ConversationTurn[] {
       ? raw.turns
       : [];
   const turns: ConversationTurn[] = [];
-  for (const item of messages) {
+  for (let index = 0; index < messages.length; index += 1) {
+    const item = messages[index];
     if (!item || typeof item !== "object") continue;
     const message = item as Record<string, unknown>;
     if (
       typeof message.question === "string" &&
-      message.response &&
-      typeof message.response === "object"
+      (message.response !== undefined || message.payload !== undefined)
     ) {
       const response = responseFromMessage(message);
       if (response) turns.push({ question: message.question, response });
@@ -84,62 +165,142 @@ function turnsFromConversation(value: unknown): ConversationTurn[] {
       (message.role === "user" || message.type === "user") &&
       typeof message.content === "string"
     ) {
-      const next = messages[turns.length + 1];
-      if (next && typeof next === "object") {
-        const response = responseFromMessage(next as Record<string, unknown>);
-        if (response) turns.push({ question: message.content, response });
+      const next = messages[index + 1];
+      const nextMessage =
+        next && typeof next === "object" ? (next as Record<string, unknown>) : null;
+      if (nextMessage?.role === "assistant" || nextMessage?.type === "assistant") {
+        const response = responseFromMessage({
+          ...nextMessage,
+          session_id: typeof nextMessage.session_id === "string" ? nextMessage.session_id : raw.id,
+        });
+        if (response) {
+          turns.push({ question: message.content, response });
+          index += 1;
+          continue;
+        }
       }
+      turns.push({
+        question: message.content,
+        status: "failed",
+      });
     }
   }
   return turns;
 }
-
-export default function ChatPage({ conversationId }: { conversationId?: string }) {
+export default function ChatPage({
+  conversationId: initialConversationId,
+}: {
+  conversationId?: string;
+}) {
   const router = useRouter();
   const pathname = usePathname();
+  const conversationId = initialConversationId;
   const [question, setQuestion] = useState("");
   const [drawerCitation, setDrawerCitation] = useState<Citation | null>(null);
+  const openCitation = useCallback((citation: Citation) => {
+    setDrawerCitation(citation);
+  }, []);
   const [turns, setTurns] = useState<ConversationTurn[]>([]);
   const [submittedQuestion, setSubmittedQuestion] = useState("");
+  const [conversationActivity, setConversationActivity] = useState<{
+    id: string;
+    nonce: number;
+  } | null>(null);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(Boolean(conversationId));
+  const [loading, setLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(Boolean(conversationId));
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [progressEvents, setProgressEvents] = useState<ProgressEvent[]>([]);
   const [activeId, setActiveId] = useState(conversationId);
+  const [session, setSession] = useState<Session | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [authError, setAuthError] = useState("");
   const abortControllerRef = useRef<AbortController | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const activeIdRef = useRef(activeId);
+  const latestSubmissionRef = useRef(0);
+  const progressTimersRef = useRef<number[]>([]);
+  useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
+  const supabase = useMemo(() => createClient(), []);
+  const authHeaders = useCallback(async (): Promise<Record<string, string>> => {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token
+      ? { Authorization: `Bearer ${data.session.access_token}` }
+      : {};
+  }, [supabase]);
+  useEffect(() => {
+    let mounted = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (mounted) {
+        setSession(data.session);
+        setAuthReady(true);
+      }
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, next) => {
+      if (!mounted) return;
+      setSession(next);
+      setAuthReady(true);
+    });
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
+  }, [supabase]);
   useEffect(() => {
     const controller = new AbortController();
-    if (!conversationId) {
-      setLoading(false);
+    if (!conversationId || !session) {
+      if (!conversationId) {
+        void Promise.resolve().then(() => {
+          if (!controller.signal.aborted) setHistoryLoading(false);
+        });
+      }
       return () => controller.abort();
     }
-    setLoading(true);
-    fetch(`/api/v1/conversations/${encodeURIComponent(conversationId)}`, {
-      signal: controller.signal,
-    })
+    if (conversationId === activeId && turns.length > 0) return () => controller.abort();
+    void Promise.resolve().then(() => {
+      if (!controller.signal.aborted) setHistoryLoading(true);
+    });
+    void authHeaders()
+      .then((headers) =>
+        fetch(apiUrl(`chats/${encodeURIComponent(conversationId)}`), {
+          headers,
+          signal: controller.signal,
+        }),
+      )
       .then((result) => {
+        if (result.status === 401) {
+          void supabase.auth.signOut();
+          throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+        }
         if (!result.ok) throw new Error("Không thể tải cuộc trò chuyện.");
         return result.json();
       })
       .then((payload) => {
+        const hydratedTurns = turnsFromConversation(payload);
+        const interruptedTurn = hydratedTurns.at(-1);
         setActiveId(conversationId);
-        setTurns(turnsFromConversation(payload));
-        setQuestion("");
+        setTurns(hydratedTurns);
+        setQuestion(interruptedTurn?.status === "failed" ? interruptedTurn.question : "");
         setSubmittedQuestion("");
         setError("");
-        setLoading(false);
+        setHistoryLoading(false);
       })
       .catch((loadError) => {
-        if (loadError.name !== "AbortError") {
-          setError(
-            loadError instanceof Error ? loadError.message : "Không thể tải cuộc trò chuyện.",
-          );
-          setLoading(false);
-        }
+        if (loadError.name === "AbortError") return;
+        setError(loadError instanceof Error ? loadError.message : "Không thể tải cuộc trò chuyện.");
+        setHistoryLoading(false);
+        setTurns([]);
       });
     return () => controller.abort();
-  }, [conversationId]);
+  }, [conversationId, activeId, turns.length, session, authHeaders]);
 
   const navigateTo = useCallback(
     (id?: string) => {
@@ -149,65 +310,181 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
     [pathname, router],
   );
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  async function authenticate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const submitted = question.trim();
-    if (!submitted || loading) return;
+    setAuthError("");
+    if (authMode === "register" && password !== confirmPassword) {
+      setAuthError("Mật khẩu xác nhận không khớp.");
+      return;
+    }
+    const result =
+      authMode === "login"
+        ? await supabase.auth.signInWithPassword({ email, password })
+        : await supabase.auth.signUp({ email, password });
+    if (result.error) setAuthError(result.error.message);
+    else if (authMode === "register" && !result.data.session)
+      setAuthError("Vui lòng xác nhận email trước khi đăng nhập.");
+  }
+  async function submitQuestion(submitted: string) {
+    if (!submitted || loading || historyLoading || !session) return;
+    const submissionId = latestSubmissionRef.current + 1;
+    latestSubmissionRef.current = submissionId;
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
-    setProgressEvents([]);
-    setLoading(true);
+    let timedOut = false;
+    const timeout = window.setTimeout(
+      () => {
+        timedOut = true;
+        abortController.abort();
+      },
+      Number(process.env.NEXT_PUBLIC_CHAT_TIMEOUT_MS) || CHAT_TIMEOUT_MS,
+    );
+    progressTimersRef.current.forEach(window.clearTimeout);
+    progressTimersRef.current = [
+      window.setTimeout(() => setProgressEvents([{ message: "Đang tìm căn cứ" }]), 0),
+      window.setTimeout(
+        () =>
+          setProgressEvents([{ message: "Đang tìm căn cứ" }, { message: "Đang đối chiếu nguồn" }]),
+        900,
+      ),
+      window.setTimeout(
+        () =>
+          setProgressEvents([
+            { message: "Đang tìm căn cứ" },
+            { message: "Đang đối chiếu nguồn" },
+            { message: "Đang soạn câu trả lời" },
+          ]),
+        2200,
+      ),
+    ];
     setError("");
     setSubmittedQuestion(submitted);
+    setQuestion("");
+    setTurns((previous) => [...previous, { question: submitted, status: "pending" }]);
+    setLoading(true);
     try {
+      const headers = { "Content-Type": "application/json", ...(await authHeaders()) };
+      let sessionId = activeIdRef.current ?? conversationId;
+      if (!sessionId) {
+        const sessionResult = await fetch(SESSIONS_PATH, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ title: submitted.slice(0, 200) }),
+          signal: abortController.signal,
+        });
+        const sessionPayload = await sessionResult.json().catch(() => null);
+        if (sessionResult.status === 401) {
+          await supabase.auth.signOut();
+          throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+        }
+        if (!sessionResult.ok || typeof sessionPayload?.id !== "string") {
+          throw new Error(
+            sessionPayload?.detail ||
+              sessionPayload?.error?.message ||
+              "Không thể tạo cuộc trò chuyện.",
+          );
+        }
+        const createdSessionId: string = sessionPayload.id;
+        sessionId = createdSessionId;
+        activeIdRef.current = createdSessionId;
+        setActiveId(createdSessionId);
+        setConversationActivity({ id: createdSessionId, nonce: Date.now() });
+        window.history.pushState(null, "", `/chat/${encodeURIComponent(createdSessionId)}`);
+      }
+      if (!sessionId) throw new Error("Không thể xác định cuộc trò chuyện.");
       const result = await fetch(API_PATH, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: submitted,
-          ...(activeId ? { conversation_id: activeId } : {}),
-        }),
+        headers,
+        body: JSON.stringify({ question: submitted, session_id: sessionId }),
         signal: abortController.signal,
       });
       const payload = await result.json().catch(() => null);
-      if (!result.ok) throw new Error("Không thể xử lý câu hỏi.");
-      const nextResponse = validateChatResponse(payload);
-      setTurns((previous) => [...previous, { question: submitted, response: nextResponse }]);
-      setQuestion("");
-      const returnedId =
-        payload &&
-        typeof payload === "object" &&
-        typeof (payload as Record<string, unknown>).conversation_id === "string"
-          ? (payload as Record<string, string>).conversation_id
-          : activeId;
-      if (returnedId && returnedId !== activeId) {
-        setActiveId(returnedId);
-        navigateTo(returnedId);
+      if (result.status === 401) {
+        await supabase.auth.signOut();
+        throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
       }
+      if (!result.ok)
+        throw new Error(payload?.detail || payload?.error?.message || "Không thể xử lý câu hỏi.");
+      const nextResponse = validateChatResponse(payload);
+      setTurns((previous) => [
+        ...previous.slice(0, -1),
+        { question: submitted, response: nextResponse },
+      ]);
+      setConversationActivity({ id: sessionId, nonce: Date.now() });
     } catch (submissionError) {
-      if (submissionError instanceof DOMException && submissionError.name === "AbortError") return;
-      setError(
-        submissionError instanceof Error ? submissionError.message : "Không thể xử lý câu hỏi.",
-      );
+      if (latestSubmissionRef.current === submissionId) {
+        setTurns((previous) => [
+          ...previous.slice(0, -1),
+          { question: submitted, status: "failed" },
+        ]);
+        setQuestion(submitted);
+        if (submissionError instanceof DOMException && submissionError.name === "AbortError") {
+          setError(
+            timedOut ? "Tra cứu quá thời gian chờ. Hãy thử lại sau vài giây." : "Đã dừng tra cứu.",
+          );
+        } else if (submissionError instanceof TypeError) {
+          setError("Không thể kết nối dịch vụ tra cứu. Kiểm tra mạng rồi thử lại sau vài giây.");
+        } else {
+          setError(
+            submissionError instanceof Error
+              ? submissionError.message
+              : "Không thể xử lý câu hỏi. Hãy thử lại sau vài giây.",
+          );
+        }
+      }
     } finally {
-      if (abortControllerRef.current === abortController) {
+      window.clearTimeout(timeout);
+      progressTimersRef.current.forEach(window.clearTimeout);
+      progressTimersRef.current = [];
+      if (
+        latestSubmissionRef.current === submissionId &&
+        abortControllerRef.current === abortController
+      ) {
         abortControllerRef.current = null;
         setLoading(false);
       }
     }
   }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await submitQuestion(question.trim());
+  }
   function stopSubmission() {
+    if (!loading) return;
+    latestSubmissionRef.current += 1;
     eventSourceRef.current?.close();
     eventSourceRef.current = null;
     abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    progressTimersRef.current.forEach(window.clearTimeout);
+    progressTimersRef.current = [];
+    setTurns((previous) => {
+      const last = previous.at(-1);
+      if (!last || last.response || last.status !== "pending") return previous;
+      return [...previous.slice(0, -1), { ...last, status: "stopped" }];
+    });
+    setQuestion(submittedQuestion);
+    setProgressEvents([]);
+    setError("");
+    setLoading(false);
   }
-  useEffect(() => () => stopSubmission(), []);
+  useEffect(
+    () => () => {
+      eventSourceRef.current?.close();
+      abortControllerRef.current?.abort();
+      progressTimersRef.current.forEach(window.clearTimeout);
+    },
+    [],
+  );
   const resetConversation = () => {
+    latestSubmissionRef.current += 1;
     stopSubmission();
     setQuestion("");
     setTurns([]);
     setSubmittedQuestion("");
     setError("");
+    activeIdRef.current = undefined;
     setActiveId(undefined);
     navigateTo();
   };
@@ -216,6 +493,99 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
     "Đi xe máy không đội mũ bảo hiểm bị phạt thế nào?",
     "Có được dùng điện thoại khi đang lái xe không?",
   ];
+  if (!authReady)
+    return (
+      <main className="app-shell">
+        <p role="status">Đang kiểm tra phiên đăng nhập…</p>
+      </main>
+    );
+  if (!session)
+    return (
+      <main className="app-shell">
+        <section className="main-panel auth-gate">
+          <AppHeader />
+          <form onSubmit={authenticate}>
+            <h1>Đăng nhập để tra cứu</h1>
+            <p>Vui lòng đăng nhập hoặc tạo tài khoản để sử dụng chat.</p>
+            <label htmlFor="auth-email">
+              Email
+              <input
+                id="auth-email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+              />
+            </label>
+            <label htmlFor="auth-password">
+              Mật khẩu
+              <span className="auth-password-field">
+                <input
+                  id="auth-password"
+                  type={showPassword ? "text" : "password"}
+                  minLength={8}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  className="auth-password-toggle"
+                  aria-label={showPassword ? "Hiện mật khẩu" : "Ẩn mật khẩu"}
+                  aria-pressed={showPassword}
+                  title={showPassword ? "Hiện mật khẩu" : "Ẩn mật khẩu"}
+                  onClick={() => setShowPassword((visible) => !visible)}
+                >
+                  {showPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+                </button>
+              </span>
+            </label>
+            {authMode === "register" && (
+              <label htmlFor="auth-confirm-password">
+                Xác nhận mật khẩu
+                <span className="auth-password-field">
+                  <input
+                    id="auth-confirm-password"
+                    type={showConfirmPassword ? "text" : "password"}
+                    minLength={8}
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="auth-password-toggle"
+                    aria-label={
+                      showConfirmPassword ? "Ẩn mật khẩu xác nhận" : "Hiện mật khẩu xác nhận"
+                    }
+                    aria-pressed={showConfirmPassword}
+                    title={showConfirmPassword ? "Ẩn mật khẩu xác nhận" : "Hiện mật khẩu xác nhận"}
+                    onClick={() => setShowConfirmPassword((visible) => !visible)}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff aria-hidden="true" />
+                    ) : (
+                      <Eye aria-hidden="true" />
+                    )}
+                  </button>
+                </span>
+              </label>
+            )}
+            {authError && <p role="alert">{authError}</p>}
+            <button type="submit">{authMode === "login" ? "Đăng nhập" : "Đăng ký"}</button>
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode(authMode === "login" ? "register" : "login");
+                setAuthError("");
+              }}
+            >
+              {authMode === "login" ? "Tạo tài khoản" : "Đã có tài khoản"}
+            </button>
+          </form>
+        </section>
+      </main>
+    );
   return (
     <main className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
       <Sidebar
@@ -224,16 +594,27 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
         onNewChat={resetConversation}
         onSelectConversation={(id) => navigateTo(id)}
         onCollapsedChange={setSidebarCollapsed}
+        onConversationActivity={conversationActivity}
       />
       <section className="main-panel" aria-label="Khu vực tra cứu">
         <AppHeader />
         <div
           className={
-            turns.length || loading || error ? "conversation has-messages" : "conversation"
+            turns.length || loading || historyLoading || error
+              ? "conversation has-messages"
+              : "conversation"
           }
-          aria-busy={loading}
+          aria-busy={loading || historyLoading}
         >
-          {!conversationId && !turns.length && !loading && !error ? (
+          {error && conversationId && !historyLoading && !turns.length ? (
+            <div className="conversation-error" role="alert">
+              <strong>Không thể tải cuộc trò chuyện này.</strong>
+              <p>{error}</p>
+              <button type="button" onClick={resetConversation}>
+                Mở cuộc trò chuyện mới
+              </button>
+            </div>
+          ) : !conversationId && !turns.length && !loading && !historyLoading && !error ? (
             <Welcome
               question={question}
               suggestions={suggestions}
@@ -243,14 +624,16 @@ export default function ChatPage({ conversationId }: { conversationId?: string }
           ) : (
             <ChatThread
               turns={turns}
-              question={submittedQuestion}
+              question={historyLoading ? "" : submittedQuestion}
               loading={loading}
+              historyLoading={historyLoading}
               error={error}
               progressEvents={progressEvents}
-              onOpenSource={setDrawerCitation}
+              sessionId={activeId ?? ""}
+              onOpenSource={openCitation}
             />
           )}
-          {(conversationId || turns.length > 0 || loading || error) && (
+          {(conversationId || turns.length > 0 || loading || historyLoading || error) && (
             <div className="sticky-composer">
               <Composer
                 id="question"

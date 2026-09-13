@@ -1,7 +1,7 @@
 "use client";
-
+import { createPortal } from "react-dom";
+import { X } from "lucide-react";
 import { useEffect, useRef } from "react";
-
 type ModalProps = {
   open: boolean;
   onClose: () => void;
@@ -16,9 +16,16 @@ export default function Modal({ open, onClose, label, className = "", children }
 
   useEffect(() => {
     if (!open) return;
+    const root = document.documentElement;
+    const previousOverflow = root.style.overflow;
+    root.style.overflow = "hidden";
     const previousFocus =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    closeButtonRef.current?.focus();
+    const focusCloseButton = () => closeButtonRef.current?.focus();
+    // The dialog and its close button mount in the same render as `open`; defer
+    // focus until the browser has committed that DOM, including conditional
+    // dialog content such as the PDF error/missing-bbox state.
+    const frame = requestAnimationFrame(focusCloseButton);
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
       if (event.key !== "Tab" || !dialogRef.current) return;
@@ -40,13 +47,15 @@ export default function Modal({ open, onClose, label, className = "", children }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => {
+      cancelAnimationFrame(frame);
       document.removeEventListener("keydown", handleKeyDown);
-      previousFocus?.focus();
+      root.style.overflow = previousOverflow;
+      previousFocus?.focus({ preventScroll: true });
     };
   }, [open, onClose]);
 
-  if (!open) return null;
-  return (
+  if (!open || typeof document === "undefined") return null;
+  return createPortal(
     <div
       className="modal-backdrop"
       role="presentation"
@@ -65,13 +74,15 @@ export default function Modal({ open, onClose, label, className = "", children }
           ref={closeButtonRef}
           type="button"
           className="modal__close"
-          aria-label="Đóng"
+          aria-label={`Đóng ${label}`}
+          title={`Đóng ${label}`}
           onClick={onClose}
         >
-          <span aria-hidden="true">×</span>
+          <X aria-hidden="true" />
         </button>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

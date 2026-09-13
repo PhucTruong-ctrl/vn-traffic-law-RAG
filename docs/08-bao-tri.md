@@ -1,7 +1,7 @@
 > **MVP đã phê duyệt — 10/09/2026**: Hệ thống single-user localhost/mạng riêng, không auth/admin/reviewer role/API/UI. Corpus cố định **14 PDF local**, deduplicate theo document/hash, allowlist chính xác `datafiles.chinhphu.vn`; ingestion background hoặc CLI, snapshot/hash bất biến, tự động quality/provenance/temporal gates, query-time chỉ phục vụ corpus và không gọi web. Gold set 200 câu/17 nhóm rủi ro chạy toàn bộ trước release. Feedback chỉ LIKE/DISLIKE tối thiểu, là tín hiệu vận hành không gating.
 >
 > **Model/benchmark policy**: Không giả định tên model hoặc ngưỡng chưa đo. Embedding local benchmark nhỏ, cache candidate; chỉ rebuild index sau khi chọn candidate.
-# 08. Bảo Trì (Maintenance)
+# 08. Bảo trì (Maintenance)
 
 > **Giai đoạn SDLC**: 7 - Bảo trì
 > **Ngày tạo**: 16/06/2026
@@ -22,9 +22,11 @@
 
 ---
 
-Tài liệu này định nghĩa kế hoạch bảo trì (maintenance) của VNLRAG v2. Mọi nội dung phải nhất quán với [00-scope-and-decisions.md](00-scope-and-decisions.md) (mục 3, 7, 16), đặc tả yêu cầu [02-yeu-cau-he-thong.md](02-yeu-cau-he-thong.md) (NFR-05, NFR-06, NFR-09), thiết kế chi tiết [03-thiet-ke-he-thong.md](03-thiet-ke-he-thong.md) (mục 3.6, 3.7, 3.10, 3.11, 3.12, 3.13, 3.15, 3.27), nghiên cứu công nghệ [04-tech-stack-llm-research.md](04-tech-stack-llm-research.md) (mục 4.3, 4.5, 4.7, 4.8, 4.9, 4.12, 4.13, 4.14, 4.15), kế hoạch triển khai [05-ke-hoach-trien-khai.md](05-ke-hoach-trien-khai.md) (mục 5.15, 5.16), kiểm thử [06-test-evaluation.md](06-test-evaluation.md) (mục 6.4, 6.9, 6.10, 6.13) và triển khai [07-deployment.md](07-deployment.md) (mục 7.4, 7.5, 7.8, 7.9, 7.10, 7.13).
+Tài liệu này định nghĩa kế hoạch bảo trì của runtime MVP VNLRAG. Kiến trúc active gồm frontend Next.js 16 + React 19, backend FastAPI/Python 3.11, Qdrant 1.19 hybrid dense/BM25 retrieval, Supabase REST/Auth persistence, một generator OpenRouter và các cổng evidence/citation deterministic. Corpus phục vụ là snapshot local 14 PDF; query/search không gọi web.
 
-> **Ghi chú lịch sử**: bản v1 của tài liệu này mô tả quy trình bảo trì gắn với pipeline ingestion dựa trên một tầng trích xuất trung gian với commit pin, bộ golden fixture riêng và cơ chế version hóa RuleSpec. Phiên bản v2 loại bỏ hoàn toàn tầng đó và bảo trì trực tiếp các thành phần: Parser Router (Docling chính, MinerU phụ/fallback), Canonical Document IR, Legal Structure Extractor, Legal Reference Resolver, Temporal and Amendment Resolver, PostgreSQL, Qdrant, Redis + Dramatiq, MinIO, Langfuse và gold set. Mapping đầy đủ giữa quy trình bảo trì cũ và mới tại mục 8.16.
+> **Ghi chú lịch sử**: bản v1/v2 từng mô tả pipeline parser trung gian, Parser Router, Canonical Document IR, worker/queue, Redis + Dramatiq, MinIO, LangGraph và Langfuse. Các phần đó chỉ giữ provenance nghiên cứu/thiết kế; không phải service hay dependency vận hành hiện tại. Bảo trì active tập trung vào CLI ingestion, corpus/hash, Qdrant index, Supabase schema, OpenRouter config, evidence gate, citations và frontend/backend release.
+
+Các mục mô tả Redis/Dramatiq/MinIO/LangGraph/Langfuse bên dưới là historical/deferred; không dùng chúng cho thao tác bảo trì active nếu không có trong compose hiện hành.
 
 ---
 
@@ -57,22 +59,15 @@ Ingestion chỉ chạy background hoặc manual CLI. Không có human approval, 
 
 ### 8.1.2. Phạm vi bảo trì
 
-| Thành phần | Nội dung bảo trì |
-|---|---|
-| Corpus | PDF, manifest, version, status, quan hệ, temporal interval |
-| Parser layer | Parser Router, Docling 2.x, MinerU 3.4.x, Canonical Document IR |
-| Legal parser | Legal Structure Extractor (phân cấp Việt Nam, nhãn Điểm a) b) c) d) đ) e), short-Point retention) |
-| Relation extraction | Legal Reference Resolver (ProvisionReference, DocumentRelation) |
-| Temporal | Temporal and Amendment Resolver, LegalEffectEvent |
-| PostgreSQL | Schema, Alembic migration, metadata, review, audit, feedback |
-| Qdrant | Collection, payload, dense/sparse vector, alias, snapshot |
-| Retrieval | Embedding, sparse BM25, RRF, reranker, filter, context expansion |
-| Workflow | LangGraph controlled workflow, repair loop |
-| Generation | Model, prompt, structured schema |
-| Verification | L1-L6 verifier, Returned Invalid Citation Rate = 0 |
-| Evaluation | Gold set, metrics, judge, run config, raw results |
-| Observability | Langfuse trace, prompt management, feedback |
+| Corpus | PDF local, manifest, SHA-256, accepted status, temporal metadata |
+| Frontend/backend | Next.js 16, React 19, FastAPI/Python 3.11, API contracts |
+| Supabase | REST/Auth configuration, schema, chat/saved-Q&A persistence |
+| Qdrant | v1.19 collection, payload, dense/sparse vectors, rebuild |
+| Retrieval | OpenRouter embedding config, FastEmbed BM25, fusion and filters |
+| Generation/verification | OpenRouter generator, deterministic evidence gate, citations, abstention |
+| Evaluation | Gold set, metrics, release evidence |
 | Frontend/API | Contract, dependency, UX |
+| Historical/deferred designs | Parser Router, IR, worker/queue, Redis, MinIO, LangGraph, Langfuse | document only; do not operate |
 | Deployment | Docker images, backup, restore, release manifest |
 | Documentation | README, ADR, report, diagram, changelog |
 
@@ -122,15 +117,7 @@ Bước cập nhật quan hệ và hiệu lực phải persist `DocumentRelation
 ### 8.3.2. Candidate status
 
 ```text
-DISCOVERED
-DOWNLOADED
-DUPLICATE
-EXTRACTION_PENDING
-NON_SERVING_CANDIDATE
-ACCEPTED
-REJECTED
-ACTIVATED
-FAILED
+PostgreSQL/Redis/MinIO worker procedures in this document are historical/deferred and do not describe the active runtime. Active recovery uses Supabase configuration/availability checks, Qdrant rebuild from local corpus artifacts, and restart of the frontend/backend/qdrant Compose services.
 ```
 
 Duplicate theo `file_hash` được liên kết với version hiện có thay vì tạo candidate mới. `ACTIVATED` chỉ là kết quả triển khai tự động sau `ACCEPTED`, không phải quyết định của con người.
@@ -215,7 +202,7 @@ Parser Router quyết định parser theo đặc tính tài liệu và quality g
 | PDF scan hoặc layout lỗi | Docling trước (OCR backend CPU) | MinerU nếu quality gate fail |
 | Bảng phức tạp | So sánh đầu ra hai parser khi cần | Chọn theo quality gate hoặc gửi review |
 
-Khi bảo trì, một tài liệu đã ingest có thể bị re-route sang parser thay thế (Docling <-> MinerU) nếu:
+Khi bảo trì, một tài liệu đã ingest có thể được chuyển sang parser thay thế (Docling <-> MinerU) nếu:
 
 - quality gate nhóm A (provenance coverage, text extraction rate, table detection, layout coherence) fail trên parser hiện tại;
 - quality gate nhóm B (point label detection, hierarchy completeness, short-Point retention) fail sau Legal Structure Extractor;
@@ -270,8 +257,6 @@ Không tự động nâng parser theo branch. Quy trình:
 8. Re-ingest một subset tài liệu đại diện (Luật, Nghị định, Thông tư; born-digital và scan).
 9. Review diff: chỉ khác biệt do parser mới, không phải lỗi cấu hình.
 10. Chỉ pin version mới khi mọi bước pass và Suite A không regression so với baseline.
-
-Kết quả nâng parser phải được ghi vào Suite A report (raw result) và changelog. Không xóa kết quả đo bằng parser cũ; nếu cần so sánh, ghi cả hai.
 
 ### 8.4.3. Parser golden fixtures
 
@@ -819,6 +804,120 @@ Backup chỉ hợp lệ khi đồng thời:
 - manifest đầy đủ (release-manifest.json kèm hash);
 - version khớp (migration revision, corpus hash, gold-set hash);
 - secret không nằm trong archive (`.env` không được đóng gói).
+---
+
+## 8.10.5. Defense-day backup and demo readiness checklist
+
+Thực hiện từ repository root trước buổi rehearsal/bảo vệ. Checklist này không
+in hoặc lưu giá trị bí mật; chỉ xác nhận biến môi trường bắt buộc đã hiện diện.
+
+### A. Environment and external services
+
+- [ ] `test -f .env` (hoặc file env được Compose chỉ định) và file không được
+      commit; kiểm tra tên biến, không in giá trị:
+
+  ```bash
+  test -f .env
+  for key in POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD DATABASE_URL \
+    QDRANT_URL REDIS_URL S3_ENDPOINT S3_ACCESS_KEY S3_SECRET_KEY \
+    OPENROUTER_API_KEY SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY; do
+    grep -q "^${key}=" .env || { echo "missing ${key}"; exit 1; }
+  done
+  ```
+
+- [ ] Verify local dependencies without exposing credentials:
+
+  ```bash
+  curl -fsS http://127.0.0.1:8000/health
+  curl -fsS http://127.0.0.1:8000/ready
+  curl -fsS http://127.0.0.1:6333/healthz
+  ```
+
+- [ ] Check provider readiness manually (OpenRouter and Supabase); do not
+      paste API keys into terminal logs, screenshots, or the defense recording.
+      A provider outage is not silently bypassed with an unverified answer.
+
+### B. Startup, migration, and ports
+
+- [ ] Confirm ports `3000` (frontend), `8000` (backend), `5432` (PostgreSQL),
+      `6333` (Qdrant), `6379` (Redis), and `9000` (MinIO) are free or owned by
+      the intended Compose project.
+- [ ] Start the pinned development stack from repository root:
+
+  ```bash
+  docker compose --project-directory . \
+    -f deploy/compose/compose.release.yml \
+    -f deploy/compose/compose.dev.yml up -d
+  ```
+
+- [ ] Wait for health checks, then run the one-shot migration/bootstrap path:
+
+  ```bash
+  docker compose --project-directory . \
+    -f deploy/compose/compose.release.yml \
+    run --rm migrate
+  ```
+
+- [ ] Confirm migration revision and service state:
+
+  ```bash
+  docker compose --project-directory . \
+    -f deploy/compose/compose.release.yml \
+    ps
+  docker compose --project-directory . \
+    -f deploy/compose/compose.release.yml \
+    run --rm backend alembic current
+  ```
+
+### C. Application smoke path
+
+- [ ] Open `http://127.0.0.1:3000/chat` and confirm the existing session/auth
+      state; do not create or display credentials during the demo.
+- [ ] Run one greeting, one exact-reference lookup, one natural-language
+      penalty question, one multi-intent question, and one out-of-scope or
+      insufficient-evidence question. Confirm citations open in the legal
+      explorer and abstention remains explicit when evidence is insufficient.
+- [ ] Open `http://127.0.0.1:3000/legal-sources`, search by document number or
+      article, and open a source passage/PDF when available.
+
+### D. Evaluation and release backup
+
+- [ ] Run the deterministic 40-case evaluation (five cases in each required
+      category) and retain raw output; do not claim metrics until the run is
+      complete:
+
+  ```bash
+  uv run --directory backend python scripts/run_thesis_evaluation.py \
+    data/evaluation/thesis-gold-40.json \
+    --endpoint http://127.0.0.1:8000/api/v1/chat \
+    --output-dir data/evaluation/defense-run
+  ```
+
+- [ ] Before any destructive migration or release, create PostgreSQL dump,
+      Qdrant snapshot, MinIO/object-storage mirror, source-PDF/manifest copy,
+      gold set, evaluation artifacts, release manifest, and `SHA256SUMS`.
+- [ ] Verify with `sha256sum -c SHA256SUMS`, perform a clean-room restore
+      drill, and confirm migration revision, corpus hash, and gold-set hash.
+- [ ] Ensure backup archives contain no `.env`, API key, service-role key, or
+      other secret. Keep backup media outside production volumes.
+
+### E. Screenshots and video handoff
+
+- [ ] Capture screenshots only after redacting URLs, tokens, personal data, and
+      provider credentials; verify citation and explorer states are legible.
+- [ ] The defense recording is created manually by the presenter. Before
+      playback, verify the file is a non-empty video and probe it:
+
+  ```bash
+  test -s docs/assets/defense-demo.mp4
+  ffprobe -v error -show_entries format=duration:stream=codec_name \
+    -of default=noprint_wrappers=1 docs/assets/defense-demo.mp4
+  ```
+
+- [ ] Play the recording from the checked-out repository and confirm the five
+      demo questions, citation evidence, explorer, and abstention are visible.
+
+---
 
 ---
 
@@ -1120,7 +1219,7 @@ Thay thế bổ sung khác trong phạm vi bảo trì: ChromaDB/SQLite-as-primar
 
 ## Kết luận
 
-Bảo trì hệ thống pháp luật không phải chỉ là thêm PDF mới. Mỗi thay đổi có thể làm thay đổi câu trả lời hiện hành, câu trả lời lịch sử, citation và kết quả evaluation.
+Bảo trì hệ thống pháp luật không chỉ là thêm PDF mới. Mỗi thay đổi có thể làm thay đổi câu trả lời hiện hành, câu trả lời lịch sử, citation và kết quả evaluation.
 
 Lifecycle chốt:
 

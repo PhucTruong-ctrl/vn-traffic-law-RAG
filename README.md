@@ -1,110 +1,155 @@
-> **MVP rebaseline (06/09/2026)**: The defense release is intentionally reduced to a fixed 5–10-document corpus, 30–50 evaluation questions, current/as-of-date retrieval, verifiable citations, evidence gating, abstention, and a working chat UI. RAGFlow comparison, feedback, large-scale background ingestion, advanced observability/security, and production backup automation are deferred.
->
-> **Models**: Gemini 3.7 Flash is the primary structured-answer generator; Gemini 3.5 Flash Lite is the independent semantic judge. OpenAI/GPT-5.4 is not used.
-# 🏛️ VN Traffic Law RAG (VNLRAG) — Khóa Luận Tốt Nghiệp 2026
+# VN Traffic Law RAG (VNLRAG)
 
-> **Đề tài**: Hệ thống RAG nhận biết cấu trúc và thời gian hiệu lực (structure-aware + temporal) cho pháp luật giao thông Việt Nam, với trích dẫn chính xác (Điều/Khoản/Điểm) và cơ chế **verified-or-abstain** — chỉ trả lời khi mọi bằng chứng đã được kiểm chứng.
+Runnable MVP for Vietnamese traffic-law questions. The active product combines a
+dual-source legal explorer with grounded chat:
 
-## 📅 Timeline
-
-- **Bắt đầu**: 16/06/2026
-- **M0 — Scope Freeze**: 19/07/2026
-- **Triển khai v2**: 8 tuần (W1–W8)
-- **Báo cáo / bảo vệ**: 16/09/2026
-
-## 📚 Tài liệu thiết kế
-
-| # | File | Nội dung |
-|---|------|----------|
-| 00 | [00-scope-and-decisions.md](docs/00-scope-and-decisions.md) | Phạm vi & quyết định thiết kế — **nguồn quyết định cao nhất** |
-| 01 | [01-phan-tich-kha-thi.md](docs/01-phan-tich-kha-thi.md) | Phân tích tính khả thi |
-| 02 | [02-yeu-cau-he-thong.md](docs/02-yeu-cau-he-thong.md) | Đặc tả yêu cầu + Use Case |
-| 03 | [03-thiet-ke-he-thong.md](docs/03-thiet-ke-he-thong.md) | Thiết kế hệ thống (kiến trúc, ADR §3.32) |
-| 04 | [04-tech-stack-llm-research.md](docs/04-tech-stack-llm-research.md) | Tech stack + nghiên cứu LLM |
-| 05 | [05-ke-hoach-trien-khai.md](docs/05-ke-hoach-trien-khai.md) | Kế hoạch triển khai + gate M0–M8 |
-| 06 | [06-test-evaluation.md](docs/06-test-evaluation.md) | Test plan + evaluation (Ragas + metric xác định) |
-| 07 | [07-deployment.md](docs/07-deployment.md) | Triển khai Docker + CI/CD |
-| 08 | [08-bao-tri.md](docs/08-bao-tri.md) | Bảo trì + cập nhật corpus |
-
-## 🎯 Scope & Architecture
-
-- [SCOPE.md](SCOPE.md) — baseline phạm vi v2
-- [ARCHITECTURE.md](ARCHITECTURE.md) — kiến trúc tổng quan
-- [docs/parser_router.yaml](docs/parser_router.yaml) — cấu hình Parser Router
-- [docs/canonical-document-ir-design.md](docs/canonical-document-ir-design.md) — contract Canonical Document IR
-- [docs/adr/](docs/adr/) — **20 ADR** đã chốt ([ADR-001](docs/adr/ADR-001.md)..[ADR-020](docs/adr/ADR-020.md))
-
-**M0 — Scope Freeze (19/07/2026)**: scope, kiến trúc, tech stack và kế hoạch được chốt ở mức scope-baseline freeze; các cập nhật nghiên cứu sau freeze có kiểm soát và phải ghi vào change log, không làm thay đổi phạm vi đã chốt. Doc 00 là nguồn quyết định cao nhất; danh mục ADR-001..020 được tài liệu hóa tại `docs/adr/`.
-
-**Mục tiêu chính**:
-
-- Trích dẫn chính xác theo đơn vị pháp lý (Điều/Khoản/Điểm, `provision_id` ổn định), dựng citation từ metadata.
-- Cơ chế **verified-or-abstain**: verification sáu tầng (L1–L6) với bất biến Returned Invalid Citation Rate = 0; thiếu bằng chứng thì từ chối (abstain) thay vì bịa đặt.
-- Không dùng open-web search và không có query-time HITL (ADR-015) — câu trả lời chỉ dựa trên corpus đã kiểm chứng.
-- Evaluation bằng **Ragas + deterministic metrics** (Recall@k, MRR, nDCG, Citation P/R/F1, Temporal Validity Accuracy, Numeric Grounding Accuracy, Evidence Set Recall, Abstention P/R/F1) trên gold set 200 câu.
-- So sánh các chiến lược retrieval (dense / sparse BM25 / RRF hybrid, reranking) qua bốn suite thí nghiệm A–D, kèm RAGFlow baseline bên ngoài.
-
-## 🛠️ Tech Stack
-
-| Thành phần | Công nghệ |
-|------------|-----------|
-| Ngôn ngữ / env | Python 3.11 + uv |
-| API / validation | FastAPI + Pydantic v2 |
-| Workflow | LangGraph 1.x (controlled workflow, **không phải** autonomous agent) |
-| Parser | Docling 2.x (chính) / MinerU 3.4.x (phụ/fallback) qua **Parser Router** |
-| IR trung gian | Canonical Document IR (`document-ir-v1`) |
-| Database | PostgreSQL 18 (nguồn chân lý) + SQLAlchemy 2 + Alembic |
-| Vector DB | Qdrant v1.19 (index dẫn xuất, dense + sparse + RRF fusion) |
-| LLM | Gemini 3.7 Flash (generator) + Gemini 3.5 Flash Lite (independent judge) |
-| Object storage | ObjectStoragePort (S3-compatible); MinIO là ứng viên hiện tại |
-| Observability | Langfuse (ngoài đường tới hạn) |
-| LLM | Gemini 3.7 Flash (generator) + Gemini 3.5 Flash Lite (independent judge) + Jina Reranker v3 |
-| Frontend | Next.js 16 App Router + TypeScript + Tailwind + shadcn/ui |
-| Evaluation | Ragas 0.4.x + deterministic metrics |
-| Testing | pytest + Playwright |
-| Deploy | Docker Compose + GitHub Actions |
-
-> Embedding và reranker chưa được chốt vĩnh viễn cho tới khi có bằng chứng thực nghiệm (ADR-013, ADR-014); Jina Reranker v3 là ứng viên chính.
-
-## 🏃 Quick Start
-
-> Trạng thái W1: tooling + compose skeleton đã sẵn sàng; app code đang được triển khai theo [doc 05](docs/05-ke-hoach-trien-khai.md).
-
-```bash
-# 1. Sao chép cấu hình môi trường
-cp .env.example .env
-
-# 2. Backend — cài dependency bằng uv
-cd backend && uv sync
-
-# 3. Hạ tầng: PostgreSQL, Qdrant, Redis, MinIO (kèm health checks)
-docker compose --env-file .env.example up -d
-docker compose ps   # chờ cả 4 service đạt healthy
-
-# 4. Chạy backend
-uv run uvicorn app.main:app --reload
-
-# 5. Frontend
-cd frontend && npm install && npm run dev
+```text
+Markdown manifest + local PDFs -> legal documents/provisions -> local Qdrant HYBRID
+                                                        -> ChatOpenRouter -> citations
 ```
 
-> **Note**: `MAX_INGESTION_WORKERS=1` được enforce trên máy cá nhân (doc 03 §3.2.5) — không chạy song song nhiều job parse.
+## Quick start
 
-## 📊 Tài liệu tham khảo chính
+Canonical local startup uses `dev.sh`:
 
-1. **CTU-LinguTechies/VN-Law-Advisor** (91⭐) — github.com/CTU-LinguTechies/VN-Law-Advisor
-   - Tham khảo: cấu trúc microservices, schema CSDL, PDF crawler
+```bash
+cp .env.example .env
+# Fill server and public Supabase/OpenRouter values in .env.
+./dev.sh
+```
 
-2. **Viblo - RAG Pháp luật Giao thông** — viblo.asia/p/xay-dung-he-thong-agentic-rag-phap-luat-giao-thong
-   - Tham khảo: LangGraph state machine, Hybrid Retrieval, đánh giá RAG
+Open `http://127.0.0.1:3000`. Supabase provides registration/login and stores
+profiles, chat sessions, messages, feedback, and bookmarks. Browser receives
+only public Supabase values; backend requires service-role credentials. Never
+commit `.env` or keys.
 
-## 📋 Project Management
+Docker Compose is optional deployment tooling and currently starts only the
+frontend, backend, and Qdrant services:
 
-**Jira**: truongphucwork.atlassian.net — project VNLRAG (8 sprint W1–W8, gate M1→M8)
+```bash
+docker compose --env-file .env -f deploy/compose/compose.release.yml up --build
+```
 
-- Backlog: 8 sprint W1–W8, gate path **M1→M8** (labels `gate-M1`..`gate-M8`)
-- 20 ADR đã chốt (ADR-001..ADR-020) tại `docs/adr/`
+Supabase/PostgreSQL and OpenRouter remain external dependencies when configured;
+worker, Redis, MinIO, and parser services are not part of the active MVP runtime.
 
-## 📝 License
+For ingestion or a backend-only development loop, install the backend and run
+the existing scripts directly:
 
-MIT License — Open source cho mục đích học thuật.
+```bash
+uv sync --project backend
+uv run --project backend python backend/scripts/fetch_sources.py
+uv run --project backend python backend/scripts/index.py
+uv run --project backend uvicorn app.main:app --reload
+```
+
+`fetch_sources.py` reads `data/sources/manifest.json`, resolves each entry to a
+Markdown file under `data/corpus/mds/`, and writes
+`data/processed/chunks.jsonl`. Use `--manifest`, `--local-dir`, and `--output`
+to override those paths. `index.py` creates a fresh local Qdrant collection
+from that JSONL. Retrieval combines dense OpenRouter embeddings with sparse
+FastEmbed BM25 (`Qdrant/bm25`) using LangChain Qdrant `HYBRID` mode. Qdrant
+path and collection are configured by `QDRANT_PATH` and `QDRANT_COLLECTION`.
+
+## Legal source explorer
+
+The `/legal-sources` page lists documents exposed by the legal API and supports
+text, document-number, and article filtering. API-backed search is available at
+`GET /api/v1/legal-search?q=...` with optional `document_id`, `article`, `clause`,
+`point`, and bounded `limit` filters. Document and provision routes, together with
+citation metadata, provide deep links to a provision or its Markdown/PDF passage.
+Markdown sources are rendered as structured legal text; PDF sources are rendered
+in the in-app PDF viewer with page navigation, zoom, and citation-coordinate
+highlighting when metadata is available. The explorer is read-only and corpus-only:
+it does not perform query-time web retrieval.
+
+
+## Grounded chat and citations
+
+Set `OPENROUTER_API_KEY` and optionally `OPENROUTER_BASE_URL` in `.env`.
+`GENERATION_MODEL` selects the configured ChatOpenRouter model.
+
+Chat requests retrieve legal chunks, apply the exact deterministic evidence-completeness
+gate, then send only supported context to the configured model. The public response
+statuses are `VERIFIED`, `GREETING`, `OUT_OF_SCOPE`, `CORPUS_NOT_COVERED`,
+`INSUFFICIENT_EVIDENCE`, and `WORKFLOW_UNAVAILABLE`; they are not collapsed into one
+generic failure. `CORPUS_NOT_COVERED` means a traffic-law question is outside the
+serving corpus, not that the service will search the web. Insufficient evidence
+abstains rather than inventing facts. Responses expose citations assembled from
+document metadata, and selecting one opens the corresponding source passage.
+The browser bounds a chat request to 120 seconds by default; set
+`NEXT_PUBLIC_CHAT_TIMEOUT_MS` to override that limit.
+
+
+## API routes
+
+- `GET /api/v1/health`, `/api/v1/health/live`, `/api/v1/health/ready`
+- `POST /api/v1/chat`
+- `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/auth/me`
+- `GET/POST /api/v1/chats`
+- `GET/PATCH/DELETE /api/v1/chats/{session_id}`
+- `POST /api/v1/chats/{session_id}/messages`
+- `POST /api/v1/chats/{session_id}/messages/{message_id}/feedback`
+- `POST /api/v1/chats/{session_id}/bookmarks` (saved Q&A snapshot)
+- `GET /api/v1/saved` (also `/bookmarks`), bookmark status, and deletion routes
+- `GET /api/v1/legal-documents`
+- `GET /api/v1/legal-documents/{document_id}`
+- `GET /api/v1/legal-documents/{document_id}/provisions`
+- `GET /api/v1/legal-search`
+## Thesis evaluation (40 cases)
+
+The reproducible thesis set is `data/evaluation/thesis-gold-40.json` (40
+cases). The runner scores retrieval, expected legal locations, citation
+validity, and abstention behavior; semantic answer correctness is deliberately
+left for a human reviewer. It writes raw JSONL and an aggregate JSON report and
+does not contain or infer a score until predictions are supplied.
+
+Run against the local chat endpoint:
+
+```bash
+uv run --project backend python backend/scripts/run_thesis_evaluation.py \
+  data/evaluation/thesis-gold-40.json \
+  --endpoint http://127.0.0.1:8000/api/v1/chat \
+  --output-dir data/evaluation/thesis-run
+```
+
+Or score an existing prediction JSONL:
+
+```bash
+uv run --project backend python backend/scripts/run_thesis_evaluation.py \
+  data/evaluation/thesis-gold-40.json \
+  --predictions path/to/predictions.jsonl \
+  --output-dir data/evaluation/thesis-run
+```
+
+Review the generated raw JSONL interactively:
+
+```bash
+uv run --project backend python backend/scripts/review_thesis_answers.py \
+  data/evaluation/thesis-run/<run-id>.jsonl \
+  --output data/evaluation/thesis-run/<run-id>.reviews.jsonl
+```
+
+For scripted review, pass `--non-interactive --input review-decisions.jsonl`;
+each input row contains `case_id`, `answer_correctness_manual` (`pass` or
+`fail`), and optional `notes`. Use `--help` on both scripts for the complete,
+authoritative option list. No evaluation scores are claimed here.
+
+## Checks
+
+```bash
+uv run --project backend python backend/scripts/smoke.py
+```
+
+## P2 paused scope
+
+P2 is paused and is not an active runtime dependency. This MVP does not promise
+additional ingestion orchestration, external retrieval, autonomous agents, or
+a broader review platform. The supported path is the dual-source explorer,
+Markdown manifest, LangChain Documents, local Qdrant HYBRID retrieval,
+configured ChatOpenRouter generation with citations, and Supabase application
+persistence/authentication.
+
+## License
+
+MIT License — open source for academic use.
