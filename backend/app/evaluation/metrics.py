@@ -18,17 +18,43 @@ from .schemas import (
 def normalize_coordinate(
     value: Coordinate | dict[str, object],
 ) -> tuple[str, str | None, str | None, str | None]:
-    """Normalize whitespace and case while preserving absent coordinate levels."""
     coordinate = value if isinstance(value, Coordinate) else Coordinate.model_validate(value)
+    document_value = coordinate.document_id or coordinate.document
+    if not document_value:
+        raise ValueError("coordinate is missing canonical document identity")
 
-    def clean(item: str | None) -> str | None:
-        return " ".join(item.split()).casefold() if item is not None and item.strip() else None
+    def clean(item: str | None, *, numeric: bool = False) -> str | None:
+        if item is None or not item.strip():
+            return None
+        normalized = " ".join(item.split()).casefold()
+        if numeric:
+            for prefix in ("điều ", "dieu ", "khoản ", "khoan "):
+                normalized = normalized.removeprefix(prefix)
+            normalized = normalized.removesuffix(".")
+            if normalized.isdigit():
+                normalized = str(int(normalized))
+        return normalized or None
 
+    document = clean(document_value)
+    if document is None:
+        raise ValueError("coordinate is missing canonical document identity")
     return (
-        clean(coordinate.document) or "",
-        clean(coordinate.article),
-        clean(coordinate.clause),
+        document,
+        clean(coordinate.article, numeric=True),
+        clean(coordinate.clause, numeric=True),
         clean(coordinate.point),
+    )
+
+
+def canonical_coordinate_string(value: Coordinate | dict[str, object]) -> str:
+    document, article, clause, point = normalize_coordinate(value)
+    return "__".join(
+        [document]
+        + [
+            f"{prefix}{part}"
+            for prefix, part in (("dieu-", article), ("khoan-", clause), ("diem-", point))
+            if part is not None
+        ]
     )
 
 
@@ -128,4 +154,9 @@ def aggregate_metrics(
     )
 
 
-__all__ = ["aggregate_metrics", "normalize_coordinate", "score_case"]
+__all__ = [
+    "aggregate_metrics",
+    "canonical_coordinate_string",
+    "score_case",
+    "normalize_coordinate",
+]

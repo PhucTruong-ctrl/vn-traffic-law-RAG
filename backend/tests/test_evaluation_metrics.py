@@ -125,11 +125,27 @@ def test_coordinate_normalization_is_case_and_whitespace_insensitive() -> None:
     )
 
 
+def test_coordinate_normalization_normalizes_legal_number_forms() -> None:
+    assert normalize_coordinate(
+        {
+            "document": "  ND-119-2024 ",
+            "article": " Điều 010 ",
+            "clause": " Khoản 02 ",
+            "point": " A ",
+        }
+    ) == ("nd-119-2024", "10", "2", "a")
+
+
 def test_schema_rejects_malformed_extras() -> None:
     with pytest.raises(ValidationError):
         Prediction(case_id="c1", latency_ms=1, unexpected=True)
     with pytest.raises(ValidationError):
         Coordinate(document="x", unexpected="value")
+
+
+def test_coordinate_requires_canonical_document_identity() -> None:
+    with pytest.raises(ValidationError):
+        Coordinate(document_number="168/2024/NĐ-CP", article="6")
 
 
 def test_thesis_dataset_shape_normalizes_to_runner_contract() -> None:
@@ -139,7 +155,8 @@ def test_thesis_dataset_shape_normalizes_to_runner_contract() -> None:
 
     path = Path(__file__).parents[1] / "scripts" / "run_thesis_evaluation.py"
     spec = importlib.util.spec_from_file_location("thesis_runner", path)
-    assert spec and spec.loader
+    if spec is None or spec.loader is None:
+        raise RuntimeError("unable to load thesis runner")
     runner = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(runner)
 
@@ -149,6 +166,19 @@ def test_thesis_dataset_shape_normalizes_to_runner_contract() -> None:
     assert len(cases) == 40
     assert cases[0]["question"] == raw["cases"][0]["query"]
     assert cases[0]["expected"]["provision_ids"] == raw["cases"][0]["expected_provision_ids"]
+
+
+def test_manual_correctness_aggregate_uses_only_recorded_values() -> None:
+    cases = [ExpectedCase(case_id=f"c{i}", category="penalty", query="q") for i in range(3)]
+    summary = aggregate_metrics(
+        cases,
+        [
+            prediction("c0", manual=True),
+            prediction("c1", manual=False),
+            prediction("c2", manual=None),
+        ],
+    )
+    assert summary.answer_correctness_manual == pytest.approx(0.5)
 
 
 def load_thesis_runner():
@@ -297,3 +327,65 @@ def test_runner_timeout_row_keeps_nullable_metrics() -> None:
     assert result["document_accuracy"] is None
     assert result["citation_validity"] is None
     assert result["latency_ms"] is None
+
+
+def test_coordinate_identity_prefers_document_id_when_display_number_differs() -> None:
+    expected = Coordinate(
+        document_id="nd-168-2024",
+        document_number="168/2024/NĐ-CP",
+        article="6",
+        clause="9",
+    )
+    actual = Coordinate(
+        document_id="nd-168-2024",
+        document_number="wrong display alias",
+        article="6",
+        clause="9",
+    )
+    case = ExpectedCase(
+        case_id="identity",
+        category="exact_reference",
+        query="q",
+        expected_coordinates=[expected],
+    )
+    result = score_case(case, prediction("identity", retrieved=[actual]))
+    assert result.retrieval_hit_at_k is True
+    assert result.document_accuracy == 1.0
+    assert result.clause_accuracy == 1.0
+
+
+def test_coordinate_identity_rejects_source_suffix_and_missing_document_id() -> None:
+    assert normalize_coordinate(
+        {
+            "document_id": "nd-168-2024",
+            "document_number": "168/2024/NĐ-CP",
+            "article": "6",
+        }
+    ) == ("nd-168-2024", "6", None, None)
+    with pytest.raises(ValidationError):
+        Coordinate(document_number="168/2024/NĐ-CP", article="6")
+
+
+def test_coordinate_identity_detects_genuine_document_mismatch() -> None:
+    expected = Coordinate(document_id="nd-168-2024", article="6")
+    case = ExpectedCase(
+        case_id="mismatch",
+        category="exact_reference",
+        query="q",
+        expected_coordinates=[expected],
+    )
+    actual = Coordinate(
+        document_id="nd-165-2024",
+        document_number="168/2024/NĐ-CP",
+        article="6",
+    )
+    result = score_case(case, prediction("mismatch", retrieved=[actual]))
+    assert result.retrieval_hit_at_k is False
+    assert result.document_accuracy == 0.0
+
+
+def test_runner_load_predictions_accepts_raw_api_row(tmp_path) -> None:
+    runner = load_thesis_runner()
+    path = tmp_path / "predictions.jsonl"
+    path.write_text('{"case_id":"c1","status":"OK","citations":[]}\n')
+    assert runner.load_predictions(path)["c1"]["status"] == "OK"

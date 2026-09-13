@@ -22,6 +22,8 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend"))
 
 from app.auth.test_auth import obtain_access_token  # noqa: E402
+from app.evaluation.metrics import canonical_coordinate_string, normalize_coordinate  # noqa: E402
+from app.evaluation.schemas import Coordinate  # noqa: E402
 
 CATEGORIES = {
     "exact_reference",
@@ -47,27 +49,27 @@ EXPECTED_COORDINATE_LEVELS = ("document", "article", "clause", "point")
 
 
 def normalize_case(case: dict[str, Any], index: int) -> dict[str, Any]:
-    """Normalize the thesis gold schema to the runner's historical schema."""
-    if "query" in case:
-        if not isinstance(case["query"], str) or not case["query"].strip():
-            fail(f"case {case.get('id', index)} has a blank query")
-        expected = {
-            "status": case.get("expected_status"),
-            "abstain": case.get("expected_abstain"),
-            "document_ids": case.get("expected_document_ids"),
-            "article_ids": case.get("expected_article_ids"),
-            "clause_ids": case.get("expected_clause_ids"),
-            "point_ids": case.get("expected_point_ids"),
-            "provision_ids": case.get("expected_provision_ids"),
-        }
-        missing = [key for key, value in expected.items() if value is None]
-        if missing:
-            fail(f"case {case.get('id', index)} missing thesis fields: {', '.join(missing)}")
-        normalized = dict(case)
-        normalized["question"] = case["query"]
-        normalized["expected"] = expected
-        return normalized
-    return case
+    """Normalize current and historical thesis gold schemas."""
+    if "query" not in case:
+        return case
+    if not isinstance(case["query"], str) or not case["query"].strip():
+        fail(f"case {case.get('id', index)} has a blank query")
+    expected = {
+        "status": case.get("expected_status"),
+        "abstain": case.get("expected_abstain"),
+        "document_ids": case.get("expected_document_ids"),
+        "article_ids": case.get("expected_article_ids"),
+        "clause_ids": case.get("expected_clause_ids"),
+        "point_ids": case.get("expected_point_ids"),
+        "provision_ids": case.get("expected_provision_ids"),
+    }
+    missing = [key for key, value in expected.items() if value is None]
+    if missing:
+        fail(f"case {case.get('id', index)} missing thesis fields: {', '.join(missing)}")
+    normalized = dict(case)
+    normalized["question"] = case["query"]
+    normalized["expected"] = expected
+    return normalized
 
 
 def fail(message: str) -> NoReturn:
@@ -131,6 +133,22 @@ def load_predictions(path: Path) -> dict[str, dict[str, Any]]:
         case_id = value["case_id"]
         if case_id in predictions:
             fail(f"duplicate prediction for {case_id}")
+        prediction = value.get("prediction")
+        if "prediction" in value:
+            if isinstance(prediction, dict):
+                outer = value
+                value = {**prediction, "case_id": case_id}
+                for key in ("latency_ms", "error"):
+                    if key in outer and key not in value:
+                        value[key] = outer[key]
+            else:
+                value = {
+                    "status": "ERROR",
+                    "prediction": None,
+                    "error": value.get("error") or "saved prediction is null",
+                    "latency_ms": value.get("latency_ms"),
+                    "case_id": case_id,
+                }
         predictions[case_id] = value
     return predictions
 
@@ -158,7 +176,13 @@ def _canonical_ids(values: set[str], level: str | None = None) -> set[str]:
 
 
 def expected_ids(case: dict[str, Any]) -> set[str]:
-    expected = case["expected"]
+    expected = case.get("expected")
+    if not isinstance(expected, dict):
+        expected = {
+            key.removeprefix("expected_"): value
+            for key, value in case.items()
+            if key.startswith("expected_")
+        }
     return _canonical_ids(
         _values(expected, "provision_ids", "expected_provision_ids", "acceptable_provision_ids")
     )
@@ -181,7 +205,6 @@ def _level_expected_coordinates(expected: dict[str, Any], level: str) -> set[str
     direct = _expected_coordinates(expected, level)
     if direct:
         return direct
-    # Gold files sometimes repeat full canonical provision IDs at every level.
     provision_values = _values(
         expected, "provision_ids", "expected_provision_ids", "acceptable_provision_ids"
     )
@@ -195,27 +218,48 @@ def _level_expected_coordinates(expected: dict[str, Any], level: str) -> set[str
 
 
 def parse_coordinate(value: Any) -> tuple[str, str | None, str | None, str | None, str] | None:
-    """Parse canonical IDs; chunk/source suffixes are deliberately not accepted."""
-    if not isinstance(value, str) or not value.strip():
-        return None
-    parts = value.strip().split("__")
-    if not parts[0]:
+    """Parse a canonical coordinate, rejecting chunk/source suffixes."""
+    raw_parts = value.strip().split("__")
+    document = raw_parts[0].strip()
+    if not document or ":" in document:
         return None
     levels: dict[str, str] = {}
-    for part in parts[1:]:
-        for level, prefix in (("article", "dieu-"), ("clause", "khoan-"), ("point", "diem-")):
-            if part.startswith(prefix) and len(part) > len(prefix):
-                levels[level] = part[len(prefix) :]
-                break
-        else:
-            return None
-    return (
-        parts[0],
-        levels.get("article"),
-        levels.get("clause"),
-        levels.get("point"),
-        "__".join(parts),
+    prefixes = (
+        ("article", ("điều-", "dieu-")),
+        ("clause", ("khoản-", "khoan-")),
+        ("point", ("điểm-", "diem-")),
     )
+    previous_index = -1
+    for raw_part in raw_parts[1:]:
+        part = " ".join(raw_part.split()).casefold()
+        matched: tuple[str, str] | None = None
+        for index, (level, accepted) in enumerate(prefixes):
+            if index <= previous_index:
+                continue
+            prefix = next((prefix for prefix in accepted if part.startswith(prefix)), None)
+            if prefix is not None:
+                matched = level, part[len(prefix) :].rstrip(".")
+                previous_index = index
+                break
+        if matched is None:
+            return None
+        level, raw = matched
+        if not raw:
+            return None
+        if level != "point" and raw.isdigit():
+            raw = str(int(raw))
+        levels[level] = raw
+    try:
+        coordinate = Coordinate(
+            document_id=raw_parts[0].strip(),
+            article=levels.get("article"),
+            clause=levels.get("clause"),
+            point=levels.get("point"),
+        )
+        document, article, clause, point = normalize_coordinate(coordinate)
+    except (TypeError, ValueError):
+        return None
+    return document, article, clause, point, canonical_coordinate_string(coordinate)
 
 
 def _coordinate_from_metadata(
@@ -223,26 +267,39 @@ def _coordinate_from_metadata(
 ) -> tuple[str, str | None, str | None, str | None, str] | None:
     if not isinstance(item, dict):
         return None
-    canonical = item.get("provision_id")
-    parsed = parse_coordinate(canonical)
-    if parsed:
-        return parsed
+    for key in ("provision_id", "provision_ids"):
+        candidate = item.get(key)
+        values = (
+            [candidate]
+            if isinstance(candidate, str)
+            else candidate
+            if isinstance(candidate, list)
+            else []
+        )
+        for value in values:
+            parsed = parse_coordinate(value)
+            if parsed:
+                return parsed
     document = item.get("document_id")
-    article = item.get("article")
-    clause = item.get("clause")
-    point = item.get("point")
     if not isinstance(document, str) or not document.strip():
+        document = item.get("document_number")
+    article, clause, point = item.get("article"), item.get("clause"), item.get("point")
+    if not isinstance(document, str) or not any(
+        value is not None and str(value).strip() for value in (article, clause, point)
+    ):
         return None
-    values = [
-        str(value).strip() if value is not None else None for value in (article, clause, point)
-    ]
-    if not any(values):
-        return None
-    suffixes = [("dieu-", values[0]), ("khoan-", values[1]), ("diem-", values[2])]
-    canonical = document.strip() + "".join(
-        f"__{prefix}{value}" for prefix, value in suffixes if value
+    return parse_coordinate(
+        "__".join(
+            [document.strip()]
+            + [
+                f"{prefix}{value}"
+                for prefix, value in zip(
+                    ("dieu-", "khoan-", "diem-"), (article, clause, point), strict=True
+                )
+                if value is not None and str(value).strip()
+            ]
+        )
     )
-    return parse_coordinate(canonical)
 
 
 def _prediction_coordinates(
@@ -265,11 +322,6 @@ def _prediction_coordinates(
             if isinstance(ids, list):
                 coordinates.extend(item for value in ids if (item := parse_coordinate(value)))
     return coordinates
-
-
-def citation_id(citation: Any) -> str | None:
-    coordinate = _coordinate_from_metadata(citation)
-    return coordinate[4] if coordinate else None
 
 
 def _level_accuracy(
@@ -295,6 +347,8 @@ def score_case(
     citations = prediction.get("citations", [])
     if not isinstance(citations, list):
         citations = []
+    if not isinstance(case.get("expected"), dict):
+        case = normalize_case(case, 0)
     expected = case["expected"]
     wanted = expected_ids(case)
     coordinates = _prediction_coordinates(prediction)
@@ -416,10 +470,19 @@ def main() -> int:
     rows: list[dict[str, Any]] = []
     for case in cases:
         if case["id"] in saved:
-            rows.append(score_case(case, saved[case["id"]], saved[case["id"]].get("latency_ms")))
+            saved_prediction = saved[case["id"]]
+            rows.append(score_case(case, saved_prediction, saved_prediction.get("latency_ms")))
             continue
         if args.predictions:
-            fail(f"missing prediction for {case['id']}")
+            rows.append(
+                score_case(
+                    case,
+                    {"status": "ERROR", "error": f"missing prediction for {case['id']}"},
+                    None,
+                )
+            )
+            rows[-1]["error"] = f"missing prediction for {case['id']}"
+            continue
         try:
             prediction, latency = post_json(
                 args.endpoint,

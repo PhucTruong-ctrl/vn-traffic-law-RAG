@@ -1,17 +1,25 @@
 """Strict, provider-independent schemas for deterministic RAG evaluation."""
 
-from __future__ import annotations
+from typing import Self
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class Coordinate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    document: str = Field(min_length=1)
+    document: str | None = Field(default=None, min_length=1)
+    document_id: str | None = Field(default=None, min_length=1)
+    document_number: str | None = None
     article: str | None = None
     clause: str | None = None
     point: str | None = None
+
+    @model_validator(mode="after")
+    def require_canonical_document(self) -> Self:
+        if self.document is None and self.document_id is None:
+            raise ValueError("document or document_id is required")
+        return self
 
 
 class ExpectedCase(BaseModel):
