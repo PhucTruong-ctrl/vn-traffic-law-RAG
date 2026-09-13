@@ -75,29 +75,15 @@ def test_active_request_models_forbid_unknown_fields() -> None:
     with pytest.raises(ValueError):
         MessageCreate(content="hello", role="system")
     with pytest.raises(ValueError):
-        FeedbackCreate(rating=1, message_id="m1", session_id="s1", unexpected=True)
+        FeedbackCreate(rating=1, unexpected=True)
 
 
-def test_feedback_accepts_binary_ratings_and_requires_ids() -> None:
-    assert FeedbackCreate(rating=0, message_id="m1", session_id="s1").rating == 0
-    assert FeedbackCreate(rating=1, message_id="m1", session_id="s1").rating == 1
+def test_feedback_accepts_binary_ratings() -> None:
+    assert FeedbackCreate(rating=0).rating == 0
+    assert FeedbackCreate(rating=1).rating == 1
     for rating in (-1, 2):
         with pytest.raises(ValueError):
-            FeedbackCreate(rating=rating, message_id="m1", session_id="s1")
-    for field in ("message_id", "session_id"):
-        with pytest.raises(ValueError):
-            FeedbackCreate(
-                rating=1,
-                message_id="m1" if field == "session_id" else "",
-                session_id="s1" if field == "message_id" else "",
-            )
-
-
-def test_feedback_payload_preserves_binary_rating_and_ownership_ids() -> None:
-    payload = FeedbackCreate(rating=1, message_id="message-1", session_id="session-1")
-    assert payload.rating == 1
-    assert payload.message_id == "message-1"
-    assert payload.session_id == "session-1"
+            FeedbackCreate(rating=rating)
 
 
 def test_message_schema_exposes_response_citations_and_metadata_snapshot() -> None:

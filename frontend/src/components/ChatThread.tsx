@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { Clipboard, FileDown, Share2 } from "lucide-react";
+import { Clipboard, FileDown } from "lucide-react";
 import AbstentionResult from "./AbstentionResult";
 import CitationCard, { type Citation } from "./CitationCard";
 import FeedbackWidget, { BookmarkToggle } from "./FeedbackWidget";
+import PrintAnswerDocument from "./PrintAnswerDocument";
 import type { ChatResponse, ConversationTurn, ProgressEvent } from "./chat-types";
 
 function protectLegalParentheticals(markdown: string): string {
@@ -113,10 +114,12 @@ type ChatThreadProps = {
 };
 
 function ResponseMessage({
+  question,
   response,
   onOpenSource,
   sessionId,
 }: {
+  question: string;
   response: ChatResponse;
   onOpenSource: (citation: Citation) => void;
   sessionId: string;
@@ -130,12 +133,31 @@ function ResponseMessage({
     response.status === "CORPUS_NOT_COVERED" ||
     response.status === "WORKFLOW_UNAVAILABLE";
   const [actionState, setActionState] = useState("");
+  const [printing, setPrinting] = useState(false);
   const answer = response.answer ?? "";
+  useEffect(() => {
+    if (!printing) return;
+    const finish = () => setPrinting(false);
+    window.addEventListener("afterprint", finish, { once: true });
+    const frame = window.requestAnimationFrame(() => window.print());
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("afterprint", finish);
+    };
+  }, [printing]);
   return (
     <div className="assistant-message response-message">
       <div className="response-content">
         {operational ? (
           <AbstentionResult
+            status={
+              response.status as
+                | "GREETING"
+                | "OUT_OF_SCOPE"
+                | "CORPUS_NOT_COVERED"
+                | "INSUFFICIENT_EVIDENCE"
+                | "WORKFLOW_UNAVAILABLE"
+            }
             reason={response.abstention?.reason}
             reasonCode={response.abstention?.reason_code}
             disclaimer={response.disclaimer}
@@ -162,21 +184,11 @@ function ResponseMessage({
                 </button>
                 <button
                   type="button"
-                  onClick={() => window.print()}
-                  aria-label="Xuất PDF"
-                  title="Xuất PDF"
+                  onClick={() => setPrinting(true)}
+                  aria-label="In hoặc lưu câu trả lời thành PDF"
+                  title="In hoặc lưu PDF"
                 >
                   <FileDown size={17} aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (navigator.share) await navigator.share({ text: answer });
-                  }}
-                  aria-label="Chia sẻ"
-                  title="Chia sẻ"
-                >
-                  <Share2 size={17} aria-hidden="true" />
                 </button>
                 {actionState && <span role="status">{actionState}</span>}
                 <FeedbackWidget
@@ -193,6 +205,7 @@ function ResponseMessage({
           </>
         ) : (
           <AbstentionResult
+            status="INSUFFICIENT_EVIDENCE"
             reason={response.abstention?.reason}
             reasonCode={response.abstention?.reason_code}
             disclaimer={response.disclaimer}
@@ -215,6 +228,9 @@ function ResponseMessage({
               ))}
             </div>
           </details>
+        )}
+        {printing && (
+          <PrintAnswerDocument question={question} answer={answer} citations={citations} />
         )}
       </div>
     </div>
@@ -257,6 +273,7 @@ export default function ChatThread({
             </div>
             {turn.response && (
               <ResponseMessage
+                question={turn.question}
                 response={turn.response}
                 onOpenSource={onOpenSource}
                 sessionId={sessionId}
@@ -264,7 +281,12 @@ export default function ChatThread({
             )}
             {!turn.response && turn.status === "failed" && (
               <p className="turn-status turn-status--failed" role="status">
-                Phản hồi bị gián đoạn. Câu hỏi đã được đưa lại vào ô nhập để gửi lại.
+                Không nhận được câu trả lời. Câu hỏi đã được đưa lại vào ô nhập để bạn thử lại.
+              </p>
+            )}
+            {!turn.response && turn.status === "stopped" && (
+              <p className="turn-status" role="status">
+                Đã dừng tra cứu. Câu hỏi vẫn ở ô nhập để bạn chỉnh sửa hoặc gửi lại.
               </p>
             )}
           </div>
@@ -272,18 +294,38 @@ export default function ChatThread({
       {!historyLoading && loading && (
         <div className="assistant-message loading-state" role="status" aria-live="polite">
           <div className="loading-content">
-            <span className="streaming-badge">Đang trả lời</span>
-            <section
-              className="progress-events-panel"
-              aria-label="Tiến trình xử lý"
-              aria-live="polite"
-            >
-              <p className="progress-events__event" role="status">
-                {progressEvents
-                  ?.map((event) => event.message || event.detail)
-                  .filter((message): message is string => Boolean(message))
-                  .at(-1) || "Đang xử lý yêu cầu…"}
-              </p>
+            <span className="streaming-badge">Đang tra cứu</span>
+            <section className="progress-events-panel" aria-label="Tiến trình xử lý">
+              <ol className="progress-events">
+                {["Đang tìm căn cứ", "Đang đối chiếu nguồn", "Đang soạn câu trả lời"].map(
+                  (label, index) => {
+                    const activeIndex = Math.min(progressEvents?.length ?? 0, 2);
+                    const state =
+                      index < activeIndex
+                        ? "complete"
+                        : index === activeIndex
+                          ? "active"
+                          : "pending";
+                    return (
+                      <li
+                        key={label}
+                        className={`progress-events__item progress-events__item--${state}`}
+                      >
+                        <span className="progress-events__marker" aria-hidden="true">
+                          {state === "complete" ? (
+                            "✓"
+                          ) : state === "active" ? (
+                            <span className="progress-events__spinner" />
+                          ) : (
+                            index + 1
+                          )}
+                        </span>
+                        <span className="progress-events__label">{label}</span>
+                      </li>
+                    );
+                  },
+                )}
+              </ol>
             </section>
           </div>
         </div>

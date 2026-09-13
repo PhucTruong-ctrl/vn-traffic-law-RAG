@@ -96,6 +96,35 @@
 
   --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  background: var(--canvas);
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--text-primary);
+  font-family:
+    var(--font-sans),
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
 
 ::selection {
   color: var(--navy-950);
@@ -184,4 +213,21 @@ input:focus-visible {
 textarea::placeholder,
 input::placeholder {
   color: var(--text-tertiary);
+}
+
+@media (forced-colors: active) {
+  button,
+  input,
+  textarea,
+  a {
+    forced-color-adjust: auto;
+  }
+
+  button:focus-visible,
+  textarea:focus-visible,
+  input:focus-visible,
+  a:focus-visible {
+    outline: 3px solid Highlight;
+    outline-offset: 3px;
+  }
 }

@@ -3,9 +3,9 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 import Modal from "../../src/components/Modal";
 import LegalSourceViewer from "../../src/components/LegalSourceViewer";
+import PageShell from "../../src/components/PageShell";
 import { apiUrl, responseError } from "../../src/lib/api";
 type LegalProvision = {
   id?: string;
@@ -236,7 +236,13 @@ function LegalSourcesExplorer() {
           );
         } catch (cause) {
           if (!controller.signal.aborted)
-            setError(cause instanceof Error ? cause.message : "Không thể tải nguồn pháp luật.");
+            setError(
+              cause instanceof TypeError
+                ? "Không thể kết nối dịch vụ tra cứu. Thử lại sau vài giây."
+                : cause instanceof Error
+                  ? cause.message
+                  : "Không thể tải nguồn pháp luật. Thử lại sau vài giây.",
+            );
         } finally {
           if (!controller.signal.aborted) setLoading(false);
         }
@@ -286,156 +292,159 @@ function LegalSourcesExplorer() {
   }, []);
 
   return (
-    <main className="legal-sources-page">
-      <header className="legal-sources-page__header">
-        <div>
-          <Link href="/chat" className="legal-sources-page__back">
-            ← Trợ lý
-          </Link>
-          <h1 className="page-title">Nguồn pháp luật</h1>
-          <p>Tra cứu văn bản và điều khoản được sử dụng trong hệ thống.</p>
-        </div>
-      </header>
-      <section className="legal-sources-page__filters" aria-label="Bộ lọc nguồn pháp luật">
-        <label>
-          Từ khóa
-          <input
-            value={query}
-            onChange={(event) => {
-              const value = event.target.value;
-              setQuery(value);
-              updateUrl({ q: value });
-            }}
-            placeholder="Tên văn bản hoặc nội dung"
-          />
-        </label>
-        <label>
-          Số văn bản
-          <input
-            value={number}
-            onChange={(event) => {
-              const value = event.target.value;
-              setNumber(value);
-              updateUrl({ document_number: value });
-            }}
-            placeholder="Ví dụ: 100/2019/NĐ-CP"
-          />
-        </label>
-        <label>
-          Điều
-          <input
-            value={article}
-            onChange={(event) => {
-              const value = event.target.value;
-              setArticle(value);
-              updateUrl({ article: value });
-            }}
-            placeholder="Ví dụ: 6"
-          />
-        </label>
-        <label>
-          Khoản
-          <input
-            value={clause}
-            onChange={(event) => {
-              const value = event.target.value;
-              setClause(value);
-              updateUrl({ clause: value });
-            }}
-            placeholder="Ví dụ: 2"
-          />
-        </label>
-        <label>
-          Điểm
-          <input
-            value={point}
-            onChange={(event) => {
-              const value = event.target.value;
-              setPoint(value);
-              updateUrl({ point: value });
-            }}
-            placeholder="Ví dụ: a"
-          />
-        </label>
-      </section>
-      <section className="legal-sources-page__results" aria-live="polite">
-        {loading && <p className="legal-sources-page__state">Đang tải nguồn pháp luật…</p>}
-        {!loading && error && (
-          <div className="legal-sources-page__state" role="alert">
-            <p>{error}</p>
-            <button type="button" onClick={() => window.location.reload()}>
-              Thử lại
-            </button>
+    <PageShell>
+      <main className="legal-sources-page">
+        <header className="legal-sources-page__header">
+          <div>
+            <h1 className="page-title">Nguồn pháp luật</h1>
+            <p>Tra cứu văn bản và điều khoản được sử dụng trong hệ thống.</p>
           </div>
-        )}
-        {!loading && !error && !documents.length && (
-          <p className="legal-sources-page__state">Không tìm thấy văn bản phù hợp.</p>
-        )}
-        {!loading &&
-          !error &&
-          documents.map((doc, index) => {
-            const title =
-              doc.document_name ||
-              doc.title ||
-              doc.document_title ||
-              doc.document_number ||
-              "Văn bản pháp luật";
-            const sourceKind = doc.source?.source_kind ?? doc.source_kind;
-            return (
-              <button
-                type="button"
-                className="legal-source-card"
-                key={`${normalizeDocumentNumber(documentId(doc)) || "document"}-${normalizeDocumentNumber(title)}-${index}`}
-                onClick={() => void selectDocument(doc)}
-              >
-                <span className="legal-source-card__kind">
-                  {sourceKind === "markdown" ? "MARKDOWN" : "PDF"}
-                </span>
-                <strong>{title}</strong>
-                {doc.document_number && <span>{doc.document_number}</span>}
-                {typeof doc.provision_count === "number" && (
-                  <span>{doc.provision_count} điều khoản</span>
-                )}
-                <span className="legal-source-card__open">Mở văn bản →</span>
-              </button>
-            );
-          })}
-      </section>
-      <Modal
-        open={Boolean(selected)}
-        onClose={closeSelected}
-        label="Chi tiết nguồn pháp luật"
-        className="legal-source-modal"
-      >
-        {selected &&
-          (selectedLoading ? (
-            <p className="legal-source-viewer__state">Đang tải nội dung nguồn pháp luật…</p>
-          ) : selectedError ? (
-            <p className="legal-source-viewer__state" role="alert">
-              {selectedError}
-            </p>
-          ) : (
-            <LegalSourceViewer
-              mode="explorer"
-              searchQuery={citationSearch(article, clause, point, "")}
-              citation={{
-                source_id: `${documentId(selected)}:explorer`,
-                document_id: documentId(selected) || "selected-document",
-                document_title: selected.document_name || selected.title || selected.document_title,
-                document_number: selected.document_number,
-                article,
-                clause,
-                point,
-                source_url: selected.source?.source_url ?? selected.source_url,
-                pdf_url: selected.source?.pdf_url ?? selected.pdf_url,
-                source_file: selected.source?.source_file ?? selected.source_file,
-                excerpt: selectedContent?.content || selectedContent?.markdown || "",
+        </header>
+        <section className="legal-sources-page__filters" aria-label="Bộ lọc nguồn pháp luật">
+          <label className="legal-sources-page__primary-filter">
+            Tìm văn bản hoặc nội dung
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => {
+                const value = event.target.value;
+                setQuery(value);
+                updateUrl({ q: value });
               }}
-              document={selectedContent || undefined}
+              placeholder="Nhập tên văn bản, nội dung hoặc từ khóa"
             />
-          ))}
-      </Modal>
-    </main>
+          </label>
+          <div className="legal-sources-page__advanced-filters">
+            <label>
+              Số văn bản
+              <input
+                value={number}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setNumber(value);
+                  updateUrl({ document_number: value });
+                }}
+                placeholder="100/2019/NĐ-CP"
+              />
+            </label>
+            <label>
+              Điều
+              <input
+                value={article}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setArticle(value);
+                  updateUrl({ article: value });
+                }}
+                placeholder="6"
+              />
+            </label>
+            <label>
+              Khoản
+              <input
+                value={clause}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setClause(value);
+                  updateUrl({ clause: value });
+                }}
+                placeholder="2"
+              />
+            </label>
+            <label>
+              Điểm
+              <input
+                value={point}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setPoint(value);
+                  updateUrl({ point: value });
+                }}
+                placeholder="a"
+              />
+            </label>
+          </div>
+        </section>
+        <section className="legal-sources-page__results" aria-live="polite">
+          {loading && <p className="legal-sources-page__state">Đang tải nguồn pháp luật…</p>}
+          {!loading && error && (
+            <div className="legal-sources-page__state" role="alert">
+              <p>{error}</p>
+              <button type="button" onClick={() => window.location.reload()}>
+                Thử lại
+              </button>
+            </div>
+          )}
+          {!loading && !error && !documents.length && (
+            <p className="legal-sources-page__state">Không tìm thấy văn bản phù hợp.</p>
+          )}
+          {!loading &&
+            !error &&
+            documents.map((doc, index) => {
+              const title =
+                doc.document_name ||
+                doc.title ||
+                doc.document_title ||
+                doc.document_number ||
+                "Văn bản pháp luật";
+              const sourceKind = doc.source?.source_kind ?? doc.source_kind;
+              return (
+                <button
+                  type="button"
+                  className="legal-source-card"
+                  key={`${normalizeDocumentNumber(documentId(doc)) || "document"}-${normalizeDocumentNumber(title)}-${index}`}
+                  onClick={() => void selectDocument(doc)}
+                >
+                  <span className="legal-source-card__kind">
+                    {sourceKind === "markdown" ? "MARKDOWN" : "PDF"}
+                  </span>
+                  <strong>{title}</strong>
+                  {doc.document_number && <span>{doc.document_number}</span>}
+                  {typeof doc.provision_count === "number" && (
+                    <span>{doc.provision_count} điều khoản</span>
+                  )}
+                  <span className="legal-source-card__open">Mở văn bản →</span>
+                </button>
+              );
+            })}
+        </section>
+        <Modal
+          open={Boolean(selected)}
+          onClose={closeSelected}
+          label="Chi tiết nguồn pháp luật"
+          className="legal-source-modal"
+        >
+          {selected &&
+            (selectedLoading ? (
+              <p className="legal-source-viewer__state">Đang tải nội dung nguồn pháp luật…</p>
+            ) : selectedError ? (
+              <p className="legal-source-viewer__state" role="alert">
+                {selectedError}
+              </p>
+            ) : (
+              <LegalSourceViewer
+                mode="explorer"
+                searchQuery={citationSearch(article, clause, point, "")}
+                citation={{
+                  source_id: `${documentId(selected)}:explorer`,
+                  document_id: documentId(selected) || "selected-document",
+                  document_title:
+                    selected.document_name || selected.title || selected.document_title,
+                  document_number: selected.document_number,
+                  article,
+                  clause,
+                  point,
+                  source_url: selected.source?.source_url ?? selected.source_url,
+                  pdf_url: selected.source?.pdf_url ?? selected.pdf_url,
+                  source_file: selected.source?.source_file ?? selected.source_file,
+                  excerpt: selectedContent?.content || selectedContent?.markdown || "",
+                }}
+                document={selectedContent || undefined}
+              />
+            ))}
+        </Modal>
+      </main>
+    </PageShell>
   );
 }
 

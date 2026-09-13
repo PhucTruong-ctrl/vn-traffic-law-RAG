@@ -16,6 +16,9 @@ export default function Modal({ open, onClose, label, className = "", children }
 
   useEffect(() => {
     if (!open) return;
+    const root = document.documentElement;
+    const previousOverflow = root.style.overflow;
+    root.style.overflow = "hidden";
     const previousFocus =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const focusCloseButton = () => closeButtonRef.current?.focus();
@@ -46,7 +49,8 @@ export default function Modal({ open, onClose, label, className = "", children }
     return () => {
       cancelAnimationFrame(frame);
       document.removeEventListener("keydown", handleKeyDown);
-      previousFocus?.focus();
+      root.style.overflow = previousOverflow;
+      previousFocus?.focus({ preventScroll: true });
     };
   }, [open, onClose]);
 

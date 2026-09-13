@@ -12,7 +12,6 @@ begin
      where n.nspname = 'public'
        and t.relname = 'feedback'
        and c.contype = 'c'
-       and pg_get_constraintdef(c.oid) ~* '\\mrating\\M'
        and c.conname <> 'feedback_rating_binary_check'
   loop
     execute format(

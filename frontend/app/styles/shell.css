@@ -240,14 +240,25 @@
   color: var(--sidebar-text);
   background: transparent;
   font-size: 13px;
-  font-weight: 520;
+  font-weight: 500;
   text-align: left;
+  text-decoration: none;
 }
 
 .sidebar-nav__item:hover,
 .sidebar-nav__item[aria-current="page"] {
   color: var(--sidebar-text-active);
   background: var(--sidebar-hover);
+}
+
+.sidebar-nav__item[aria-current="page"]::before {
+  position: absolute;
+  left: 0;
+  width: 2px;
+  height: 18px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.8);
+  content: "";
 }
 .chat-list {
   position: relative;
@@ -377,7 +388,7 @@
   color: #d5dbe2;
   background: transparent;
   font-size: 12.5px;
-  font-weight: 480;
+  font-weight: 500;
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -385,7 +396,7 @@
 
 .chat-list__item.active > button:first-child {
   color: #ffffff;
-  font-weight: 580;
+  font-weight: 600;
 }
 
 .chat-list__actions {
@@ -521,7 +532,7 @@
 .sidebar-user b {
   color: #eef2f6;
   font-size: 12px;
-  font-weight: 580;
+  font-weight: 600;
 }
 
 .sidebar-user small {
@@ -597,7 +608,7 @@
   border-radius: 8px;
   color: #16202b;
   background: #e8c875;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .account-dialog__form [role="alert"] {
@@ -624,7 +635,7 @@
   background: linear-gradient(145deg, #fff4d9, #ecd090);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
   font-size: 10px;
-  font-weight: 750;
+  font-weight: 700;
 }
 
 .modal-backdrop {
@@ -746,7 +757,7 @@
   padding: 2px 22px 0;
   color: #94a2af;
   font-size: 11px;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: 0.055em;
   line-height: 40px;
   text-transform: uppercase;
@@ -836,7 +847,7 @@
   color: var(--navy-950);
   font-family: var(--font-serif), Georgia, serif;
   font-size: clamp(28px, 4vw, 40px);
-  font-weight: 520;
+  font-weight: 500;
   letter-spacing: -0.03em;
   line-height: 1.15;
 }
@@ -922,37 +933,15 @@
 .auth-gate form > button:hover {
   background: var(--brand-hover);
 }
-
-.auth-gate form > button + button:hover {
-  background: var(--surface-hover);
-}
-
-.auth-gate [role="alert"] {
-  margin: 14px 0 0;
-  color: var(--danger);
-  font-size: 14px;
-}
-
 .app-header {
-  position: sticky;
-  top: 0;
-  z-index: 8;
-  display: flex;
-  min-height: 60px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 8px clamp(16px, 3vw, 30px);
-  border-bottom: 1px solid var(--hairline);
-  background: color-mix(in srgb, var(--canvas) 94%, transparent);
-  backdrop-filter: blur(14px) saturate(120%);
-  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  display: none;
 }
+
 .app-header__title {
   margin: 0;
   color: var(--navy-950);
   font-size: 13px;
-  font-weight: 680;
+  font-weight: 700;
 }
 
 .assistant-menu svg {

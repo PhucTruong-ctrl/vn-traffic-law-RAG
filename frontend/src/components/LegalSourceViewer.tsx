@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Clipboard } from "lucide-react";
+import { Check, Clipboard, ExternalLink } from "lucide-react";
 import type { Citation } from "./CitationCard";
 import PdfCitationViewer from "./PdfCitationViewer";
 
@@ -173,6 +173,7 @@ function MarkdownSourceViewer({
               target="_blank"
               rel="noreferrer"
             >
+              <ExternalLink size={18} strokeWidth={1.8} aria-hidden="true" />
               Mở bản gốc
             </a>
           )}
@@ -182,7 +183,11 @@ function MarkdownSourceViewer({
             className="markdown-viewer__copy"
             aria-label={copied ? "Đã sao chép văn bản" : "Sao chép văn bản"}
           >
-            {copied ? <Check aria-hidden="true" /> : <Clipboard aria-hidden="true" />}
+            {copied ? (
+              <Check size={18} strokeWidth={1.8} aria-hidden="true" />
+            ) : (
+              <Clipboard size={18} strokeWidth={1.8} aria-hidden="true" />
+            )}
             {copied ? "Đã sao chép" : "Sao chép"}
           </button>
         </div>

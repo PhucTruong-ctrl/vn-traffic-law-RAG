@@ -225,6 +225,7 @@ export default function ChatPage({
   const eventSourceRef = useRef<EventSource | null>(null);
   const activeIdRef = useRef(activeId);
   const latestSubmissionRef = useRef(0);
+  const progressTimersRef = useRef<number[]>([]);
   useEffect(() => {
     activeIdRef.current = activeId;
   }, [activeId]);
@@ -338,7 +339,24 @@ export default function ChatPage({
       },
       Number(process.env.NEXT_PUBLIC_CHAT_TIMEOUT_MS) || CHAT_TIMEOUT_MS,
     );
-    setProgressEvents([]);
+    progressTimersRef.current.forEach(window.clearTimeout);
+    progressTimersRef.current = [
+      window.setTimeout(() => setProgressEvents([{ message: "Đang tìm căn cứ" }]), 0),
+      window.setTimeout(
+        () =>
+          setProgressEvents([{ message: "Đang tìm căn cứ" }, { message: "Đang đối chiếu nguồn" }]),
+        900,
+      ),
+      window.setTimeout(
+        () =>
+          setProgressEvents([
+            { message: "Đang tìm căn cứ" },
+            { message: "Đang đối chiếu nguồn" },
+            { message: "Đang soạn câu trả lời" },
+          ]),
+        2200,
+      ),
+    ];
     setError("");
     setSubmittedQuestion(submitted);
     setQuestion("");
@@ -401,15 +419,23 @@ export default function ChatPage({
         ]);
         setQuestion(submitted);
         if (submissionError instanceof DOMException && submissionError.name === "AbortError") {
-          setError(timedOut ? "Tra cứu quá thời gian chờ. Vui lòng thử lại." : "Đã dừng tra cứu.");
+          setError(
+            timedOut ? "Tra cứu quá thời gian chờ. Hãy thử lại sau vài giây." : "Đã dừng tra cứu.",
+          );
+        } else if (submissionError instanceof TypeError) {
+          setError("Không thể kết nối dịch vụ tra cứu. Kiểm tra mạng rồi thử lại sau vài giây.");
         } else {
           setError(
-            submissionError instanceof Error ? submissionError.message : "Không thể xử lý câu hỏi.",
+            submissionError instanceof Error
+              ? submissionError.message
+              : "Không thể xử lý câu hỏi. Hãy thử lại sau vài giây.",
           );
         }
       }
     } finally {
       window.clearTimeout(timeout);
+      progressTimersRef.current.forEach(window.clearTimeout);
+      progressTimersRef.current = [];
       if (
         latestSubmissionRef.current === submissionId &&
         abortControllerRef.current === abortController
@@ -425,11 +451,32 @@ export default function ChatPage({
     await submitQuestion(question.trim());
   }
   function stopSubmission() {
+    if (!loading) return;
+    latestSubmissionRef.current += 1;
     eventSourceRef.current?.close();
     eventSourceRef.current = null;
     abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    progressTimersRef.current.forEach(window.clearTimeout);
+    progressTimersRef.current = [];
+    setTurns((previous) => {
+      const last = previous.at(-1);
+      if (!last || last.response || last.status !== "pending") return previous;
+      return [...previous.slice(0, -1), { ...last, status: "stopped" }];
+    });
+    setQuestion(submittedQuestion);
+    setProgressEvents([]);
+    setError("");
+    setLoading(false);
   }
-  useEffect(() => () => stopSubmission(), []);
+  useEffect(
+    () => () => {
+      eventSourceRef.current?.close();
+      abortControllerRef.current?.abort();
+      progressTimersRef.current.forEach(window.clearTimeout);
+    },
+    [],
+  );
   const resetConversation = () => {
     latestSubmissionRef.current += 1;
     stopSubmission();

@@ -3,8 +3,9 @@
 import { createPortal } from "react-dom";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, MoreHorizontal, PanelLeft, Plus, Search } from "lucide-react";
+import { Bookmark, BookOpen, MoreHorizontal, PanelLeft, Plus, Search } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import LegalMark from "./LegalMark";
 import Modal from "./Modal";
 import type { Conversation } from "./chat-types";
@@ -28,6 +29,7 @@ export default function Sidebar({
   onCollapsedChange,
   onConversationActivity,
 }: SidebarProps) {
+  const pathname = usePathname();
   const supabase = useMemo(() => createClient(), []);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -427,9 +429,9 @@ export default function Sidebar({
           className="sidebar-head sidebar-enter__item"
           style={{ "--sidebar-delay": "0ms" } as CSSProperties}
         >
-          <Link className="wordmark" href="/chat" aria-label="Trợ lý Luật Giao thông">
+          <Link className="wordmark" href="/chat" aria-label="VNLAW">
             <LegalMark />
-            <span>Luật Giao thông</span>
+            <span>VNLAW</span>
           </Link>
           <button
             type="button"
@@ -474,12 +476,22 @@ export default function Sidebar({
           <span>Cuộc trò chuyện mới</span>
         </button>
         <nav className="sidebar-nav" aria-label="Điều hướng">
-          <Link className="sidebar-nav__item" href="/legal-sources" onClick={closeMobile}>
-            <BookOpen />
+          <Link
+            className="sidebar-nav__item"
+            href="/legal-sources"
+            aria-current={pathname === "/legal-sources" ? "page" : undefined}
+            onClick={closeMobile}
+          >
+            <BookOpen size={19} strokeWidth={1.8} aria-hidden="true" />
             <span>Nguồn pháp luật</span>
           </Link>
-          <Link className="sidebar-nav__item" href="/saved" onClick={closeMobile}>
-            <BookOpen />
+          <Link
+            className="sidebar-nav__item"
+            href="/saved"
+            aria-current={pathname === "/saved" ? "page" : undefined}
+            onClick={closeMobile}
+          >
+            <Bookmark size={19} strokeWidth={1.8} aria-hidden="true" />
             <span>Đã lưu</span>
           </Link>
         </nav>

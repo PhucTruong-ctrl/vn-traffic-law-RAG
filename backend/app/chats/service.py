@@ -37,6 +37,22 @@ def _is_feedback_duplicate(exc: httpx.HTTPStatusError) -> bool:
     return response.status_code == 409 or "23505" in text or "duplicate" in text or "unique" in text
 
 
+def _raise_feedback_storage_error(exc: httpx.HTTPStatusError) -> None:
+    response = exc.response
+    text = response.text.lower()
+    if response.status_code in {400, 409, 422} and (
+        "23514" in text or "rating" in text or _is_schema_mismatch(exc)
+    ):
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Feedback storage is unavailable because the remote database schema is stale. "
+                "Apply the binary feedback rating migration, then retry."
+            ),
+        ) from exc
+    raise exc
+
+
 def _one(
     client: SupabaseClient, table: str, params: dict[str, str], token: str | None = None
 ) -> dict:
@@ -131,16 +147,20 @@ def create_session(
 def touch_session(
     client: SupabaseClient, user_id: str, session_id: str, token: str | None = None
 ) -> dict:
-    rows = client.request(
+    session = _one(
+        client,
+        SESSIONS_TABLE,
+        {"id": f"eq.{session_id}", "user_id": f"eq.{user_id}", "deleted": "eq.false"},
+        token,
+    )
+    client.request(
         "PATCH",
         SESSIONS_TABLE,
         params={"id": f"eq.{session_id}", "user_id": f"eq.{user_id}", "deleted": "eq.false"},
-        data={},
-        headers={**_headers(token), "Prefer": "return=representation"},
+        data={"updated_at": "now()"},
+        headers=_headers(token),
     )
-    if not rows:
-        raise HTTPException(status_code=404, detail="Not found")
-    return rows[0]
+    return session
 
 
 def get_session(
@@ -232,7 +252,7 @@ def add_feedback(
                 status_code=409,
                 detail="Feedback has already been submitted for this message.",
             ) from exc
-        raise
+        _raise_feedback_storage_error(exc)
     if not rows:
         raise HTTPException(
             status_code=409,

@@ -30,10 +30,23 @@
 }
 .legal-sources-page__filters {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
   gap: var(--space-3);
   margin-bottom: var(--space-5);
 }
+
+.legal-sources-page__filters label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.legal-sources-page__advanced-filters {
+  display: grid;
+  grid-template-columns: 2fr repeat(3, minmax(90px, 1fr));
+  gap: var(--space-3);
+}
+
 .legal-sources-page__filters input {
   min-height: 44px;
   padding: 10px 12px;
@@ -44,10 +57,10 @@
 }
 .legal-source-card {
   display: grid;
-  gap: 7px;
+  gap: 5px;
   width: 100%;
-  min-height: 112px;
-  padding: var(--space-4);
+  min-height: 96px;
+  padding: 12px 16px;
   margin-bottom: var(--space-2);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-card);
@@ -101,8 +114,8 @@
   width: min(980px, 100%);
 }
 @media (max-width: 720px) {
-  .legal-sources-page__filters {
-    grid-template-columns: 1fr;
+  .legal-sources-page__advanced-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .legal-sources-page {
     padding: 24px 14px;

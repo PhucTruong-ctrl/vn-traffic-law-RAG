@@ -27,12 +27,10 @@ export default function Composer({
       textarea.style.transition = "none";
       textarea.style.height = "0px";
       const lineHeight = Number.parseFloat(getComputedStyle(textarea).lineHeight) || 23;
-      const verticalPadding = hero ? 24 : 28;
-      const maxHeight = hero ? Number.POSITIVE_INFINITY : lineHeight * 8 + verticalPadding;
-      const nextHeight = Math.max(
-        lineHeight + verticalPadding,
-        Math.min(textarea.scrollHeight, maxHeight),
-      );
+      const verticalPadding = hero ? 72 : 28;
+      const minHeight = hero ? 132 : lineHeight + verticalPadding;
+      const maxHeight = hero ? 220 : lineHeight * 8 + verticalPadding;
+      const nextHeight = Math.max(minHeight, Math.min(textarea.scrollHeight, maxHeight));
       textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
       textarea.style.height = `${nextHeight}px`;
       if (hero || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
