@@ -186,7 +186,7 @@ def classify_intent(text: str) -> str:
         return "web"
     if re.search(
         r"\b(luật|điều|khoản|nghị định|thông tư|phạt|giao thông|đường bộ|"
-        r"tốc độ|km/?h|khu vực đông dân cư|vượt đèn đỏ|"
+        r"tốc độ|km/?h|khu vực đông dân cư|vượt đèn đỏ|điện thoại|lái xe|"
         r"không đội mũ bảo hiểm|trừ điểm|tước quyền|tạm giữ|phương tiện)\b",
         lowered,
     ):

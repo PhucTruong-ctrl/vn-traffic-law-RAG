@@ -31,6 +31,17 @@ def _is_vehicle_penalty_question(question: str) -> bool:
     )
 
 
+def _is_unspecified_phone_use_question(question: str, vehicle_types: tuple[str, ...]) -> bool:
+    lowered = question.casefold()
+    return (
+        not vehicle_types
+        and "điện thoại" in lowered
+        and bool(
+            any(token in lowered for token in ("lái xe", "điều khiển xe", "điều khiển phương tiện"))
+        )
+    )
+
+
 def _document_key(document: Document) -> tuple[str, ...]:
     """Stable identity shared with cross-reference expansion."""
     metadata = document.metadata or {}
@@ -106,7 +117,9 @@ class RAGService:
         ]
         queries = [(query, query) for query in intent_queries]
         vehicle_types = detect_vehicle_types(question)
-        if _is_vehicle_penalty_question(question):
+        if _is_vehicle_penalty_question(question) or _is_unspecified_phone_use_question(
+            question, vehicle_types
+        ):
             if len(vehicle_types) > 1:
                 queries = [
                     (f"{query} đối với {VEHICLE_LABELS[vehicle_type]}", label)
