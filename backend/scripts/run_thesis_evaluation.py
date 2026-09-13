@@ -135,21 +135,158 @@ def load_predictions(path: Path) -> dict[str, dict[str, Any]]:
     return predictions
 
 
-def expected_ids(case: dict[str, Any]) -> set[str]:
-    expected = case["expected"]
+def _values(expected: dict[str, Any], *keys: str) -> set[str]:
     values: list[Any] = []
-    for key in ("provision_ids", "expected_provision_ids", "acceptable_provision_ids"):
+    for key in keys:
         value = expected.get(key)
         if isinstance(value, list):
             values.extend(value)
         elif isinstance(value, str):
             values.append(value)
-    return {str(value) for value in values if str(value).strip()}
-def citation_id(citation: Any) -> str | None:
-    if not isinstance(citation, dict):
+    return {str(value).strip() for value in values if str(value).strip()}
+
+
+def _canonical_ids(values: set[str], level: str | None = None) -> set[str]:
+    result: set[str] = set()
+    for value in values:
+        parsed = parse_coordinate(value)
+        if parsed and (
+            level is None or parsed[EXPECTED_COORDINATE_LEVELS.index(level)] is not None
+        ):
+            result.add(parsed[4])
+    return result
+
+
+def expected_ids(case: dict[str, Any]) -> set[str]:
+    expected = case["expected"]
+    return _canonical_ids(
+        _values(expected, "provision_ids", "expected_provision_ids", "acceptable_provision_ids")
+    )
+
+
+def _expected_coordinates(expected: dict[str, Any], level: str) -> set[str]:
+    values = _values(expected, f"{level}_ids", f"expected_{level}_ids")
+    result: set[str] = set()
+    for value in values:
+        parsed = parse_coordinate(value)
+        if not parsed:
+            continue
+        index = EXPECTED_COORDINATE_LEVELS.index(level)
+        if parsed[index] is not None:
+            result.add("__".join(part for part in parsed[4].split("__")[: index + 1]))
+    return result
+
+
+def _level_expected_coordinates(expected: dict[str, Any], level: str) -> set[str]:
+    direct = _expected_coordinates(expected, level)
+    if direct:
+        return direct
+    # Gold files sometimes repeat full canonical provision IDs at every level.
+    provision_values = _values(
+        expected, "provision_ids", "expected_provision_ids", "acceptable_provision_ids"
+    )
+    result: set[str] = set()
+    index = EXPECTED_COORDINATE_LEVELS.index(level)
+    for value in provision_values:
+        parsed = parse_coordinate(value)
+        if parsed and parsed[index] is not None:
+            result.add("__".join(part for part in parsed[4].split("__")[: index + 1]))
+    return result
+
+
+def parse_coordinate(value: Any) -> tuple[str, str | None, str | None, str | None, str] | None:
+    """Parse canonical IDs; chunk/source suffixes are deliberately not accepted."""
+    if not isinstance(value, str) or not value.strip():
         return None
-    value = citation.get("source_id")
-    return str(value) if value else None
+    parts = value.strip().split("__")
+    if not parts[0]:
+        return None
+    levels: dict[str, str] = {}
+    for part in parts[1:]:
+        for level, prefix in (("article", "dieu-"), ("clause", "khoan-"), ("point", "diem-")):
+            if part.startswith(prefix) and len(part) > len(prefix):
+                levels[level] = part[len(prefix) :]
+                break
+        else:
+            return None
+    return (
+        parts[0],
+        levels.get("article"),
+        levels.get("clause"),
+        levels.get("point"),
+        "__".join(parts),
+    )
+
+
+def _coordinate_from_metadata(
+    item: Any,
+) -> tuple[str, str | None, str | None, str | None, str] | None:
+    if not isinstance(item, dict):
+        return None
+    canonical = item.get("provision_id")
+    parsed = parse_coordinate(canonical)
+    if parsed:
+        return parsed
+    document = item.get("document_id")
+    article = item.get("article")
+    clause = item.get("clause")
+    point = item.get("point")
+    if not isinstance(document, str) or not document.strip():
+        return None
+    values = [
+        str(value).strip() if value is not None else None for value in (article, clause, point)
+    ]
+    if not any(values):
+        return None
+    suffixes = [("dieu-", values[0]), ("khoan-", values[1]), ("diem-", values[2])]
+    canonical = document.strip() + "".join(
+        f"__{prefix}{value}" for prefix, value in suffixes if value
+    )
+    return parse_coordinate(canonical)
+
+
+def _prediction_coordinates(
+    prediction: dict[str, Any],
+) -> list[tuple[str, str | None, str | None, str | None, str]]:
+    coordinates: list[tuple[str, str | None, str | None, str | None, str]] = []
+    citations = prediction.get("citations", [])
+    if isinstance(citations, list):
+        coordinates.extend(
+            item for citation in citations if (item := _coordinate_from_metadata(citation))
+        )
+    claims = prediction.get("claims", [])
+    if isinstance(claims, list):
+        for claim in claims:
+            if not isinstance(claim, dict):
+                continue
+            ids = claim.get("provision_ids")
+            if isinstance(ids, str):
+                ids = [ids]
+            if isinstance(ids, list):
+                coordinates.extend(item for value in ids if (item := parse_coordinate(value)))
+    return coordinates
+
+
+def citation_id(citation: Any) -> str | None:
+    coordinate = _coordinate_from_metadata(citation)
+    return coordinate[4] if coordinate else None
+
+
+def _level_accuracy(
+    expected: dict[str, Any],
+    coordinates: list[tuple[str, str | None, str | None, str | None, str]],
+    level: str,
+) -> bool | None:
+    wanted = _level_expected_coordinates(expected, level)
+    if not wanted:
+        return None
+    index = EXPECTED_COORDINATE_LEVELS.index(level)
+    actual = {
+        "__".join(part for part in coordinate[4].split("__")[: index + 1])
+        for coordinate in coordinates
+        if coordinate[index] is not None
+    }
+    return wanted <= actual
 
 
 def score_case(
@@ -159,41 +296,38 @@ def score_case(
     if not isinstance(citations, list):
         citations = []
     expected = case["expected"]
-    expected_ids = expected.get("provision_ids", [])
-    if not isinstance(expected_ids, list):
-        expected_ids = []
-    wanted = {str(item) for item in expected_ids if str(item).strip()}
-    citation_ids = {
-        str(citation.get("source_id"))
-        for citation in citations
-        if isinstance(citation, dict) and citation.get("source_id")
-    }
-    hit = bool(citation_ids & wanted) if wanted else None
+    wanted = expected_ids(case)
+    coordinates = _prediction_coordinates(prediction)
+    cited_ids = {item[4] for item in coordinates}
     status = str(prediction.get("status", "")).upper()
+    timed_out = status in {"TIMEOUT", "ERROR", "FAILED"}
     should_abstain = bool(expected.get("abstain", False))
+    actual_abstain = status in {"INSUFFICIENT_EVIDENCE", "OUT_OF_SCOPE"}
+    citation_validity = None if timed_out else bool(citations) if citations else not wanted
+    if citations and not coordinates:
+        citation_validity = False
     result = {
         "case_id": case["id"],
         "category": case["category"],
         "question": case["question"],
         "prediction": prediction,
-        "retrieval_hit_at_k": hit,
-        "document_accuracy": None,
-        "article_accuracy": None,
-        "clause_accuracy": None,
-        "point_accuracy": None,
-        "citation_validity": (
-            all(isinstance(item, dict) and item.get("source_id") for item in citations)
-            if citations
-            else not wanted
-        ),
+        "retrieval_hit_at_k": None if timed_out or not wanted else bool(cited_ids & wanted),
+        "document_accuracy": None
+        if timed_out
+        else _level_accuracy(expected, coordinates, "document"),
+        "article_accuracy": None
+        if timed_out
+        else _level_accuracy(expected, coordinates, "article"),
+        "clause_accuracy": None if timed_out else _level_accuracy(expected, coordinates, "clause"),
+        "point_accuracy": None if timed_out else _level_accuracy(expected, coordinates, "point"),
+        "citation_validity": citation_validity,
         "answer_correctness_manual": None,
-        "abstention_accuracy": (
-            status in {"INSUFFICIENT_EVIDENCE", "OUT_OF_SCOPE"}
-        )
-        == should_abstain,
+        "abstention_accuracy": None if timed_out else actual_abstain == should_abstain,
         "latency_ms": round(latency_ms, 2) if latency_ms is not None else None,
     }
     return result
+
+
 def post_json(
     url: str, payload: dict[str, Any], timeout: float, bearer_token: str | None = None
 ) -> tuple[dict[str, Any], float]:
@@ -214,66 +348,56 @@ def post_json(
 
 
 def aggregate(rows: list[dict[str, Any]], metadata: dict[str, Any]) -> dict[str, Any]:
-    def mean(field: str) -> float | None:
-        values = [float(row[field]) for row in rows if isinstance(row.get(field), (int, float))]
-        return round(statistics.mean(values), 2) if values else None
-    def ratio(field: str) -> float | None:
-        values = [row[field] for row in rows if isinstance(row.get(field), bool)]
+    fields = (
+        "retrieval_hit_at_k",
+        "document_accuracy",
+        "article_accuracy",
+        "clause_accuracy",
+        "point_accuracy",
+        "citation_validity",
+        "answer_correctness_manual",
+        "abstention_accuracy",
+    )
+
+    def rate(field: str, subset: list[dict[str, Any]]) -> float | None:
+        values = [row[field] for row in subset if isinstance(row.get(field), bool)]
         return round(sum(values) / len(values), 4) if values else None
 
-    def percentile(field: str, percentile_value: float) -> float | None:
+    def numeric_mean(field: str) -> float | None:
+        values = [float(row[field]) for row in rows if isinstance(row.get(field), (int, float))]
+        return round(statistics.mean(values), 2) if values else None
+
+    def percentile(field: str, p: float) -> float | None:
         values = sorted(
             float(row[field]) for row in rows if isinstance(row.get(field), (int, float))
         )
         if not values:
             return None
-        rank = (len(values) - 1) * percentile_value / 100
-        lower = int(rank)
-        upper = min(lower + 1, len(values) - 1)
-        return round(values[lower] + (values[upper] - values[lower]) * (rank - lower), 2)
+        rank = (len(values) - 1) * p / 100
+        low = int(rank)
+        high = min(low + 1, len(values) - 1)
+        return round(values[low] + (values[high] - values[low]) * (rank - low), 2)
 
     by_category = {}
     for category in sorted(CATEGORIES):
         subset = [row for row in rows if row["category"] == category]
         by_category[category] = {
             "count": len(subset),
-            **{
-                field: ratio(field)
-                for field in (
-                    "retrieval_hit_at_k",
-                    "document_accuracy",
-                    "article_accuracy",
-                    "clause_accuracy",
-                    "point_accuracy",
-                    "citation_validity",
-                    "answer_correctness_manual",
-                    "abstention_accuracy",
-                )
-            },
+            **{field: rate(field, subset) for field in fields},
         }
     return {
         "run": metadata,
         "count": len(rows),
-        "metrics": {
-            field: ratio(field)
-            for field in (
-                "retrieval_hit_at_k",
-                "document_accuracy",
-                "article_accuracy",
-                "clause_accuracy",
-                "point_accuracy",
-                "citation_validity",
-                "answer_correctness_manual",
-                "abstention_accuracy",
-            )
-        },
+        "metrics": {field: rate(field, rows) for field in fields},
         "latency_ms": {
-            "mean": mean("latency_ms"),
+            "mean": numeric_mean("latency_ms"),
             "p50": percentile("latency_ms", 50),
             "p95": percentile("latency_ms", 95),
         },
         "by_category": by_category,
     }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("dataset", type=Path)

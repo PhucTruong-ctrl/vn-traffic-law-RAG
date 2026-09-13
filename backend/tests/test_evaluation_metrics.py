@@ -149,3 +149,151 @@ def test_thesis_dataset_shape_normalizes_to_runner_contract() -> None:
     assert len(cases) == 40
     assert cases[0]["question"] == raw["cases"][0]["query"]
     assert cases[0]["expected"]["provision_ids"] == raw["cases"][0]["expected_provision_ids"]
+
+
+def load_thesis_runner():
+    """Import runner functions without executing its CLI entry point."""
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).parents[1] / "scripts" / "run_thesis_evaluation.py"
+    spec = importlib.util.spec_from_file_location("thesis_runner_metrics", path)
+    assert spec and spec.loader
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+    return runner
+
+
+def runner_case(provision_id: str, category: str = "exact_reference") -> dict:
+    return {
+        "id": "runner-case",
+        "category": category,
+        "question": "q",
+        "expected": {
+            # Gold level arrays intentionally retain the full canonical
+            # provision ID; the runner derives each ancestor level from it.
+            "provision_ids": [provision_id],
+            "document_ids": [provision_id],
+            "article_ids": [provision_id],
+            "clause_ids": [provision_id] if "__khoan-" in provision_id else [],
+            "point_ids": [provision_id] if "__diem-" in provision_id else [],
+            "abstain": False,
+        },
+    }
+
+
+def test_runner_explicit_canonical_claim_satisfies_exact_retrieval() -> None:
+    runner = load_thesis_runner()
+    provision_id = "nd-119-2024__dieu-10__khoan-2__diem-a"
+    case = runner_case(provision_id)
+    result = runner.score_case(
+        case,
+        {
+            "claims": [{"provision_ids": [provision_id]}],
+            "status": "VERIFIED",
+        },
+    )
+    assert result["retrieval_hit_at_k"] is True
+
+
+def test_runner_parses_canonical_article_clause_and_point_ids() -> None:
+    runner = load_thesis_runner()
+    case = runner_case("nd-119-2024__dieu-10__khoan-2__diem-a")
+    assert runner.expected_ids(case) == {"nd-119-2024__dieu-10__khoan-2__diem-a"}
+
+
+def test_runner_child_citation_satisfies_ancestor_level_not_exact_provision() -> None:
+    runner = load_thesis_runner()
+    case = runner_case("nd-119-2024__dieu-10__khoan-2")
+    child = {
+        "document_id": "nd-119-2024",
+        "article": "10",
+        "clause": "2",
+        "point": "a",
+        "provision_ids": ["nd-119-2024__dieu-10__khoan-2__diem-a"],
+        "source_id": "chunk-123",
+    }
+    result = runner.score_case(case, {"citations": [child], "status": "VERIFIED"})
+    assert result["retrieval_hit_at_k"] is False
+    assert result["document_accuracy"] == 1.0
+    assert result["article_accuracy"] == 1.0
+    assert result["clause_accuracy"] == 1.0
+
+
+def test_runner_chunk_source_id_alone_cannot_create_provision_hit() -> None:
+    runner = load_thesis_runner()
+    case = runner_case("nd-119-2024__dieu-10")
+    result = runner.score_case(
+        case,
+        {"citations": [{"source_id": "nd-119-2024__dieu-10"}], "status": "VERIFIED"},
+    )
+    assert result["retrieval_hit_at_k"] is False
+
+
+def test_runner_structured_citation_metadata_produces_level_accuracy() -> None:
+    runner = load_thesis_runner()
+    case = runner_case("nd-119-2024__dieu-10__khoan-2__diem-a")
+    citation = {
+        "document_id": "nd-119-2024",
+        "article": "10",
+        "clause": "2",
+        "point": "a",
+        "provision_ids": ["nd-119-2024__dieu-10__khoan-2__diem-a"],
+        "source_id": "chunk-123",
+    }
+    result = runner.score_case(case, {"citations": [citation], "status": "VERIFIED"})
+    assert result["retrieval_hit_at_k"] is True
+    assert result["document_accuracy"] == 1.0
+    assert result["article_accuracy"] == 1.0
+    assert result["clause_accuracy"] == 1.0
+    assert result["point_accuracy"] == 1.0
+
+
+def test_runner_aggregate_isolates_categories_and_preserves_nulls() -> None:
+    runner = load_thesis_runner()
+    rows = [
+        {
+            "case_id": "a",
+            "category": "exact_reference",
+            "retrieval_hit_at_k": True,
+            "document_accuracy": 1.0,
+            "article_accuracy": 1.0,
+            "clause_accuracy": None,
+            "point_accuracy": None,
+            "citation_validity": True,
+            "answer_correctness_manual": None,
+            "abstention_accuracy": True,
+            "latency_ms": 10.0,
+        },
+        {
+            "case_id": "b",
+            "category": "penalty",
+            "retrieval_hit_at_k": False,
+            "document_accuracy": 0.0,
+            "article_accuracy": 0.0,
+            "clause_accuracy": None,
+            "point_accuracy": None,
+            "citation_validity": False,
+            "answer_correctness_manual": None,
+            "abstention_accuracy": False,
+            "latency_ms": None,
+        },
+    ]
+    aggregate = runner.aggregate(rows, {"source": "test"})
+    assert aggregate["count"] == 2
+    assert aggregate["metrics"]["retrieval_hit_at_k"] == 0.5
+    assert aggregate["by_category"]["exact_reference"]["retrieval_hit_at_k"] == 1.0
+    assert aggregate["by_category"]["penalty"]["retrieval_hit_at_k"] == 0.0
+    assert aggregate["by_category"]["natural_language"]["count"] == 0
+    assert aggregate["by_category"]["natural_language"]["retrieval_hit_at_k"] is None
+    assert aggregate["latency_ms"] == {"mean": 10.0, "p50": 10.0, "p95": 10.0}
+
+
+def test_runner_timeout_row_keeps_nullable_metrics() -> None:
+    runner = load_thesis_runner()
+    case = runner_case("nd-119-2024__dieu-10")
+    result = runner.score_case(case, {"status": "TIMEOUT"}, latency_ms=None)
+    assert result["retrieval_hit_at_k"] is None
+    assert result["document_accuracy"] is None
+    assert result["citation_validity"] is None
+    assert result["latency_ms"] is None
