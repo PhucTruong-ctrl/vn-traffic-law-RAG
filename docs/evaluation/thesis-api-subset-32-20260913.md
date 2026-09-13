@@ -63,3 +63,41 @@ Các case lỗi có `prediction = null`; không suy diễn trạng thái hay cor
 - P95 latency 84 giây.
 
 Không dùng subset này để tuyên bố full 40-case pass hoặc release-ready. Raw subset được giữ ngoài Git artifact output của one-off run; report này chỉ ghi kết quả console đã quan sát.
+# Fresh full 40-case run — `20260913T172158Z` (superseding status, 2026-09-13)
+
+Sau subset 32 case ở trên, đã thực hiện một fresh run đủ 40 case trực tiếp qua
+`POST /api/v1/chat`. Phần này **bổ sung** kết quả mới và không thay thế các số
+liệu lịch sử của subset.
+
+| Thuộc tính          | Giá trị |
+| ------------------- | ------- |
+| Raw predictions     | `/tmp/thesis-release-full/20260913T172158Z.jsonl` |
+| Aggregate           | `/tmp/thesis-release-full/20260913T172158Z.aggregate.json` |
+| Số case             | 40 |
+| Endpoint            | `POST /api/v1/chat` |
+| top-k               | 5 |
+| API timeout/null prediction | Case `08`, `20` |
+
+Fresh scorer/run tiếp tục cho các coordinate metrics bằng `0.0`:
+
+| Metric | Fresh full-run result |
+| ------ | --------------------: |
+| retrieval hit@k | 0.0 |
+| document accuracy | 0.0 |
+| article accuracy | 0.0 |
+| clause accuracy | 0.0 |
+| point accuracy | 0.0 |
+| citation validity | 73.68% |
+| abstention accuracy | 65.79% |
+| Latency mean | 23,096.09 ms |
+| Latency P50 | 11,024.33 ms |
+| Latency P95 | 63,738.4 ms |
+
+Latency đã cải thiện so với subset (mean 29,002.83 ms; P50 26,925.06 ms;
+P95 84,036.78 ms), nhưng P95 vẫn cao. Manual semantic strict review ghi nhận:
+**correct 19, partial 9, incorrect 8, unavailable 4**. Các ví dụ unsafe đã
+được xác minh thủ công là `05, 06, 07, 21, 27, 35, 36, 39`.
+
+Focused tests của current code được báo cáo là xanh, nhưng live gate đã thất
+bại. **Disposition: UNVERIFIED / NOT RELEASE-READY.** Fresh run này không
+được dùng để tuyên bố release-ready.
