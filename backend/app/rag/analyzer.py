@@ -187,7 +187,13 @@ def classify_intent(text: str) -> str:
     if re.search(
         r"\b(luật|điều|khoản|nghị định|thông tư|phạt|giao thông|đường bộ|"
         r"tốc độ|km/?h|khu vực đông dân cư|vượt đèn đỏ|điện thoại|lái xe|"
-        r"không đội mũ bảo hiểm|trừ điểm|tước quyền|tạm giữ|phương tiện)\b",
+        r"không đội mũ bảo hiểm|trừ điểm|tước quyền|tạm giữ|phương tiện|"
+        r"đai an toàn|thắt dây|dây an toàn|số người|chở người|"
+        r"dừng xe|đỗ xe|đậu xe|quay đầu|đi lùi|lùi xe|vỉa hè|"
+        r"đèn chiếu sáng|bật đèn|còi|bấm còi|đi ngược chiều|ngược chiều|"
+        r"làn đường|lấn làn|rượu|bia|nồng độ cồn|ma túy|chất kích thích|"
+        r"mũ bảo hiểm|thiết bị điện tử|điện tử|đèn tín hiệu|xi nhan|"
+        r"chuyển hướng|rẽ)\b",
         lowered,
     ):
         return "legal"

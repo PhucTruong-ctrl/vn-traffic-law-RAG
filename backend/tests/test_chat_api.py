@@ -101,15 +101,18 @@ def test_exact_reference_match_allows_answer(monkeypatch) -> None:
 
     monkeypatch.setattr("app.rag.service.generate_answer", lambda *_args, **_kwargs: "Đáp án")
     result = RAGService().answer(
-        "Điều 6 Nghị định 100/2019 quy định gì?",
+        "Điều 6 Nghị định 168/2024 quy định gì?",
         chunks=[
             Document(
-                page_content="Nội dung điều 6.",
+                page_content=(
+                    "Nghị định 168/2024/NĐ-CP, Điều 6 quy định nội dung áp dụng "
+                    "cho hành vi vi phạm giao thông."
+                ),
                 metadata={
-                    "chunk_id": "chunk-6",
-                    "document_id": "100/2019",
-                    "article": "Điều 6",
-                    "document_number": "100/2019",
+                    "chunk_id": "nd-168-2024:article-6",
+                    "document_id": "nd-168-2024",
+                    "article": "6",
+                    "document_number": "168/2024/NĐ-CP",
                 },
             )
         ],
@@ -157,13 +160,18 @@ def test_vehicle_penalty_query_retrieves_all_categories(monkeypatch) -> None:
             self.queries.append(query)
             return [
                 Document(
-                    page_content="Theo quy định hiện hành, hành vi này bị xử phạt.",
+                    page_content=(
+                        "Hành vi không chấp hành hiệu lệnh của đèn tín hiệu giao "
+                        "thông (vượt đèn đỏ) bị xử phạt theo từng loại phương tiện: "
+                        "ô tô, xe mô tô, xe gắn máy và xe thô sơ."
+                    ),
                     metadata={
                         "chunk_id": "chunk-vehicle",
-                        "document_id": "law-168",
+                        "document_id": "nd-168-2024",
                         "source_file": "traffic-law.md",
-                        "document_name": "Nghị định về xử phạt giao thông",
-                        "article": "Điều 6",
+                        "document_name": "Nghị định 168/2024/NĐ-CP",
+                        "document_number": "168/2024/NĐ-CP",
+                        "article": "6",
                     },
                 )
             ]

@@ -12,6 +12,31 @@ export type AbstentionResultProps = {
   disclaimer?: string | null;
 };
 
+type ReasonCopy = { reason: string; action: string };
+
+const REASON_COPY: Record<string, ReasonCopy> = {
+  missing_vehicle: {
+    reason: "Chưa xác định được loại phương tiện liên quan.",
+    action: "Bổ sung loại phương tiện, chẳng hạn ô tô, xe máy hoặc xe đạp.",
+  },
+  missing_context: {
+    reason: "Tình huống giao thông chưa có đủ thông tin để đối chiếu.",
+    action: "Nêu rõ hành vi, địa điểm và các tình tiết liên quan.",
+  },
+  missing_reference: {
+    reason: "Chưa có số văn bản hoặc điều khoản đủ cụ thể để đối chiếu.",
+    action: "Bổ sung số văn bản, điều hoặc khoản cần tra cứu.",
+  },
+  temporal_ambiguity: {
+    reason: "Thời điểm áp dụng quy định chưa được xác định rõ.",
+    action: "Cho biết thời điểm xảy ra hoặc phiên bản quy định cần tra cứu.",
+  },
+  relevance_low: {
+    reason: "Nguồn tìm được chưa đủ liên quan đến câu hỏi.",
+    action: "Diễn đạt lại câu hỏi với hành vi, phương tiện hoặc điều khoản cụ thể hơn.",
+  },
+};
+
 const COPY = {
   GREETING: {
     eyebrow: "TRỢ LÝ VNLAW",
@@ -52,6 +77,7 @@ export default function AbstentionResult({
   disclaimer,
 }: AbstentionResultProps) {
   const copy = COPY[status];
+  const reasonCopy = reasonCode ? REASON_COPY[reasonCode] : undefined;
   return (
     <section
       className="abstention-result alert warning motion-entrance"
@@ -62,13 +88,15 @@ export default function AbstentionResult({
         <span className="abstention-result__eyebrow">{copy.eyebrow}</span>
         <h3>{copy.title}</h3>
       </div>
-      <p className="abstention-result__reason">{reason || copy.reason}</p>
+      <p className="abstention-result__reason">{reason || reasonCopy?.reason || copy.reason}</p>
       {reasonCode && (
         <p className="abstention-result__code">
           <span>Mã lý do:</span> <code>{reasonCode}</code>
         </p>
       )}
-      <p className="abstention-result__disclaimer">{disclaimer || copy.action}</p>
+      <p className="abstention-result__disclaimer">
+        {disclaimer || reasonCopy?.action || copy.action}
+      </p>
     </section>
   );
 }

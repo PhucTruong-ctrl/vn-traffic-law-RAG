@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 from typing import Any
 
 from langchain_core.documents import Document
@@ -76,3 +78,59 @@ def test_retrieve_keeps_original_when_explicit_reference_is_unresolved() -> None
     retriever._store = store
 
     assert retriever.retrieve("Tìm quy định", top_k=1) == [original]
+
+
+def test_retrieve_reserves_capacity_for_same_clause_sanction_and_filters_temporal_metadata() -> (
+    None
+):
+    original = Document(
+        "Điều 7 khoản 1 quy định hành vi.",
+        metadata={
+            "chunk_id": "original",
+            "document_id": "nd100",
+            "article": "7",
+            "clause": "1",
+            "effective_from": "2025-01-01",
+            "effective_to": "2027-01-01",
+        },
+    )
+    sanction = Document(
+        "Phạt tiền từ 1.000.000 đồng.",
+        metadata={
+            "chunk_id": "sanction",
+            "document_id": "nd100",
+            "article": "7",
+            "clause": "1",
+            "effective_from": "2025-01-01",
+            "effective_to": "2027-01-01",
+        },
+    )
+    malformed = Document(
+        "Phạt tiền nhưng ngày hiệu lực hỏng.",
+        metadata={
+            "chunk_id": "malformed",
+            "document_id": "nd100",
+            "article": "7",
+            "clause": "1",
+            "effective_from": "not-a-date",
+        },
+    )
+    out_of_range = Document(
+        "Phạt tiền đã hết hiệu lực.",
+        metadata={
+            "chunk_id": "expired",
+            "document_id": "nd100",
+            "article": "7",
+            "clause": "1",
+            "effective_from": "2020-01-01",
+            "effective_to": "2021-01-01",
+        },
+    )
+    store = FakeStore([original, sanction, malformed, out_of_range])
+    retriever = Retriever(top_k=2)
+    retriever._store = store
+
+    result = retriever.retrieve("Điều 7 khoản 1", top_k=2, effective_date=date(2026, 1, 1))
+
+    assert [document.metadata["chunk_id"] for document in result] == ["original", "sanction"]
+    assert len(result) == 2

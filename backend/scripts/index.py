@@ -32,7 +32,14 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--chunks", type=Path, default=_ROOT / "data/processed/chunks.jsonl")
     parser.add_argument("--collection", default=None)
+    parser.add_argument(
+        "--force-recreate",
+        action="store_true",
+        help="allow recreation of an explicitly named collection",
+    )
     args = parser.parse_args(argv)
+    if args.force_recreate and args.collection is None:
+        parser.error("--force-recreate requires explicit --collection")
     if not args.chunks.is_file():
         raise SystemExit(f"chunks file not found: {args.chunks}")
     documents = _load(args.chunks)
@@ -52,7 +59,11 @@ def main(argv: list[str] | None = None) -> int:
         )
         sparse = FastEmbedSparse("Qdrant/bm25")
         client_options = (
-            {"url": qdrant.url, "timeout": qdrant.timeout}
+            {
+                "url": qdrant.url,
+                "timeout": qdrant.timeout,
+                **({"api_key": qdrant.api_key} if qdrant.api_key else {}),
+            }
             if qdrant.url
             else {"path": str(qdrant.path.resolve()), "timeout": qdrant.timeout}
         )
@@ -65,13 +76,15 @@ def main(argv: list[str] | None = None) -> int:
             vector_name="dense",
             sparse_vector_name="sparse",
             client_options=client_options,
-            force_recreate=True,
+            force_recreate=args.force_recreate,
         )
         store.add_documents(documents)
         info = store.client.get_collection(collection)
-        if info.points_count <= 0:
-            raise RuntimeError(f"collection {collection!r} contains no points after indexing")
-        print(f"indexed {len(documents)} chunks in fresh HYBRID collection {store.collection_name}")
+        if info.points_count != len(documents):
+            raise RuntimeError(
+                f"collection {collection!r} has expected {len(documents)} points, found {info.points_count}"
+            )
+        print(f"indexed {len(documents)} chunks in HYBRID collection {store.collection_name}")
     except Exception as exc:
         raise SystemExit(f"Qdrant HYBRID indexing failed: {exc}") from exc
     finally:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from datetime import date
+from datetime import date, datetime
 from threading import Lock
 from typing import Any
 
@@ -22,6 +22,28 @@ _SANCTION_COMPLETION_RE = re.compile(
     r"(?:phạt\s+tiền|trừ\s+điểm|tước\s+quyền|tịch\s+thu|tạm\s+giữ)",
     re.IGNORECASE,
 )
+_FAMILY_CONTEXT_RE = re.compile(
+    r"(?:điều|chương|mục|tiêu đề|quy định|áp dụng|đối với)",
+    re.IGNORECASE,
+)
+
+
+def _temporal_match(document: Document, effective_date: date | None) -> bool:
+    if effective_date is None:
+        return True
+    metadata = _metadata(document)
+    parsed: list[date | None] = []
+    for key in ("effective_from", "effective_to"):
+        value = metadata.get(key)
+        if value in (None, ""):
+            parsed.append(None)
+            continue
+        try:
+            parsed.append(datetime.fromisoformat(str(value)).date())
+        except (TypeError, ValueError):
+            return False
+    start, end = parsed
+    return (start is None or start <= effective_date) and (end is None or effective_date < end)
 
 
 class RetrievalProviderError(RuntimeError):
@@ -159,8 +181,13 @@ def _exact_qdrant_documents(store: Any, reference: LegalReference, limit: int) -
     return documents
 
 
-def _sibling_completion_documents(store: Any, original: Document, limit: int) -> list[Document]:
-    """Scroll exact document/article metadata for bounded sanction completions."""
+def complete_family(
+    store: Any,
+    original: Document,
+    limit: int,
+    effective_date: date | None = None,
+) -> list[Document]:
+    """Return bounded structural provision-family context for an original."""
     if limit < 1:
         return []
     metadata = _metadata(original)
@@ -174,22 +201,23 @@ def _sibling_completion_documents(store: Any, original: Document, limit: int) ->
     )
     document_id = str(metadata.get(document_key, "")).strip()
     article = str(metadata.get("article", "")).strip()
+    clause = str(metadata.get("clause", "")).strip()
     if not document_key or not document_id or not article:
         return []
     client = getattr(store, "client", None)
     collection = getattr(store, "collection_name", None)
     if client is None or not collection:
         return []
-    query_filter = Filter(
-        must=[
-            FieldCondition(key=f"metadata.{document_key}", match=MatchValue(value=document_id)),
-            FieldCondition(key="metadata.article", match=MatchValue(value=article)),
-        ]
-    )
+    must = [
+        FieldCondition(key=f"metadata.{document_key}", match=MatchValue(value=document_id)),
+        FieldCondition(key="metadata.article", match=MatchValue(value=article)),
+    ]
+    if clause:
+        must.append(FieldCondition(key="metadata.clause", match=MatchValue(value=clause)))
     try:
         points, _ = client.scroll(
             collection_name=collection,
-            scroll_filter=query_filter,
+            scroll_filter=Filter(must=must),
             limit=max(limit * 4, limit),
             with_payload=True,
         )
@@ -208,7 +236,13 @@ def _sibling_completion_documents(store: Any, original: Document, limit: int) ->
         if (
             str(candidate_metadata.get(document_key, "")).strip() != document_id
             or str(candidate_metadata.get("article", "")).strip() != article
-            or not _SANCTION_COMPLETION_RE.search(document.page_content)
+            or (clause and str(candidate_metadata.get("clause", "")).strip() != clause)
+            or not _temporal_match(document, effective_date)
+        ):
+            continue
+        if not (
+            _SANCTION_COMPLETION_RE.search(document.page_content)
+            or _FAMILY_CONTEXT_RE.search(document.page_content)
         ):
             continue
         identity = _identity(document)
@@ -219,6 +253,9 @@ def _sibling_completion_documents(store: Any, original: Document, limit: int) ->
         if len(result) >= limit:
             break
     return result
+
+
+_sibling_completion_documents = complete_family
 
 
 def _identity(document: Document) -> tuple[str, str]:
@@ -331,6 +368,9 @@ class Retriever:
                 )
             else:
                 documents = store.similarity_search(query, k=max(limit * 3, limit))
+            documents = [
+                document for document in documents if _temporal_match(document, effective_date)
+            ]
         except RetrievalProviderError:
             raise
         except Exception as exc:
@@ -341,6 +381,8 @@ class Retriever:
         )
         if reference:
             ranked = [item for item in ranked if _reference_match(item[1], reference)]
+            if not ranked:
+                ranked = list(enumerate(documents))
             if len(ranked) < limit:
                 exact_documents = _exact_qdrant_documents(store, reference, limit)
                 existing = {
@@ -353,10 +395,12 @@ class Retriever:
                         existing.add(key)
                     if len(ranked) >= limit:
                         break
-        originals = [doc for _, doc in ranked[:limit]]
+        originals = [doc for _, doc in ranked[: max(0, limit - 1)]]
         with_siblings = expand_sibling_completions(
             originals,
-            lambda document, limit: _sibling_completion_documents(store, document, limit),
+            lambda document, **kwargs: _sibling_completion_documents(
+                store, document, kwargs.get("limit", 2), effective_date
+            ),
             max_documents=limit,
             max_siblings=2,
         )
@@ -367,4 +411,4 @@ class Retriever:
         )
 
 
-__all__ = ["Retriever", "RetrievalProviderError", "extract_reference"]
+__all__ = ["Retriever", "RetrievalProviderError", "extract_reference", "complete_family"]

@@ -1,0 +1,12 @@
+\contentsline {table}{\numberline {1.2}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Kế hoạch thực hiện đề tài}}{5}{table.caption.11}%
+\contentsline {table}{\numberline {2.1}{\ignorespaces Các công nghệ chính trong hệ thống}}{27}{table.2.1}%
+\contentsline {table}{\numberline {3.1}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Các tác nhân chính của hệ thống}}{29}{table.caption.42}%
+\contentsline {table}{\numberline {3.2}{\ignorespaces Yêu cầu chức năng dự kiến dùng để đối chiếu implementation}}{29}{table.3.2}%
+\contentsline {table}{\numberline {3.3}{\ignorespaces Thiết kế bảng profiles}}{45}{table.3.3}%
+\contentsline {table}{\numberline {3.4}{\ignorespaces Thiết kế bảng chat\_sessions}}{46}{table.3.4}%
+\contentsline {table}{\numberline {3.5}{\ignorespaces Thiết kế bảng messages}}{46}{table.3.5}%
+\contentsline {table}{\numberline {3.6}{\ignorespaces Thiết kế bảng feedback}}{47}{table.3.6}%
+\contentsline {table}{\numberline {3.7}{\ignorespaces Thiết kế bảng bookmarks}}{47}{table.3.7}%
+\contentsline {table}{\numberline {3.8}{\ignorespaces Các trường metadata chính trong chunk/Qdrant payload}}{48}{table.3.8}%
+\contentsline {table}{\numberline {3.9}{\ignorespaces Các endpoint chính của hệ thống}}{50}{table.3.9}%
+\contentsline {table}{\numberline {4.1}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Các chỉ số dùng trong bộ đánh giá 40 trường hợp}}{64}{table.caption.95}%

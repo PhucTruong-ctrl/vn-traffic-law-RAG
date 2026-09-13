@@ -19,6 +19,29 @@ _HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 _ARTICLE = re.compile(r"^(?:Điều|ĐIỀU)\s+(\d+)(?:\.\s*(.*))?$")
 _CLAUSE = re.compile(r"^(\d+)[.)]\s+(.+)$")
 _POINT = re.compile(r"^([a-zđ])[.)]\s+(.+)$", re.IGNORECASE)
+_HEADING_METADATA: tuple[tuple[str, tuple[str, ...], tuple[str, ...]], ...] = (
+    ("ô tô", ("car",), ("road",)),
+    ("xe ô tô", ("car",), ("road",)),
+    ("xe mô tô", ("motorcycle",), ("road",)),
+    ("xe máy", ("motorcycle",), ("road",)),
+    ("xe gắn máy", ("motorcycle",), ("road",)),
+    ("xe đạp", ("bicycle",), ("road",)),
+    ("xe thô sơ", ("bicycle",), ("road",)),
+    ("xe chuyên dùng", ("specialized",), ("road",)),
+    ("đường bộ", (), ("road",)),
+    ("đường sắt", (), ("rail",)),
+)
+
+
+def _heading_metadata(text: str) -> dict[str, list[str]]:
+    lowered = text.casefold()
+    categories: list[str] = []
+    scopes: list[str] = []
+    for phrase, phrase_categories, phrase_scopes in _HEADING_METADATA:
+        if phrase in lowered:
+            categories.extend(item for item in phrase_categories if item not in categories)
+            scopes.extend(item for item in phrase_scopes if item not in scopes)
+    return {"vehicle_categories": categories, "context_scope": scopes}
 
 
 def _scalar(value: str) -> Any:
@@ -58,8 +81,10 @@ def _chunks(body: str) -> list[tuple[str, dict[str, Any]]]:
     lines = body.splitlines()
     sections: list[tuple[str, dict[str, Any]]] = []
     article: str | None = None
+    article_heading: str | None = None
     clause: str | None = None
     point: str | None = None
+    provision_text: str | None = None
     buffer: list[str] = []
 
     def flush() -> None:
@@ -73,6 +98,11 @@ def _chunks(body: str) -> list[tuple[str, dict[str, Any]]]:
                 metadata["clause"] = clause
             if point is not None:
                 metadata["point"] = point
+            if article_heading:
+                metadata["article_heading"] = article_heading
+                metadata.update(_heading_metadata(article_heading))
+            if provision_text is not None:
+                metadata["normalized_action"] = text
             sections.append((text, metadata))
         buffer = []
 
@@ -84,21 +114,24 @@ def _chunks(body: str) -> list[tuple[str, dict[str, Any]]]:
         if article_match:
             flush()
             article, clause, point = article_match.group(1), None, None
-            title = article_match.group(2)
-            if title:
-                buffer.append(title)
+            article_heading = _clean(article_match.group(2) or "")
+            provision_text = None
+            if article_match.group(2):
+                buffer.append(article_match.group(2))
             continue
         clause_match = _CLAUSE.match(marker)
         if clause_match and article is not None:
             flush()
             clause, point = clause_match.group(1), None
-            buffer.append(clause_match.group(2))
+            provision_text = clause_match.group(2)
+            buffer.append(provision_text)
             continue
         point_match = _POINT.match(marker)
         if point_match and article is not None and clause is not None:
             flush()
             point = point_match.group(1).lower()
-            buffer.append(point_match.group(2))
+            provision_text = point_match.group(2)
+            buffer.append(provision_text)
             continue
         if heading:
             flush()
@@ -118,6 +151,9 @@ def load_markdown(
     source_type: str | None = None,
     source_kind: str | None = None,
     retrieved_at: str | None = None,
+    effective_from: str | None = None,
+    effective_to: str | None = None,
+    status: str | None = None,
 ) -> list[Document]:
     source = Path(path)
     raw = source.read_text(encoding="utf-8")
@@ -140,8 +176,23 @@ def load_markdown(
     }
     if document_number or front.get("document_number"):
         common["document_number"] = str(document_number or front["document_number"])
+    if status or front.get("status"):
+        common["status"] = str(status or front["status"])
+    if (status or front.get("status")) == "EFFECTIVE":
+        if effective_from or front.get("effective_from"):
+            common["effective_from"] = effective_from or front["effective_from"]
+        if effective_to or front.get("effective_to") is not None:
+            common["effective_to"] = (
+                effective_to if effective_to is not None else front["effective_to"]
+            )
     result: list[Document] = []
     for number, (text, location) in enumerate(_chunks(body), 1):
+        location = dict(location)
+        if "article" in location:
+            family = f"{doc_id}:article:{location['article']}"
+            if "clause" in location:
+                family += f":clause:{location['clause']}"
+            location["provision_family"] = family
         metadata = {
             **common,
             **location,
@@ -149,13 +200,6 @@ def load_markdown(
             "content_sha256": digest,
         }
         result.append(Document(page_content=text, metadata=metadata))
-    if not result and _clean(body):
-        result.append(
-            Document(
-                page_content=_clean(body),
-                metadata={**common, "chunk_id": f"{doc_id}:0001", "content_sha256": digest},
-            )
-        )
     return result
 
 
@@ -184,9 +228,15 @@ def load_manifest(
             load_markdown(
                 candidate,
                 document_id=entry.get("document_id"),
+                document_number=entry.get("document_number"),
+                document_name=entry.get("document_name"),
                 source_url=entry.get("source_url"),
                 source_type=entry.get("source_type"),
                 source_kind=entry.get("source_kind"),
+                retrieved_at=entry.get("retrieved_at"),
+                effective_from=entry.get("effective_from"),
+                effective_to=entry.get("effective_to"),
+                status=entry.get("status"),
             )
         )
     return loaded

@@ -27,16 +27,27 @@ rag_service = RAGService()
 def _frontend_response(result: dict[str, Any]) -> dict[str, Any]:
     citations = result.get("citations", [])
     if result.get("status") == "complete":
+        claims = result.get("claims")
+        if claims is None:
+            claims = [
+                {
+                    "claim": citation.get("excerpt") or result["answer"],
+                    "provision_ids": [citation["source_id"]],
+                }
+                for citation in citations
+                if citation.get("source_id")
+            ]
         return {
             **result,
             "status": "VERIFIED",
-            "claims": [
-                {
-                    "claim": citation.get("excerpt") or result["answer"],
-                    "provision_ids": ([citation["source_id"]] if citation.get("source_id") else []),
-                }
-                for citation in citations
-            ],
+            "claims": claims,
+        }
+    if result.get("status") == "out_of_scope":
+        return {
+            **result,
+            "status": "OUT_OF_SCOPE",
+            "claims": [],
+            "abstention": {"reason_code": result.get("reason_code", "OUT_OF_SCOPE")},
         }
     if result.get("status") == "insufficient_evidence":
         return {

@@ -26,7 +26,7 @@
   <h1>Luồng tạo dữ liệu: manifest và Markdown đến chunks JSONL</h1>
   <svg viewBox="0 0 960 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="ch2-ingestion-pipeline-title ch2-ingestion-pipeline-desc">
     <title id="ch2-ingestion-pipeline-title">Luồng tạo dữ liệu pháp luật</title>
-    <desc id="ch2-ingestion-pipeline-desc">Hệ thống đọc manifest và các file Markdown, kiểm tra đường dẫn, tính SHA-256, tạo chunk rồi ghi mỗi chunk thành một dòng trong chunks.jsonl.</desc>
+    <desc id="ch2-ingestion-pipeline-desc">Hệ thống đọc manifest và các tệp Markdown, kiểm tra đường dẫn, tính SHA-256, tạo chunk rồi ghi từng chunk vào một dòng của chunks.jsonl.</desc>
     <defs>
       <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
       <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
@@ -45,7 +45,7 @@
     <rect x="500" y="188" width="48" height="16" rx="4" fill="#f5f5f5"/>
     <text x="524" y="200" class="arrow-label" text-anchor="middle">CHIA CHUNK</text>
     <rect x="716" y="196" width="48" height="16" rx="4" fill="#f5f5f5"/>
-    <text x="740" y="208" class="arrow-label" text-anchor="middle">GHI DÒNG</text>
+    <text x="740" y="208" class="arrow-label" text-anchor="middle">GHI JSONL</text>
 
     <!-- Manifest input -->
     <g>
@@ -55,7 +55,7 @@
       <text x="152" y="124" class="name" text-anchor="middle">manifest.json</text>
       <text x="80" y="148" class="sub">document_id · số hiệu</text>
       <text x="80" y="172" class="sub">tên văn bản</text>
-      <text x="80" y="192" class="sub">tên file Markdown</text>
+      <text x="80" y="192" class="sub">tên tệp Markdown</text>
     </g>
 
     <!-- Markdown input -->
@@ -65,7 +65,7 @@
       <text x="80" y="288" class="tag">MARKDOWN</text>
       <text x="152" y="316" class="name" text-anchor="middle">Tập Markdown</text>
       <text x="80" y="344" class="sub">Văn bản pháp luật cục bộ</text>
-      <text x="80" y="368" class="sub">manifest chỉ định file</text>
+      <text x="80" y="368" class="sub">manifest chỉ định tệp</text>
     </g>
 
     <!-- Load + validate -->
@@ -74,11 +74,11 @@
       <rect x="328" y="168" width="168" height="128" rx="8" fill="#fff" stroke="#2d3142"/>
       <text x="344" y="192" class="tag">LOAD + VALIDATE</text>
       <text x="412" y="224" class="name" text-anchor="middle">Đọc và kiểm tra</text>
-      <text x="344" y="252" class="sub">Đọc JSON · mở file .md</text>
+      <text x="344" y="252" class="sub">Đọc JSON · mở tệp .md</text>
       <text x="344" y="276" class="sub">Kiểm tra file thuộc corpus</text>
     </g>
 
-    <!-- Chunk and hash focal -->
+    <!-- Chunk and mã băm focal -->
     <g>
       <rect x="552" y="168" width="160" height="128" rx="8" fill="#f5f5f5"/>
       <rect x="552" y="168" width="160" height="128" rx="8" fill="rgba(235,108,54,.08)" stroke="#eb6c36" stroke-width="1.2"/>
@@ -101,11 +101,11 @@
       <text x="784" y="296" class="code">  content_sha256 }</text>
     </g>
 
-    <!-- Why JSONL / hash -->
+    <!-- Why JSONL / mã băm -->
     <rect x="336" y="352" width="376" height="112" rx="8" fill="rgba(45,49,66,.025)" stroke="#7a8399"/>
     <text x="352" y="376" class="tag">JSONL</text>
-    <text x="352" y="404" class="sub">Có thể đọc từng dòng và kiểm tra diff.</text>
-    <text x="352" y="428" class="sub">Pipeline không phải nạp toàn bộ file.</text>
+    <text x="352" y="404" class="sub">Có thể đọc từng dòng và kiểm tra đối chiếu.</text>
+    <text x="352" y="428" class="sub">Quy trình không phải nạp toàn bộ file.</text>
     <text x="352" y="452" class="sub">SHA-256 phát hiện thay đổi nhưng không thay thế chữ ký số.</text>
 
     <line x1="40" y1="504" x2="920" y2="504" stroke="rgba(45,49,66,.10)" stroke-width="0.8"/>

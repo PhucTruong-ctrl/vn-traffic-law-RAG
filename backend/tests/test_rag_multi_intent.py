@@ -195,6 +195,25 @@ def test_speed_limit_road_traffic_questions_are_legal_but_general_questions_are_
     assert analyze_question("Thời tiết hôm nay thế nào?").intents[0].kind == "out_of_scope"
 
 
+def test_natural_traffic_action_families_are_legal() -> None:
+    cases = [
+        "Không thắt dây an toàn bị phạt thế nào?",
+        "Xe máy được chở tối đa bao nhiêu người?",
+        "Dừng đỗ xe ở đâu thì bị phạt?",
+        "Quay đầu hoặc lùi xe có bị phạt không?",
+        "Đỗ xe trên vỉa hè bị phạt bao nhiêu?",
+        "Ban đêm có bắt buộc bật đèn chiếu sáng không?",
+        "Bấm còi trong khu dân cư có bị phạt không?",
+        "Đi ngược chiều và lấn làn bị phạt thế nào?",
+        "Đường này giới hạn tốc độ bao nhiêu?",
+        "Uống rượu bia khi lái xe bị phạt không?",
+        "Không đội mũ bảo hiểm bị phạt bao nhiêu?",
+        "Dùng điện thoại khi lái xe có bị phạt không?",
+        "Không chấp hành đèn tín hiệu giao thông bị phạt thế nào?",
+    ]
+    assert all(analyze_question(question).intents[0].kind == "legal" for question in cases)
+
+
 def test_red_light_and_no_helmet_decompose_into_both_violations() -> None:
     analysis = analyze_question("Khi vượt đèn đỏ và ko đội mũ bảo hiểm")
 

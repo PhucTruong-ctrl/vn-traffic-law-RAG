@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
@@ -12,34 +13,78 @@ from langchain_core.documents import Document
 
 from .analyzer import VEHICLE_LABELS, analyze_question, classify_intent, detect_vehicle_types
 from .evidence import ABSTENTION_MESSAGE, assess_evidence
-from .generator import generate_answer
-from .references import parse_reference
+from .references import extract_references, metadata_matches
 from .retrieval import Retriever
 
 logger = logging.getLogger(__name__)
 _GENERIC_VEHICLE_CATEGORIES = ("ô tô", "xe mô tô, xe gắn máy", "xe thô sơ")
+_QUESTION_STOPWORDS = frozenset(
+    "bao nhiêu là mức phạt đối với cho của và các xe phương tiện khi trong".split()
+)
+_RAILWAY_TERMS = frozenset(("đường sắt", "đường ngang", "rào chắn", "tàu hỏa", "cầu chung"))
+_PENALTY_TERMS = frozenset(("phạt", "xử phạt", "mức phạt", "tước", "trừ điểm"))
 
 
-def _is_vehicle_penalty_question(question: str) -> bool:
-    lowered = question.casefold()
-    return bool(
-        any(token in lowered for token in ("phạt", "xử phạt", "mức phạt", "tước", "trừ điểm"))
-        and any(
-            token in lowered
-            for token in ("vượt đèn đỏ", "không đội mũ", "đi ngược chiều", "nồng độ cồn")
-        )
+def _normalized_query(question: str) -> str:
+    return " ".join(question.casefold().split())
+
+
+def _question_tokens(question: str) -> set[str]:
+    return {
+        token
+        for token in re.findall(r"[^\W\d_]+", _normalized_query(question), flags=re.UNICODE)
+        if token not in _QUESTION_STOPWORDS and len(token) > 1
+    }
+
+
+def _is_railway_question(question: str) -> bool:
+    lowered = _normalized_query(question)
+    return any(token in lowered for token in _RAILWAY_TERMS)
+
+
+def _is_penalty_or_permission_question(question: str) -> bool:
+    lowered = _normalized_query(question)
+    return any(term in lowered for term in _PENALTY_TERMS) or any(
+        term in lowered for term in ("được phép", "có được", "được không", "cấm")
     )
 
 
-def _is_unspecified_phone_use_question(question: str, vehicle_types: tuple[str, ...]) -> bool:
-    lowered = question.casefold()
-    return (
-        not vehicle_types
-        and "điện thoại" in lowered
-        and bool(
-            any(token in lowered for token in ("lái xe", "điều khiển xe", "điều khiển phương tiện"))
+def _document_matches_filters(
+    document: Document, *, question: str, references: list[Any], effective_date: date | None
+) -> bool:
+    metadata = document.metadata or {}
+    if references and not any(metadata_matches(metadata, reference) for reference in references):
+        return False
+    context = " ".join(
+        str(metadata.get(key, ""))
+        for key in (
+            "intent",
+            "intent_text",
+            "violation",
+            "action",
+            "question",
+            "provision_family",
+            "context",
         )
     )
+    haystack = f"{context} {document.page_content}".casefold()
+    question_tokens = _question_tokens(question)
+    if question_tokens and not any(token in haystack for token in question_tokens):
+        return False
+    if not _is_railway_question(question) and any(token in haystack for token in _RAILWAY_TERMS):
+        return False
+    vehicles = detect_vehicle_types(question)
+    if vehicles:
+        labels = tuple(VEHICLE_LABELS[v].casefold() for v in vehicles)
+        if not any(label in haystack for label in labels):
+            return False
+    if effective_date and metadata.get("effective_date"):
+        try:
+            if date.fromisoformat(str(metadata["effective_date"])) > effective_date:
+                return False
+        except ValueError:
+            pass
+    return True
 
 
 def _document_key(document: Document) -> tuple[str, ...]:
@@ -112,48 +157,33 @@ class RAGService:
         analysis: Any | None = None,
     ) -> list[Document]:
         analysis = analysis or analyze_question(question)
-        intent_queries = [intent.text for intent in analysis.intents if intent.kind == "legal"] or [
-            question
-        ]
+        intent_queries = [i.text for i in analysis.intents if i.kind == "legal"] or [question]
         queries = [(query, query) for query in intent_queries]
         vehicle_types = detect_vehicle_types(question)
-        if _is_vehicle_penalty_question(question) or _is_unspecified_phone_use_question(
-            question, vehicle_types
-        ):
-            if len(vehicle_types) > 1:
-                queries = [
-                    (f"{query} đối với {VEHICLE_LABELS[vehicle_type]}", label)
-                    for query, label in queries
-                    for vehicle_type in vehicle_types
-                ]
-            elif not vehicle_types:
-                queries = [
-                    (f"{query} đối với {category}", label)
-                    for query, label in queries
-                    for category in _GENERIC_VEHICLE_CATEGORIES
-                ]
-        per_query_k = max(1, top_k)
+        if _is_penalty_or_permission_question(question):
+            scopes = (
+                tuple(VEHICLE_LABELS[v] for v in vehicle_types)
+                if vehicle_types
+                else _GENERIC_VEHICLE_CATEGORIES
+            )
+            queries = [
+                (f"{query} đối với {scope}", label) for query, label in queries for scope in scopes
+            ][:12]
         ranked_lists: list[list[Document]] = [[] for _ in queries]
 
-        def retrieve_query(index_query: tuple[int, tuple[str, str]]) -> tuple[int, list[Document]]:
-            index, (query, label) = index_query
-            retrieved = self.retriever.retrieve(
-                query, top_k=per_query_k, effective_date=effective_date
-            )
+        def retrieve_query(item: tuple[int, tuple[str, str]]) -> tuple[int, list[Document]]:
+            index, (query, label) = item
             return index, [
-                Document(
-                    page_content=document.page_content,
-                    metadata={**(document.metadata or {}), "intent": label},
+                Document(d.page_content, metadata={**(d.metadata or {}), "intent": label})
+                for d in self.retriever.retrieve(
+                    query, top_k=max(1, top_k), effective_date=effective_date
                 )
-                for document in retrieved
             ]
 
-        worker_count = min(4, len(queries))
-        if worker_count:
-            with ThreadPoolExecutor(max_workers=worker_count) as executor:
-                for index, documents_for_query in executor.map(retrieve_query, enumerate(queries)):
-                    ranked_lists[index] = documents_for_query
-
+        if queries:
+            with ThreadPoolExecutor(max_workers=min(4, len(queries))) as executor:
+                for index, docs in executor.map(retrieve_query, enumerate(queries)):
+                    ranked_lists[index] = docs
         scores: dict[tuple[str, ...], float] = {}
         first_seen: dict[tuple[str, ...], tuple[int, int]] = {}
         representatives: dict[tuple[str, ...], Document] = {}
@@ -166,10 +196,8 @@ class RAGService:
                 first_seen.setdefault(key, (list_index, rank))
                 representatives.setdefault(key, document)
                 intent_labels.setdefault(key, set()).add(query)
-
         ordered_keys = sorted(
-            scores,
-            key=lambda key: (-scores[key], first_seen[key][0], first_seen[key][1]),
+            scores, key=lambda key: (-scores[key], first_seen[key][0], first_seen[key][1])
         )
         bucket_counts: dict[tuple[Any, ...], int] = {}
         documents: list[Document] = []
@@ -190,11 +218,11 @@ class RAGService:
             bucket_counts[bucket] = bucket_counts.get(bucket, 0) + 1
             documents.append(
                 Document(
-                    page_content=document.page_content,
+                    document.page_content,
                     metadata={**metadata, "intent": sorted(intent_labels[key])},
                 )
             )
-        return documents
+        return documents[:top_k]
 
     def answer(
         self,
@@ -207,67 +235,128 @@ class RAGService:
         analysis = analyze_question(question)
         route = classify_intent(question)
         if route == "chitchat":
-            return dict(CHITCHAT_RESPONSE)
+            return {**CHITCHAT_RESPONSE, "claims": []}
         if route in {"web", "out_of_scope"} and not any(
-            intent.kind == "legal" for intent in analysis.intents
+            i.kind == "legal" for i in analysis.intents
         ):
             return {
                 "answer": "Tôi chỉ có thể hỗ trợ các câu hỏi về pháp luật giao thông.",
                 "citations": [],
+                "claims": [],
                 "status": "insufficient_evidence",
+                "reason_code": "out_of_scope",
             }
+        references = extract_references(question)
         documents = (
             list(chunks)
             if chunks is not None
             else self.retrieve(
-                question,
-                top_k=top_k,
-                effective_date=effective_date,
-                analysis=analysis,
+                question, top_k=top_k, effective_date=effective_date, analysis=analysis
             )
         )
-        evidence_groups, documents = _intent_groups(
-            question,
-            documents,
-            analysis=analysis,
-        )
-        required_reference = parse_reference(question)
-        if required_reference and not documents:
+        if references and not all(
+            any(metadata_matches(document.metadata or {}, reference) for document in documents)
+            for reference in references
+        ):
+            structurally_matching = any(
+                all(
+                    metadata_matches(document.metadata or {}, reference) for reference in references
+                )
+                for document in documents
+            )
             return {
                 "answer": ABSTENTION_MESSAGE,
                 "citations": [],
+                "claims": [],
                 "status": "insufficient_evidence",
-                "reason_code": "reference_not_found",
+                "reason_code": "temporal_mismatch"
+                if structurally_matching and effective_date
+                else "reference_not_found",
             }
+        filtered_documents = [
+            document
+            for document in documents
+            if _document_matches_filters(
+                document, question=question, references=references, effective_date=effective_date
+            )
+        ]
+        if not filtered_documents:
+            structural_documents = [
+                document
+                for document in documents
+                if not references
+                or any(
+                    metadata_matches(document.metadata or {}, reference) for reference in references
+                )
+            ]
+            reason = (
+                "missing_context"
+                if documents and not _question_tokens(question)
+                else "no_relevant_provision"
+            )
+            return {
+                "answer": ABSTENTION_MESSAGE,
+                "citations": [],
+                "claims": [],
+                "status": "insufficient_evidence",
+                "reason_code": reason,
+            }
+        evidence_groups, _ = _intent_groups(question, filtered_documents, analysis=analysis)
+        required_reference = references[0] if references else None
         decision = assess_evidence(
-            documents,
+            filtered_documents,
             required_reference=required_reference.as_dict() if required_reference else None,
             required_intents=(
                 (intent.text for intent in analysis.intents if intent.kind == "legal")
-                if required_reference is None
-                else None
+                if not references
+                else (reference.as_dict().get("number", "") for reference in references)
             ),
         )
         if not decision.allowed:
             return {
                 "answer": decision.message or "",
                 "citations": [],
+                "claims": [],
                 "status": "insufficient_evidence",
-                "reason_code": decision.reason,
+                "reason_code": decision.reason or "insufficient_evidence",
             }
-        answer = generate_answer(question, documents, evidence_groups=evidence_groups or None)
-        unique_citations: list[dict[str, Any]] = []
-        cited: set[tuple[str, ...]] = set()
-        for document in documents:
-            key = _document_key(document)
-            if key not in cited:
-                cited.add(key)
-                unique_citations.append(_citation(document))
-        return {
-            "answer": answer,
-            "citations": unique_citations,
-            "status": "complete",
-        }
+        try:
+            cited_documents = []
+            seen_ids: set[str] = set()
+            for document in filtered_documents:
+                source_id = str((document.metadata or {}).get("chunk_id", "")).strip()
+                if not source_id or source_id in seen_ids:
+                    continue
+                seen_ids.add(source_id)
+                cited_documents.append(document)
+            citations = [_citation(document) for document in cited_documents]
+        except ValueError:
+            return {
+                "answer": ABSTENTION_MESSAGE,
+                "citations": [],
+                "claims": [],
+                "status": "insufficient_evidence",
+                "reason_code": "insufficient_evidence",
+            }
+        if not citations:
+            return {
+                "answer": ABSTENTION_MESSAGE,
+                "citations": [],
+                "claims": [],
+                "status": "insufficient_evidence",
+                "reason_code": "insufficient_evidence",
+            }
+        answer = generate_answer(
+            question, filtered_documents, evidence_groups=evidence_groups or None
+        )
+        claims = [
+            {
+                "claim": document.page_content,
+                "provision_ids": [citation["source_id"]],
+            }
+            for document, citation in zip(cited_documents, citations, strict=True)
+        ]
+        return {"answer": answer, "citations": citations, "claims": claims, "status": "complete"}
 
 
 CHITCHAT_RESPONSE = {

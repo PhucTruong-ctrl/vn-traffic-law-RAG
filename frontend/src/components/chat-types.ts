@@ -18,7 +18,12 @@ export type ChatResponse = {
   answer?: string | null;
   claims?: Claim[];
   citations?: Citation[];
-  abstention?: { reason?: string; reason_code?: string; evidence_gaps?: string[] } | null;
+  abstention?: {
+    reason?: string;
+    reason_code?: string;
+    reasonCode?: string;
+    evidence_gaps?: string[];
+  } | null;
   disclaimer?: string;
   progress_events?: Array<Record<string, unknown>>;
   trace_id?: string;
