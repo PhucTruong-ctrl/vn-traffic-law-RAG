@@ -116,6 +116,28 @@ without the UI. Supabase and Qdrant readiness passed, using collection
 `UNVERIFIED / NOT RELEASE-READY`; it must not be presented as a full 40-case
 pass. See `docs/evaluation/thesis-api-subset-32-20260913.md`.
 
+### Fresh full run — 2026-09-13 (`20260913T172158Z`)
+
+A fresh 40-case run was performed directly against `POST /api/v1/chat` with
+`top_k=5`. Raw and aggregate artifacts remain outside Git at
+`/tmp/thesis-release-full/20260913T172158Z.jsonl` and
+`/tmp/thesis-release-full/20260913T172158Z.aggregate.json`; the historical
+reports above are preserved.
+
+The fresh scorer/run still reports zero for all coordinate metrics:
+retrieval, document, article, clause, and point accuracy are all `0.0`.
+Citation validity is **73.68%** and abstention accuracy is **65.79%**. Cases
+`08` and `20` produced timeout/null predictions. Latency improved versus the
+32-case subset (mean **23,096.09 ms**, P50 **11,024.33 ms**, P95
+**63,738.4 ms**, versus 29,002.83 ms / 26,925.06 ms / 84,036.78 ms), but P95
+remains high.
+
+Manual semantic strict review classified the cases as **19 correct, 9 partial,
+8 incorrect, and 4 unavailable**. Unsafe examples verified manually:
+`05, 06, 07, 21, 27, 35, 36, 39`. Current-code focused tests are green, but
+the live gate failed. Disposition remains **UNVERIFIED / NOT RELEASE-READY**;
+this fresh run must not be presented as release-ready.
+
 Run against the local chat endpoint:
 
 ```bash
