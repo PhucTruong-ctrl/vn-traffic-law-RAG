@@ -33,23 +33,185 @@ docker compose --env-file .env -f deploy/compose/compose.release.yml up --build
 Supabase/PostgreSQL and OpenRouter remain external dependencies when configured;
 worker, Redis, MinIO, and parser services are not part of the active MVP runtime.
 
-For ingestion or a backend-only development loop, install the backend and run
-the existing scripts directly:
+## Nạp corpus và lập chỉ mục Qdrant
+
+Chạy các lệnh từ thư mục gốc của repo. Giữ `.env` ở thư mục gốc. Backend tự
+đọc file này khi khởi động. Không commit `.env` hoặc API key.
+
+### 1. Crawl tài liệu pháp luật thành Markdown
+
+Crawler tải corpus mặc định và nhóm tài liệu được khuyến nghị vào
+`data/corpus/mds/`:
 
 ```bash
-uv sync --project backend
-uv run --project backend python backend/scripts/fetch_sources.py
-uv run --project backend python backend/scripts/index.py
-uv run --project backend uvicorn app.main:app --reload
+.venv/bin/python scripts/fill_traffic_corpus.py \
+  --dir data/corpus/mds \
+  --include-recommended
 ```
 
-`fetch_sources.py` reads `data/sources/manifest.json`, resolves each entry to a
-Markdown file under `data/corpus/mds/`, and writes
-`data/processed/chunks.jsonl`. Use `--manifest`, `--local-dir`, and `--output`
-to override those paths. `index.py` creates a fresh local Qdrant collection
-from that JSONL. Retrieval combines dense OpenRouter embeddings with sparse
-FastEmbed BM25 (`Qdrant/bm25`) using LangChain Qdrant `HYBRID` mode. Qdrant
-path and collection are configured by `QDRANT_PATH` and `QDRANT_COLLECTION`.
+Với các văn bản sửa đổi hiện hành năm 2026, thêm:
+
+```bash
+.venv/bin/python scripts/fill_traffic_corpus.py \
+  --dir data/corpus/mds \
+  --include-recommended \
+  --include-current-2026
+```
+
+Crawl riêng một tài liệu khi cần sửa hoặc tải lại:
+
+```bash
+.venv/bin/python scripts/fill_traffic_corpus.py \
+  --dir data/corpus/mds \
+  --only nd-44-2024.md
+```
+
+Crawler kiểm tra số hiệu văn bản, độ dài tối thiểu và số lượng điều. Dừng xử lý
+nếu có file `MISSING`, `INVALID` hoặc `FAILED`.
+
+### 2. Đồng bộ manifest với các file Markdown
+
+`fetch_sources.py` chỉ đọc các file được liệt kê trong
+`data/sources/manifest.json`; script không tự quét toàn bộ thư mục. Mỗi file
+Markdown trong corpus, trừ `README.md`, phải có một entry trong manifest. Giá trị
+`file` phải trùng chính xác tên file.
+
+Kiểm tra coverage:
+
+```bash
+python - <<'PY'
+import json
+from pathlib import Path
+
+manifest = json.loads(Path("data/sources/manifest.json").read_text())
+listed = {entry["file"] for entry in manifest["documents"]}
+actual = {
+    path.name for path in Path("data/corpus/mds").glob("*.md")
+    if path.name != "README.md"
+}
+print("manifest:", len(listed))
+print("corpus:", len(actual))
+print("missing from manifest:", sorted(actual - listed))
+print("missing on disk:", sorted(listed - actual))
+assert actual == listed
+PY
+```
+
+Hai danh sách `missing` phải rỗng.
+
+### 3. Tạo chunks JSONL chuẩn
+
+Lệnh trên ghi các chunk tương thích với LangChain. Số chunk phải lớn hơn 0.
+Sau đó kiểm tra coverage của document:
+
+```bash
+cd ..
+python - <<'PY'
+import json
+from pathlib import Path
+
+chunks = Path("data/processed/markdown-chunks.jsonl")
+ids = {
+    json.loads(line)["metadata"]["document_id"]
+    for line in chunks.read_text(encoding="utf-8").splitlines()
+    if line.strip()
+}
+files = {
+    path.stem for path in Path("data/corpus/mds").glob("*.md")
+    if path.name != "README.md"
+}
+print("chunk documents:", len(ids))
+print("corpus documents:", len(files))
+print("corpus without chunks:", sorted(files - ids))
+assert files == ids
+PY
+```
+
+### 4. Tạo hoặc thay mới index Qdrant HYBRID
+
+```bash
+cd backend
+uv run python scripts/index.py \
+  --chunks ../data/processed/markdown-chunks.jsonl \
+  --force-recreate \
+  --collection traffic_law
+```
+
+Lệnh này tạo dense embedding qua OpenRouter và sparse vector BM25 bằng
+FastEmbed. Với cấu hình local mặc định, Qdrant lưu collection `traffic_law`
+trong `data/processed/qdrant/`. `--force-recreate` xoá và tạo lại collection
+đã chỉ định. Không chạy đồng thời hai tiến trình index.
+
+### 5. Khởi động và kiểm tra backend/frontend
+
+Chạy từ thư mục gốc:
+
+```bash
+./dev.sh
+```
+
+Hoặc chỉ chạy backend:
+
+```bash
+cd backend
+uv run uvicorn app.main:app --reload
+```
+
+Kiểm tra readiness:
+
+```bash
+curl -i http://127.0.0.1:8000/api/v1/health/ready
+```
+
+Readiness yêu cầu Supabase và Qdrant hoạt động. Lệnh index thành công chưa đủ
+để xác nhận chat đã xác thực, citation và frontend hoạt động.
+
+Authenticated six-question verification is required after rebuilding Qdrant. The current runtime test matrix is documented in the release notes and must report status, citations, and abstention reason for every question.
+
+Khi đã có đủ Markdown và manifest, quy trình local đầy đủ là:
+
+```bash
+# Từ thư mục gốc
+.venv/bin/python scripts/fill_traffic_corpus.py \
+  --dir data/corpus/mds \
+  --include-recommended
+
+python scripts/clean_traffic_corpus.py \
+  --dir data/corpus/mds \
+  --dry-run
+
+python scripts/clean_traffic_corpus.py \
+  --dir data/corpus/mds
+
+python - <<'PY'
+import json
+from pathlib import Path
+
+manifest = json.loads(Path("data/sources/manifest.json").read_text())
+listed = {entry["file"] for entry in manifest["documents"]}
+actual = {
+    path.name for path in Path("data/corpus/mds").glob("*.md")
+    if path.name != "README.md"
+}
+assert listed == actual, (sorted(actual - listed), sorted(listed - actual))
+PY
+
+cd backend
+uv run python scripts/fetch_sources.py \
+  --manifest ../data/sources/manifest.json \
+  --local-dir ../data/corpus/mds \
+  --output ../data/processed/markdown-chunks.jsonl
+
+cp ../data/processed/markdown-chunks.jsonl ../data/processed/chunks.jsonl
+
+uv run python scripts/index.py \
+  --chunks ../data/processed/chunks.jsonl \
+  --force-recreate \
+  --collection traffic_law
+
+cd ..
+./dev.sh
+```
 
 ## Legal source explorer
 
