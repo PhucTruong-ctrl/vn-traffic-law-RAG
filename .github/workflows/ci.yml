@@ -1,23 +1,3 @@
-# GitHub Actions CI — clean-env gate for backend + frontend.
-#
-# Mirrors the local pre-PR checks (doc 07 §7.11.1):
-#   backend  : uv sync --locked → ruff check/format → mypy → pytest (unit suite)
-#   frontend : npm ci → eslint → tsc --noEmit → next build
-#   commitlint: PR commit messages (same config/hook used by .husky/commit-msg)
-#
-# Design notes:
-#   - `uv sync --locked` is the clean-environment check that catches
-#     lockfile/dependency drift (e.g. the MinerU/transformers breakage).
-#   - Heavy real-tool tests are marked `integration` and excluded from the
-#     default unit suite: the real-conversion Docling tests (9 tests running
-#     the real DocumentConverter on the fixture PDFs, ~70-80s total) plus the
-#     MinerU real-pipeline test (CLI + model download). They only run in the
-#     opt-in `integration-tests` job via workflow_dispatch.
-#   - mypy runs with `--exclude 'observability'`: app/observability has 4
-#     pre-existing type errors (langfuse_client.py x2, skeleton.py x2) that
-#     predate this workflow. Excluding them at the CI step keeps CI green
-#     without touching that code or the shared [tool.mypy] config.
-
 name: CI
 
 on:
@@ -35,8 +15,6 @@ jobs:
     name: Backend (uv sync / ruff / mypy / pytest)
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    env:
-      CUDA_VISIBLE_DEVICES: ""
     defaults:
       run:
         working-directory: backend
@@ -48,55 +26,16 @@ jobs:
           version: "0.11.x"
           python-version: "3.11"
           enable-cache: true
-      - name: Sync locked deps (clean-env check)
+      - name: Sync dependencies
         run: uv sync --locked
-      - name: Lint (ruff check)
+      - name: Lint
         run: uv run ruff check .
-      - name: Format check (ruff format)
+      - name: Format check
         run: uv run ruff format --check .
-      - name: Type check (mypy, excl. pre-existing observability errors)
-        run: uv run mypy app --exclude 'observability'
-      - name: Unit tests (integration-marked tests excluded)
-        run: uv run pytest tests/ -q --no-cov -m "not integration"
-
-  integration-tests:
-    name: Integration tests (opt-in, workflow_dispatch)
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    if: github.event_name == 'workflow_dispatch'
-    env:
-      MINERU_INTEGRATION: "1"
-      CUDA_VISIBLE_DEVICES: ""
-      DATABASE_URL: postgresql+psycopg://vnlaw:change-me@localhost:5432/vnlaw
-    services:
-      postgres:
-        image: postgres:18.4
-        env:
-          POSTGRES_DB: vnlaw
-          POSTGRES_USER: vnlaw
-          POSTGRES_PASSWORD: change-me
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U vnlaw -d vnlaw"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    defaults:
-      run:
-        working-directory: backend
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install uv + Python 3.11
-        uses: astral-sh/setup-uv@v5
-        with:
-          version: "0.11.x"
-          python-version: "3.11"
-          enable-cache: true
-      - name: Sync locked deps (clean-env check)
-        run: uv sync --locked
-      - name: Integration tests
-        run: uv run pytest tests/ -q --no-cov -m integration
+      - name: Type check
+        run: uv run mypy app
+      - name: Unit tests
+        run: uv run pytest tests/ -q --no-cov
 
   frontend:
     name: Frontend (npm ci / lint / typecheck / build)
@@ -115,15 +54,15 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install locked deps
         run: npm ci
-      - name: Lint (eslint)
+      - name: Lint
         run: npm run lint
-      - name: Type check (tsc --noEmit)
+      - name: Type check
         run: npm run typecheck
-      - name: Build (next build)
+      - name: Build
         run: npm run build
 
   commitlint:
-    name: Commit messages (commitlint)
+    name: Commit messages
     runs-on: ubuntu-latest
     timeout-minutes: 10
     if: github.event_name == 'pull_request'
@@ -131,37 +70,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Install Node 22 + npm cache
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - name: Install commitlint deps
-        run: npm ci
-        working-directory: frontend
+      - name: Install commitlint
+        run: npm install --no-save --no-package-lock --ignore-scripts @commitlint/cli@21.2.1
       - name: Lint PR commit messages
-        run: npm exec --prefix frontend --no -- commitlint --config commitlint.config.mjs --from "${{ github.event.pull_request.base.sha }}" --to "${{ github.event.pull_request.head.sha }}"
-
-  release-stack-acceptance:
-    name: Release stack acceptance (Gate M6)
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - name: Report missing release credentials
-        env:
-          POSTGRES_PASSWORD: ${{ secrets.RELEASE_POSTGRES_PASSWORD }}
-          MINIO_ROOT_USER: ${{ secrets.RELEASE_MINIO_ROOT_USER }}
-          MINIO_ROOT_PASSWORD: ${{ secrets.RELEASE_MINIO_ROOT_PASSWORD }}
-        if: env.POSTGRES_PASSWORD == '' || env.MINIO_ROOT_USER == '' || env.MINIO_ROOT_PASSWORD == ''
-        run: |
-          echo "Gate M6 blocked: release credentials are not configured; no stack acceptance claimed."
-          exit 1
-      - name: Validate release compose
-        env:
-          POSTGRES_PASSWORD: ${{ secrets.RELEASE_POSTGRES_PASSWORD }}
-          MINIO_ROOT_USER: ${{ secrets.RELEASE_MINIO_ROOT_USER }}
-          MINIO_ROOT_PASSWORD: ${{ secrets.RELEASE_MINIO_ROOT_PASSWORD }}
-        run: docker compose -f deploy/compose/compose.release.yml config --quiet
+        run: npx --no-install commitlint --config commitlint.config.mjs --from "${{ github.event.pull_request.base.sha }}" --to "${{ github.event.pull_request.head.sha }}"

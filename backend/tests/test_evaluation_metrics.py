@@ -1,150 +1,391 @@
-from datetime import date
-from math import log2
+from __future__ import annotations
 
-from app.evaluation.metrics.evidence import (
-    all_required_evidence_at_10,
-    cross_reference_resolution_recall,
-    evidence_set_recall,
-    multi_hop_evidence_completeness,
-)
-from app.evaluation.metrics.retrieval import evaluate_retrieval, ndcg_at, recall_at, reciprocal_rank
-from app.evaluation.metrics.temporal import (
-    comparison_separation_accuracy,
-    evaluate_temporal,
-    temporal_leakage_rate,
-    temporal_validity_accuracy,
-)
+import pytest
+from pydantic import ValidationError
+
+from app.evaluation.metrics import aggregate_metrics, normalize_coordinate, score_case
+from app.evaluation.schemas import CitationPrediction, Coordinate, ExpectedCase, Prediction
 
 
-def test_hand_computed_ranking_metrics_and_duplicate_ids():
-    retrieved = ["noise", "p2", "p1", "p2"]
-    assert recall_at(retrieved, ["p1", "p2"], 5) == 1
-    assert reciprocal_rank(retrieved, ["p1", "p2"]) == 0.5
-    ideal = 1 + 1 / log2(3)
-    assert round(ndcg_at(retrieved, ["p1", "p2"]) or 0, 6) == round(
-        (1 / log2(3) + 1 / log2(4)) / ideal, 6
+def coordinate(document: str = "luat-x", **levels: str) -> Coordinate:
+    return Coordinate(document=document, **levels)
+
+
+def prediction(
+    case_id: str, *, retrieved=(), citations=(), abstained=False, latency=10.0, manual=None
+) -> Prediction:
+    return Prediction(
+        case_id=case_id,
+        retrieved_coordinates=list(retrieved),
+        citations=list(citations),
+        abstained=abstained,
+        latency_ms=latency,
+        manual_answer_correctness=manual,
     )
 
 
-def test_ndcg_preserves_original_rank_positions_when_duplicates_repeat() -> None:
-    retrieved = ["noise", "noise", "p1", "p2"]
-    ideal = 1 + 1 / log2(3)
-    expected = (1 / log2(4) + 1 / log2(5)) / ideal
-    assert ndcg_at(retrieved, ["p1", "p2"], 10) == expected
+def test_hit_at_k_requires_full_expected_coordinate_match() -> None:
+    expected = coordinate(article="12", clause="2", point="a")
+    case = ExpectedCase(
+        case_id="c1", category="exact_reference", query="q", expected_coordinates=[expected]
+    )
+
+    assert (
+        score_case(
+            case, prediction("c1", retrieved=[coordinate(article="12", clause="2", point="a")])
+        ).retrieval_hit_at_k
+        is True
+    )
+    assert (
+        score_case(
+            case, prediction("c1", retrieved=[coordinate(article="12", clause="2")])
+        ).retrieval_hit_at_k
+        is False
+    )
 
 
-def test_retrieval_reports_na_for_empty_gold_and_category_breakdown():
-    report = evaluate_retrieval(
+def test_hierarchical_accuracy_uses_level_specific_denominators() -> None:
+    case = ExpectedCase(
+        case_id="c1",
+        category="cross_reference",
+        query="q",
+        expected_coordinates=[
+            coordinate(article="1"),
+            coordinate(article="2", clause="3", point="b"),
+        ],
+    )
+    result = score_case(
+        case,
+        prediction("c1", retrieved=[coordinate(article="1"), coordinate(article="2", clause="3")]),
+    )
+
+    assert result.document_accuracy == 1.0
+    assert result.article_accuracy == 1.0
+    assert result.clause_accuracy == 1.0
+    assert result.point_accuracy == 0.0
+
+
+def test_citation_validity_is_nullable_for_no_citations_and_false_for_invalid() -> None:
+    case = ExpectedCase(
+        case_id="c1", category="natural_language", query="q", expected_coordinates=[coordinate()]
+    )
+    assert (
+        score_case(
+            case,
+            prediction("c1"),
+        ).citation_validity
+        is None
+    )
+    invalid = CitationPrediction(coordinate=coordinate(), valid=False)
+    assert score_case(case, prediction("c1", citations=[invalid])).citation_validity is False
+    assert (
+        score_case(
+            case, prediction("c1", citations=[CitationPrediction(coordinate=coordinate())])
+        ).citation_validity
+        is True
+    )
+
+
+def test_abstention_accuracy_follows_expected_abstention() -> None:
+    case = ExpectedCase(
+        case_id="c1", category="insufficient_evidence", query="q", abstention_expected=True
+    )
+    assert score_case(case, prediction("c1", abstained=True)).abstention_accuracy is True
+    assert score_case(case, prediction("c1", abstained=False)).abstention_accuracy is False
+
+
+def test_manual_correctness_remains_explicit_nullable_value() -> None:
+    case = ExpectedCase(
+        case_id="c1", category="penalty", query="q", expected_coordinates=[coordinate()]
+    )
+    assert score_case(case, prediction("c1", manual=None)).answer_correctness_manual is None
+    assert score_case(case, prediction("c1", manual=True)).answer_correctness_manual is True
+    assert score_case(case, prediction("c1", manual=False)).answer_correctness_manual is False
+
+
+def test_latency_summary_uses_interpolated_percentiles() -> None:
+    cases = [ExpectedCase(case_id=f"c{i}", category="follow_up", query="q") for i in range(4)]
+    predictions = [
+        prediction(f"c{i}", latency=latency) for i, latency in enumerate([10, 20, 30, 40])
+    ]
+    summary = aggregate_metrics(cases, predictions)
+
+    assert summary.latency.count == 4
+    assert summary.latency.mean_ms == 25.0
+    assert summary.latency.p50_ms == 25.0
+    assert summary.latency.p95_ms == pytest.approx(38.5)
+
+
+def test_coordinate_normalization_is_case_and_whitespace_insensitive() -> None:
+    assert normalize_coordinate({"document": "  Luat-X ", "article": " 12 ", "clause": "A  B"}) == (
+        "luat-x",
+        "12",
+        "a b",
+        None,
+    )
+
+
+def test_coordinate_normalization_normalizes_legal_number_forms() -> None:
+    assert normalize_coordinate(
+        {
+            "document": "  ND-119-2024 ",
+            "article": " Điều 010 ",
+            "clause": " Khoản 02 ",
+            "point": " A ",
+        }
+    ) == ("nd-119-2024", "10", "2", "a")
+
+
+def test_schema_rejects_malformed_extras() -> None:
+    with pytest.raises(ValidationError):
+        Prediction(case_id="c1", latency_ms=1, unexpected=True)
+    with pytest.raises(ValidationError):
+        Coordinate(document="x", unexpected="value")
+
+
+def test_coordinate_requires_canonical_document_identity() -> None:
+    with pytest.raises(ValidationError):
+        Coordinate(document_number="168/2024/NĐ-CP", article="6")
+
+
+def test_thesis_dataset_shape_normalizes_to_runner_contract() -> None:
+    import importlib.util
+    import json
+    from pathlib import Path
+
+    path = Path(__file__).parents[1] / "scripts" / "run_thesis_evaluation.py"
+    spec = importlib.util.spec_from_file_location("thesis_runner", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("unable to load thesis runner")
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+
+    dataset = Path(__file__).parents[2] / "data/evaluation/thesis-gold-40.json"
+    raw = json.loads(dataset.read_text(encoding="utf-8"))
+    cases = runner.load_dataset(dataset)
+    assert len(cases) == 40
+    assert cases[0]["question"] == raw["cases"][0]["query"]
+    assert cases[0]["expected"]["provision_ids"] == raw["cases"][0]["expected_provision_ids"]
+
+
+def test_manual_correctness_aggregate_uses_only_recorded_values() -> None:
+    cases = [ExpectedCase(case_id=f"c{i}", category="penalty", query="q") for i in range(3)]
+    summary = aggregate_metrics(
+        cases,
         [
-            {"id": "a", "category": "CURRENT", "retrieved": ["p1"], "relevant": ["p1"]},
-            {"id": "b", "category": "CURRENT", "retrieved": ["p1"], "relevant": []},
-        ]
+            prediction("c0", manual=True),
+            prediction("c1", manual=False),
+            prediction("c2", manual=None),
+        ],
     )
-    assert report["recall@5"].value == 1
-    assert report["recall@5"].by_category == {"CURRENT": 1}
-    assert report["mrr@10"].per_query["b"] is None
+    assert summary.answer_correctness_manual == pytest.approx(0.5)
 
 
-def test_evidence_metrics_and_empty_eligible_population():
-    assert evidence_set_recall(["definition", "fine"], ["definition"]) == 0.5
-    assert all_required_evidence_at_10(["definition", "fine"], ["definition", "fine"])
-    assert cross_reference_resolution_recall(["p2", "p3"], ["p2"]) == 0.5
-    assert multi_hop_evidence_completeness(["h1", "h2"], ["h1"]) is False
+def load_thesis_runner():
+    """Import runner functions without executing its CLI entry point."""
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).parents[1] / "scripts" / "run_thesis_evaluation.py"
+    spec = importlib.util.spec_from_file_location("thesis_runner_metrics", path)
+    assert spec and spec.loader
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+    return runner
 
 
-def test_temporal_half_open_interval_and_leakage():
-    citations = [
-        {"effective_from": "2024-01-01", "effective_to": "2025-01-01", "review_status": "ACCEPTED"},
-        {"effective_from": date(2025, 1, 1), "effective_to": None, "review_status": "ACCEPTED"},
-    ]
-    assert temporal_validity_accuracy(citations, date(2025, 1, 1)) == 0.5
-    assert temporal_leakage_rate(citations, date(2025, 1, 1)) == 0.5
-    assert temporal_validity_accuracy([], date.today()) is None
-
-
-def test_temporal_metadata_without_review_status_is_invalid():
-    citations = [{"effective_from": "2024-01-01", "effective_to": None}]
-    assert temporal_validity_accuracy(citations, date(2025, 1, 1)) == 0
-
-
-def _citation(provision_id: str, start: str, end: str | None = None) -> dict[str, object]:
+def runner_case(provision_id: str, category: str = "exact_reference") -> dict:
     return {
-        "provision_id": provision_id,
-        "effective_from": start,
-        "effective_to": end,
-        "review_status": "ACCEPTED",
+        "id": "runner-case",
+        "category": category,
+        "question": "q",
+        "expected": {
+            # Gold level arrays intentionally retain the full canonical
+            # provision ID; the runner derives each ancestor level from it.
+            "provision_ids": [provision_id],
+            "document_ids": [provision_id],
+            "article_ids": [provision_id],
+            "clause_ids": [provision_id] if "__khoan-" in provision_id else [],
+            "point_ids": [provision_id] if "__diem-" in provision_id else [],
+            "abstain": False,
+        },
     }
 
 
-def test_current_historical_separation_is_binary_and_category_eligible():
-    records = [
+def test_runner_explicit_canonical_claim_satisfies_exact_retrieval() -> None:
+    runner = load_thesis_runner()
+    provision_id = "nd-119-2024__dieu-10__khoan-2__diem-a"
+    case = runner_case(provision_id)
+    result = runner.score_case(
+        case,
         {
-            "id": "current-ok",
-            "category": "CURRENT",
-            "query_date": "2025-01-01",
-            "citations": [_citation("new", "2025-01-01")],
+            "claims": [{"provision_ids": [provision_id]}],
+            "status": "VERIFIED",
+        },
+    )
+    assert result["retrieval_hit_at_k"] is True
+
+
+def test_runner_parses_canonical_article_clause_and_point_ids() -> None:
+    runner = load_thesis_runner()
+    case = runner_case("nd-119-2024__dieu-10__khoan-2__diem-a")
+    assert runner.expected_ids(case) == {"nd-119-2024__dieu-10__khoan-2__diem-a"}
+
+
+def test_runner_child_citation_satisfies_ancestor_level_not_exact_provision() -> None:
+    runner = load_thesis_runner()
+    case = runner_case("nd-119-2024__dieu-10__khoan-2")
+    child = {
+        "document_id": "nd-119-2024",
+        "article": "10",
+        "clause": "2",
+        "point": "a",
+        "provision_ids": ["nd-119-2024__dieu-10__khoan-2__diem-a"],
+        "source_id": "chunk-123",
+    }
+    result = runner.score_case(case, {"citations": [child], "status": "VERIFIED"})
+    assert result["retrieval_hit_at_k"] is False
+    assert result["document_accuracy"] == 1.0
+    assert result["article_accuracy"] == 1.0
+    assert result["clause_accuracy"] == 1.0
+
+
+def test_runner_chunk_source_id_alone_cannot_create_provision_hit() -> None:
+    runner = load_thesis_runner()
+    case = runner_case("nd-119-2024__dieu-10")
+    result = runner.score_case(
+        case,
+        {"citations": [{"source_id": "nd-119-2024__dieu-10"}], "status": "VERIFIED"},
+    )
+    assert result["retrieval_hit_at_k"] is False
+
+
+def test_runner_structured_citation_metadata_produces_level_accuracy() -> None:
+    runner = load_thesis_runner()
+    case = runner_case("nd-119-2024__dieu-10__khoan-2__diem-a")
+    citation = {
+        "document_id": "nd-119-2024",
+        "article": "10",
+        "clause": "2",
+        "point": "a",
+        "provision_ids": ["nd-119-2024__dieu-10__khoan-2__diem-a"],
+        "source_id": "chunk-123",
+    }
+    result = runner.score_case(case, {"citations": [citation], "status": "VERIFIED"})
+    assert result["retrieval_hit_at_k"] is True
+    assert result["document_accuracy"] == 1.0
+    assert result["article_accuracy"] == 1.0
+    assert result["clause_accuracy"] == 1.0
+    assert result["point_accuracy"] == 1.0
+
+
+def test_runner_aggregate_isolates_categories_and_preserves_nulls() -> None:
+    runner = load_thesis_runner()
+    rows = [
+        {
+            "case_id": "a",
+            "category": "exact_reference",
+            "retrieval_hit_at_k": True,
+            "document_accuracy": 1.0,
+            "article_accuracy": 1.0,
+            "clause_accuracy": None,
+            "point_accuracy": None,
+            "citation_validity": True,
+            "answer_correctness_manual": None,
+            "abstention_accuracy": True,
+            "latency_ms": 10.0,
         },
         {
-            "id": "historical-mixed",
-            "category": "HISTORICAL",
-            "query_date": "2024-06-01",
-            "citations": [
-                _citation("old", "2024-01-01", "2025-01-01"),
-                _citation("new", "2025-01-01"),
-            ],
-        },
-        {
-            "id": "comparison-na",
-            "category": "COMPARISON",
-            "query_date": "2025-01-01",
-            "citations": [],
+            "case_id": "b",
+            "category": "penalty",
+            "retrieval_hit_at_k": False,
+            "document_accuracy": 0.0,
+            "article_accuracy": 0.0,
+            "clause_accuracy": None,
+            "point_accuracy": None,
+            "citation_validity": False,
+            "answer_correctness_manual": None,
+            "abstention_accuracy": False,
+            "latency_ms": None,
         },
     ]
-    report = evaluate_temporal(records)["current_historical_separation_accuracy"]
-    assert report.value == 0.5
-    assert report.numerator == 2 and report.denominator == 2
-    assert report.per_query == {"current-ok": 1.0, "historical-mixed": 0.0, "comparison-na": None}
-    assert report.by_category == {"CURRENT": 1.0, "HISTORICAL": 0.0}
+    aggregate = runner.aggregate(rows, {"source": "test"})
+    assert aggregate["count"] == 2
+    assert aggregate["metrics"]["retrieval_hit_at_k"] == 0.5
+    assert aggregate["by_category"]["exact_reference"]["retrieval_hit_at_k"] == 1.0
+    assert aggregate["by_category"]["penalty"]["retrieval_hit_at_k"] == 0.0
+    assert aggregate["by_category"]["natural_language"]["count"] == 0
+    assert aggregate["by_category"]["natural_language"]["retrieval_hit_at_k"] is None
+    assert aggregate["latency_ms"] == {"mean": 10.0, "p50": 10.0, "p95": 10.0}
 
 
-def test_comparison_separation_requires_two_independent_temporal_sides():
-    good = {
-        "category": "COMPARISON",
-        "comparison_dates": ["2024-06-01", "2025-06-01"],
-        "comparison_citations": {
-            "before": [_citation("old", "2024-01-01", "2025-01-01")],
-            "after": [_citation("new", "2025-01-01")],
-        },
-    }
-    mixed = {
-        **good,
-        "comparison_citations": {
-            "before": [_citation("new", "2025-01-01")],
-            "after": [_citation("old", "2024-01-01", "2025-01-01")],
-        },
-    }
-    duplicate = {
-        **good,
-        "comparison_citations": {
-            "before": good["comparison_citations"]["before"],
-            "after": [_citation("old", "2025-01-01")],
-        },
-    }
-    assert comparison_separation_accuracy(good) == 1.0
-    assert comparison_separation_accuracy(mixed) == 0.0
-    assert comparison_separation_accuracy(duplicate) == 0.0
-    report = evaluate_temporal(
-        [{"id": "good", **good}, {"id": "missing", "category": "COMPARISON"}]
-    )["comparison_separation_accuracy"]
-    assert report.value == 1.0 and report.by_category == {"COMPARISON": 1.0}
-    assert report.per_query["missing"] is None
+def test_runner_timeout_row_keeps_nullable_metrics() -> None:
+    runner = load_thesis_runner()
+    case = runner_case("nd-119-2024__dieu-10")
+    result = runner.score_case(case, {"status": "TIMEOUT"}, latency_ms=None)
+    assert result["retrieval_hit_at_k"] is None
+    assert result["document_accuracy"] is None
+    assert result["citation_validity"] is None
+    assert result["latency_ms"] is None
 
 
-def test_separation_reports_na_without_eligible_population():
-    report = evaluate_temporal(
-        [{"id": "x", "category": "OUT_OF_SCOPE", "query_date": "2025-01-01", "citations": []}]
+def test_coordinate_identity_prefers_document_id_when_display_number_differs() -> None:
+    expected = Coordinate(
+        document_id="nd-168-2024",
+        document_number="168/2024/NĐ-CP",
+        article="6",
+        clause="9",
     )
-    for name in ("current_historical_separation_accuracy", "comparison_separation_accuracy"):
-        assert report[name].value is None
-        assert report[name].status == "na"
-        assert report[name].na_reason == "no citations eligible for temporal evaluation"
+    actual = Coordinate(
+        document_id="nd-168-2024",
+        document_number="wrong display alias",
+        article="6",
+        clause="9",
+    )
+    case = ExpectedCase(
+        case_id="identity",
+        category="exact_reference",
+        query="q",
+        expected_coordinates=[expected],
+    )
+    result = score_case(case, prediction("identity", retrieved=[actual]))
+    assert result.retrieval_hit_at_k is True
+    assert result.document_accuracy == 1.0
+    assert result.clause_accuracy == 1.0
+
+
+def test_coordinate_identity_rejects_source_suffix_and_missing_document_id() -> None:
+    assert normalize_coordinate(
+        {
+            "document_id": "nd-168-2024",
+            "document_number": "168/2024/NĐ-CP",
+            "article": "6",
+        }
+    ) == ("nd-168-2024", "6", None, None)
+    with pytest.raises(ValidationError):
+        Coordinate(document_number="168/2024/NĐ-CP", article="6")
+
+
+def test_coordinate_identity_detects_genuine_document_mismatch() -> None:
+    expected = Coordinate(document_id="nd-168-2024", article="6")
+    case = ExpectedCase(
+        case_id="mismatch",
+        category="exact_reference",
+        query="q",
+        expected_coordinates=[expected],
+    )
+    actual = Coordinate(
+        document_id="nd-165-2024",
+        document_number="168/2024/NĐ-CP",
+        article="6",
+    )
+    result = score_case(case, prediction("mismatch", retrieved=[actual]))
+    assert result.retrieval_hit_at_k is False
+    assert result.document_accuracy == 0.0
+
+
+def test_runner_load_predictions_accepts_raw_api_row(tmp_path) -> None:
+    runner = load_thesis_runner()
+    path = tmp_path / "predictions.jsonl"
+    path.write_text('{"case_id":"c1","status":"OK","citations":[]}\n')
+    assert runner.load_predictions(path)["c1"]["status"] == "OK"

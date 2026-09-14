@@ -1,34 +1,28 @@
-# Qdrant Server-Side BM25 + RRF Query API — Validation Spike (VNLRAG-42)
+# Qdrant server-side BM25 + RRF Query API: validation spike (VNLRAG-42)
 
-Validation spike for the Qdrant retrieval contract designed in doc 03 §3.11
-(collection `legal_provisions_v1` / alias `legal_provisions_active`, named
-dense vector `dense` 768-d Cosine, sparse field `sparse` with BM25 IDF) and the
-Query API RRF fusion path (doc 03 §3.11.6). This is a **validation document**,
-not a benchmark: it records what Qdrant 1.19 actually does with Vietnamese
-legal text, the observed BM25/RRF behavior, and the tokenizer findings that
-feed the v2 pipeline decision.
+This spike validates the Qdrant retrieval contract designed in doc 03 §3.11 (collection `legal_provisions_v1` / alias `legal_provisions_active`, named dense vector `dense` 768-d Cosine, sparse field `sparse` with BM25 IDF) and the Query API RRF fusion path (doc 03 §3.11.6). It is a **validation document**, not a benchmark. It records Qdrant 1.19 behavior with Vietnamese legal text, observed BM25/RRF behavior, and tokenizer findings that inform the v2 pipeline decision.
 
 ## 1. Run context
 
-- **Ticket**: VNLRAG-42 — Validate Qdrant Server-Side BM25 and RRF Query API
+- **Ticket**: VNLRAG-42: Validate Qdrant Server-Side BM25 and RRF Query API
 - **Qdrant**: `1.19.0` (docker-compose service `vnlaw-qdrant`), live at `http://localhost:6333`
 - **Server root**: `{"title":"qdrant - vector search engine","version":"1.19.0","commit":"74f3e85b9473c62560006c043e13737ce6b48412"}`
 - **Client**: `qdrant-client 1.19.0` (backend venv, pyproject `qdrant-client>=1.19`)
 - **Run command** (from `backend/`): `uv run python -m scripts.qdrant_bm25_rrf_spike`
-- **Result**: `RESULT: PASS` (exit 0) — both validation checks passed
+- **Result**: `RESULT: PASS` (exit 0); both validation checks passed
 - **Fixture path used**: real provisions extracted from
   `backend/tests/fixtures/parser_benchmark/documents/{nd,luat,tt}` via the Legal
   Structure Extractor (VNLRAG-22) + Retrieval Units (VNLRAG-48) + Legal Context
-  Enricher (VNLRAG-132) — **102 provisions indexed** (nd-168-2024: 58, luat-2024: 25, tt-2024: 19).
-  This is the light reliable path (no PDF parsing/network; the fixture `.txt`
-  files are the same sources the parser benchmark validates against).
+  Enricher (VNLRAG-132): **102 provisions indexed** (nd-168-2024: 58, luat-2024: 25, tt-2024: 19).
+  This is the light reliable path. It uses no PDF parsing or network access; the fixture `.txt`
+  files are the same sources validated by the parser benchmark.
 - **Contract source**: `app.retrieval.qdrant_store` was **not importable at
   spike time** (VNLRAG-40 lands it in `backend/app/retrieval/` on its own
-  branch) — the spike ran the documented **raw qdrant-client fallback** with a
-  config mirroring the VNLRAG-40 contract exactly (doc 03 §3.11.1-2). The spike
-  re-checks the import on every run and reports which path executed.
-- **Isolation**: the spike used a THROWAWAY collection
-  `qdrant_bm25_rrf_spike_<UTC timestamp>`; the collection is deleted on exit
+  branch). The spike used the documented **raw qdrant-client fallback** with a
+  config that mirrors the VNLRAG-40 contract exactly (doc 03 §3.11.1-2). Each
+  run re-checks the import and reports which path executed.
+- **Isolation**: the spike used a throwaway collection
+  `qdrant_bm25_rrf_spike_<UTC timestamp>`. The collection is deleted on exit
   (verified: zero leftover collections after the run; production
   `legal_provisions_v1`/`legal_provisions_active` were never touched).
 

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Luồng sinh câu trả lời từ căn cứ</title>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <style>*{box-sizing:border-box}body{margin:0;background:#f5f5f5;color:#2d3142;font-family:'Be Vietnam Pro',sans-serif}.page{width:min(960px,100%);margin:auto;padding:32px 40px 24px}.eyebrow{margin:0 0 8px;color:#4f5d75;font:500 8px 'Be Vietnam Pro',sans-serif;letter-spacing:.16em}h1{margin:0 0 24px;font:400 28px/1.15 'Be Vietnam Pro',sans-serif}svg{display:block;width:100%;height:auto}.name{fill:#2d3142;font:600 16px 'Be Vietnam Pro',sans-serif}.body{fill:#2d3142;font:500 12px 'Be Vietnam Pro',sans-serif}.sub{fill:#4f5d75;font:400 12px 'Be Vietnam Pro',sans-serif}.tag,.branch,.legend{fill:#4f5d75;font:500 8px 'Be Vietnam Pro',sans-serif;letter-spacing:.08em}</style>
+</head>
+<body><main class="page">
+  <p class="eyebrow">CHƯƠNG 2 · 2.12 SINH CÂU TRẢ LỜI CÓ CĂN CỨ</p><h1>Luồng sinh câu trả lời từ căn cứ</h1>
+  <svg viewBox="0 0 960 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="ch2-generation-title ch2-generation-desc">
+    <title id="ch2-generation-title">Luồng sinh câu trả lời từ căn cứ</title>
+    <desc id="ch2-generation-desc">Các căn cứ đã đạt điều kiện được đưa vào prompt và gửi tới ChatOpenRouter. Nếu bản nháp trộn ngôn ngữ, hệ thống thử lại một lần rồi mới dùng câu trả lời dự phòng.</desc>
+    <defs><marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#4f5d75"/></marker><marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#eb6c36"/></marker><marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#2e5aa8"/></marker></defs>
+    <rect width="960" height="600" fill="#f5f5f5"/>
+    <!-- arrows -->
+    <line x1="208" y1="120" x2="280" y2="120" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+    <line x1="480" y1="120" x2="552" y2="120" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+    <path d="M680 176 V208 Q680 216 688 216 H752 Q760 216 760 224 V268" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+    <path d="M760 360 V392 Q760 400 752 400 H696 Q688 400 688 408 V448" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+    <path d="M632 314 H528 Q520 314 520 322 V448" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+    <path d="M888 314 H904 Q912 314 912 306 V40 Q912 32 904 32 H392 Q384 32 384 40 V56" fill="none" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+    <!-- nodes -->
+    <g><rect x="40" y="72" width="168" height="96" rx="20" fill="#f5f5f5"/><rect x="40" y="72" width="168" height="96" rx="20" fill="#fff" stroke="#2d3142"/><text x="124" y="108" class="name" text-anchor="middle">Căn cứ đã chọn</text><text x="124" y="136" class="sub" text-anchor="middle">đã qua kiểm tra căn cứ</text></g>
+    <g><rect x="280" y="56" width="200" height="128" rx="8" fill="#f5f5f5"/><rect x="280" y="56" width="200" height="128" rx="8" fill="rgba(235,108,54,.08)" stroke="#eb6c36" stroke-width="1.2"/><text x="296" y="80" class="tag">BUILD_PROMPT</text><text x="380" y="108" class="name" text-anchor="middle">Tạo nội dung gửi</text><text x="380" y="136" class="sub" text-anchor="middle">chỉ dẫn hệ thống · câu hỏi</text><text x="380" y="156" class="sub" text-anchor="middle">nhóm nguồn pháp luật</text><text x="380" y="176" class="sub" text-anchor="middle">chỉ dùng dữ kiện đã cung cấp</text></g>
+    <g><rect x="552" y="56" width="256" height="128" rx="8" fill="#f5f5f5"/><rect x="552" y="56" width="256" height="128" rx="8" fill="#fff" stroke="#2e5aa8"/><text x="568" y="80" class="tag">OPENROUTER · CHAT</text><text x="680" y="108" class="name" text-anchor="middle">ChatOpenRouter</text><text x="680" y="136" class="sub" text-anchor="middle">Model đọc từ cấu hình</text><text x="680" y="156" class="sub" text-anchor="middle">API key chỉ nằm ở backend</text><text x="680" y="176" class="sub" text-anchor="middle">Không tự thử lại khi nhà cung cấp lỗi</text></g>
+    <g><polygon points="760,268 888,314 760,360 632,314" fill="#f5f5f5"/><polygon points="760,268 888,314 760,360 632,314" fill="rgba(45,49,66,.05)" stroke="#4f5d75"/><text x="760" y="304" class="name" text-anchor="middle">Tiếng Việt hợp lệ?</text><text x="760" y="328" class="sub" text-anchor="middle">Có nội dung · không trộn ngôn ngữ</text></g>
+    <rect x="688" y="376" width="32" height="12" rx="4" fill="#f5f5f5"/><text x="704" y="384" class="branch" text-anchor="middle">CÓ</text>
+    <rect x="544" y="286" width="56" height="12" rx="4" fill="#f5f5f5"/><text x="572" y="294" class="branch" text-anchor="middle">CHƯA</text>
+    <g><rect x="408" y="448" width="224" height="80" rx="20" fill="#f5f5f5"/><rect x="408" y="448" width="224" height="80" rx="20" fill="rgba(45,49,66,.05)" stroke="#4f5d75"/><text x="520" y="480" class="name" text-anchor="middle">Câu trả lời dự phòng</text><text x="520" y="504" class="sub" text-anchor="middle">dùng khi hai bản nháp không đạt</text></g>
+    <g><rect x="648" y="448" width="224" height="80" rx="20" fill="#f5f5f5"/><rect x="648" y="448" width="224" height="80" rx="20" fill="rgba(235,108,54,.08)" stroke="#eb6c36"/><text x="760" y="480" class="name" text-anchor="middle">Câu trả lời Markdown</text><text x="760" y="504" class="sub" text-anchor="middle">tiếng Việt · dựa trên căn cứ</text></g>
+    <text x="536" y="24" class="tag">THỬ LẠI 1 LẦN</text>
+    <line x1="40" y1="552" x2="920" y2="552" stroke="rgba(45,49,66,.10)" stroke-width="0.8"/><text x="40" y="580" class="legend">HÌNH 2.13 · TẠO CÂU TRẢ LỜI SAU KIỂM TRA CĂN CỨ</text><text x="920" y="580" class="legend" text-anchor="end">LỖI NHÀ CUNG CẤP → MÁY CHỦ TRẢ LỖI</text>
+  </svg>
+</main></body></html>

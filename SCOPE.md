@@ -1,6 +1,6 @@
-> **MVP rebaseline — 06/09/2026**: The defense release scope is reduced to a fixed 5–10-document reviewed corpus, 30–50 evaluation questions, current and as-of-date retrieval, structure-aware citations, evidence gating, abstention, and a working chat UI. RAGFlow comparison, feedback, large-scale background ingestion, advanced observability/security, and production backup automation are deferred.
->
-Tài liệu này chốt baseline phạm vi v2 và được rebaseline cho release bảo vệ ngày 16/09/2026: MVP gồm corpus 5–10 văn bản, 30–50 câu đánh giá, truy vấn hiện hành/theo ngày, citation kiểm chứng, evidence gate, abstention và chat UI.
+> **Active release contract (10/09/2026)**: The defense release uses exactly **14 deduplicated local PDFs** from the allowlist `datafiles.chinhphu.vn`, tracked by immutable snapshot/file hashes. It is single-user on localhost/private network with no authentication, admin/reviewer role, approval UI/API, or human approval. Ingestion is manual CLI; quality, provenance and temporal gates are automatic, and only `ACCEPTED` records are indexed/served. All **200 gold questions** across **17 categories** must run before release (40 development / 40 validation / 120 final test). Anonymous `LIKE`/`DISLIKE` feedback is telemetry only and never a release gate.
++
+> **Superseded historical note**: The former 5–10-document / 30–50-question rebaseline below is historical and must not be used as the active scope.
 # SCOPE — Phạm Vi Dự Án VNLRAG v2
 
 Tài liệu này chốt baseline phạm vi của hệ thống RAG nhận biết cấu trúc và thời gian hiệu lực để hỗ trợ tra cứu pháp luật giao thông Việt Nam (bản thiết kế lại v2), phục vụ triển khai theo kế hoạch đến hạn hoàn thành 12/09/2026 và bảo vệ 14/09/2026.

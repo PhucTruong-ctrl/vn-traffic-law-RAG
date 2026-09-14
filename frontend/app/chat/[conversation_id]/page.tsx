@@ -1,10 +1,16 @@
 import ChatPage from "../../../src/components/ChatPage";
 
-export default async function ConversationRoute({
-  params,
-}: {
+type ConversationRouteProps = {
   params: Promise<{ conversation_id: string }>;
-}) {
-  const { conversation_id: conversationId } = await params;
+};
+
+export default async function ConversationRoute({ params }: ConversationRouteProps) {
+  const { conversation_id: rawConversationId } = await params;
+  const conversationId = decodeURIComponent(rawConversationId).trim();
+
+  if (!conversationId) {
+    return <ChatPage />;
+  }
+
   return <ChatPage conversationId={conversationId} />;
 }

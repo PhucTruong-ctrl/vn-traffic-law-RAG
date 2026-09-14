@@ -10,23 +10,79 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
-set -a
-source "$ENV_FILE"
-set +a
-export QDRANT_URL="${QDRANT_URL/qdrant/127.0.0.1}"
-export S3_ENDPOINT="${S3_ENDPOINT/minio/127.0.0.1}"
-export MINIO_ENDPOINT="${MINIO_ENDPOINT/minio/127.0.0.1}"
-export DATABASE_URL="${DATABASE_URL/@postgres:5432\//@127.0.0.1:5432/}"
-if [[ "${REDIS_URL:-}" == redis://redis:* ]]; then
-  export REDIS_URL="${REDIS_URL/redis:\/\/redis:/redis:\/\/127.0.0.1:}"
+# Import KEY=VALUE entries without executing arbitrary shell from .env.
+# Values may be quoted and may contain `=`; comments are only recognized when
+# they begin a line, so URL fragments and keys containing `#` remain intact.
+while IFS= read -r line || [[ -n "$line" ]]; do
+  line="${line%$'\r'}"
+  [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+  if [[ ! "$line" =~ ^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+    echo "Invalid .env entry (expected KEY=VALUE): $line" >&2
+    exit 1
+  fi
+  key="${BASH_REMATCH[1]}"
+  value="${BASH_REMATCH[2]}"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+    value="${value:1:${#value}-2}"
+  elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
+    value="${value:1:${#value}-2}"
+  fi
+  export "$key=$value"
+done < "$ENV_FILE"
+BACKEND_INTERNAL_URL="${BACKEND_INTERNAL_URL:-http://127.0.0.1:8000}"
+NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://127.0.0.1:8000}"
+export BACKEND_INTERNAL_URL NEXT_PUBLIC_API_URL
+
+
+required_env=(SUPABASE_URL OPENROUTER_API_KEY QDRANT_PATH)
+for key in "${required_env[@]}"; do
+  if [[ -z "${!key:-}" ]]; then
+    echo "Missing required environment variable: $key" >&2
+    exit 1
+  fi
+done
+if [[ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" && -z "${SUPABASE_ANON_KEY:-}" && -z "${SUPABASE_PUBLISHABLE_KEY:-}" ]]; then
+  echo "Missing required environment variable: SUPABASE_ANON_KEY or SUPABASE_PUBLISHABLE_KEY or SUPABASE_SERVICE_ROLE_KEY" >&2
+  exit 1
+fi
+if [[ -z "${SUPABASE_ANON_KEY:-}" ]]; then
+  export SUPABASE_ANON_KEY="${SUPABASE_PUBLISHABLE_KEY:-}"
 fi
 
-if [[ "${1:-}" == "test-integration" ]]; then
+# Next.js reads frontend/.env.local for direct launches. Keep the generated
+# file restricted and preserve a user-managed nonempty file unless the root
+# .env explicitly supplied the public values. Local dev defaults to the host
+# FastAPI URL; set NEXT_PUBLIC_API_URL to intentionally override it.
+NEXT_PUBLIC_SUPABASE_URL="${NEXT_PUBLIC_SUPABASE_URL:-$SUPABASE_URL}"
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-${SUPABASE_PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-}}}"
+frontend_env="$ROOT/frontend/.env.local"
+if [[ ! -s "$frontend_env" || -n "${SUPABASE_URL:-}" || -n "${SUPABASE_PUBLISHABLE_KEY:-}" || -n "${SUPABASE_ANON_KEY:-}" || -n "${NEXT_PUBLIC_API_URL:-}" ]]; then
+  umask 077
+  printf 'NEXT_PUBLIC_API_URL=%s\nNEXT_PUBLIC_SUPABASE_URL=%s\nNEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=%s\n' \
+    "$NEXT_PUBLIC_API_URL" "$NEXT_PUBLIC_SUPABASE_URL" "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" > "$frontend_env"
+  chmod 600 "$frontend_env"
+fi
+
+# Pass the validated values explicitly so child processes cannot fall back to
+# unrelated environment files or inherited values.
+export NEXT_PUBLIC_API_URL NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY BACKEND_INTERNAL_URL
+export HF_HUB_DISABLE_PROGRESS_BARS="${HF_HUB_DISABLE_PROGRESS_BARS:-1}"
+for key in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY BACKEND_INTERNAL_URL; do
+  if [[ -z "${!key:-}" ]]; then
+    echo "Missing required environment variable: $key" >&2
+    exit 1
+  fi
+done
+export QDRANT_PATH="$ROOT/${QDRANT_PATH#"$ROOT/"}"
+if [[ "${1:-}" == "test" ]]; then
   shift
-  exec env uv run --directory "$ROOT/backend" pytest tests/integration "$@"
+  exec uv run --directory "$ROOT/backend" pytest "$@"
 fi
 
-stale_patterns=("$ROOT/backend.*uvicorn" "$ROOT/backend.*dramatiq" "$ROOT/frontend.*next dev")
+
+stale_patterns=("$ROOT/backend.*uvicorn" "$ROOT/frontend.*next dev")
 stale_pids() { local pattern; for pattern in "${stale_patterns[@]}"; do pgrep -f "$pattern" || true; done | sort -u; }
 leftovers=$(stale_pids)
 if [[ -n "$leftovers" ]]; then
@@ -38,69 +94,47 @@ else
 fi
 fuser -k 8000/tcp 3000/tcp 2>/dev/null || true
 for _ in $(seq 1 25); do leftovers=$(stale_pids); [[ -z "$leftovers" ]] && break; sleep 0.2; done
-if [[ -n "$leftovers" ]]; then echo "Could not stop stale processes; refusing to serve older code:" >&2; ps -o pid=,cmd= -p $leftovers >&2; exit 1; fi
+if [[ -n "$leftovers" ]]; then echo "Could not stop stale processes; refusing to serve older code:" >&2; exit 1; fi
+
 
 child_pids=()
 cleanup() { trap - INT TERM EXIT; ((${#child_pids[@]})) && kill "${child_pids[@]}" 2>/dev/null || true; wait "${child_pids[@]}" 2>/dev/null || true; }
 trap cleanup INT TERM EXIT
-
-docker compose --env-file "$ENV_FILE" up -d postgres qdrant redis minio
-for _ in $(seq 1 60); do
-  service_state() {
-    local service=$1
-    local container_id
-    container_id=$(docker compose --env-file "$ENV_FILE" ps -q "$service" 2>/dev/null || true)
-    if [[ -z "$container_id" ]]; then
-      printf 'not found'
-      return
-    fi
-    docker inspect --format '{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{end}}' "$container_id" 2>/dev/null || printf 'not found'
-  }
-  postgres_state=$(service_state postgres)
-  redis_state=$(service_state redis)
-  qdrant_state=$(service_state qdrant)
-  minio_state=$(service_state minio)
-  [[ "$postgres_state" == "running healthy" && "$redis_state" == "running healthy" && "$qdrant_state" == "running healthy" && "$minio_state" == "running healthy" ]] && break
-  [[ "$postgres_state" == exited* || "$redis_state" == exited* || "$qdrant_state" == exited* || "$minio_state" == exited* ]] && break
-  sleep 1
-done
-if [[ "$postgres_state" != "running healthy" ]]; then echo "PostgreSQL did not become healthy: ${postgres_state:-not found}" >&2; exit 1; fi
-if [[ "$redis_state" != "running healthy" ]]; then echo "Redis did not become healthy: ${redis_state:-not found}" >&2; exit 1; fi
-if [[ "$qdrant_state" != "running healthy" ]]; then echo "Qdrant did not become healthy: ${qdrant_state:-not found}" >&2; exit 1; fi
-if [[ "$minio_state" != "running healthy" ]]; then echo "MinIO did not become healthy: ${minio_state:-not found}" >&2; exit 1; fi
-
-redis_ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' vnlaw-redis)
-if [[ -z "$redis_ip" ]]; then echo "Could not determine vnlaw-redis container IP" >&2; exit 1; fi
-if ! docker run --rm --network container:vnlaw-redis redis:7-alpine redis-cli -h 127.0.0.1 ping >/dev/null 2>&1; then echo "Redis is healthy but not reachable from its container network namespace" >&2; exit 1; fi
 (
   cd "$ROOT/backend"
-  env DATABASE_URL="$DATABASE_URL" uv run --env-file /dev/null python -m alembic upgrade head
-)
-(
-  cd "$ROOT/backend"
-  # Local index uses E5 vectors; override with DEV_* for deliberate provider changes.
-  exec env PYTHONPATH=. QDRANT_URL="$QDRANT_URL" QDRANT_API_KEY="${QDRANT_API_KEY:-}" S3_ENDPOINT="$S3_ENDPOINT" MINIO_ENDPOINT="$MINIO_ENDPOINT" DATABASE_URL="$DATABASE_URL" REDIS_URL="redis://127.0.0.1:6379/0" EMBEDDING_PROVIDER="${DEV_EMBEDDING_PROVIDER:-local}" EMBEDDING_MODEL="${DEV_EMBEDDING_MODEL:-intfloat/multilingual-e5-base}" EMBEDDING_LOCAL_DEVICE="${DEV_EMBEDDING_LOCAL_DEVICE:-auto}" GENERATION_PROVIDER="${DEV_GENERATION_PROVIDER:-gemini}" GENERATION_MODEL="${DEV_GENERATION_MODEL:-gemini-3.1-flash-lite}" uv run --env-file /dev/null python -m uvicorn app.main:app --reload --reload-dir app --host 127.0.0.1 --port 8000
+  exec env \
+    SUPABASE_URL="$SUPABASE_URL" SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}" SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY:-}" \
+    HF_HUB_DISABLE_PROGRESS_BARS="$HF_HUB_DISABLE_PROGRESS_BARS" \
+    QDRANT_PATH="$QDRANT_PATH" QDRANT_COLLECTION="${QDRANT_COLLECTION:-traffic_law}" \
+    OPENROUTER_API_KEY="$OPENROUTER_API_KEY" OPENROUTER_BASE_URL="${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}" \
+    GENERATION_MODEL="${GENERATION_MODEL:-deepseek/deepseek-v4-flash-0731}" EMBEDDING_MODEL="${EMBEDDING_MODEL:-openai/text-embedding-3-small}" \
+    TEST_USER_EMAIL="${TEST_USER_EMAIL:-}" TEST_USER_PASSWORD="${TEST_USER_PASSWORD:-}" \
+    TEST_USER_B_EMAIL="${TEST_USER_B_EMAIL:-}" TEST_USER_B_PASSWORD="${TEST_USER_B_PASSWORD:-}" \
+    uv run --env-file /dev/null --directory "$ROOT/backend" python -m uvicorn app.main:app --reload --reload-dir "$ROOT/backend/app" --app-dir "$ROOT/backend" --host 127.0.0.1 --port 8000
 ) > >(sed -u 's/^/[api] /') 2>&1 &
-api_pid=$!; child_pids+=("$api_pid")
-api_ready=false
-for _ in $(seq 1 120); do
-  if curl -fsS http://127.0.0.1:8000/api/v1/health/live >/dev/null 2>&1; then api_ready=true; break; fi
-  kill -0 "$api_pid" 2>/dev/null || break
-  sleep 1
-done
-if [[ "$api_ready" != true ]]; then echo "API did not become ready on http://127.0.0.1:8000/api/v1/health/live" >&2; exit 1; fi
-(
-  cd "$ROOT/backend"
-  exec env PYTHONPATH=. REDIS_URL="redis://${redis_ip}:6379/0" uv run --env-file /dev/null python -m dramatiq --processes 1 --threads 1 app.ingestion.actors
-) > >(sed -u 's/^/[worker] /') 2>&1 &
 child_pids+=("$!")
 (
   cd "$ROOT/frontend"
-  exec env NEXT_PUBLIC_API_URL="http://localhost:8000" npm run dev -- --hostname 127.0.0.1 --port 3000
+  exec env BACKEND_INTERNAL_URL="$BACKEND_INTERNAL_URL" NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" \
+    NEXT_PUBLIC_SUPABASE_URL="$NEXT_PUBLIC_SUPABASE_URL" \
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" \
+    npm run dev -- --hostname 127.0.0.1 --port 3000
 ) > >(sed -u 's/^/[frontend] /') 2>&1 &
 child_pids+=("$!")
 
-echo "==> http://localhost:3000"
-echo "==> API http://localhost:8000"
-echo "==> MinIO http://localhost:9001"
-wait
+for _ in $(seq 1 100); do
+  if curl --fail --silent --max-time 1 http://127.0.0.1:8000/api/v1/health/ready >/dev/null &&
+    curl --fail --silent --max-time 1 http://127.0.0.1:3000/ >/dev/null; then
+    echo "==> http://localhost:3000"
+    echo "==> API http://localhost:8000"
+    wait -n "${child_pids[@]}"
+    exit $?
+  fi
+  kill -0 "${child_pids[0]}" "${child_pids[1]}" 2>/dev/null || {
+    echo "A development service exited before readiness." >&2
+    exit 1
+  }
+  sleep 0.1
+done
+echo "Development services did not become ready within 10 seconds." >&2
+exit 1

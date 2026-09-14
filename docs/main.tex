@@ -1,0 +1,2481 @@
+% !TEX program = xelatex
+% KHOA LUAN TOT NGHIEP - CNTT - TRUONG DAI HOC TAY DO
+% De tai: VN Traffic Law RAG
+\documentclass[12pt,a4paper,oneside]{report}
+
+\usepackage[a4paper,top=2cm,bottom=2cm,left=3.5cm,right=2cm,footskip=1cm]{geometry}
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+\usepackage{polyglossia}
+ \setdefaultlanguage{vietnamese}
+\usepackage{indentfirst}
+\usepackage{graphicx}
+\usepackage{eso-pic}
+\usepackage{pgffor}
+\usepackage{xcolor}
+\usepackage{setspace}
+\usepackage{enumitem}
+\usepackage{array}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{titlesec}
+\usepackage{tocloft}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{xurl}
+\usepackage{ragged2e}
+\usepackage{microtype}
+\usepackage{float}
+\usepackage{placeins}
+\usepackage{needspace}
+\usepackage{etoolbox}
+\usepackage{amsmath}
+\usepackage{unicode-math}
+\setmathfont{latinmodern-math.otf}
+
+\hypersetup{colorlinks=false,hidelinks,pdfauthor={Quách Trường Phúc},pdftitle={Khóa luận tốt nghiệp - VN Traffic Law RAG}}
+\graphicspath{{diagrams/}{./diagrams/}{diagrams/}{./diagrams/}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\fontsize{13pt}{15.6pt}\selectfont\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\fancypagestyle{plain}{%
+  \fancyhf{}
+  \fancyfoot[C]{\fontsize{13pt}{15.6pt}\selectfont\thepage}
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{0pt}
+}
+
+\Urlmuskip=0mu plus 1mu
+
+
+% Dinh dang theo quy dinh Khoa Ky thuat - Cong nghe, Truong Dai hoc Tay Do
+\AtBeginDocument{\fontsize{13pt}{15.6pt}\selectfont}
+\setstretch{1.2}
+\setlength{\parindent}{1.5cm}
+\setlength{\JustifyingParindent}{1.5cm}
+\setlength{\parskip}{6pt}
+\setlength{\footskip}{1cm}
+\setlength{\emergencystretch}{4em}
+
+\setlist[itemize]{leftmargin=1.5cm,itemsep=0pt,topsep=0pt,parsep=0pt,partopsep=0pt}
+\setlist[enumerate]{leftmargin=1.5cm,itemsep=0pt,topsep=0pt,parsep=0pt,partopsep=0pt}
+\AtBeginEnvironment{longtable}{\fontsize{12pt}{12pt}\selectfont\setstretch{1.0}\setlength{\tabcolsep}{4pt}}
+\AtBeginEnvironment{tabularx}{\fontsize{12pt}{12pt}\selectfont\setstretch{1.0}}
+\renewcommand{\footnotesize}{\fontsize{10pt}{12pt}\selectfont}
+
+\DeclareCaptionFont{schoolcaption}{\fontsize{13pt}{15.6pt}\selectfont\normalfont}
+\captionsetup[figure]{font=schoolcaption,labelfont=normalfont,textfont=normalfont,justification=centering,singlelinecheck=false,labelsep=colon,position=bottom,skip=2pt}
+\captionsetup[table]{font=schoolcaption,labelfont=normalfont,textfont=normalfont,justification=raggedright,singlelinecheck=false,labelsep=colon,position=top,skip=2pt}
+\renewcommand{\figurename}{Hình}
+\renewcommand{\tablename}{Bảng}
+% Nguồn hình và bảng theo quy định của Khoa
+\newcommand{\figsource}[1]{%
+  \par\vspace{1pt}%
+  {\centering\fontsize{10pt}{12pt}\selectfont\itshape Nguồn: #1\par}%
+  \vspace{1pt}%
+}
+\newcommand{\tabsource}[1]{%
+  \par\vspace{1pt}%
+  {\raggedright\fontsize{10pt}{12pt}\selectfont\itshape Nguồn: #1\par}%
+}
+
+
+\newcommand{\AssetFigure}[5][0.86\textwidth]{%
+  \begin{figure}[H]
+    \centering
+    \IfFileExists{diagrams/#2}{%
+      \includegraphics[width=#1,height=#3,keepaspectratio]{diagrams/#2}%
+    }{%
+      \IfFileExists{diagrams/#2}{%
+        \includegraphics[width=#1,height=#3,keepaspectratio]{diagrams/#2}%
+      }{%
+        \fbox{\rule{0pt}{#3}\rule{0.82\textwidth}{0pt}}%
+      }%
+    }%
+    \ifstrempty{#5}{}{\figsource{#5}}
+    \caption{#4}
+  \end{figure}%
+}
+
+
+% Khung bìa
+\newcommand{\CoverFrame}{%
+\AddToShipoutPictureBG*{%
+  \AtPageLowerLeft{%
+    \put(\LenToUnit{1.2cm},\LenToUnit{1.2cm}){%
+      \framebox(\LenToUnit{\dimexpr\paperwidth-2.4cm\relax},\LenToUnit{\dimexpr\paperheight-2.4cm\relax}){}%
+    }%
+  }%
+}%
+}
+
+\addto\captionsvietnamese{%
+  \renewcommand{\contentsname}{MỤC LỤC}%
+  \renewcommand{\listfigurename}{DANH MỤC HÌNH}%
+  \renewcommand{\listtablename}{DANH MỤC BẢNG}%
+  \renewcommand{\bibname}{TÀI LIỆU THAM KHẢO}%
+}
+
+\titleformat{\chapter}{\bfseries\fontsize{13pt}{15.6pt}\selectfont}{}{0pt}{\centering}
+\titlespacing*{\chapter}{0pt}{0pt}{6pt}
+\titleformat{\section}{\bfseries\fontsize{13pt}{15.6pt}\selectfont}{\thesection}{0.5em}{}
+\titlespacing*{\section}{0pt}{6pt}{0pt}
+\titleformat{\subsection}{\bfseries\fontsize{13pt}{15.6pt}\selectfont}{\thesubsection}{0.5em}{}
+\titlespacing*{\subsection}{0pt}{6pt}{0pt}
+% Giữ tiêu đề cùng phần nội dung ngay sau nó để tránh tiêu đề nằm một mình cuối trang.
+% \Needspace dùng phép kiểm tra chính xác hơn \needspace.
+\AddToHook{cmd/section/before}{\Needspace{10\baselineskip}}
+\AddToHook{cmd/subsection/before}{\Needspace{7\baselineskip}}
+
+\renewcommand{\cfttoctitlefont}{\hfill\bfseries\fontsize{13pt}{15.6pt}\selectfont}
+\renewcommand{\cftaftertoctitle}{\hfill}
+\renewcommand{\cftloftitlefont}{\hfill\bfseries\fontsize{13pt}{15.6pt}\selectfont}
+\renewcommand{\cftafterloftitle}{\hfill}
+\renewcommand{\cftlottitlefont}{\hfill\bfseries\fontsize{13pt}{15.6pt}\selectfont}
+\renewcommand{\cftafterlottitle}{\hfill}
+\setlength{\cftbeforetoctitleskip}{0pt}
+\setlength{\cftaftertoctitleskip}{12pt}
+\setlength{\cftbeforeloftitleskip}{0pt}
+\setlength{\cftafterloftitleskip}{12pt}
+\setlength{\cftbeforelottitleskip}{0pt}
+\setlength{\cftafterlottitleskip}{12pt}
+% Đủ chỗ cho số mục dạng 3.13.10 trong Mục lục.
+\setlength{\cftsecnumwidth}{3.0em}
+\setlength{\cftsubsecnumwidth}{4.2em}
+\renewcommand{\cftdotsep}{1.5}
+\renewcommand{\cftchapleader}{\cftdotfill{\cftdotsep}}
+\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}
+\renewcommand{\cftsubsecleader}{\cftdotfill{\cftdotsep}}
+
+% ============================================================
+% BIẾN DÙNG CHO BÌA
+% ============================================================
+
+\newcommand{\StudentName}{Quách Trường Phúc}
+\newcommand{\StudentID}{227060168}
+\newcommand{\FacultyAdvisor}{ThS. Nguyễn Chí Cường}
+
+\newcommand{\SchoolName}{TRƯỜNG ĐẠI HỌC TÂY ĐÔ}
+\newcommand{\FacultyName}{KHOA KỸ THUẬT - CÔNG NGHỆ}
+\newcommand{\MajorName}{CÔNG NGHỆ THÔNG TIN}
+
+\newcommand{\ThesisTitle}{
+HỆ THỐNG RAG HỖ TRỢ TRA CỨU\\
+PHÁP LUẬT GIAO THÔNG VIỆT NAM
+}
+
+\newcommand{\ReportMonth}{09}
+\newcommand{\ReportYear}{2026}
+
+\newcommand{\commentline}{%
+    \noindent
+    \makebox[\textwidth]{\dotfill}
+    \par
+    \vspace{0.25cm}
+}
+
+\begin{document}
+% ============================================================
+% TRANG BÌA CHÍNH
+% ============================================================
+
+\newgeometry{
+  top=2cm,
+  bottom=2cm,
+  left=2cm,
+  right=2cm
+}
+\CoverFrame
+
+\begin{titlepage}
+  \thispagestyle{empty}
+
+  \begin{center}
+
+    % ------------------------------------------------------------
+    % TÊN TRƯỜNG
+    % ------------------------------------------------------------
+
+    {\bfseries\fontsize{16pt}{19pt}\selectfont
+      BỘ GIÁO DỤC VÀ ĐÀO TẠO
+      \par}
+
+    \vspace{0.15cm}
+
+    {\bfseries\fontsize{16pt}{19pt}\selectfont
+      \SchoolName
+      \par}
+
+    \vspace{0.15cm}
+
+    {\bfseries\fontsize{16pt}{19pt}\selectfont
+      \FacultyName
+      \par}
+
+
+    % ------------------------------------------------------------
+    % LOGO
+    % ------------------------------------------------------------
+
+    \vspace{0.65cm}
+
+    \IfFileExists{diagrams/tdu_logo.png}{
+      \includegraphics[width=4.6cm]{diagrams/tdu_logo.png}
+    }{
+      \vspace{3.2cm}
+    }
+
+    \vspace{0.35cm}
+
+    {\bfseries\fontsize{13pt}{16pt}\selectfont
+      Trí tuệ - Sáng tạo - Năng động - Đổi mới
+      \par}
+
+
+    % ------------------------------------------------------------
+    % LOẠI BÁO CÁO + TÊN ĐỀ TÀI
+    % ------------------------------------------------------------
+
+    \vspace{1.55cm}
+
+    {\bfseries\fontsize{16pt}{19pt}\selectfont
+      KHÓA LUẬN TỐT NGHIỆP
+      \par}
+
+    \vspace{0.35cm}
+
+    {\bfseries\fontsize{18pt}{22pt}\selectfont
+      \ThesisTitle
+      \par}
+
+
+    % ------------------------------------------------------------
+    % CHUYÊN NGÀNH
+    % ------------------------------------------------------------
+
+    \vspace{1.75cm}
+
+    {\bfseries\fontsize{16pt}{19pt}\selectfont
+      CHUYÊN NGÀNH
+      \par}
+
+    \vspace{0.15cm}
+
+    {\bfseries\fontsize{16pt}{19pt}\selectfont
+      \MajorName
+      \par}
+
+
+    % ------------------------------------------------------------
+    % SINH VIÊN
+    % ------------------------------------------------------------
+
+    \vspace{1.8cm}
+
+    {\bfseries\fontsize{15pt}{18pt}\selectfont
+      SINH VIÊN THỰC HIỆN
+      \par}
+
+    \vspace{0.15cm}
+
+    {\bfseries\fontsize{14pt}{17pt}\selectfont
+      GIẢNG VIÊN HƯỚNG DẪN
+      \par}
+
+    \vspace{0.15cm}
+
+    {\bfseries\fontsize{14pt}{17pt}\selectfont
+      \MakeUppercase{\FacultyAdvisor}
+      \par}
+
+    \vspace{0.8cm}
+
+    {\bfseries\fontsize{15pt}{18pt}\selectfont
+      \MakeUppercase{\StudentName} - \StudentID
+      \par}
+
+
+    % ------------------------------------------------------------
+    % ĐỊA ĐIỂM + THỜI GIAN
+    % ------------------------------------------------------------
+
+    \vfill
+
+    {\bfseries\fontsize{13pt}{16pt}\selectfont
+      Cần Thơ, tháng \ReportMonth\ năm \ReportYear
+      \par}
+
+  \end{center}
+
+\end{titlepage}
+
+
+% ============================================================
+% TRANG BÌA TRONG
+% ============================================================
+
+\begin{titlepage}
+  \thispagestyle{empty}
+
+  \begin{center}
+
+    {\bfseries\fontsize{16pt}{19pt}\selectfont
+      BỘ GIÁO DỤC VÀ ĐÀO TẠO
+      \par}
+
+    \vspace{0.15cm}
+
+    {\bfseries\fontsize{16pt}{19pt}\selectfont
+      \SchoolName
+      \par}
+
+    \vspace{0.15cm}
+
+    {\bfseries\fontsize{16pt}{19pt}\selectfont
+      \FacultyName
+      \par}
+
+
+    % ------------------------------------------------------------
+    % LOGO
+    % ------------------------------------------------------------
+
+    \vspace{0.65cm}
+
+    \IfFileExists{diagrams/tdu_logo.png}{
+      \includegraphics[width=4.6cm]{diagrams/tdu_logo.png}
+    }{
+      \vspace{3.2cm}
+    }
+
+    \vspace{0.35cm}
+
+    {\bfseries\fontsize{13pt}{16pt}\selectfont
+      Trí tuệ - Sáng tạo - Năng động - Đổi mới
+      \par}
+
+
+    % ------------------------------------------------------------
+    % KHÓA LUẬN + TÊN ĐỀ TÀI
+    % ------------------------------------------------------------
+
+    \vspace{1.4cm}
+
+    {\bfseries\fontsize{16pt}{19pt}\selectfont
+      KHÓA LUẬN TỐT NGHIỆP
+      \par}
+
+    \vspace{0.35cm}
+
+    {\bfseries\fontsize{18pt}{22pt}\selectfont
+      \ThesisTitle
+      \par}
+
+
+    % ------------------------------------------------------------
+    % CHUYÊN NGÀNH
+    % ------------------------------------------------------------
+
+    \vspace{1.4cm}
+
+    {\bfseries\fontsize{16pt}{19pt}\selectfont
+      CHUYÊN NGÀNH
+      \par}
+
+    \vspace{0.15cm}
+
+    {\bfseries\fontsize{16pt}{19pt}\selectfont
+      \MajorName
+      \par}
+
+
+    % ------------------------------------------------------------
+    % THÔNG TIN SINH VIÊN
+    % ------------------------------------------------------------
+
+    \vspace{1.4cm}
+
+    {\bfseries\fontsize{14pt}{17pt}\selectfont
+      SINH VIÊN THỰC HIỆN
+      \par}
+
+    \vspace{0.15cm}
+
+    {\bfseries\fontsize{14pt}{17pt}\selectfont
+      \MakeUppercase{\StudentName} - \StudentID
+      \par}
+
+
+    % ------------------------------------------------------------
+    % GIẢNG VIÊN HƯỚNG DẪN
+    % ------------------------------------------------------------
+
+    \vspace{0.9cm}
+
+    {\bfseries\fontsize{14pt}{17pt}\selectfont
+      GIẢNG VIÊN HƯỚNG DẪN
+      \par}
+
+    \vspace{0.15cm}
+
+    {\bfseries\fontsize{14pt}{17pt}\selectfont
+      \MakeUppercase{\FacultyAdvisor}
+      \par}
+
+
+    % ------------------------------------------------------------
+    % THỜI GIAN
+    % ------------------------------------------------------------
+
+    \vfill
+
+    {\bfseries\fontsize{13pt}{16pt}\selectfont
+      Cần Thơ, tháng \ReportMonth\ năm \ReportYear
+      \par}
+
+  \end{center}
+
+\end{titlepage}
+
+\restoregeometry
+
+% ============================================================
+% PHAN DAU KHOA LUAN
+% ============================================================
+\clearpage
+\pagenumbering{roman}
+\setcounter{page}{1}
+
+\chapter*{LỜI CẢM ƠN}
+\addcontentsline{toc}{chapter}{LỜI CẢM ƠN}
+\justifying
+Khóa luận được thực hiện trong quá trình học tập tại Trường Đại học Tây Đô, Khoa Kỹ thuật - Công nghệ và chuyên ngành Công nghệ thông tin. Tác giả trân trọng cảm ơn Ban Giám hiệu Nhà trường, quý Thầy, Cô của Khoa và Bộ môn Công nghệ thông tin đã cung cấp kiến thức, môi trường học tập và điều kiện cần thiết cho đề tài.
+
+Tác giả cảm ơn ThS. Nguyễn Chí Cường đã hướng dẫn và góp ý trong quá trình thực hiện khóa luận. Các buổi trao đổi giúp tác giả xác định phạm vi đề tài, cách kiểm tra trích dẫn và phương pháp đánh giá hệ thống bằng kết quả chạy thực tế. Tác giả cũng cảm ơn gia đình, bạn bè và những người đã hỗ trợ, động viên trong quá trình học tập và hoàn thiện đề tài.
+
+\begin{flushright}
+  \textbf{Sinh viên thực hiện}\\[1.7cm]
+  \textbf{\StudentName}
+\end{flushright}
+
+\clearpage
+\chapter*{LỜI CAM ĐOAN}
+\addcontentsline{toc}{chapter}{LỜI CAM ĐOAN}
+Tác giả cam đoan khóa luận này là kết quả nghiên cứu và thực hiện của chính tác giả, không sao chép dưới bất kỳ hình thức nào và không thuê hoặc nhờ người khác thực hiện thay.
+
+Các nội dung tham khảo từ công trình, tài liệu kỹ thuật và nguồn dữ liệu bên ngoài đều được ghi nhận trong phần Tài liệu tham khảo. Các số liệu thực nghiệm, chỉ số đánh giá và kết quả hệ thống chỉ được trình bày như kết quả đạt được khi có bằng chứng đo lường tương ứng. Những hạng mục chưa hoàn thành tại thời điểm viết được ghi rõ trạng thái, không được mô tả như kết quả đã xác nhận.
+
+\begin{flushright}
+  Cần Thơ, ngày \ldots\ldots, tháng \ldots\ldots, năm \ReportYear\\[0.4cm]
+  \textbf{Sinh viên thực hiện}\\
+  (Ký tên và ghi rõ họ và tên)\\[1.7cm]
+  \textbf{\StudentName}
+\end{flushright}
+\chapter*{TÓM TẮT}
+\addcontentsline{toc}{chapter}{TÓM TẮT}
+Khóa luận xây dựng hệ thống hỗ trợ tra cứu pháp luật giao thông Việt Nam bằng phương pháp RAG. Hệ thống nhận câu hỏi bằng tiếng Việt, tìm các đoạn văn bản pháp luật có liên quan, kiểm tra mức độ đầy đủ của căn cứ và chỉ tạo câu trả lời khi có đủ dữ liệu để đối chiếu. Mỗi câu trả lời kèm thông tin văn bản, Điều, Khoản, Điểm và đường dẫn mở nguồn để người dùng kiểm tra lại nội dung.
+
+Dữ liệu pháp luật được chuẩn hóa theo cấu trúc Điều, Khoản và Điểm trước khi lập chỉ mục. Hệ thống kết hợp tìm kiếm theo từ khóa với tìm kiếm ngữ nghĩa. Tìm kiếm từ khóa phù hợp với số hiệu văn bản và các cụm từ pháp lý cụ thể, trong khi tìm kiếm ngữ nghĩa hỗ trợ câu hỏi được diễn đạt bằng ngôn ngữ đời thường. Hai nhóm kết quả được gộp và kiểm tra căn cứ trước khi chuyển cho mô hình ngôn ngữ tạo phần diễn giải.
+
+Phần ứng dụng sử dụng FastAPI cho dịch vụ phía máy chủ, Qdrant cho chỉ mục tìm kiếm, Supabase cho xác thực người dùng và dữ liệu ứng dụng, Next.js cùng React và TypeScript cho giao diện Web. OpenRouter được dùng để kết nối mô hình ngôn ngữ. Hệ thống còn hỗ trợ lưu lịch sử hội thoại, phản hồi, đánh dấu câu trả lời và tra cứu lại văn bản nguồn.
+
+Bộ đánh giá của khóa luận gồm 40 trường hợp, chia đều cho tám nhóm câu hỏi. Chương trình tự động tính khả năng tìm đúng căn cứ, độ chính xác vị trí pháp lý, tính hợp lệ của trích dẫn, khả năng từ chối khi thiếu căn cứ và thời gian phản hồi. Phần chấm thủ công nội dung câu trả lời được thực hiện riêng bằng cách đối chiếu câu trả lời với căn cứ pháp luật. Kết quả đánh giá đã được tổng hợp từ lần chạy này.
+
+\clearpage
+\chapter*{ABSTRACT}
+\addcontentsline{toc}{chapter}{ABSTRACT}
+\begin{sloppypar}
+  This thesis develops a RAG-based system for Vietnamese traffic-law lookup. The system receives Vietnamese questions, retrieves relevant legal passages, checks whether the retrieved evidence is sufficient, and generates an answer only when the available evidence can support it. Each answer includes the legal document and the corresponding Article, Clause, and Point so that the user can inspect the source.
+
+  Legal documents are normalized according to their Article, Clause, and Point structure before indexing. Retrieval combines keyword-based search with semantic search. Keyword search is useful for document numbers and exact legal phrases, while semantic search helps with questions written in everyday language. The retrieved results are combined and checked before the language model is asked to produce an explanation.
+
+  The application uses FastAPI for backend services and Qdrant for search. Supabase handles authentication and application data. The Web interface is built with Next.js, React, and TypeScript. OpenRouter provides access to the language model. The system also supports chat history, feedback, bookmarks, and source-document lookup.
+  The evaluation set contains 40 cases divided evenly across eight question groups. The project includes automated evaluation for supporting-passage retrieval, legal-location accuracy, citation validity, refusal behavior when evidence is insufficient, and response time. Manual review of answer content is handled separately by comparing generated answers with the retrieved legal basis. The results reported in this thesis come from the completed evaluation run.
+\end{sloppypar}
+\clearpage
+\tableofcontents
+
+\clearpage
+\addcontentsline{toc}{chapter}{DANH MỤC BẢNG}
+\listoftables
+
+\clearpage
+\addcontentsline{toc}{chapter}{DANH MỤC HÌNH}
+\listoffigures
+
+\clearpage
+\chapter*{DANH MỤC TỪ VIẾT TẮT}
+\addcontentsline{toc}{chapter}{DANH MỤC TỪ VIẾT TẮT}
+{\fontsize{12pt}{12pt}\selectfont\setstretch{1.0}
+  \Needspace{10\baselineskip}
+  \begin{longtable}{@{}L{2.8cm}L{11.0cm}@{}}
+    \textbf{AI}   & Artificial Intelligence - Trí tuệ nhân tạo                                     \\
+    \textbf{API}  & Application Programming Interface - Giao diện để các phần mềm trao đổi dữ liệu \\
+    \textbf{BM25} & Phương pháp xếp hạng kết quả tìm kiếm theo mức độ trùng khớp từ khóa           \\
+    \textbf{CLI}  & Command-Line Interface - Giao diện dòng lệnh                                   \\
+    \textbf{LLM}  & Large Language Model - Mô hình ngôn ngữ lớn                                    \\
+    \textbf{NLP}  & Natural Language Processing - Xử lý ngôn ngữ tự nhiên                          \\
+    \textbf{OCR}  & Optical Character Recognition - Nhận dạng chữ từ hình ảnh hoặc PDF quét        \\
+    \textbf{PDF}  & Portable Document Format - Định dạng tài liệu PDF                              \\
+    \textbf{RAG}  & Retrieval-Augmented Generation - Kết hợp tìm kiếm tài liệu với tạo câu trả lời \\
+    \textbf{RRF}  & Reciprocal Rank Fusion - Phương pháp gộp thứ hạng từ nhiều danh sách kết quả   \\
+    \textbf{SQL}  & Structured Query Language - Ngôn ngữ truy vấn cơ sở dữ liệu                    \\
+    \textbf{UI}   & User Interface - Giao diện người dùng                                          \\
+  \end{longtable}}
+
+% Trang đánh giá theo đúng mẫu trong quy định của Khoa
+\clearpage
+\thispagestyle{plain}
+{\fontsize{11pt}{13pt}\selectfont
+  \setlength{\parindent}{0pt}
+  \setlength{\parskip}{0pt}
+  \setlength{\tabcolsep}{4pt}
+  \renewcommand{\arraystretch}{1.05}
+
+  \begin{center}
+    \textbf{ĐÁNH GIÁ KẾT QUẢ THỰC HIỆN}\\[-1pt]
+    \textbf{NIÊN LUẬN, TIỂU LUẬN, KHOÁ LUẬN}\\[-1pt]
+    (Học kỳ: III, Năm 2026)
+  \end{center}
+
+  \noindent\textbf{TÊN ĐỀ TÀI:} \ThesisTitle
+
+  \vspace{2pt}
+  \noindent\textbf{GIÁO VIÊN HƯỚNG DẪN:}
+  \begin{center}
+    \begin{tabular}{|c|p{7.0cm}|p{2.2cm}|}
+      \hline
+      STT & \centering HỌ VÀ TÊN & \centering\arraybackslash MSCB \\
+      \hline
+      1   & \FacultyAdvisor      &                                \\
+      \hline
+    \end{tabular}
+  \end{center}
+
+  \vspace{-2pt}
+  \noindent\textbf{SINH VIÊN THỰC HIỆN:}
+  \begin{center}
+    \begin{tabular}{|c|p{5.0cm}|p{2.2cm}|p{2.7cm}|p{1.3cm}|}
+      \hline
+      STT & \centering HỌ VÀ TÊN & \centering MSSV & \centering \shortstack{THƯỞNG   \\\textit{(Tối đa 1,0 điểm)}} & \centering\arraybackslash ĐIỂM \\
+      \hline
+      1   & \StudentName         & \StudentID      &                               & \\
+      \hline
+    \end{tabular}
+  \end{center}
+
+  \vspace{2pt}
+  \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X|p{1.15cm}@{}}
+    \hline
+    \textbf{I. HÌNH THỨC} \textit{(Tối đa 1,5 điểm)}                                                                                           & \\
+    \hline
+    \textbf{Bìa} \textit{(tối đa 0,5 điểm)}                                                                                                    & \\
+    \quad Đúng mẫu quy định                                                                                                                    & \\
+    \hline
+    \textbf{Bố cục} \textit{(tối đa 1,0 điểm)}                                                                                                 & \\
+    \quad Nhận xét của giảng viên hướng dẫn và giảng viên chấm, mục lục, cấu trúc chương, mục và tiểu mục, phụ lục nếu có, tài liệu tham khảo. & \\
+    \hline
+    \textbf{II. NỘI DUNG} \textit{(Tối đa 5,0 điểm)}                                                                                           & \\
+    \hline
+    \textbf{Giới thiệu} \textit{(tối đa 0,5 điểm)}                                                                                             & \\
+    \quad Mô tả bài toán, mục tiêu cần đạt và hướng giải quyết.                                                                                & \\
+    \hline
+    \textbf{Lý thuyết} \textit{(tối đa 1,0 điểm)}                                                                                              & \\
+    \quad Các khái niệm, phương pháp và kiến thức lý thuyết được vận dụng vào đề tài.                                                          & \\
+    \hline
+    \textbf{Ứng dụng} \textit{(tối đa 3,0 điểm)}                                                                                               & \\
+    \quad Đặc tả hệ thống (0,5 điểm).                                                                                                          & \\
+    \quad Các mô hình dữ liệu và các ràng buộc toàn vẹn (1,0 điểm).                                                                            & \\
+    \quad Sơ đồ chức năng, lưu đồ xử lý, diễn giải các màn hình và báo biểu nếu có (1,0 điểm).                                                 & \\
+    \quad Giới thiệu chương trình (0,5 điểm).                                                                                                  & \\
+    \hline
+    \textbf{Kết luận} \textit{(tối đa 0,5 điểm)}                                                                                               & \\
+    \quad Nhận xét kết quả đạt được, hạn chế và hướng phát triển.                                                                              & \\
+    \hline
+    \textbf{III. CHƯƠNG TRÌNH DEMO} \textit{(Tối đa 3,5 điểm)}                                                                                 & \\
+    \hline
+    \textbf{Giao diện thân thiện với người dùng} \textit{(0,5 điểm)}                                                                           & \\
+    \hline
+    \textbf{Hướng dẫn sử dụng} \textit{(0,5 điểm)}                                                                                             & \\
+    \hline
+    \textbf{Kết quả thực hiện đúng với kết quả của phần ứng dụng} \textit{(2,5 điểm)}                                                          & \\
+    \quad Giải thuật đúng, thực thi chính xác, cơ sở dữ liệu và các ràng buộc hợp lý, màn hình cập nhật đúng, báo biểu phù hợp.                & \\
+    \hline
+  \end{tabularx}
+
+  \vspace{4pt}
+  \noindent\textbf{Ghi chú:}
+  \begin{enumerate}[leftmargin=0.7cm,label=\arabic*.,itemsep=0pt,topsep=1pt]
+    \item Điểm trong khung ``sinh viên thực hiện'' là điểm kết quả cuối cùng của từng sinh viên trong quá trình thực hiện Niên luận/Tiểu luận/Khóa luận.
+    \item Nếu sinh viên demo chương trình và trả lời vấn đáp không đạt yêu cầu của giáo viên hướng dẫn thì sinh viên sẽ nhận điểm F cho học phần này.
+  \end{enumerate}
+
+  \vspace{4pt}
+  \begin{flushright}
+    Cần Thơ, ngày \makebox[1.3cm]{\dotfill} tháng \makebox[1.3cm]{\dotfill} năm \ReportYear\\[2pt]
+    \textbf{GIÁO VIÊN CHẤM}
+  \end{flushright}
+}
+\clearpage
+\chapter*{NHẬN XÉT CỦA GIÁO VIÊN HƯỚNG DẪN}
+\addcontentsline{toc}{chapter}{NHẬN XÉT CỦA GIÁO VIÊN HƯỚNG DẪN}
+\foreach \n in {1,...,15}{\commentline}
+\vfill
+\begin{flushright}
+  Cần Thơ, ngày \ldots\ldots, tháng \ldots\ldots, năm \ReportYear\\[0.4cm]
+  \textbf{Giáo viên hướng dẫn}\\[1.8cm]
+  \textbf{\FacultyAdvisor}
+\end{flushright}
+
+\clearpage
+\chapter*{NHẬN XÉT CỦA GIẢNG VIÊN CHẤM}
+\addcontentsline{toc}{chapter}{NHẬN XÉT CỦA GIẢNG VIÊN CHẤM}
+\foreach \n in {1,...,15}{\commentline}
+\vfill
+\begin{flushright}
+  Cần Thơ, ngày \ldots\ldots, tháng \ldots\ldots, năm \ReportYear\\[0.4cm]
+  \textbf{Giảng viên chấm}\\[1.8cm]
+  \makebox[6cm]{\dotfill}
+\end{flushright}
+
+% ============================================================
+% CHUONG I
+% ============================================================
+\clearpage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+\setcounter{chapter}{1}
+\setcounter{section}{0}
+\setcounter{subsection}{0}
+\setcounter{figure}{0}
+\setcounter{table}{0}
+\chapter*{CHƯƠNG I. MỞ ĐẦU}
+\addcontentsline{toc}{chapter}{CHƯƠNG I. MỞ ĐẦU}
+
+\section{Đặt vấn đề}
+Mô hình ngôn ngữ tạo câu trả lời từ câu hỏi viết bằng ngôn ngữ tự nhiên. Khi dữ liệu cung cấp không đủ, mô hình vẫn có thể sinh nội dung nghe hợp lý nhưng không có căn cứ để kiểm tra. Trong khóa luận, trường hợp này được gọi là \textit{câu trả lời không được dữ liệu nguồn hỗ trợ}. Căn cứ pháp luật dùng cho câu trả lời phải đến từ các đoạn đã được hệ thống truy xuất.
+
+Trong pháp luật giao thông, cùng một câu hỏi về mức phạt có thể cho kết quả khác nhau theo loại phương tiện và quy định áp dụng. Ví dụ, câu hỏi ``vượt đèn đỏ bị phạt bao nhiêu'' cần xác định đúng văn bản, Điều, Khoản, Điểm và các biện pháp đi kèm. Một con số đứng riêng không cho người dùng biết căn cứ nào đã được dùng. Hệ thống vì thế trả kèm thông tin nguồn để người dùng mở lại văn bản gốc.
+
+Retrieval-Augmented Generation (RAG) trong phạm vi khóa luận là cách kết hợp tìm kiếm tài liệu với sinh câu trả lời. Câu hỏi được phân tích trước, hệ thống tìm các đoạn pháp luật phù hợp, kiểm tra căn cứ rồi gọi mô hình ngôn ngữ để diễn giải. Trích dẫn được tạo từ thông tin mô tả của dữ liệu nguồn, không do mô hình sinh ra.
+
+Văn bản pháp luật Việt Nam được tổ chức theo Điều, Khoản và Điểm. Số hiệu như ``168/2024/NĐ-CP'' cũng cần được giữ nguyên khi tra cứu. Hệ thống kết hợp tìm kiếm vector, BM25 và thông tin mô tả pháp lý để đối chiếu số hiệu văn bản cùng vị trí Điều, Khoản và Điểm.
+
+\AssetFigure[0.88\textwidth]{ch1_problem_context.png}{7.0cm}{Bối cảnh của bài toán hỏi đáp pháp luật giao thông có kiểm chứng}{}
+
+\section{Lý do chọn đề tài}
+Người dùng thường biết hành vi cần hỏi nhưng không biết chính xác văn bản chứa quy định đó. Kết quả tìm kiếm trên Web có thể lẫn bài giải thích, bản sao và nguồn chính thức. Hệ thống trong đề tài chỉ trả lời dựa trên tập văn bản pháp luật đã chuẩn bị và luôn cho phép người dùng mở lại căn cứ được sử dụng.
+
+Câu hỏi pháp luật cũng có nhiều dạng. Một câu có thể nêu thẳng ``Điều 7 Nghị định 168/2024/NĐ-CP'', chỉ mô tả hành vi, hoặc hỏi cùng lúc mức phạt và số điểm bị trừ. Tìm kiếm theo ngữ nghĩa hỗ trợ các cách diễn đạt gần nghĩa. BM25 phù hợp với truy vấn chứa từ khóa, số hiệu hoặc ký hiệu xuất hiện trực tiếp trong văn bản. Qdrant cho phép kết hợp hai kiểu tìm kiếm này \cite{qdrant_hybrid_docs}.
+
+Khóa luận yêu cầu câu trả lời phải đi kèm thông tin đủ để kiểm tra lại. Trích dẫn nguồn lưu tên văn bản, Điều, Khoản, Điểm và thông tin trang hoặc tệp nguồn khi có. Những trường này cũng được dùng trong bộ đánh giá để so sánh kết quả trả về với vị trí pháp lý mong đợi.
+
+\section{Mục tiêu nghiên cứu}
+\subsection{Mục tiêu tổng quát}
+Xây dựng một hệ thống RAG hỗ trợ tra cứu pháp luật giao thông Việt Nam, cho phép người dùng đặt câu hỏi bằng tiếng Việt, nhận câu trả lời dựa trên dữ liệu pháp luật cục bộ và xem được trích dẫn có thể kiểm tra lại.
+
+\subsection{Mục tiêu cụ thể}
+\begin{enumerate}
+  \item Xây dựng quy trình đọc danh mục nguồn và tài liệu Markdown, nhận diện Điều, Khoản, Điểm rồi chia văn bản thành các đoạn dữ liệu có thông tin vị trí pháp lý rõ ràng.
+  \item Tạo chỉ mục Qdrant kết hợp vector biểu diễn ngữ nghĩa và BM25 theo từ khóa để phục vụ tìm kiếm theo ý nghĩa và từ khóa.
+  \item Nhận diện tham chiếu pháp lý xuất hiện trực tiếp trong câu hỏi, ví dụ số hiệu văn bản, Điều, Khoản và Điểm.
+  \item Phân tích một số dạng câu hỏi nhiều ý thành các yêu cầu nhỏ, thực hiện tìm kiếm riêng và gộp kết quả bằng RRF.
+  \item Chỉ cho phép sinh câu trả lời khi bước kiểm tra căn cứ đạt yêu cầu, khi thiếu căn cứ phải trả về trạng thái từ chối trả lời.
+  \item Tạo trích dẫn từ thông tin mô tả, hỗ trợ mở nguồn Markdown hoặc PDF tương ứng.
+  \item Xây dựng giao diện Web gồm hỏi đáp, nguồn pháp luật, lịch sử hội thoại, phản hồi và đánh dấu câu trả lời.
+  \item Xây dựng cơ sở dữ liệu ứng dụng trên Supabase cho hồ sơ, phiên hội thoại, tin nhắn, phản hồi và nội dung đã lưu, kết hợp chính sách RLS để giới hạn dữ liệu theo người dùng.
+  \item Chuẩn bị bộ đánh giá 40 trường hợp với các chỉ số về khả năng tìm đúng căn cứ, độ chính xác vị trí pháp lý, trích dẫn nguồn, quyết định từ chối trả lời và thời gian phản hồi.
+\end{enumerate}
+
+\section{Phạm vi đề tài}
+Tập dữ liệu hiện tại gồm 17 văn bản được khai báo trong danh mục nguồn của hệ thống. Mỗi văn bản có mã định danh, số hiệu, tên văn bản, tệp nội dung và thông tin hiệu lực. Tập dữ liệu này phục vụ phạm vi thử nghiệm của đề tài và không đại diện cho toàn bộ pháp luật giao thông Việt Nam. Khi câu hỏi nằm ngoài phần dữ liệu đã chuẩn bị, hệ thống phải thông báo không đủ căn cứ thay vì suy đoán câu trả lời.
+
+\section{Câu hỏi nghiên cứu}
+Khóa luận tập trung vào các câu hỏi sau:
+\begin{enumerate}
+  \item Làm thế nào để kết hợp tìm kiếm theo từ khóa, theo ý nghĩa và theo định danh pháp lý trong cùng một hệ thống RAG?
+  \item Việc tách câu hỏi nhiều ý và gộp các danh sách kết quả ảnh hưởng như thế nào đến khả năng thu thập đủ căn cứ?
+  \item Có thể giảm nguy cơ tạo câu trả lời không có nguồn bằng cách đặt bước kiểm tra căn cứ trước mô hình ngôn ngữ như thế nào?
+  \item Cách tổ chức thông tin mô tả nào giúp trích dẫn có thể mở lại đúng văn bản, Điều, Khoản hoặc Điểm?
+  \item Các chỉ số nào phù hợp để đánh giá một hệ thống tra cứu pháp luật ngoài việc đánh giá văn phong của câu trả lời?
+\end{enumerate}
+Bộ đánh giá gồm 40 trường hợp thuộc tám nhóm câu hỏi. Mỗi nhóm có năm trường hợp để kiểm tra các tình huống như tham chiếu pháp lý rõ ràng, câu hỏi diễn đạt tự nhiên, câu hỏi về xử phạt, câu hỏi nhiều ý, trường hợp cần mở rộng tham chiếu và trường hợp không đủ căn cứ. Kết quả đo lường được trình bày ở Chương IV.
+
+\subsection{Phạm vi chức năng}
+Hệ thống có các chức năng đăng ký, đăng nhập, hỏi đáp pháp luật, xem nguồn và điều khoản, quản lý lịch sử hội thoại, gửi phản hồi và đánh dấu câu trả lời. Hệ thống còn có các chức năng hỗ trợ chuẩn bị dữ liệu, xây lại chỉ mục tìm kiếm và chạy bộ đánh giá.
+
+Bộ đánh giá 40 trường hợp được chia thành tám nhóm để kiểm tra riêng các dạng câu hỏi có căn cứ và không được dữ liệu hỗ trợ. Các chỉ số được tính từ kết quả tìm kiếm và phản hồi của hệ thống; nội dung câu trả lời được đối chiếu thủ công với căn cứ pháp luật.
+
+Bộ dữ liệu đánh giá gồm 40 trường hợp thuộc tám nhóm. Các chỉ số đã được tính cho khả năng tìm đúng căn cứ, xác định đúng văn bản và vị trí Điều, Khoản, Điểm, tính hợp lệ của trích dẫn, quyết định từ chối trả lời và thời gian xử lý. Nội dung câu trả lời được chấm thủ công bằng cách đối chiếu trực tiếp với căn cứ pháp luật.
+
+\AssetFigure[0.88\textwidth]{ch1_research_scope.png}{7.2cm}{Phạm vi dữ liệu, chức năng và đánh giá của khóa luận}{}
+
+\section{Phương pháp nghiên cứu}
+\subsection{Khảo sát tài liệu kỹ thuật}
+Cơ sở kỹ thuật của đề tài được xây dựng từ các khái niệm về lập trình, phân tích hệ thống, công nghệ phần mềm và phát triển Web đã học trong chương trình Công nghệ thông tin của Trường Đại học Tây Đô \cite{tdu_laptrinhcanban,tdu_pttkhttt,tdu_nmcpm,tdu_web,tdu_cdnnlt}. Các đặc điểm của FastAPI, Qdrant, Supabase, Next.js, React, TypeScript, PDF.js, Docker và OpenRouter được mô tả theo tài liệu chính thức của từng nền tảng.
+
+Hệ thống sử dụng FastAPI cho dịch vụ phía máy chủ, Supabase cho xác thực và lưu dữ liệu ứng dụng, Markdown và JSONL cho dữ liệu pháp luật đã chuẩn hóa, Qdrant cho tìm kiếm kết hợp và OpenRouter để kết nối mô hình ngôn ngữ. Các công nghệ được mô tả theo chức năng thực tế sử dụng trong đề tài.
+Yêu cầu hệ thống được phân tích theo tác nhân, dữ liệu đầu vào, dữ liệu đầu ra, quy tắc xử lý và ràng buộc của từng chức năng. Các yêu cầu chức năng và phi chức năng được dùng làm cơ sở cho use case, luồng dữ liệu, thiết kế API, mô hình dữ liệu và kiểm thử.
+
+\subsection{Thiết kế hệ thống}
+Từ yêu cầu chức năng, đề tài xây dựng sơ đồ chức năng, sơ đồ luồng dữ liệu, Use Case tổng quát và các mô hình dữ liệu MCD, LDM, PDM. Các sơ đồ này được dùng để mô tả chức năng, luồng dữ liệu và cấu trúc cơ sở dữ liệu trước khi trình bày kết quả cài đặt.
+
+Dịch vụ phía máy chủ sử dụng pytest cho kiểm thử đơn vị và kiểm thử tích hợp. Phần giao diện được kiểm tra theo các luồng thao tác chính của người dùng. Kết quả đánh giá được trình bày theo từng chỉ số và nêu rõ phạm vi dữ liệu dùng để tính toán.
+
+\AssetFigure[0.86\textwidth]{ch1_methodology.png}{7.2cm}{Quy trình nghiên cứu và phát triển hệ thống}{}
+
+\section{Hướng giải quyết}
+Giải pháp sử dụng hai nhóm dữ liệu. Dữ liệu pháp luật được chuẩn hóa từ văn bản nguồn thành các đoạn JSONL có thông tin về Điều, Khoản và Điểm, sau đó được lập chỉ mục trong Qdrant. Dữ liệu ứng dụng gồm người dùng, phiên hội thoại, tin nhắn, phản hồi và nội dung đã đánh dấu được lưu trong Supabase. Hai nhóm dữ liệu được tách riêng để tránh trộn dữ liệu người dùng với dữ liệu phục vụ tìm kiếm pháp luật.
+
+Khi người dùng gửi câu hỏi, hệ thống xác định các ý pháp lý cần tìm rồi thực hiện tìm kiếm kết hợp. Nếu câu hỏi nêu rõ số văn bản, Điều, Khoản hoặc Điểm, bộ phận tìm kiếm dùng các thông tin này để lọc kết quả. RRF gộp thứ hạng từ các phương pháp tìm kiếm. Sau đó hệ thống kiểm tra căn cứ. Chỉ khi căn cứ đạt yêu cầu, mô hình ngôn ngữ mới được gọi để diễn giải. Sau khi có câu trả lời, hệ thống tiếp tục kiểm tra trích dẫn và mối liên hệ giữa phần nội dung được sử dụng với các đoạn đã truy xuất. Trích dẫn nguồn được tạo từ thông tin đã lưu cùng đoạn văn bản pháp luật.
+
+\section{Kế hoạch thực hiện}
+\begin{table}[H]
+  \caption{Kế hoạch thực hiện đề tài}
+  \label{tab:plan}
+  \centering
+  \begin{tabularx}{\textwidth}{|L{2.0cm}|Y|Y|}
+    \hline
+    \textbf{Giai đoạn} & \textbf{Nội dung}                                                     & \textbf{Đầu ra}                     \\
+    \hline
+    1                  & Khảo sát tài liệu, xác định câu hỏi nghiên cứu và phạm vi             & Đề cương, danh sách nguồn tham khảo \\
+    \hline
+    2                  & Chuẩn bị tập văn bản pháp luật và quy tắc tách Điều/Khoản/Điểm        & Dữ liệu JSONL có thông tin mô tả    \\
+    \hline
+    3                  & Xây dựng tìm kiếm kết hợp trong Qdrant và đối chiếu vị trí pháp lý    & Chỉ mục và bộ phận tìm kiếm         \\
+    \hline
+    4                  & Xây dựng phân tích câu hỏi, gộp thứ hạng RRF và kiểm tra căn cứ       & Luồng xử lý hỏi đáp                 \\
+    \hline
+    5                  & Tích hợp OpenRouter và tạo trích dẫn nguồn                            & API hỏi đáp có căn cứ               \\
+    \hline
+    6                  & Xây dựng xác thực người dùng, lịch sử hội thoại, phản hồi và đánh dấu & Dữ liệu ứng dụng và API             \\
+    \hline
+    7                  & Xây dựng giao diện Web, trang nguồn pháp luật và trình xem PDF        & Giao diện người dùng                \\
+    \hline
+    8                  & Kiểm thử, chạy bộ 40 trường hợp và hoàn thiện demo                    & Kết quả đánh giá và bản demo        \\
+    \hline
+  \end{tabularx}
+\end{table}
+\AssetFigure[0.90\textwidth]{ch1_schedule.png}{6.5cm}{Kế hoạch thực hiện theo các giai đoạn}{}
+
+\section{Cấu trúc khóa luận}
+Khóa luận gồm bốn chương. Chương 1 trình bày tổng quan đề tài. Chương 2 trình bày cơ sở lý thuyết và các công nghệ sử dụng. Chương 3 phân tích và thiết kế hệ thống. Chương 4 trình bày kết quả thực hiện, giao diện và đánh giá. Sau bốn chương là phần Kết luận và hướng phát triển, Tài liệu tham khảo và Phụ lục nếu có.
+
+% ============================================================
+% CHUONG II
+% ============================================================
+\clearpage
+\setcounter{chapter}{2}
+\setcounter{section}{0}
+\setcounter{subsection}{0}
+\setcounter{figure}{0}
+\setcounter{table}{0}
+\chapter*{CHƯƠNG II. CƠ SỞ LÝ THUYẾT VÀ CÔNG NGHỆ}
+\addcontentsline{toc}{chapter}{CHƯƠNG II. CƠ SỞ LÝ THUYẾT VÀ CÔNG NGHỆ}
+
+\section{Tổng quan về Retrieval-Augmented Generation}
+Retrieval-Augmented Generation (RAG) trong đề tài gồm hai bước chính. Hệ thống tìm các đoạn dữ liệu liên quan rồi gửi câu hỏi cùng các đoạn đó cho mô hình ngôn ngữ. Dữ liệu pháp luật nằm ngoài mô hình nên có thể mở lại và kiểm tra. Phần cài đặt đi từ dữ liệu nguồn, tạo chunk và lập chỉ mục Qdrant đến truy xuất, kiểm tra căn cứ và sinh câu trả lời.
+
+Cách tổ chức này cho phép cập nhật tập văn bản và xây lại chỉ mục mà không cần huấn luyện lại mô hình ngôn ngữ. Mỗi câu trả lời có thể gắn với đoạn nguồn đã tìm được. Chất lượng câu trả lời phụ thuộc vào chất lượng tìm kiếm và phần diễn giải của mô hình. Đề tài kiểm tra căn cứ trước khi tạo câu trả lời và trả trạng thái từ chối khi dữ liệu chưa đủ.
+
+\AssetFigure[0.90\textwidth]{ch2_rag_overview.png}{7.0cm}{Mô hình RAG tổng quát: câu hỏi, truy xuất, căn cứ và sinh câu trả lời}{}
+
+\section{Cấu trúc văn bản pháp luật và cách chia dữ liệu}
+\subsection{Điều, Khoản và Điểm}
+Trong dữ liệu giao thông, số hiệu văn bản cùng vị trí Điều, Khoản và Điểm tạo thành thông tin định danh thường xuất hiện trong câu hỏi tra cứu. Mỗi chunk vì thế lưu thông tin mô tả vị trí cùng với nội dung văn bản.
+
+Bộ đọc Markdown dùng biểu thức chính quy để nhận diện các mẫu ``Điều n'', ``n.'' hoặc ``n)'' cho Khoản và ``a)'', ``b)'', ``đ)'' cho Điểm. Khi gặp một đơn vị mới, buffer hiện tại được ghi thành một LangChain Document. Cách xử lý có tính xác định, cùng một đầu vào và cùng bộ quy tắc sẽ cho cùng cách chia.
+
+\AssetFigure[0.82\textwidth]{ch2_legal_hierarchy.png}{7.0cm}{Cấu trúc đơn vị pháp lý dùng trong dữ liệu của đề tài}{}
+
+\subsection{Thông tin mô tả của một đoạn pháp luật}
+Mỗi chunk ngoài \path{page_content} còn có thông tin mô tả. Nhóm định danh gồm \path{document_id}, \path{document_name}, \path{document_number} và \path{chunk_id}. Nhóm vị trí pháp lý gồm \path{article}, \path{clause} và \path{point}. Nhóm nguồn gồm \path{source_file}, \path{source_url}, \path{source_kind} và \path{content_sha256}. Thông tin mô tả giúp hệ thống lọc theo Điều/Khoản/Điểm, dựng trích dẫn và mở đúng nguồn.
+
+\AssetFigure[0.88\textwidth]{ch2_chunk_structure.png}{6.8cm}{Cấu trúc một chunk pháp luật và thông tin mô tả đi kèm}{}
+
+\section{Manifest, Markdown và JSONL}
+Danh mục nguồn là một tệp JSON liệt kê các văn bản mà hệ thống sử dụng. Mỗi phần tử có \texttt{document\_id}, số hiệu, tên văn bản và tên tệp Markdown. Tập Markdown là nguồn cục bộ dùng để tạo các đoạn dữ liệu. Sau khi xử lý, mỗi đoạn được ghi thành một dòng JSON độc lập trong \texttt{chunks.jsonl}. Cách lưu theo từng dòng giúp chương trình đọc tuần tự và không cần nạp toàn bộ tệp vào bộ nhớ.
+
+Mã SHA-256 được tính từ nội dung nguồn và gắn vào thông tin mô tả. Hàm băm không thay thế chữ ký số, nhưng hữu ích để phát hiện dữ liệu có thay đổi giữa các lần xử lý.
+\AssetFigure[0.96\textwidth]{ch2_ingestion_pipeline.png}{7.4cm}{Luồng tạo dữ liệu: manifest và Markdown đến chunks JSONL}{}
+
+\section{Tra cứu định danh pháp lý chính xác}
+Một câu hỏi có thể chứa tham chiếu rõ ràng như ``Khoản 2 Điều 7 Nghị định 168/2024/NĐ-CP''. Trong trường hợp này, tìm kiếm theo ngữ nghĩa có thể trả về đoạn gần nghĩa nhưng sai vị trí. Vì vậy hệ thống nhận diện số văn bản, Điều, Khoản và Điểm từ câu hỏi bằng biểu thức chính quy. Các giá trị tìm được được dùng để lọc hoặc kiểm tra kết quả trong Qdrant.
+
+Nếu tìm kiếm chính không trả đủ kết quả cho một tham chiếu rõ ràng, hệ thống tiếp tục tra cứu theo các trường thông tin pháp lý đã lưu trong Qdrant. Cách xử lý này ưu tiên đúng vị trí pháp lý khi người dùng đã cung cấp Điều, Khoản, Điểm hoặc số hiệu văn bản.
+
+\AssetFigure[0.88\textwidth]{ch2_exact_lookup.png}{6.8cm}{Tra cứu chính xác theo số hiệu văn bản, Điều, Khoản và Điểm}{}
+
+\section{Tìm kiếm từ khóa bằng BM25}
+BM25 là phương pháp xếp hạng văn bản dựa trên mức độ xuất hiện của từ trong tài liệu, độ hiếm của từ trong toàn bộ tập dữ liệu và độ dài của tài liệu. Tài liệu chính thức của Qdrant mô tả BM25 là một cơ chế xếp hạng dùng vector từ khóa, trong đó trọng số từ khóa chịu ảnh hưởng của tần suất từ và IDF \cite{qdrant_bm25_docs}. Một dạng công thức thường dùng có thể trình bày như sau:
+\begin{equation}
+  \operatorname{BM25}(q,d)=\sum_{t\in q}\operatorname{IDF}(t)\cdot
+  \frac{f(t,d)(k_1+1)}{f(t,d)+k_1\left(1-b+b\frac{|d|}{\mathrm{avgdl}}\right)}.
+\end{equation}
+Trong đó $f(t,d)$ là số lần từ $t$ xuất hiện trong tài liệu $d$, $|d|$ là độ dài tài liệu và $\mathrm{avgdl}$ là độ dài trung bình. $k_1$ và $b$ là tham số điều chỉnh.
+
+BM25 hữu ích trong đề tài vì các chuỗi như số Nghị định, số Điều, tên hành vi và cụm từ xử phạt cần được khớp chính xác. Qdrant hỗ trợ vector từ khóa và dự án sử dụng \texttt{FastEmbedSparse("Qdrant/bm25")} để tạo biểu diễn từ khóa. Kết quả này được dùng cùng tìm kiếm vector và bộ lọc thông tin pháp lý.
+\AssetFigure[0.86\textwidth]{ch2_sparse_bm25.png}{6.5cm}{Minh họa cách BM25 ưu tiên từ khóa đặc trưng}{}
+
+\section{Tìm kiếm ngữ nghĩa bằng vector biểu diễn ngữ nghĩa}
+Dense vector biểu diễn ngữ nghĩa biểu diễn một đoạn văn bản bằng vector số có số chiều cố định. Hệ thống so sánh các vector để tìm những đoạn có biểu diễn gần câu hỏi, kể cả khi từ ngữ không trùng hoàn toàn. Qdrant lưu vector ngữ nghĩa cùng vector từ khóa trong một point \cite{qdrant_vectors_docs}. Dense search được dùng cho các câu hỏi diễn đạt khác từ ngữ so với văn bản gốc.
+
+Trong dự án, vector biểu diễn ngữ nghĩa được gọi qua endpoint tương thích OpenAI của OpenRouter và cấu hình 768 chiều. Qdrant lưu vector ngữ nghĩa trong trường vector dành cho tìm kiếm theo ý nghĩa. Tìm kiếm ngữ nghĩa bổ sung cho BM25 trong các trường hợp người dùng diễn đạt khác với văn bản gốc, ví dụ dùng từ đời thường thay cho cụm từ pháp lý.
+
+Độ tương đồng thường được tính từ khoảng cách vector. Với cosine similarity, hai vector $x$ và $y$ có thể so sánh bằng:
+\begin{equation}
+  \cos(x,y)=\frac{x\cdot y}{\|x\|\|y\|}.
+\end{equation}
+Giá trị càng cao thường thể hiện hướng vector càng gần nhau.
+
+\AssetFigure[0.86\textwidth]{ch2_dense_embedding.png}{6.5cm}{Minh họa tìm kiếm ngữ nghĩa bằng vector biểu diễn ngữ nghĩa}{}
+
+\section{Tìm kiếm kết hợp trong Qdrant}
+Qdrant cho phép lưu nhiều dạng vector trong cùng một point và hỗ trợ kết hợp ngữ nghĩa với từ khóa. Tài liệu Qdrant mô tả tìm kiếm kết hợp như cách phối hợp tìm kiếm theo ngữ nghĩa với tìm kiếm theo từ khóa, nhờ đó hệ thống có thể xử lý cả câu hỏi diễn đạt theo ý nghĩa và truy vấn chứa từ khóa/định danh chính xác \cite{qdrant_hybrid_docs}.
+
+Qdrant lưu đồng thời biểu diễn ngữ nghĩa và biểu diễn theo từ khóa của từng đoạn pháp luật. Khi tập văn bản thay đổi, chỉ mục được xây dựng lại từ dữ liệu JSONL đã chuẩn hóa. Văn bản nguồn vẫn được lưu riêng để người dùng có thể mở và kiểm tra lại.
+
+\AssetFigure[0.92\textwidth]{ch2_hybrid_retrieval.png}{7.2cm}{Tìm kiếm kết hợp ngữ nghĩa và từ khóa trong Qdrant}{}
+
+\section{Phân tích câu hỏi bằng quy tắc xác định trước}
+Mô-đun phân tích câu hỏi có nhiệm vụ xác định các ý pháp lý cần tìm. Hệ thống dùng biểu thức chính quy để phát hiện loại phương tiện, các từ khóa như phạt tiền, trừ điểm, tước quyền sử dụng và một số hành vi phổ biến. Câu hỏi có thể được tách thành tối đa bốn intent để giới hạn số lượng truy vấn phát sinh.
+
+Ví dụ, câu hỏi ``xe máy vượt đèn đỏ bị phạt bao nhiêu và trừ mấy điểm'' được tách thành yêu cầu về mức phạt và yêu cầu về trừ điểm. Khi câu hỏi xử phạt không nêu loại phương tiện, hệ thống tạo thêm truy vấn cho một số nhóm phương tiện đã được định nghĩa trước. Cách tách và mở rộng truy vấn được xác định bằng quy tắc.
+
+\AssetFigure[0.90\textwidth]{ch2_question_analysis.png}{7.0cm}{Phân tích câu hỏi và tách các yêu cầu pháp lý nhỏ}{}
+
+\section{Reciprocal Rank Fusion}
+Khi một câu hỏi được tách thành nhiều truy vấn, mỗi truy vấn trả về một danh sách chunk đã xếp hạng. Reciprocal Rank Fusion (RRF) là cách gộp nhiều danh sách dựa trên thứ hạng của từng kết quả. Qdrant cũng hỗ trợ RRF trong hybrid query và mô tả cơ chế này là cộng điểm theo vị trí của một kết quả trong các danh sách khác nhau \cite{qdrant_hybrid_docs}. Công thức tổng quát:
+\begin{equation}
+  \operatorname{RRF}(d)=\sum_{r\in R}\frac{1}{k+\operatorname{rank}_r(d)}.
+\end{equation}
+Trong hệ thống, mẫu số được tính theo dạng $60+r$, với $r$ là vị trí của kết quả trong từng danh sách. Một đoạn xuất hiện ở vị trí cao trong nhiều danh sách sẽ nhận điểm gộp lớn hơn. Sau khi gộp, hệ thống giới hạn số đoạn thuộc cùng một văn bản, Điều và Khoản để tránh một vị trí pháp lý chiếm quá nhiều phần căn cứ.
+
+\AssetFigure[0.84\textwidth]{ch2_rrf.png}{6.6cm}{Minh họa gộp nhiều danh sách kết quả bằng RRF}{}
+
+\section{Bổ sung đoạn cùng Điều và tham chiếu liên quan}
+Một đoạn nêu hành vi vi phạm có thể không chứa phần trừ điểm hoặc biện pháp bổ sung. Vì vậy, bộ phận tìm kiếm có cơ chế tìm thêm một số đoạn cùng Điều chứa các từ khóa xử phạt như ``phạt tiền'', ``trừ điểm'', ``tước quyền'', ``tịch thu'' hoặc ``tạm giữ''. Số lượng được giới hạn để tránh mở rộng vô hạn.
+
+Ngoài việc bổ sung các đoạn cùng nhóm quy định, hệ thống còn tìm thêm một số đoạn được văn bản tham chiếu. Cách xử lý này giúp phần căn cứ chứa đủ thông tin cho câu hỏi nhiều ý mà không phải đưa toàn bộ văn bản vào mô hình ngôn ngữ.
+
+\AssetFigure[0.90\textwidth]{ch2_cross_reference.png}{6.8cm}{Bổ sung căn cứ cùng Điều và tham chiếu liên quan}{}
+
+\section{Kiểm tra căn cứ và cơ chế từ chối trả lời}
+Trước khi tạo câu trả lời, hàm \texttt{assess\_evidence} kiểm tra các căn cứ bắt buộc mà câu hỏi yêu cầu. Nếu không tìm được đủ căn cứ, hệ thống trả thông báo ``Chưa đủ căn cứ...'' và không gọi mô hình ngôn ngữ. Đây là cơ chế từ chối trả lời khi dữ liệu chưa đủ để kết luận.
+
+Khi dữ liệu không đủ, trả về trạng thái từ chối an toàn hơn việc suy đoán một mức phạt hoặc căn cứ pháp lý. Bước kiểm tra căn cứ chỉ kiểm tra các điều kiện được lập trình sẵn nên không bảo đảm mọi câu trả lời sau đó đều đúng. Vai trò của nó là chặn các trường hợp thiếu tài liệu hoặc thiếu tham chiếu trước khi gọi model.
+
+\AssetFigure[0.86\textwidth]{ch2_evidence_gate.png}{6.8cm}{Bước kiểm tra căn cứ trước khi sinh câu trả lời}{}
+
+\section{Sinh câu trả lời có căn cứ qua OpenRouter}
+Mô-đun tạo câu trả lời dựng prompt từ thông điệp hệ thống, câu hỏi và các nhóm nguồn pháp luật. Prompt yêu cầu trả lời bằng tiếng Việt, không tự tạo số Điều, mức tiền, điểm hoặc nguồn. Mô hình được gọi qua \texttt{ChatOpenRouter}. Tên mô hình nằm trong cấu hình và có thể thay đổi mà không làm thay đổi luồng xử lý chính.
+
+OpenRouter cung cấp hai API được dùng trong hệ thống. API embeddings biến văn bản thành vector, còn API chat nhận danh sách message và trả nội dung sinh. Dịch vụ phía máy chủ đọc khóa truy cập từ biến môi trường và không gửi khóa này xuống giao diện Web. Tài liệu OpenRouter mô tả endpoint embeddings và endpoint chat/completions \cite{openrouter_embeddings_docs,openrouter_chat_docs}.
+
+Mô hình ngôn ngữ chỉ được gọi sau bước tìm kiếm và kiểm tra căn cứ. Mô hình nhận câu hỏi cùng các đoạn pháp luật đã chọn. Nếu dịch vụ mô hình không phản hồi hoặc kết quả trả về không hợp lệ, hệ thống trả thông báo lỗi. Khi phần diễn giải có dấu hiệu trộn ngôn ngữ, hệ thống yêu cầu tạo lại câu trả lời bằng tiếng Việt và giữ nguyên thông tin từ nguồn đã cung cấp.
+
+Bộ truy xuất tìm dữ liệu, bước kiểm tra căn cứ kiểm tra điều kiện, còn mô hình diễn đạt câu trả lời. Vì mỗi phần có đầu vào và đầu ra riêng, các phần này có thể được kiểm thử độc lập.
+
+\AssetFigure[0.90\textwidth]{ch2_generation.png}{6.8cm}{Luồng sinh câu trả lời từ các căn cứ đã truy xuất}{}
+
+\section{Kiểm tra kết quả sau khi tạo câu trả lời}
+Sau khi mô hình ngôn ngữ tạo nội dung, hệ thống thực hiện thêm một bước kiểm tra bằng các quy tắc xác định. Bước này không đánh giá văn phong của câu trả lời mà kiểm tra mối liên hệ giữa câu trả lời, căn cứ đã tìm được và danh sách trích dẫn.
+
+Mỗi trích dẫn phải có mã đoạn nguồn, mã văn bản và phần nội dung trích dẫn. Mã đoạn phải thuộc tập dữ liệu đã được tìm thấy cho chính câu hỏi đó, phần trích dẫn phải tồn tại trong đoạn nguồn và văn bản phải phù hợp với ngày hiệu lực nếu người dùng có chỉ định thời điểm. Khi câu hỏi nêu rõ Điều, Khoản, Điểm hoặc số hiệu văn bản, ít nhất một căn cứ phải khớp với tham chiếu này. Các nội dung được đánh dấu là căn cứ cho câu trả lời cũng phải liên kết tới những trích dẫn đã được tạo.
+
+Nếu một trong các điều kiện trên không đạt, hệ thống không trả bản nháp vừa sinh như một câu trả lời đã kiểm chứng. Thay vào đó, hệ thống chuyển sang trạng thái không đủ căn cứ. Cách kiểm tra này bổ sung cho bước kiểm tra trước khi sinh câu trả lời và giúp hạn chế trường hợp trích dẫn không thuộc dữ liệu đã truy xuất.
+
+\AssetFigure[0.88\textwidth]{ch2_verification.png}{6.8cm}{Kiểm tra mối liên hệ giữa câu trả lời, căn cứ và trích dẫn}{}
+
+\section{Trích dẫn được tạo từ thông tin mô tả}
+Dịch vụ phía máy chủ tạo trích dẫn trực tiếp từ thông tin mô tả của từng đoạn pháp luật. Một trích dẫn gồm tên hoặc số hiệu văn bản, Điều, Khoản, Điểm, trang nguồn nếu có và một đoạn trích ngắn. Mô hình ngôn ngữ chỉ viết phần diễn giải, còn thông tin nguồn được lấy từ dữ liệu đã lưu.
+
+Giao diện dùng thông tin trích dẫn để mở đúng tài liệu nguồn. Với nguồn Markdown, người dùng xem nội dung theo cấu trúc văn bản. Với PDF, PDF.js hiển thị trang tương ứng và hỗ trợ điều hướng đến vị trí nguồn khi dữ liệu có thông tin trang.
+
+\AssetFigure[0.90\textwidth]{ch2_citation_flow.png}{6.6cm}{Tạo và hiển thị trích dẫn từ thông tin mô tả nguồn}{}
+
+Dịch vụ phía máy chủ được xây dựng bằng Python 3.11 và FastAPI. FastAPI kết hợp với Pydantic để khai báo cấu trúc đầu vào, đầu ra, kiểm tra dữ liệu và sinh tài liệu OpenAPI \cite{fastapi_docs}. Trong hệ thống, lớp API phục vụ đăng ký, đăng nhập, hỏi đáp, quản lý hội thoại, phản hồi, nội dung đã lưu, tra cứu văn bản và kiểm tra trạng thái dịch vụ. Pydantic từ chối request có cấu trúc sai trước khi phần xử lý nghiệp vụ chạy; các trường như \texttt{top\_k}, \texttt{effective\_date}, mã phiên hội thoại và nội dung tin nhắn được kiểm tra theo kiểu dữ liệu đã khai báo.
+
+\AssetFigure[0.90\textwidth]{ch2_api_architecture.png}{6.8cm}{Các nhóm API chính của dịch vụ phía máy chủ FastAPI}{}
+
+Python 3.11 là nền tảng của dịch vụ phía máy chủ. Ngôn ngữ này được dùng để xây dựng API, đọc và chuẩn hóa dữ liệu, xử lý biểu thức chính quy, tìm kiếm, gọi mô hình ngôn ngữ và tính các chỉ số đánh giá \cite{python311_docs}.
+
+Dịch vụ phía máy chủ sử dụng một số thành phần của thư viện chuẩn Python cho các nhiệm vụ sau:
+\begin{itemize}
+  \item \texttt{re} xử lý biểu thức chính quy để nhận dạng Điều, Khoản, Điểm, số hiệu văn bản, loại phương tiện và từ khóa nghiệp vụ,
+  \item \texttt{json} đọc manifest và ghi dữ liệu JSON/JSONL,
+  \item \texttt{hashlib} tạo SHA-256 cho nội dung nguồn,
+  \item \texttt{pathlib.Path} quản lý đường dẫn tệp theo cách độc lập hơn với hệ điều hành,
+  \item \texttt{dataclasses} biểu diễn các kết quả phân tích nhỏ, bất biến khi phù hợp,
+  \item \texttt{concurrent.futures.ThreadPoolExecutor} cho phép thực hiện một số truy vấn con song song khi câu hỏi có nhiều ý.
+\end{itemize}
+
+Một số truy vấn tìm kiếm độc lập có thể được thực hiện song song để giảm thời gian chờ. Số tác vụ đồng thời được giới hạn để tránh làm tăng tải quá mức cho hệ thống.
+
+\AssetFigure[0.90\textwidth]{ch2_python_backend.png}{6.7cm}{Các nhóm chức năng Python được dùng trong dịch vụ phía máy chủ}{}
+
+\section{HTTP, REST và dữ liệu JSON}
+Giao diện Web và dịch vụ phía máy chủ trao đổi qua HTTP. Một yêu cầu HTTP thường gồm phương thức như GET hoặc POST, đường dẫn, phần tiêu đề và phần dữ liệu gửi kèm. Dịch vụ phía máy chủ trả mã trạng thái cùng dữ liệu kết quả. Với API JSON, dữ liệu được biểu diễn bằng object, array, chuỗi, số, boolean hoặc null. Các mô hình Pydantic giúp định nghĩa cấu trúc dữ liệu gửi và nhận để hai phía thống nhất cách trao đổi.
+
+API được tổ chức theo từng nhóm chức năng. GET được dùng chủ yếu để đọc dữ liệu, POST để tạo mới hoặc gửi yêu cầu xử lý, PATCH để cập nhật một phần dữ liệu và DELETE để xóa. API hỏi đáp điều phối nhiều bước gồm phân tích câu hỏi, tìm kiếm căn cứ, kiểm tra căn cứ và tạo câu trả lời nên không tương ứng trực tiếp với một bảng cơ sở dữ liệu.
+
+FastAPI sinh tài liệu OpenAPI tự động từ route và model dữ liệu \cite{fastapi_docs}. OpenAPI mô tả đường dẫn API, tham số, dữ liệu gửi vào và cấu trúc dữ liệu, nhờ đó giao diện có thể đối chiếu cách trao đổi với dịch vụ phía máy chủ.
+
+\AssetFigure[0.90\textwidth]{ch2_http_rest.png}{6.8cm}{Vòng đời một yêu cầu HTTP giữa trình duyệt và FastAPI}{}
+
+\section{ASGI và Uvicorn}
+FastAPI là ứng dụng ASGI. Có thể hiểu ASGI là giao diện chuẩn giữa ứng dụng Python bất đồng bộ và web server. Uvicorn nhận kết nối mạng, chuyển request cho ứng dụng FastAPI và gửi response trở lại client. Trong môi trường phát triển của đề tài, dịch vụ phía máy chủ được chạy bằng lệnh \texttt{uvicorn app.main:app --reload}.
+
+Việc tách máy chủ Web và ứng dụng giúp phần nghiệp vụ không phải tự xử lý kết nối HTTP ở mức thấp. FastAPI tập trung vào đường dẫn API, kiểm tra dữ liệu và xử lý nghiệp vụ, còn Uvicorn quản lý kết nối mạng. Hệ thống tách kiểm tra trạng thái tiến trình và kiểm tra khả năng sẵn sàng, vì một tiến trình có thể vẫn chạy trong khi Supabase hoặc Qdrant chưa kết nối được.
+
+\section{LangChain trong phạm vi dự án}
+LangChain được dùng ở mức thư viện hỗ trợ để chuẩn hóa đối tượng tài liệu và kết nối với Qdrant cùng dịch vụ mô hình ngôn ngữ. Logic xử lý pháp luật như nhận diện tham chiếu, phân tích câu hỏi, kiểm tra căn cứ và tạo trích dẫn vẫn được tổ chức riêng trong hệ thống.
+
+Cách tổ chức này giúp tận dụng thư viện có sẵn nhưng vẫn giữ các quy tắc pháp lý ở phần xử lý riêng. Những quy tắc nhận diện tham chiếu, tách câu hỏi, tạo trích dẫn và quyết định từ chối trả lời có thể được kiểm thử độc lập.
+
+\section{Qdrant, FastEmbed và chỉ mục tìm kiếm}
+Qdrant là cơ sở dữ liệu vector dùng để lưu chỉ mục tìm kiếm. Mỗi đoạn pháp luật được lưu cùng biểu diễn ngữ nghĩa, biểu diễn theo từ khóa và các trường mô tả như văn bản, Điều, Khoản, Điểm. Tài liệu Qdrant mô tả tìm kiếm kết hợp là cách phối hợp tìm kiếm theo ngữ nghĩa với tìm kiếm theo từ khóa rồi gộp kết quả \cite{qdrant_hybrid_docs}.
+
+Thông tin mô tả được lưu cùng vector để hỗ trợ lọc theo Điều, Khoản và Điểm khi câu hỏi có tham chiếu pháp lý cụ thể. Tìm kiếm theo vector và đối chiếu vị trí pháp lý được thực hiện trong cùng một luồng xử lý.
+
+Qdrant giữ dữ liệu dẫn xuất phục vụ tìm kiếm. Văn bản nguồn được lưu riêng với dữ liệu chỉ mục. Tài khoản cùng lịch sử chat nằm trong Supabase. Khi tập văn bản hoặc cấu hình biểu diễn ngữ nghĩa thay đổi, chỉ mục tìm kiếm được tạo lại từ dữ liệu JSONL đã chuẩn hóa.
+
+Supabase cung cấp xác thực và cơ sở dữ liệu PostgreSQL cho dữ liệu ứng dụng. Năm nhóm dữ liệu chính gồm hồ sơ người dùng, phiên hội thoại, tin nhắn, phản hồi và nội dung đánh dấu. Các bảng dùng khóa chính, khóa ngoại, ràng buộc kiểm tra, ràng buộc duy nhất, chỉ mục và trigger cập nhật thời gian.
+
+Row Level Security (RLS) giới hạn các hàng mà một người dùng được đọc hoặc sửa. Supabase khuyến nghị bật RLS trên các bảng truy cập qua Data API và kết hợp với Auth để kiểm soát dữ liệu theo \texttt{auth.uid()} \cite{supabase_rls_docs}. Schema của dự án áp dụng policy để mỗi tài khoản chỉ thao tác với dữ liệu của mình. Service-role key được giữ ở dịch vụ phía máy chủ và không đưa ra trình duyệt.
+
+\AssetFigure[0.90\textwidth]{ch2_security_rls.png}{6.8cm}{Bảo vệ dữ liệu ứng dụng bằng Supabase Auth và RLS}{}
+
+Schema PostgreSQL của đề tài tổ chức dữ liệu quan hệ thành các bảng liên kết bằng khóa chính và khóa ngoại. UUID được dùng cho người dùng, phiên chat, tin nhắn, phản hồi và bookmark.
+
+Các ràng buộc bảo vệ tính toàn vẹn của dữ liệu. \texttt{NOT NULL} buộc trường phải có giá trị, \texttt{UNIQUE} ngăn trùng lặp, \texttt{CHECK} giới hạn miền giá trị, \texttt{FOREIGN KEY} giữ quan hệ tham chiếu hợp lệ và \texttt{DEFAULT} cung cấp giá trị mặc định. Chẳng hạn, \texttt{feedback.rating} chỉ nhận 0 hoặc 1, còn \texttt{messages.role} chỉ nhận \texttt{user} hoặc \texttt{assistant}.
+
+Các chỉ mục được đặt trên những cặp trường thường dùng như người dùng với thời gian cập nhật hoặc session với thời gian tạo. Trigger tự động cập nhật \texttt{updated\_at}, chạm thời gian phiên chat khi có message mới và tạo profile sau khi Auth tạo user.
+
+PostgreSQL hỗ trợ kiểu \texttt{JSONB}. Đề tài dùng kiểu này cho response, citations và thông tin mô tả vì cấu trúc các trường có thể thay đổi linh hoạt hơn dữ liệu quan hệ cố định. Quan hệ sở hữu user, session và message vẫn được biểu diễn bằng khóa ngoại.
+
+
+\AssetFigure[0.90\textwidth]{ch2_postgresql_relational.png}{7.0cm}{Khóa chính, khóa ngoại, chỉ mục và ràng buộc trong dữ liệu ứng dụng}{}
+
+\section{Supabase Auth, JWT và phân quyền}
+Supabase Auth quản lý danh tính người dùng và phát hành token xác thực. Theo tài liệu Supabase, authentication xác định danh tính người dùng, còn authorization xác định quyền truy cập tài nguyên. Supabase Auth dùng JWT và kết hợp với RLS trong PostgreSQL \cite{supabase_auth_docs}.
+
+Trong đề tài, Supabase quản lý bảng \texttt{auth.users}. Bảng \texttt{profiles} dùng cùng UUID để lưu thêm thông tin hiển thị. Các bảng nghiệp vụ giữ \texttt{user\_id} để xác định chủ sở hữu. Khi request có phiên đăng nhập hợp lệ, policy RLS so sánh \texttt{auth.uid()} với \texttt{user\_id}. Quyền truy cập được kiểm tra ở cơ sở dữ liệu và không phụ thuộc vào việc giao diện có hiển thị nút thao tác hay không.
+
+Service-role key có quyền cao và có thể bỏ qua RLS, vì vậy tài liệu Supabase yêu cầu giữ loại khóa này ở môi trường server \cite{supabase_rls_docs}. Giao diện Web chỉ dùng loại khóa công khai phù hợp với browser và dựa vào JWT của người dùng để truy cập dữ liệu theo policy.
+
+\AssetFigure[0.90\textwidth]{ch2_supabase_auth.png}{7.0cm}{Luồng Supabase Auth, JWT, auth.uid và Row Level Security}{}
+
+Giao diện Web của dự án dùng Next.js 16, React 19 và TypeScript 5. Next.js cung cấp App Router dựa trên cấu trúc thư mục và hỗ trợ Server/Client Components \cite{nextjs_app_router_docs}; React tổ chức giao diện thành các component; TypeScript kiểm tra kiểu tĩnh cho dữ liệu trao đổi giữa component và API. Các route chính hiện có gồm trang chat và trang nguồn pháp luật.
+
+PDF.js được dùng để hiển thị PDF trong trình duyệt, React Markdown trình bày câu trả lời, còn Supabase client/SSR hỗ trợ phiên đăng nhập theo môi trường server hoặc browser.
+
+\AssetFigure[0.90\textwidth]{ch2_frontend_architecture.png}{6.8cm}{Kiến trúc giao diện Next.js của hệ thống}{}
+
+\subsection{React component, props và state}
+React xây giao diện từ các component. Tài liệu React mô tả component là một phần giao diện có logic và cách hiển thị riêng, có thể lồng vào nhau để tạo thành trang \cite{react_docs}. Props truyền dữ liệu từ component cha xuống component con. State lưu dữ liệu thay đổi theo thao tác người dùng. Trang chat dùng state cho nội dung ô nhập, trạng thái gửi, danh sách tin nhắn và citation đang được chọn.
+
+Quản lý state cần tránh dữ liệu lặp. Nếu cùng một thông tin vừa nằm trong response API vừa được sao chép vào nhiều state độc lập, khả năng lệch dữ liệu tăng. React khuyến nghị tổ chức state có chủ đích và đưa state chung lên vị trí phù hợp khi nhiều component cần dùng \cite{react_state_docs}.
+
+\AssetFigure[0.86\textwidth]{ch2_react_state.png}{6.5cm}{Component và luồng state của giao diện hỏi đáp}{}
+
+\subsection{TypeScript và kiểm tra kiểu tĩnh}
+TypeScript bổ sung kiểm tra kiểu tĩnh cho JavaScript trước khi chạy chương trình \cite{typescript_docs}. Giao diện Web khai báo kiểu cho message, citation, session và response API. Trình biên dịch có thể phát hiện các lỗi như sai tên field hoặc truyền dữ liệu không đúng kiểu trước khi chạy trên trình duyệt.
+
+TypeScript kiểm tra kiểu trong mã giao diện Web. Dữ liệu đi qua mạng vẫn được dịch vụ phía máy chủ kiểm tra bằng Pydantic vì request thực tế có thể không tuân theo type đã khai báo ở phía client.
+
+\subsection{PDF.js và React Markdown}
+PDF.js là dự án của Mozilla dùng JavaScript để phân tích và hiển thị PDF. Tài liệu PDF.js mô tả core layer, display layer và viewer layer. Display layer cung cấp API để render trang và đọc thông tin tài liệu \cite{pdfjs_docs}. Đề tài dùng gói \texttt{pdfjs-dist} cho phần xem nguồn PDF trong ứng dụng.
+
+Citation có thể chứa trang và thông tin nguồn. Khi người dùng chọn một citation, giao diện điều hướng đến viewer phù hợp. Với nguồn Markdown, ứng dụng hiển thị nội dung pháp luật có cấu trúc. Với PDF, viewer có thể mở đúng trang và, nếu thông tin mô tả có tọa độ, dùng tọa độ đó để làm nổi bật vùng liên quan. Đây là chức năng giao diện, nội dung citation vẫn do dịch vụ phía máy chủ dựng từ thông tin mô tả.
+
+React Markdown dùng để chuyển nội dung Markdown của câu trả lời thành các thành phần giao diện như tiêu đề, đoạn văn, danh sách và phần nhấn mạnh. Markdown của câu trả lời chỉ phục vụ hiển thị, còn các tệp Markdown pháp luật là dữ liệu đầu vào cho quá trình chuẩn hóa và lập chỉ mục.
+
+\AssetFigure[0.88\textwidth]{ch2_pdfjs_viewer.png}{6.8cm}{Luồng mở citation đến nguồn Markdown hoặc PDF viewer}{}
+
+
+\section{Kiến trúc Client-Server}
+Hệ thống được tổ chức theo mô hình Client-Server. Trình duyệt là phía client, chịu trách nhiệm hiển thị giao diện và gửi yêu cầu của người dùng. FastAPI là phía server, tiếp nhận yêu cầu, kiểm tra thông tin xác thực, gọi các thành phần tìm kiếm và trả dữ liệu về giao diện. Việc tách hai phía giúp giao diện và logic xử lý có thể phát triển độc lập, đồng thời giới hạn các khóa bí mật ở phía máy chủ.
+
+\section{Cơ sở dữ liệu vector}
+Cơ sở dữ liệu vector lưu các biểu diễn số của đoạn văn bản để phục vụ tìm kiếm theo mức độ gần nhau về nội dung. Trong đề tài, Qdrant lưu vector cùng thông tin mô tả của từng đoạn pháp luật. Khi người dùng đặt câu hỏi, câu hỏi được chuyển thành vector và so sánh với các vector đã lưu. Cách tìm kiếm này hỗ trợ trường hợp câu hỏi không dùng đúng từ ngữ có trong văn bản nhưng vẫn có ý nghĩa tương tự.
+
+\section{Xác thực và phân quyền người dùng}
+Xác thực là bước kiểm tra danh tính người dùng trước khi cho phép truy cập dữ liệu cá nhân. Sau khi đăng nhập, Supabase Auth cấp mã xác thực cho phiên làm việc. Dịch vụ phía máy chủ kiểm tra mã này trước khi xử lý các API cần đăng nhập. Phân quyền được áp dụng để người dùng chỉ xem và thay đổi dữ liệu thuộc tài khoản của mình, chẳng hạn phiên hội thoại, phản hồi và nội dung đã đánh dấu. Cơ chế này kết hợp kiểm tra ở API với Row Level Security của PostgreSQL \cite{supabase_auth_docs,supabase_rls_docs}.
+
+\section{Docker Compose và cấu hình môi trường}
+Docker đóng gói ứng dụng và dependency thành môi trường chạy có cấu hình rõ ràng. Docker Compose dùng một cấu hình để định nghĩa và chạy ứng dụng gồm nhiều container \cite{docker_compose_docs}. Đề tài hỗ trợ lệnh \texttt{docker compose --env-file .env up --build} cho vòng phát triển đầy đủ.
+
+Biến môi trường lưu URL dịch vụ, khóa API, tên model và đường dẫn Qdrant. Khóa bí mật được tách khỏi logic nghiệp vụ để có thể thay đổi cấu hình triển khai mà không sửa chương trình.
+
+Docker Compose tổ chức các thành phần chạy cục bộ theo tệp cấu hình của đề tài. Supabase và OpenRouter được truy cập như các dịch vụ bên ngoài qua mạng.
+
+\AssetFigure[0.88\textwidth]{ch2_docker_compose.png}{6.8cm}{Môi trường phát triển với Docker Compose và các dịch vụ liên quan}{}
+
+\section{Quản lý thư viện và công cụ chất lượng mã nguồn}
+Dịch vụ phía máy chủ dùng \texttt{uv} để đồng bộ môi trường Python. Giao diện Web dùng npm để quản lý thư viện JavaScript. Lock file cố định phiên bản dependency đã được chọn, giúp các môi trường cài đặt sử dụng cùng tập phiên bản thư viện.
+
+Ruff kiểm tra quy tắc lint cho Python. Mypy kiểm tra type hint và pytest chạy test dịch vụ phía máy chủ. Ở giao diện Web, TypeScript compiler kiểm tra kiểu, ESLint kiểm tra quy tắc lập trình, Prettier định dạng mã nguồn và Husky chạy các kiểm tra tự động trước một số thao tác Git. Nhóm công cụ này hỗ trợ phát hiện lỗi sớm và giữ cách tổ chức mã nguồn nhất quán.
+
+\AssetFigure[0.88\textwidth]{ch2_toolchain.png}{6.7cm}{Chuỗi công cụ cài đặt, kiểm tra kiểu, lint và test của dự án}{}
+
+\section{Tổ chức các lớp dữ liệu}
+Dữ liệu của hệ thống được chia theo mục đích sử dụng. Danh mục nguồn, Markdown và PDF là dữ liệu pháp luật đầu vào. Các đoạn JSONL cùng chỉ mục Qdrant phục vụ tìm kiếm và có thể tạo lại từ dữ liệu nguồn. Supabase lưu tài khoản, phiên hội thoại, tin nhắn, phản hồi và nội dung đã lưu. Việc xây lại chỉ mục Qdrant không làm thay đổi dữ liệu người dùng trong Supabase.
+
+\AssetFigure[0.92\textwidth]{ch2_data_architecture.png}{7.4cm}{Kiến trúc dữ liệu: nguồn pháp luật, chỉ mục Qdrant và dữ liệu ứng dụng Supabase}{}
+
+\section{Kiểm thử phần mềm}
+Phần phía máy chủ dùng pytest cho kiểm thử đơn vị và kiểm thử tích hợp. Playwright được dùng để kiểm tra các luồng thao tác trên trình duyệt. Ruff và mypy hỗ trợ kiểm tra mã Python. ESLint, TypeScript và Prettier hỗ trợ kiểm tra phần giao diện Web. Các ca kiểm thử được tách giữa logic xử lý nội bộ và phần tích hợp với Qdrant, Supabase hoặc dịch vụ mô hình.
+
+Các phần xử lý theo quy tắc được kiểm thử bằng input và output cụ thể. Parser cần nhận đúng Điểm ``đ)''. Analyzer cần phân biệt xe máy với ô tô. Citation phải lấy đúng Điều, Khoản và Điểm từ thông tin mô tả. Bước kiểm tra căn cứ phải từ chối khi danh sách tài liệu rỗng.
+
+\section{Đánh giá hệ thống RAG}
+\subsection{Retrieval hit tại k}
+Tỷ lệ tìm thấy căn cứ đúng trong $k$ kết quả đầu kiểm tra xem danh sách kết quả có chứa ít nhất một vị trí pháp lý đúng hay không. Mỗi trường hợp được ghi nhận đạt hoặc không đạt, sau đó tính tỷ lệ trên toàn bộ các trường hợp có dữ liệu phù hợp.
+
+\subsection{Độ chính xác theo tọa độ pháp lý}
+Mô-đun đánh giá so sánh lần lượt văn bản, Điều, Khoản và Điểm. Cách tách theo cấp giúp phát hiện trường hợp hệ thống tìm đúng văn bản nhưng sai Khoản, hoặc đúng Điều nhưng sai Điểm. Cách đánh giá này phù hợp với dữ liệu pháp luật vì vị trí trong cấu trúc văn bản quyết định căn cứ được sử dụng.
+
+Tỷ lệ trích dẫn hợp lệ kiểm tra xem thông tin nguồn đi kèm câu trả lời có đầy đủ và có thể đối chiếu với dữ liệu đã tìm được hay không. Chỉ số này không thay thế việc chấm nội dung câu trả lời, nhưng giúp phát hiện trích dẫn bị thiếu hoặc không khớp với nguồn.
+
+\subsection{Độ chính xác khi quyết định từ chối trả lời}
+Độ chính xác khi quyết định từ chối trả lời được tính bằng cách so sánh trạng thái thực tế với kỳ vọng của từng trường hợp. Chỉ số này cho biết hệ thống có nhận diện đúng những câu hỏi thiếu căn cứ hay không. Một hệ thống luôn trả lời có thể tạo cảm giác đầy đủ, nhưng không phù hợp khi dữ liệu không đủ căn cứ.
+
+\subsection{Độ trễ}
+Mô-đun đánh giá tính thời gian phản hồi trung bình, trung vị và mức P95 từ lần chạy đánh giá. Các giá trị phụ thuộc vào kết nối mạng, dịch vụ mô hình và môi trường chạy nên cần được đọc cùng điều kiện đo.
+
+\subsection{Đánh giá nội dung thủ công}
+Độ đúng nội dung câu trả lời được chấm thủ công bằng cách đối chiếu câu trả lời với căn cứ pháp luật. Kết quả chấm được ghi nhận riêng với các chỉ số tự động.
+
+Các thành phần triển khai gồm API, cơ sở dữ liệu ứng dụng, xử lý dữ liệu pháp luật, tìm kiếm, sinh câu trả lời và đánh giá. Mỗi thành phần được mô tả theo chức năng và dữ liệu mà hệ thống sử dụng.
+
+\section{Tổng hợp công nghệ sử dụng}
+Bảng dưới đây tổng hợp các công nghệ đang có trong hệ thống và vai trò của từng thành phần.
+\Needspace{10\baselineskip}
+\begin{longtable}{|L{3.0cm}|L{4.0cm}|L{6.0cm}|}
+  \caption{Các công nghệ chính trong hệ thống}\label{tab:techstack-current}                                                                      \\
+  \hline
+  \textbf{Nhóm}         & \textbf{Công nghệ}                 & \textbf{Vai trò trong đề tài}                                                     \\
+  \hline
+  Ngôn ngữ phía máy chủ & Python 3.11                        & Viết API, xử lý dữ liệu, tìm kiếm, tạo câu trả lời và đánh giá                    \\
+  \hline
+  Quản lý Python        & uv                                 & Cài đặt và khóa dependency dịch vụ phía máy chủ                                   \\
+  \hline
+  API                   & FastAPI, Uvicorn, Pydantic         & Xử lý HTTP, validation và chạy server                                             \\
+  \hline
+  RAG adapter           & LangChain                          & Document, kết nối Qdrant và lớp gọi mô hình                                       \\
+  \hline
+  Tìm kiếm vector       & Qdrant                             & Kết hợp tìm kiếm theo ngữ nghĩa, từ khóa và bộ lọc thông tin pháp lý              \\
+  \hline
+  Tìm kiếm theo từ khóa & FastEmbed BM25                     & Tạo biểu diễn phục vụ tìm kiếm theo từ khóa                                       \\
+  \hline
+  Kết nối mô hình       & OpenRouter                         & Gọi mô hình ngôn ngữ qua API                                                      \\
+  \hline
+  Dữ liệu ứng dụng      & Supabase/PostgreSQL                & Xác thực, hồ sơ, hội thoại, tin nhắn, phản hồi và nội dung đánh dấu               \\
+  \hline
+  Giao diện Web         & Next.js 16, React 19, TypeScript 5 & Giao diện Web theo App Router                                                     \\
+  \hline
+  PDF viewer            & pdfjs-dist                         & Hiển thị PDF trong trang nguồn pháp luật                                          \\
+  \hline
+  Kiểm thử              & pytest, pytest-asyncio, Playwright & Kiểm thử dịch vụ phía máy chủ và trình duyệt                                      \\
+  \hline
+  Chất lượng mã nguồn   & Ruff, mypy, ESLint, Prettier       & Kiểm tra quy tắc, kiểu dữ liệu và định dạng                                       \\
+  \hline
+  Đóng gói              & Docker Compose                     & Chạy giao diện Web, dịch vụ phía máy chủ và dịch vụ phát triển theo cùng cấu hình \\
+  \hline
+\end{longtable}
+
+% ============================================================
+% CHUONG III
+% ============================================================
+\clearpage
+\setcounter{chapter}{3}
+\setcounter{section}{0}
+\setcounter{subsection}{0}
+\setcounter{figure}{0}
+\setcounter{table}{0}
+\chapter*{CHƯƠNG III. PHÂN TÍCH VÀ THIẾT KẾ HỆ THỐNG}
+\addcontentsline{toc}{chapter}{CHƯƠNG III. PHÂN TÍCH VÀ THIẾT KẾ HỆ THỐNG}
+
+\section{Phân tích yêu cầu}
+Phần phân tích yêu cầu xác định các chức năng mà hệ thống phải cung cấp và các điều kiện kỹ thuật cần duy trì trong quá trình vận hành. Nội dung được xây dựng từ phạm vi chức năng thực tế của hệ thống, gồm xác thực người dùng, hỏi đáp pháp luật, kiểm tra nguồn trích dẫn, tra cứu văn bản, quản lý hội thoại, phản hồi và lưu nội dung cần xem lại. Các chức năng chuẩn bị dữ liệu và xây chỉ mục được xem là chức năng vận hành, không phải thao tác trực tiếp của người dùng cuối.
+
+\subsection{Xác định tác nhân}
+Trong phạm vi giao diện người dùng, hệ thống có hai trạng thái tác nhân chính. Khách chưa đăng nhập có thể truy cập các chức năng công khai và thực hiện đăng ký hoặc đăng nhập. Người dùng đã đăng nhập có thể sử dụng các chức năng cá nhân như hỏi đáp, lịch sử hội thoại, phản hồi và lưu câu trả lời. Các dịch vụ Supabase, Qdrant và OpenRouter là hệ thống bên ngoài tham gia xử lý kỹ thuật, vì vậy chúng được thể hiện trong sơ đồ tuần tự và sơ đồ luồng dữ liệu thay vì xem như người dùng của hệ thống.
+
+\begin{table}[H]
+  \caption{Các tác nhân và hệ thống liên quan}
+  \label{tab:actors}
+  \centering
+  \begin{tabularx}{\textwidth}{|L{3.6cm}|Y|}
+    \hline
+    \textbf{Thành phần}     & \textbf{Vai trò}                                                                                        \\
+    \hline
+    Khách chưa đăng nhập    & Đăng ký, đăng nhập và truy cập các nội dung công khai mà giao diện cho phép                             \\
+    \hline
+    Người dùng đã đăng nhập & Hỏi đáp pháp luật, xem nguồn, quản lý hội thoại, phản hồi và lưu câu trả lời                            \\
+    \hline
+    Supabase                & Xác thực người dùng và lưu dữ liệu ứng dụng                                                             \\
+    \hline
+    Qdrant                  & Lưu chỉ mục tìm kiếm và trả các đoạn pháp luật phù hợp                                                  \\
+    \hline
+    OpenRouter              & Cung cấp dịch vụ mô hình dùng trong các bước cần tạo vector hoặc tạo câu trả lời theo cấu hình hệ thống \\
+    \hline
+  \end{tabularx}
+\end{table}
+
+\subsection{Yêu cầu chức năng}
+Các yêu cầu chức năng được đánh mã để thuận tiện đối chiếu với Use Case, API và giao diện ở Chương 4. Bảng dưới đây chỉ mô tả chức năng đã có trong phạm vi hệ thống, không đưa thêm vai trò quản trị hoặc nghiệp vụ không tồn tại trong sản phẩm.
+
+\Needspace{10\baselineskip}
+\begin{longtable}{|L{1.3cm}|L{4.2cm}|L{8.0cm}|}
+  \caption{Yêu cầu chức năng của hệ thống}\label{tab:functional-requirements}                                                              \\
+  \hline
+  \textbf{Mã} & \textbf{Chức năng}              & \textbf{Mô tả}                                                                           \\
+  \hline
+  FR01        & Đăng ký tài khoản               & Tạo tài khoản người dùng thông qua dịch vụ xác thực và khởi tạo hồ sơ tương ứng          \\
+  \hline
+  FR02        & Đăng nhập                       & Xác thực người dùng và tạo phiên làm việc                                                \\
+  \hline
+  FR03        & Gửi câu hỏi pháp luật           & Gửi câu hỏi đến dịch vụ hỏi đáp để phân tích và tìm căn cứ                               \\
+  \hline
+  FR04        & Nhận câu trả lời có trích dẫn   & Hiển thị câu trả lời, trạng thái xử lý và danh sách nguồn liên quan                      \\
+  \hline
+  FR05        & Từ chối khi thiếu căn cứ        & Thông báo chưa đủ dữ liệu khi bước kiểm tra căn cứ không đạt                             \\
+  \hline
+  FR06        & Quản lý phiên hội thoại         & Tạo, xem, đổi tên và xóa mềm phiên hội thoại                                             \\
+  \hline
+  FR07        & Lưu tin nhắn                    & Lưu câu hỏi và câu trả lời vào dữ liệu hội thoại                                         \\
+  \hline
+  FR08        & Gửi phản hồi                    & Lưu đánh giá và nhận xét của người dùng đối với câu trả lời                              \\
+  \hline
+  FR09        & Lưu câu trả lời                 & Lưu bản sao câu hỏi, câu trả lời và trích dẫn để xem lại                                 \\
+  \hline
+  FR10        & Xem danh sách văn bản           & Hiển thị các văn bản pháp luật có trong phạm vi dữ liệu                                  \\
+  \hline
+  FR11        & Xem điều khoản                  & Mở nội dung văn bản và các điều khoản tương ứng                                          \\
+  \hline
+  FR12        & Tìm trong nguồn pháp luật       & Tìm theo nội dung, số hiệu văn bản hoặc thông tin Điều                                   \\
+  \hline
+  FR13        & Xem PDF hoặc nội dung chuẩn hóa & Mở nguồn tương ứng với thông tin trích dẫn                                               \\
+  \hline
+  FR14        & Tạo dữ liệu đoạn pháp luật      & Chuyển dữ liệu nguồn thành các đoạn có cấu trúc để lập chỉ mục                           \\
+  \hline
+  FR15        & Xây chỉ mục tìm kiếm            & Tạo và cập nhật dữ liệu tìm kiếm trong Qdrant                                            \\
+  \hline
+  FR16        & Chạy đánh giá                   & Thực hiện bộ kiểm tra để đo khả năng tìm căn cứ, trích dẫn và quyết định từ chối trả lời \\
+  \hline
+\end{longtable}
+
+\subsection{Yêu cầu phi chức năng}
+Yêu cầu phi chức năng tập trung vào độ tin cậy, bảo mật, khả năng truy vết và khả năng bảo trì. Hệ thống phải giữ đủ thông tin nguồn để người dùng mở lại văn bản được trích dẫn. Dữ liệu cá nhân phải được giới hạn theo tài khoản đã xác thực. Khóa có quyền quản trị chỉ được sử dụng ở phía máy chủ. Khi không có đủ căn cứ, hệ thống phải trả trạng thái phù hợp thay vì tạo nội dung suy đoán. Các chức năng xử lý dữ liệu, xây chỉ mục và đánh giá cần tách khỏi luồng hỏi đáp để dễ kiểm tra và chạy lại khi dữ liệu thay đổi.
+
+\begin{table}[H]
+  \caption{Yêu cầu phi chức năng chính}
+  \label{tab:nonfunctional-requirements}
+  \centering
+  \begin{tabularx}{\textwidth}{|L{3.4cm}|Y|}
+    \hline
+    \textbf{Nhóm yêu cầu} & \textbf{Nội dung}                                                                                                      \\
+    \hline
+    Bảo mật               & Xác thực người dùng, giới hạn dữ liệu theo tài khoản và không đưa khóa quản trị xuống trình duyệt                      \\
+    \hline
+    Khả năng truy vết     & Câu trả lời cần có nguồn để người dùng kiểm tra lại văn bản và vị trí pháp lý                                          \\
+    \hline
+    Độ tin cậy            & Khi thiếu căn cứ, hệ thống phải từ chối trả lời thay vì suy đoán nội dung pháp luật                                    \\
+    \hline
+    Khả năng bảo trì      & Các bước chuẩn bị dữ liệu, tìm kiếm, tạo câu trả lời và đánh giá được tách thành các thành phần có trách nhiệm rõ ràng \\
+    \hline
+    Khả năng sử dụng      & Giao diện cần thể hiện rõ câu trả lời, trạng thái thiếu căn cứ, nguồn trích dẫn và lịch sử hội thoại                   \\
+    \hline
+    Khả năng kiểm thử     & Các chức năng chính cần có kiểm thử ở mức dịch vụ và kiểm thử luồng giao diện phù hợp                                  \\
+    \hline
+  \end{tabularx}
+\end{table}
+
+\section{Sơ đồ chức năng và sơ đồ luồng dữ liệu}
+Với hệ thống này, sơ đồ chức năng dùng để nhóm các chức năng theo mục đích sử dụng. DFD dùng để mô tả dữ liệu đi giữa người dùng, tiến trình xử lý và các nơi lưu trữ.
+
+\subsection{Sơ đồ phân rã chức năng}
+Sơ đồ phân rã chức năng gồm các nhóm xác thực, hỏi đáp pháp luật, quản lý hội thoại, tra cứu nguồn, phản hồi và xử lý dữ liệu pháp luật. Sơ đồ chỉ cho biết quan hệ phân cấp chức năng, không thể hiện thứ tự xử lý.
+\AssetFigure[0.94\textwidth]{ch3_fdd.png}{8.0cm}{Sơ đồ phân rã chức năng của hệ thống}{}
+
+\subsection{DFD mức ngữ cảnh}
+Ở mức ngữ cảnh, hệ thống được xem như một tiến trình tổng thể. Người dùng gửi yêu cầu xác thực, câu hỏi và yêu cầu tra cứu. Hệ thống trao đổi dữ liệu với các dịch vụ lưu trữ, tìm kiếm và mô hình, sau đó trả kết quả về giao diện.
+\AssetFigure[0.98\textwidth]{ch3_dfd_context.png}{9.2cm}{Sơ đồ luồng dữ liệu mức ngữ cảnh}{}
+
+\subsection{DFD mức 0}
+DFD mức 0 tách hệ thống thành các tiến trình xác thực, quản lý hội thoại, xử lý câu hỏi, tra cứu nguồn và quản lý dữ liệu tìm kiếm. Sơ đồ cần thể hiện rõ nơi lưu dữ liệu ứng dụng, nơi lưu chỉ mục tìm kiếm và luồng kết quả trả về người dùng.
+\AssetFigure[0.98\textwidth]{ch3_dfd_level0.png}{10.0cm}{Sơ đồ luồng dữ liệu mức 0}{}
+
+\section{Sơ đồ Use Case và đặc tả chức năng}
+\subsection{Sơ đồ Use Case tổng quát}
+Sơ đồ tổng quát thể hiện những chức năng mà khách chưa đăng nhập và người dùng đã đăng nhập có thể thực hiện. Các xử lý nội bộ như BM25, tìm kiếm vector, gộp thứ hạng hoặc kiểm tra căn cứ không được biểu diễn thành Use Case riêng vì người dùng không gọi trực tiếp các bước đó.
+\AssetFigure[0.94\textwidth]{ch3_usecase_overall.png}{8.5cm}{Sơ đồ Use Case tổng quát của hệ thống}{}
+
+\subsection{Use Case phân rã nhóm xác thực}
+Nhóm xác thực gồm hai nghiệp vụ người dùng trực tiếp thao tác là đăng ký và đăng nhập. Sơ đồ phân rã cần tập trung vào tương tác của người dùng với giao diện và dịch vụ xác thực, không đưa các chi tiết triển khai nội bộ thành Use Case.
+\AssetFigure[0.94\textwidth]{ch3_usecase_auth.png}{7.5cm}{Sơ đồ Use Case phân rã nhóm xác thực}{}
+\Needspace{12\baselineskip}
+{\fontsize{11pt}{12.5pt}\selectfont
+  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
+    \caption{Bảng đặc tả Use Case Đăng ký tài khoản}\label{tab:uc-register}                                                                                   \\
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                                          \\
+    \hline
+    \endfirsthead
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                                          \\
+    \hline
+    \endhead
+    Mã Use Case         & UC\_AUTH\_01                                                                                                                        \\
+    \hline
+    Tên Use Case        & Đăng ký tài khoản                                                                                                                   \\
+    \hline
+    Tác nhân            & Khách chưa đăng nhập                                                                                                                \\
+    \hline
+    Mô tả               & Cho phép người dùng tạo tài khoản để sử dụng các chức năng cá nhân như lưu lịch sử hội thoại, gửi phản hồi và đánh dấu câu trả lời. \\
+    \hline
+    Tiền điều kiện      & Người dùng chưa đăng nhập. Dịch vụ xác thực đang hoạt động.                                                                         \\
+    \hline
+    Luồng xử lý chính   & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Người dùng mở trang đăng ký.
+                            \item Người dùng nhập thông tin được yêu cầu trên biểu mẫu.
+                            \item Giao diện kiểm tra các trường bắt buộc và gửi yêu cầu đăng ký.
+                            \item Hệ thống chuyển yêu cầu đến Supabase Auth để tạo tài khoản.
+                            \item Khi tài khoản được tạo thành công, thông tin hồ sơ tương ứng được khởi tạo.
+                            \item Hệ thống thông báo kết quả để người dùng tiếp tục đăng nhập.
+                          \end{enumerate}                                                    \\
+    \hline
+    Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Thông tin bắt buộc bị thiếu hoặc sai định dạng thì giao diện yêu cầu nhập lại.
+                            \item Địa chỉ thư điện tử đã được sử dụng thì hệ thống trả thông báo phù hợp.
+                            \item Dịch vụ xác thực không phản hồi thì hệ thống thông báo chưa thể hoàn tất đăng ký.
+                          \end{enumerate}                                              \\
+    \hline
+    Quy tắc kiểm tra    & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Dữ liệu tài khoản phải được xử lý qua cơ chế xác thực của Supabase.
+                            \item Thông tin hồ sơ người dùng phải liên kết đúng với tài khoản được tạo.
+                          \end{enumerate}                                                          \\
+    \hline
+    Hậu điều kiện       & Tài khoản và hồ sơ người dùng được tạo thành công hoặc hệ thống giữ nguyên trạng thái nếu đăng ký thất bại.                         \\
+    \hline
+  \end{longtable}
+}
+\Needspace{12\baselineskip}
+{\fontsize{11pt}{12.5pt}\selectfont
+  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
+    \caption{Bảng đặc tả Use Case Đăng nhập}\label{tab:uc-login}                                                                         \\
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                     \\
+    \hline
+    \endfirsthead
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                     \\
+    \hline
+    \endhead
+    Mã Use Case         & UC\_AUTH\_02                                                                                                   \\
+    \hline
+    Tên Use Case        & Đăng nhập                                                                                                      \\
+    \hline
+    Tác nhân            & Người dùng                                                                                                     \\
+    \hline
+    Mô tả               & Xác thực người dùng và tạo phiên làm việc để sử dụng các chức năng yêu cầu đăng nhập.                          \\
+    \hline
+    Tiền điều kiện      & Người dùng đã có tài khoản hợp lệ.                                                                             \\
+    \hline
+    Luồng xử lý chính   & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Người dùng mở trang đăng nhập và nhập thông tin tài khoản.
+                            \item Giao diện gửi yêu cầu xác thực.
+                            \item Supabase Auth kiểm tra thông tin đăng nhập.
+                            \item Nếu hợp lệ, hệ thống nhận phiên xác thực của người dùng.
+                            \item Giao diện chuyển người dùng đến khu vực làm việc và các yêu cầu sau đó mang thông tin xác thực tương ứng.
+                          \end{enumerate} \\
+    \hline
+    Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Thông tin đăng nhập không đúng thì hệ thống không tạo phiên và hiển thị thông báo.
+                            \item Phiên xác thực hết hạn thì người dùng phải xác thực lại theo cơ chế của hệ thống.
+                          \end{enumerate}                        \\
+    \hline
+    Quy tắc kiểm tra    & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Chỉ tài khoản được xác thực mới truy cập dữ liệu cá nhân.
+                            \item Dữ liệu hội thoại, phản hồi và nội dung đã lưu phải được giới hạn theo tài khoản hiện tại.
+                          \end{enumerate}                \\
+    \hline
+    Hậu điều kiện       & Người dùng có phiên xác thực hợp lệ và có thể sử dụng các chức năng cá nhân.                                   \\
+    \hline
+  \end{longtable}
+}
+
+\subsection{Use Case phân rã chức năng hỏi đáp pháp luật}
+Đây là nhóm chức năng trung tâm của đề tài. Người dùng gửi câu hỏi, nhận kết quả, kiểm tra trích dẫn và có thể mở văn bản nguồn. Các bước tìm kiếm và kiểm tra căn cứ nằm bên trong hệ thống nên được mô tả ở lưu đồ và sơ đồ tuần tự thay vì tách thành Use Case của người dùng.
+\AssetFigure[0.96\textwidth]{ch3_usecase_chat.png}{8.2cm}{Sơ đồ Use Case phân rã chức năng hỏi đáp pháp luật}{}
+\Needspace{12\baselineskip}
+{\fontsize{11pt}{12.5pt}\selectfont
+  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
+    \caption{Bảng đặc tả Use Case Đặt câu hỏi pháp luật}\label{tab:uc-chat-ask}                                                                                                                   \\
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                                                                              \\
+    \hline
+    \endfirsthead
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                                                                              \\
+    \hline
+    \endhead
+    Mã Use Case         & UC\_CHAT\_01                                                                                                                                                            \\
+    \hline
+    Tên Use Case        & Đặt câu hỏi pháp luật                                                                                                                                                   \\
+    \hline
+    Tác nhân            & Người dùng đã đăng nhập                                                                                                                                                 \\
+    \hline
+    Mô tả               & Cho phép người dùng gửi câu hỏi về pháp luật giao thông. Hệ thống phân tích câu hỏi, tìm căn cứ, kiểm tra mức độ đầy đủ của căn cứ và tạo câu trả lời khi đủ điều kiện. \\
+    \hline
+    Tiền điều kiện      & Người dùng đã đăng nhập. Dịch vụ phía máy chủ và chỉ mục tìm kiếm đang hoạt động.                                                                                       \\
+    \hline
+    Luồng xử lý chính   & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Người dùng nhập câu hỏi vào giao diện hỏi đáp.
+                            \item Giao diện kiểm tra câu hỏi và gửi yêu cầu đến API hỏi đáp.
+                            \item Hệ thống phân tích nội dung câu hỏi và xác định thông tin cần tìm.
+                            \item Hệ thống tìm kiếm các đoạn pháp luật liên quan bằng nhiều cách tìm kiếm.
+                            \item Các kết quả được tổng hợp, sắp xếp và bổ sung đoạn liên quan khi cần.
+                            \item Hệ thống kiểm tra căn cứ có đủ để trả lời hay không.
+                            \item Nếu đủ căn cứ, hệ thống tạo câu trả lời từ phần dữ liệu đã tìm được.
+                            \item Hệ thống kiểm tra lại câu trả lời và thông tin trích dẫn.
+                            \item Kết quả được trả về giao diện và lưu vào phiên hội thoại.
+                          \end{enumerate}                                                                                           \\
+    \hline
+    Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Câu hỏi rỗng hoặc không hợp lệ thì hệ thống từ chối xử lý.
+                            \item Không đủ căn cứ thì hệ thống trả thông báo chưa đủ dữ liệu thay vì tạo câu trả lời suy đoán.
+                            \item Dịch vụ mô hình bên ngoài gặp lỗi thì hệ thống thông báo lỗi và không ghi nhận câu trả lời chưa hoàn chỉnh.
+                          \end{enumerate}                                                        \\
+    \hline
+    Quy tắc kiểm tra    & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Câu trả lời chỉ được tạo khi bước kiểm tra căn cứ đạt yêu cầu.
+                            \item Câu trả lời phải dựa trên các đoạn pháp luật được hệ thống truy xuất.
+                            \item Thông tin trích dẫn phải đối chiếu được với dữ liệu nguồn.
+                          \end{enumerate}                                                                                              \\
+    \hline
+    Hậu điều kiện       & Câu hỏi và kết quả xử lý được lưu trong phiên hội thoại khi quá trình hoàn tất.                                                                                         \\
+    \hline
+  \end{longtable}
+}
+\Needspace{12\baselineskip}
+{\fontsize{11pt}{12.5pt}\selectfont
+  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
+    \caption{Bảng đặc tả Use Case Xem câu trả lời}\label{tab:uc-chat-answer}                                                           \\
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                   \\
+    \hline
+    \endfirsthead
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                   \\
+    \hline
+    \endhead
+    Mã Use Case         & UC\_CHAT\_02                                                                                                 \\
+    \hline
+    Tên Use Case        & Xem câu trả lời                                                                                              \\
+    \hline
+    Tác nhân            & Người dùng đã đăng nhập                                                                                      \\
+    \hline
+    Mô tả               & Hiển thị nội dung trả lời, trạng thái xử lý và danh sách căn cứ pháp luật liên quan đến câu hỏi.             \\
+    \hline
+    Tiền điều kiện      & Một yêu cầu hỏi đáp đã được xử lý.                                                                           \\
+    \hline
+    Luồng xử lý chính   & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Giao diện nhận kết quả từ dịch vụ phía máy chủ.
+                            \item Nếu có câu trả lời, giao diện hiển thị nội dung theo định dạng dễ đọc.
+                            \item Giao diện hiển thị các trích dẫn đi kèm câu trả lời.
+                            \item Người dùng có thể tiếp tục mở nguồn, gửi phản hồi hoặc lưu câu trả lời.
+                          \end{enumerate}                                 \\
+    \hline
+    Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Nếu hệ thống xác định thiếu căn cứ, giao diện hiển thị trạng thái chưa đủ dữ liệu thay cho câu trả lời.
+                            \item Nếu yêu cầu xử lý bị lỗi, giao diện hiển thị thông báo phù hợp.
+                          \end{enumerate} \\
+    \hline
+    Quy tắc kiểm tra    & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Giao diện không tự thêm nội dung pháp lý ngoài kết quả do dịch vụ phía máy chủ trả về.
+                            \item Trạng thái thiếu căn cứ phải được thể hiện rõ để người dùng không hiểu nhầm là lỗi hiển thị.
+                          \end{enumerate}            \\
+    \hline
+    Hậu điều kiện       & Người dùng nhận được kết quả hỏi đáp hoặc thông báo chưa đủ căn cứ.                                          \\
+    \hline
+  \end{longtable}
+}
+\Needspace{12\baselineskip}
+{\fontsize{11pt}{12.5pt}\selectfont
+  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
+    \caption{Bảng đặc tả Use Case Xem nguồn trích dẫn}\label{tab:uc-chat-citation}                                          \\
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                        \\
+    \hline
+    \endfirsthead
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                        \\
+    \hline
+    \endhead
+    Mã Use Case         & UC\_CHAT\_03                                                                                      \\
+    \hline
+    Tên Use Case        & Xem nguồn trích dẫn                                                                               \\
+    \hline
+    Tác nhân            & Người dùng đã đăng nhập                                                                           \\
+    \hline
+    Mô tả               & Cho phép người dùng kiểm tra văn bản, Điều, Khoản hoặc Điểm được dùng làm căn cứ cho câu trả lời. \\
+    \hline
+    Tiền điều kiện      & Câu trả lời có ít nhất một trích dẫn hợp lệ.                                                      \\
+    \hline
+    Luồng xử lý chính   & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Người dùng chọn một trích dẫn trong câu trả lời.
+                            \item Giao diện đọc thông tin định danh của nguồn từ dữ liệu trích dẫn.
+                            \item Hệ thống mở trang nguồn pháp luật tương ứng.
+                            \item Người dùng xem nội dung văn bản và vị trí pháp lý liên quan.
+                            \item Nếu có bản PDF, người dùng có thể mở tài liệu PDF để đối chiếu.
+                          \end{enumerate}                            \\
+    \hline
+    Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Nguồn không tồn tại trong dữ liệu hiện tại thì giao diện thông báo không thể mở nguồn.
+                            \item Bản PDF không có sẵn thì hệ thống vẫn hiển thị nội dung văn bản đã chuẩn hóa khi có.
+                          \end{enumerate}       \\
+    \hline
+    Quy tắc kiểm tra    & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Thông tin văn bản và vị trí pháp lý phải lấy từ dữ liệu trích dẫn.
+                            \item Không tự suy đoán đường dẫn hoặc vị trí Điều, Khoản, Điểm khi dữ liệu không cung cấp.
+                          \end{enumerate}        \\
+    \hline
+    Hậu điều kiện       & Người dùng xem được nguồn pháp luật hoặc nhận thông báo nếu nguồn chưa có sẵn.                    \\
+    \hline
+  \end{longtable}
+}
+
+\subsection{Use Case phân rã quản lý hội thoại}
+Nhóm quản lý hội thoại giúp người dùng xem lại quá trình tra cứu. Dữ liệu phiên và tin nhắn thuộc về tài khoản đã đăng nhập và được kiểm soát bằng các ràng buộc truy cập tương ứng.
+\AssetFigure[0.94\textwidth]{ch3_usecase_conversation.png}{7.8cm}{Sơ đồ Use Case phân rã quản lý hội thoại}{}
+\Needspace{12\baselineskip}
+{\fontsize{11pt}{12.5pt}\selectfont
+  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
+    \caption{Bảng đặc tả Use Case Xem lịch sử hội thoại}\label{tab:uc-conv-list}                                    \\
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                \\
+    \hline
+    \endfirsthead
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                \\
+    \hline
+    \endhead
+    Mã Use Case         & UC\_CONV\_01                                                                              \\
+    \hline
+    Tên Use Case        & Xem lịch sử hội thoại                                                                     \\
+    \hline
+    Tác nhân            & Người dùng đã đăng nhập                                                                   \\
+    \hline
+    Mô tả               & Cho phép người dùng xem các phiên hội thoại thuộc tài khoản của mình.                     \\
+    \hline
+    Tiền điều kiện      & Người dùng đã đăng nhập.                                                                  \\
+    \hline
+    Luồng xử lý chính   & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Người dùng mở khu vực lịch sử hội thoại.
+                            \item Giao diện gửi yêu cầu lấy danh sách phiên của tài khoản hiện tại.
+                            \item Hệ thống truy vấn các phiên chưa bị xóa mềm.
+                            \item Danh sách phiên được trả về theo thông tin hiện có.
+                            \item Người dùng chọn một phiên để xem nội dung.
+                          \end{enumerate}                    \\
+    \hline
+    Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Tài khoản chưa có phiên hội thoại thì giao diện hiển thị trạng thái danh sách trống.
+                            \item Yêu cầu tải dữ liệu thất bại thì giao diện thông báo để người dùng thử lại.
+                          \end{enumerate} \\
+    \hline
+    Quy tắc kiểm tra    & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Người dùng chỉ được xem phiên hội thoại thuộc tài khoản của mình.
+                            \item Phiên đã xóa mềm không xuất hiện trong danh sách sử dụng bình thường.
+                          \end{enumerate}                \\
+    \hline
+    Hậu điều kiện       & Danh sách phiên hội thoại của người dùng được hiển thị.                                   \\
+    \hline
+  \end{longtable}
+}
+\Needspace{12\baselineskip}
+{\fontsize{11pt}{12.5pt}\selectfont
+  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
+    \caption{Bảng đặc tả Use Case Mở lại phiên hội thoại}\label{tab:uc-conv-open}                                                \\
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                             \\
+    \hline
+    \endfirsthead
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                             \\
+    \hline
+    \endhead
+    Mã Use Case         & UC\_CONV\_02                                                                                           \\
+    \hline
+    Tên Use Case        & Mở lại phiên hội thoại                                                                                 \\
+    \hline
+    Tác nhân            & Người dùng đã đăng nhập                                                                                \\
+    \hline
+    Mô tả               & Tải lại các tin nhắn của một phiên hội thoại đã lưu để người dùng xem lại nội dung và nguồn trích dẫn. \\
+    \hline
+    Tiền điều kiện      & Phiên hội thoại tồn tại và thuộc tài khoản hiện tại.                                                   \\
+    \hline
+    Luồng xử lý chính   & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Người dùng chọn một phiên trong danh sách lịch sử.
+                            \item Giao diện gửi mã phiên đến dịch vụ phía máy chủ.
+                            \item Hệ thống kiểm tra quyền sở hữu phiên.
+                            \item Các tin nhắn của phiên được truy vấn theo thứ tự thời gian.
+                            \item Giao diện hiển thị lại câu hỏi, câu trả lời và trích dẫn tương ứng.
+                          \end{enumerate}                               \\
+    \hline
+    Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Phiên không tồn tại hoặc không thuộc tài khoản thì hệ thống từ chối truy cập.
+                            \item Phiên đã bị xóa mềm thì hệ thống không trả nội dung trong luồng sử dụng thông thường.
+                          \end{enumerate}             \\
+    \hline
+    Quy tắc kiểm tra    & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Mọi truy vấn phải được giới hạn theo người dùng hiện tại.
+                            \item Trình tự tin nhắn phải được giữ đúng theo dữ liệu đã lưu.
+                          \end{enumerate}                                         \\
+    \hline
+    Hậu điều kiện       & Nội dung phiên hội thoại được hiển thị lại cho đúng người sở hữu.                                      \\
+    \hline
+  \end{longtable}
+}
+\Needspace{12\baselineskip}
+{\fontsize{11pt}{12.5pt}\selectfont
+  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
+    \caption{Bảng đặc tả Use Case Xóa phiên hội thoại}\label{tab:uc-conv-delete}                                   \\
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                               \\
+    \hline
+    \endfirsthead
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                               \\
+    \hline
+    \endhead
+    Mã Use Case         & UC\_CONV\_03                                                                             \\
+    \hline
+    Tên Use Case        & Xóa phiên hội thoại                                                                      \\
+    \hline
+    Tác nhân            & Người dùng đã đăng nhập                                                                  \\
+    \hline
+    Mô tả               & Cho phép người dùng loại một phiên hội thoại khỏi danh sách sử dụng bằng cơ chế xóa mềm. \\
+    \hline
+    Tiền điều kiện      & Phiên hội thoại tồn tại và thuộc người dùng hiện tại.                                    \\
+    \hline
+    Luồng xử lý chính   & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Người dùng chọn chức năng xóa tại phiên hội thoại.
+                            \item Giao diện gửi yêu cầu xóa phiên.
+                            \item Hệ thống kiểm tra quyền sở hữu.
+                            \item Trường đánh dấu xóa của phiên được cập nhật.
+                            \item Giao diện cập nhật lại danh sách phiên.
+                          \end{enumerate}                                  \\
+    \hline
+    Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Phiên không tồn tại hoặc không thuộc tài khoản thì hệ thống từ chối yêu cầu.
+                            \item Không cập nhật được dữ liệu thì giao diện thông báo thao tác chưa hoàn tất.
+                          \end{enumerate}        \\
+    \hline
+    Quy tắc kiểm tra    & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Chỉ chủ sở hữu mới được xóa phiên hội thoại.
+                            \item Cơ chế xóa mềm phải nhất quán với cách lấy danh sách phiên.
+                          \end{enumerate}                         \\
+    \hline
+    Hậu điều kiện       & Phiên được đánh dấu xóa và không còn xuất hiện trong danh sách thông thường.             \\
+    \hline
+  \end{longtable}
+}
+
+\subsection{Use Case phân rã tra cứu nguồn pháp luật}
+Nhóm này hỗ trợ người dùng kiểm tra dữ liệu nguồn độc lập với luồng hỏi đáp. Người dùng có thể xem danh sách văn bản, tìm văn bản, đọc nội dung và mở bản PDF khi có.
+\AssetFigure[0.94\textwidth]{ch3_usecase_legal_sources.png}{8.0cm}{Sơ đồ Use Case phân rã tra cứu nguồn pháp luật}{}
+\Needspace{12\baselineskip}
+{\fontsize{11pt}{12.5pt}\selectfont
+  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
+    \caption{Bảng đặc tả Use Case Xem danh sách văn bản pháp luật}\label{tab:uc-legal-list}                             \\
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                    \\
+    \hline
+    \endfirsthead
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                    \\
+    \hline
+    \endhead
+    Mã Use Case         & UC\_LEGAL\_01                                                                                 \\
+    \hline
+    Tên Use Case        & Xem danh sách văn bản pháp luật                                                               \\
+    \hline
+    Tác nhân            & Người dùng                                                                                    \\
+    \hline
+    Mô tả               & Hiển thị danh sách các văn bản pháp luật đã được chuẩn bị trong phạm vi dữ liệu của hệ thống. \\
+    \hline
+    Tiền điều kiện      & Dữ liệu nguồn pháp luật đã được chuẩn bị.                                                     \\
+    \hline
+    Luồng xử lý chính   & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Người dùng mở trang nguồn pháp luật.
+                            \item Giao diện gửi yêu cầu lấy danh sách văn bản.
+                            \item Hệ thống đọc thông tin danh mục văn bản.
+                            \item Danh sách được hiển thị với thông tin nhận biết cần thiết.
+                            \item Người dùng chọn văn bản để xem chi tiết.
+                          \end{enumerate}                               \\
+    \hline
+    Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Không có dữ liệu nguồn thì giao diện hiển thị danh sách trống.
+                            \item Yêu cầu tải danh sách thất bại thì giao diện thông báo lỗi.
+                          \end{enumerate}                           \\
+    \hline
+    Quy tắc kiểm tra    & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Chỉ hiển thị thông tin có trong dữ liệu nguồn hiện tại.
+                            \item Tình trạng hiệu lực và ngày hiệu lực chỉ hiển thị khi dữ liệu có thông tin tương ứng.
+                          \end{enumerate}    \\
+    \hline
+    Hậu điều kiện       & Danh sách văn bản trong phạm vi dữ liệu được hiển thị.                                        \\
+    \hline
+  \end{longtable}
+}
+\Needspace{12\baselineskip}
+{\fontsize{11pt}{12.5pt}\selectfont
+  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
+    \caption{Bảng đặc tả Use Case Tìm kiếm văn bản pháp luật}\label{tab:uc-legal-search}                           \\
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                               \\
+    \hline
+    \endfirsthead
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                               \\
+    \hline
+    \endhead
+    Mã Use Case         & UC\_LEGAL\_02                                                                            \\
+    \hline
+    Tên Use Case        & Tìm kiếm văn bản pháp luật                                                               \\
+    \hline
+    Tác nhân            & Người dùng                                                                               \\
+    \hline
+    Mô tả               & Cho phép tìm văn bản hoặc điều khoản theo nội dung, số hiệu văn bản hoặc thông tin Điều. \\
+    \hline
+    Tiền điều kiện      & Trang nguồn pháp luật có thể truy cập và dữ liệu đã được chuẩn bị.                       \\
+    \hline
+    Luồng xử lý chính   & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Người dùng nhập từ khóa hoặc thông tin định danh cần tìm.
+                            \item Giao diện gửi yêu cầu tìm kiếm đến API nguồn pháp luật.
+                            \item Hệ thống đối chiếu yêu cầu với dữ liệu văn bản và điều khoản.
+                            \item Các kết quả phù hợp được trả về.
+                            \item Người dùng chọn một kết quả để xem nội dung.
+                          \end{enumerate}                       \\
+    \hline
+    Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Không có kết quả phù hợp thì giao diện thông báo chưa tìm thấy.
+                            \item Từ khóa rỗng được xử lý theo quy tắc của giao diện và API hiện hành.
+                          \end{enumerate}                \\
+    \hline
+    Quy tắc kiểm tra    & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Kết quả phải dựa trên dữ liệu nguồn đã chuẩn hóa.
+                            \item Không tạo thêm văn bản hoặc điều khoản không tồn tại trong dữ liệu.
+                          \end{enumerate}                 \\
+    \hline
+    Hậu điều kiện       & Danh sách kết quả phù hợp được hiển thị hoặc người dùng nhận thông báo không có kết quả. \\
+    \hline
+  \end{longtable}
+}
+\Needspace{12\baselineskip}
+{\fontsize{11pt}{12.5pt}\selectfont
+  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
+    \caption{Bảng đặc tả Use Case Xem nội dung văn bản}\label{tab:uc-legal-view}                                             \\
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                         \\
+    \hline
+    \endfirsthead
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                         \\
+    \hline
+    \endhead
+    Mã Use Case         & UC\_LEGAL\_03                                                                                      \\
+    \hline
+    Tên Use Case        & Xem nội dung văn bản                                                                               \\
+    \hline
+    Tác nhân            & Người dùng                                                                                         \\
+    \hline
+    Mô tả               & Hiển thị nội dung văn bản đã chuẩn hóa và các điều khoản tương ứng để người dùng đọc và đối chiếu. \\
+    \hline
+    Tiền điều kiện      & Văn bản được chọn tồn tại trong danh mục dữ liệu.                                                  \\
+    \hline
+    Luồng xử lý chính   & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Người dùng chọn một văn bản hoặc một kết quả tìm kiếm.
+                            \item Giao diện yêu cầu nội dung văn bản hoặc danh sách điều khoản.
+                            \item Hệ thống trả dữ liệu tương ứng.
+                            \item Giao diện hiển thị nội dung theo cấu trúc dễ đọc.
+                            \item Người dùng có thể quay lại danh sách hoặc mở bản PDF khi có.
+                          \end{enumerate}                                 \\
+    \hline
+    Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Văn bản không còn tồn tại trong dữ liệu thì hệ thống thông báo không tìm thấy.
+                            \item Nội dung chưa được chuẩn hóa đầy đủ thì chỉ phần dữ liệu hiện có được hiển thị.
+                          \end{enumerate}               \\
+    \hline
+    Quy tắc kiểm tra    & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Nội dung hiển thị phải giữ cấu trúc pháp lý cần thiết như Điều, Khoản và Điểm khi dữ liệu có.
+                            \item Không tự chỉnh sửa nội dung pháp luật trong bước hiển thị.
+                          \end{enumerate} \\
+    \hline
+    Hậu điều kiện       & Nội dung văn bản hoặc điều khoản được hiển thị để người dùng kiểm tra.                             \\
+    \hline
+  \end{longtable}
+}
+\Needspace{12\baselineskip}
+{\fontsize{11pt}{12.5pt}\selectfont
+  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
+    \caption{Bảng đặc tả Use Case Xem bản PDF của văn bản}\label{tab:uc-legal-pdf}                                               \\
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                             \\
+    \hline
+    \endfirsthead
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                             \\
+    \hline
+    \endhead
+    Mã Use Case         & UC\_LEGAL\_04                                                                                          \\
+    \hline
+    Tên Use Case        & Xem bản PDF của văn bản                                                                                \\
+    \hline
+    Tác nhân            & Người dùng                                                                                             \\
+    \hline
+    Mô tả               & Cho phép mở bản PDF của văn bản pháp luật khi tệp tương ứng có trong dữ liệu của hệ thống.             \\
+    \hline
+    Tiền điều kiện      & Văn bản có thông tin hoặc tệp PDF có thể truy cập.                                                     \\
+    \hline
+    Luồng xử lý chính   & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Người dùng chọn chức năng xem PDF.
+                            \item Giao diện xác định tệp PDF tương ứng với văn bản.
+                            \item Trình xem PDF tải tài liệu.
+                            \item Người dùng đọc, cuộn và đối chiếu nội dung với trích dẫn.
+                          \end{enumerate}                                         \\
+    \hline
+    Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Tệp PDF không có sẵn thì hệ thống thông báo và giữ khả năng xem bản nội dung đã chuẩn hóa nếu có.
+                            \item Tệp PDF không tải được thì giao diện thông báo lỗi tải tài liệu.
+                          \end{enumerate} \\
+    \hline
+    Quy tắc kiểm tra    & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Tệp được mở phải thuộc đúng văn bản người dùng đã chọn.
+                            \item Không suy đoán tệp PDF từ tên văn bản khi dữ liệu không cung cấp liên kết.
+                          \end{enumerate}                        \\
+    \hline
+    Hậu điều kiện       & Bản PDF được hiển thị hoặc người dùng nhận thông báo nếu tệp không có sẵn.                             \\
+    \hline
+  \end{longtable}
+}
+
+\subsection{Use Case phân rã phản hồi và nội dung đã lưu}
+Phản hồi được dùng để ghi nhận mức độ hữu ích của câu trả lời. Chức năng lưu câu trả lời giúp người dùng tạo một danh sách riêng để xem lại nội dung quan trọng mà không phụ thuộc hoàn toàn vào danh sách phiên hội thoại.
+\AssetFigure[0.94\textwidth]{ch3_usecase_feedback.png}{8.0cm}{Sơ đồ Use Case phân rã phản hồi và nội dung đã lưu}{}
+\Needspace{12\baselineskip}
+{\fontsize{11pt}{12.5pt}\selectfont
+  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
+    \caption{Bảng đặc tả Use Case Đánh giá câu trả lời}\label{tab:uc-feedback}                                            \\
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                      \\
+    \hline
+    \endfirsthead
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                      \\
+    \hline
+    \endhead
+    Mã Use Case         & UC\_FB\_01                                                                                      \\
+    \hline
+    Tên Use Case        & Đánh giá câu trả lời                                                                            \\
+    \hline
+    Tác nhân            & Người dùng đã đăng nhập                                                                         \\
+    \hline
+    Mô tả               & Cho phép người dùng ghi nhận câu trả lời hữu ích hoặc chưa hữu ích và có thể gửi thêm nhận xét. \\
+    \hline
+    Tiền điều kiện      & Câu trả lời tồn tại trong dữ liệu hội thoại của người dùng.                                     \\
+    \hline
+    Luồng xử lý chính   & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Người dùng chọn mức đánh giá tại câu trả lời.
+                            \item Người dùng nhập nhận xét bổ sung nếu cần.
+                            \item Giao diện gửi thông tin phản hồi đến dịch vụ phía máy chủ.
+                            \item Hệ thống kiểm tra câu trả lời thuộc phiên của người dùng hiện tại.
+                            \item Dữ liệu đánh giá được lưu vào bảng phản hồi.
+                            \item Giao diện cập nhật trạng thái đánh giá.
+                          \end{enumerate}                         \\
+    \hline
+    Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Tin nhắn không tồn tại hoặc không thuộc tài khoản thì hệ thống từ chối lưu phản hồi.
+                            \item Lưu dữ liệu thất bại thì giao diện thông báo thao tác chưa hoàn tất.
+                          \end{enumerate}       \\
+    \hline
+    Quy tắc kiểm tra    & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Giá trị đánh giá phải theo phạm vi dữ liệu mà hệ thống quy định.
+                            \item Phản hồi phải liên kết với đúng tin nhắn được đánh giá.
+                          \end{enumerate}                           \\
+    \hline
+    Hậu điều kiện       & Phản hồi của người dùng được lưu và liên kết với câu trả lời tương ứng.                         \\
+    \hline
+  \end{longtable}
+}
+\Needspace{12\baselineskip}
+{\fontsize{11pt}{12.5pt}\selectfont
+  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
+    \caption{Bảng đặc tả Use Case Lưu câu trả lời}\label{tab:uc-save}                                                                    \\
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                     \\
+    \hline
+    \endfirsthead
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                     \\
+    \hline
+    \endhead
+    Mã Use Case         & UC\_SAVE\_01                                                                                                   \\
+    \hline
+    Tên Use Case        & Lưu câu trả lời                                                                                                \\
+    \hline
+    Tác nhân            & Người dùng đã đăng nhập                                                                                        \\
+    \hline
+    Mô tả               & Lưu lại một câu trả lời để người dùng có thể xem lại sau mà không cần tìm lại trong toàn bộ lịch sử hội thoại. \\
+    \hline
+    Tiền điều kiện      & Câu trả lời tồn tại và thuộc phiên của người dùng hiện tại.                                                    \\
+    \hline
+    Luồng xử lý chính   & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Người dùng chọn chức năng lưu tại một câu trả lời.
+                            \item Giao diện gửi yêu cầu lưu cùng mã phiên và mã tin nhắn liên quan.
+                            \item Hệ thống kiểm tra quyền sở hữu dữ liệu nguồn.
+                            \item Hệ thống lưu bản sao thông tin cần thiết gồm câu hỏi, câu trả lời và trích dẫn.
+                            \item Giao diện cập nhật trạng thái đã lưu.
+                          \end{enumerate}                           \\
+    \hline
+    Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Câu trả lời không thuộc tài khoản hiện tại thì hệ thống từ chối yêu cầu.
+                            \item Nội dung đã được lưu theo quy tắc hiện hành thì giao diện giữ trạng thái phù hợp.
+                          \end{enumerate}                         \\
+    \hline
+    Quy tắc kiểm tra    & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Dữ liệu đã lưu phải gắn với người dùng hiện tại.
+                            \item Thông tin câu hỏi, câu trả lời và trích dẫn cần đủ để xem lại nội dung đã lưu.
+                          \end{enumerate}                            \\
+    \hline
+    Hậu điều kiện       & Câu trả lời xuất hiện trong danh sách nội dung đã lưu của người dùng.                                          \\
+    \hline
+  \end{longtable}
+}
+\Needspace{12\baselineskip}
+{\fontsize{11pt}{12.5pt}\selectfont
+  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
+    \caption{Bảng đặc tả Use Case Xem nội dung đã lưu}\label{tab:uc-saved-list}                                         \\
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                    \\
+    \hline
+    \endfirsthead
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                    \\
+    \hline
+    \endhead
+    Mã Use Case         & UC\_SAVE\_02                                                                                  \\
+    \hline
+    Tên Use Case        & Xem nội dung đã lưu                                                                           \\
+    \hline
+    Tác nhân            & Người dùng đã đăng nhập                                                                       \\
+    \hline
+    Mô tả               & Hiển thị danh sách các câu trả lời mà người dùng đã lưu trước đó.                             \\
+    \hline
+    Tiền điều kiện      & Người dùng đã đăng nhập.                                                                      \\
+    \hline
+    Luồng xử lý chính   & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Người dùng mở trang nội dung đã lưu.
+                            \item Giao diện gửi yêu cầu lấy danh sách bookmark của tài khoản.
+                            \item Hệ thống truy vấn các bản ghi thuộc người dùng hiện tại.
+                            \item Danh sách được hiển thị với câu hỏi, câu trả lời và thông tin trích dẫn đã lưu.
+                            \item Người dùng chọn một mục để xem lại chi tiết.
+                          \end{enumerate}          \\
+    \hline
+    Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Chưa có nội dung đã lưu thì giao diện hiển thị trạng thái danh sách trống.
+                            \item Tải dữ liệu thất bại thì giao diện thông báo để người dùng thử lại.
+                          \end{enumerate}               \\
+    \hline
+    Quy tắc kiểm tra    & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Chỉ trả dữ liệu bookmark thuộc tài khoản hiện tại.
+                            \item Không phụ thuộc vào việc tin nhắn nguồn còn xuất hiện trong lịch sử hội thoại hay không.
+                          \end{enumerate} \\
+    \hline
+    Hậu điều kiện       & Danh sách nội dung đã lưu được hiển thị.                                                      \\
+    \hline
+  \end{longtable}
+}
+\Needspace{12\baselineskip}
+{\fontsize{11pt}{12.5pt}\selectfont
+  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
+    \caption{Bảng đặc tả Use Case Bỏ lưu câu trả lời}\label{tab:uc-unsave}                                       \\
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                             \\
+    \hline
+    \endfirsthead
+    \hline
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                             \\
+    \hline
+    \endhead
+    Mã Use Case         & UC\_SAVE\_03                                                                           \\
+    \hline
+    Tên Use Case        & Bỏ lưu câu trả lời                                                                     \\
+    \hline
+    Tác nhân            & Người dùng đã đăng nhập                                                                \\
+    \hline
+    Mô tả               & Loại một câu trả lời khỏi danh sách nội dung đã lưu của người dùng.                    \\
+    \hline
+    Tiền điều kiện      & Nội dung đã được lưu và thuộc người dùng hiện tại.                                     \\
+    \hline
+    Luồng xử lý chính   & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Người dùng chọn chức năng bỏ lưu.
+                            \item Giao diện gửi mã tin nhắn câu trả lời đến API bookmark.
+                            \item Hệ thống xác định bản ghi bookmark tương ứng của người dùng.
+                            \item Bản ghi được xóa.
+                            \item Giao diện cập nhật trạng thái và danh sách đã lưu.
+                          \end{enumerate}                      \\
+    \hline
+    Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Không tìm thấy bản ghi tương ứng thì hệ thống trả trạng thái phù hợp.
+                            \item Bản ghi không thuộc người dùng hiện tại thì hệ thống từ chối thao tác.
+                          \end{enumerate}            \\
+    \hline
+    Quy tắc kiểm tra    & \begin{enumerate}[leftmargin=*,nosep]
+                            \item Chỉ chủ sở hữu bookmark được phép bỏ lưu.
+                            \item Thao tác bỏ lưu không làm thay đổi nội dung tin nhắn gốc trong lịch sử hội thoại.
+                          \end{enumerate} \\
+    \hline
+    Hậu điều kiện       & Nội dung không còn xuất hiện trong danh sách đã lưu.                                   \\
+    \hline
+  \end{longtable}
+}
+
+\section{Sơ đồ hoạt động}
+Sơ đồ hoạt động mô tả trình tự thực hiện và các nhánh quyết định trong một nghiệp vụ. Khác với Use Case, sơ đồ hoạt động tập trung vào luồng xử lý từ lúc bắt đầu đến lúc kết thúc. Các hình dưới đây chỉ chọn những luồng người dùng quan trọng, tránh lặp lại toàn bộ chức năng nhỏ đã có trong bảng đặc tả.
+
+\subsection{Sơ đồ hoạt động đăng ký và đăng nhập}
+Luồng xác thực bắt đầu từ thao tác nhập thông tin trên giao diện. Hệ thống kiểm tra dữ liệu đầu vào, gửi yêu cầu đến dịch vụ xác thực và chuyển người dùng vào trạng thái đã đăng nhập khi thông tin hợp lệ. Nhánh lỗi thể hiện trường hợp dữ liệu sai hoặc dịch vụ xác thực không hoàn tất yêu cầu.
+\AssetFigure[0.94\textwidth]{ch3_activity_auth.png}{8.2cm}{Sơ đồ hoạt động đăng ký và đăng nhập}{}
+
+\subsection{Sơ đồ hoạt động hỏi đáp pháp luật}
+Luồng hỏi đáp bắt đầu khi người dùng gửi câu hỏi. Sau khi phân tích câu hỏi, hệ thống tìm căn cứ và kiểm tra mức độ đầy đủ. Nếu căn cứ chưa đạt yêu cầu, hệ thống dừng và trả thông báo chưa đủ dữ liệu. Nếu đạt yêu cầu, hệ thống tạo câu trả lời, kiểm tra lại kết quả, tạo thông tin trích dẫn và trả kết quả về giao diện.
+\AssetFigure[0.96\textwidth]{ch3_activity_chat.png}{9.0cm}{Sơ đồ hoạt động xử lý câu hỏi pháp luật}{}
+
+\subsection{Sơ đồ hoạt động tra cứu nguồn pháp luật}
+Người dùng có thể vào trang nguồn pháp luật, xem danh sách hoặc nhập nội dung cần tìm. Hệ thống trả các văn bản phù hợp và cho phép mở nội dung chi tiết. Khi có bản PDF, người dùng có thể chuyển sang trình xem PDF để đối chiếu.
+\AssetFigure[0.94\textwidth]{ch3_activity_legal_sources.png}{8.2cm}{Sơ đồ hoạt động tra cứu nguồn pháp luật}{}
+
+\subsection{Sơ đồ hoạt động quản lý hội thoại}
+Sau khi đăng nhập, người dùng mở danh sách phiên, chọn một phiên để xem lại hoặc thực hiện thao tác đổi tên và xóa. Trước mỗi thao tác làm thay đổi dữ liệu, hệ thống kiểm tra phiên thuộc tài khoản hiện tại.
+\AssetFigure[0.94\textwidth]{ch3_activity_conversation.png}{8.0cm}{Sơ đồ hoạt động quản lý hội thoại}{}
+
+\subsection{Sơ đồ hoạt động phản hồi và lưu câu trả lời}
+Từ một câu trả lời đã hiển thị, người dùng có thể gửi đánh giá hoặc lưu nội dung để xem lại. Hệ thống xác định tin nhắn nguồn, kiểm tra quyền truy cập và cập nhật dữ liệu tương ứng. Hai thao tác này không làm thay đổi nội dung pháp luật hoặc nội dung câu trả lời gốc.
+\AssetFigure[0.94\textwidth]{ch3_activity_feedback.png}{8.0cm}{Sơ đồ hoạt động phản hồi và lưu câu trả lời}{}
+
+\section{Sơ đồ tuần tự}
+Sơ đồ tuần tự mô tả thứ tự trao đổi thông tin giữa người dùng, giao diện, dịch vụ phía máy chủ và các hệ thống lưu trữ hoặc mô hình. Phần này tập trung vào những luồng có nhiều thành phần tham gia. Cách trình bày giúp đối chiếu một nghiệp vụ từ thao tác trên giao diện đến dữ liệu và kết quả trả về.
+
+\subsection{Sơ đồ tuần tự đăng nhập}
+Các thành phần chính gồm Người dùng, Frontend, Supabase Auth và phần xử lý phiên trên giao diện. Người dùng nhập thông tin đăng nhập, Frontend chuyển yêu cầu xác thực, Supabase trả kết quả và phiên hợp lệ được dùng cho các yêu cầu cần đăng nhập sau đó.
+\AssetFigure[0.96\textwidth]{ch3_sequence_auth.png}{8.3cm}{Sơ đồ tuần tự đăng nhập hệ thống}{}
+
+\subsection{Sơ đồ tuần tự xử lý một câu hỏi}
+Sơ đồ tổng quát của một lượt hỏi đáp cần thể hiện Người dùng, Frontend, FastAPI, dịch vụ RAG, Qdrant, dịch vụ mô hình và Supabase. Frontend gửi câu hỏi đến FastAPI. Dịch vụ RAG phân tích câu hỏi, thực hiện tìm kiếm, kiểm tra căn cứ và chỉ gọi bước tạo câu trả lời khi đủ dữ liệu. Kết quả cuối cùng được lưu vào lịch sử và trả về giao diện.
+\AssetFigure[0.98\textwidth]{ch3_sequence_chat.png}{9.2cm}{Sơ đồ tuần tự xử lý một câu hỏi pháp luật}{}
+
+\subsection{Sơ đồ tuần tự tìm kiếm căn cứ}
+Sơ đồ này đi sâu vào phần tìm kiếm. Dịch vụ RAG tạo các truy vấn cần thiết, thực hiện tìm kiếm theo từ khóa và theo vector, nhận danh sách kết quả từ Qdrant, gộp thứ hạng, giới hạn số đoạn trùng lặp và bổ sung các đoạn liên quan trước khi trả tập căn cứ về bước kiểm tra.
+\AssetFigure[0.98\textwidth]{ch3_sequence_retrieval.png}{9.0cm}{Sơ đồ tuần tự tìm kiếm và tổng hợp căn cứ}{}
+
+\subsection{Sơ đồ tuần tự tạo và kiểm tra câu trả lời}
+Khi tập căn cứ đạt yêu cầu, dịch vụ phía máy chủ tạo nội dung yêu cầu cho mô hình và gửi đến dịch vụ mô hình. Sau khi nhận kết quả, hệ thống kiểm tra lại trích dẫn, đoạn trích và mức độ liên kết giữa câu trả lời với căn cứ. Nếu bước kiểm tra sau cùng không đạt, kết quả được chuyển về trạng thái chưa đủ căn cứ.
+\AssetFigure[0.98\textwidth]{ch3_sequence_generation.png}{9.0cm}{Sơ đồ tuần tự tạo và kiểm tra câu trả lời}{}
+
+\subsection{Sơ đồ tuần tự mở nguồn trích dẫn}
+Người dùng chọn trích dẫn trên giao diện. Frontend sử dụng thông tin định danh văn bản và vị trí pháp lý để yêu cầu dữ liệu nguồn. Hệ thống trả nội dung đã chuẩn hóa hoặc thông tin tệp PDF tương ứng. Trình xem hiển thị tài liệu để người dùng đối chiếu với câu trả lời.
+\AssetFigure[0.96\textwidth]{ch3_sequence_citation.png}{8.5cm}{Sơ đồ tuần tự mở nguồn trích dẫn}{}
+
+\subsection{Sơ đồ tuần tự phản hồi và lưu câu trả lời}
+Sơ đồ thể hiện hai thao tác sau khi người dùng đã nhận câu trả lời. Với phản hồi, hệ thống ghi giá trị đánh giá và nhận xét gắn với tin nhắn. Với thao tác lưu, hệ thống tạo bản ghi bookmark chứa thông tin câu hỏi, câu trả lời và trích dẫn cần thiết. Mọi thao tác đều được giới hạn theo tài khoản hiện tại.
+\AssetFigure[0.96\textwidth]{ch3_sequence_feedback_bookmark.png}{8.5cm}{Sơ đồ tuần tự phản hồi và lưu câu trả lời}{}
+
+\section{Phân tích và thiết kế cơ sở dữ liệu}
+\subsection{Nguyên tắc phân tách dữ liệu}
+Dữ liệu ứng dụng được lưu trong Supabase/PostgreSQL và có quan hệ sở hữu theo người dùng. Qdrant lưu vector cùng thông tin mô tả của từng đoạn pháp luật. Dữ liệu nguồn được chuẩn hóa từ Markdown sang JSONL trước khi lập chỉ mục. Phần mô hình cơ sở dữ liệu quan hệ dưới đây mô tả dữ liệu ứng dụng trong Supabase. Dữ liệu phục vụ tìm kiếm trong Qdrant được trình bày riêng.
+
+\subsection{Mô hình dữ liệu khái niệm MCD}
+MCD gồm các thực thể Người dùng, Phiên hội thoại, Tin nhắn, Phản hồi và Nội dung đánh dấu cùng quan hệ giữa chúng. \texttt{auth.users} là thực thể xác thực do Supabase quản lý.
+\AssetFigure[0.94\textwidth]{ch3_cdm.png}{8.2cm}{Mô hình dữ liệu khái niệm MCD}{}
+
+\subsection{Mô hình dữ liệu logic LDM}
+LDM thể hiện khóa chính, khóa ngoại, cardinality và các thuộc tính chính. Kiểu dữ liệu vật lý được trình bày ở PDM.
+\AssetFigure[0.94\textwidth]{ch3_ldm.png}{8.5cm}{Mô hình dữ liệu logic LDM}{}
+
+\subsection{Mô hình dữ liệu vật lý PDM}
+PDM mô tả tên bảng, cột, kiểu dữ liệu, khóa chính, khóa ngoại, ràng buộc duy nhất và ràng buộc kiểm tra của cơ sở dữ liệu ứng dụng.
+\AssetFigure[0.98\textwidth]{ch3_pdm.png}{10.5cm}{Mô hình dữ liệu vật lý PDM}{}
+
+\subsection{Sơ đồ ERD}
+ERD tập trung vào năm bảng dữ liệu ứng dụng và các quan hệ khóa ngoại giữa phiên hội thoại, tin nhắn, phản hồi, nội dung đánh dấu và tài khoản xác thực.
+\AssetFigure[0.98\textwidth]{ch3_erd.png}{10.5cm}{Sơ đồ thực thể liên kết ERD của dữ liệu ứng dụng}{}
+
+\subsection{Bảng profiles}
+Bảng \texttt{profiles} mở rộng thông tin của \texttt{auth.users}. ID vừa là khóa chính vừa tham chiếu user của Supabase Auth.
+  {\fontsize{11pt}{12pt}\selectfont
+    \Needspace{10\baselineskip}
+    \begin{longtable}{|L{0.9cm}|L{2.9cm}|L{2.4cm}|L{3.0cm}|L{4.2cm}|}
+      \caption{Thiết kế bảng profiles}\label{tab:db-profiles}                         \\
+      \hline
+      STT & Thuộc tính    & Khóa/ràng buộc    & Kiểu dữ liệu & Diễn giải              \\
+      \hline
+      1   & id            & PK, FK auth.users & UUID         & Mã người dùng          \\
+      \hline
+      2   & display\_name &                   & TEXT         & Tên hiển thị           \\
+      \hline
+      3   & avatar\_url   &                   & TEXT         & Đường dẫn ảnh đại diện \\
+      \hline
+      4   & created\_at   & NOT NULL, DEFAULT & TIMESTAMPTZ  & Thời điểm tạo          \\
+      \hline
+      5   & updated\_at   & NOT NULL, DEFAULT & TIMESTAMPTZ  & Thời điểm cập nhật     \\
+      \hline
+    \end{longtable}
+  }
+
+\subsection{Bảng chat\_sessions}
+Bảng \texttt{chat\_sessions} lưu từng phiên hội thoại và liên kết phiên với người dùng sở hữu.
+{\fontsize{11pt}{12pt}\selectfont
+\Needspace{10\baselineskip}
+\begin{longtable}{|L{0.9cm}|L{2.9cm}|L{2.6cm}|L{3.0cm}|L{4.0cm}|}
+  \caption{Thiết kế bảng chat\_sessions}\label{tab:db-sessions}                                          \\
+  \hline
+  STT & Thuộc tính  & Khóa/ràng buộc                              & Kiểu dữ liệu & Diễn giải             \\
+  \hline
+  1   & id          & PK, DEFAULT                                 & UUID         & Mã phiên chat         \\
+  \hline
+  2   & user\_id    & FK auth.users, NOT NULL                     & UUID         & Chủ sở hữu phiên chat \\
+  \hline
+  3   & title       & NOT NULL, DEFAULT, CHECK từ 1 đến 200 ký tự & TEXT         & Tiêu đề phiên         \\
+  \hline
+  4   & deleted     & NOT NULL, DEFAULT false                     & BOOLEAN      & Cờ xóa mềm            \\
+  \hline
+  5   & created\_at & NOT NULL, DEFAULT                           & TIMESTAMPTZ  & Thời điểm tạo         \\
+  \hline
+  6   & updated\_at & NOT NULL, DEFAULT                           & TIMESTAMPTZ  & Lần cập nhật cuối     \\
+  \hline
+\end{longtable}
+}
+Bảng có ràng buộc unique theo cặp \texttt{(id,user\_id)} để messages có thể tham chiếu đồng thời session và chủ sở hữu.
+
+\subsection{Bảng messages}
+Bảng \texttt{messages} lưu nội dung trao đổi, trạng thái xử lý, trích dẫn nguồn và thông tin mô tả của từng tin nhắn.
+{\fontsize{11pt}{12pt}\selectfont
+\Needspace{10\baselineskip}
+\begin{longtable}{|L{0.9cm}|L{2.9cm}|L{2.6cm}|L{3.0cm}|L{4.0cm}|}
+  \caption{Thiết kế bảng messages}\label{tab:db-messages}                                                           \\
+  \hline
+  STT & Thuộc tính      & Khóa/ràng buộc                          & Kiểu dữ liệu & Diễn giải                        \\
+  \hline
+  1   & id              & PK, DEFAULT                             & UUID         & Mã tin nhắn                      \\
+  \hline
+  2   & session\_id     & FK ghép với user\_id, NOT NULL          & UUID         & Phiên chat chứa tin nhắn         \\
+  \hline
+  3   & user\_id        & FK auth.users, NOT NULL                 & UUID         & Chủ sở hữu dữ liệu               \\
+  \hline
+  4   & role            & NOT NULL, DEFAULT, CHECK user/assistant & TEXT         & Vai trò tin nhắn                 \\
+  \hline
+  5   & content         & NOT NULL, CHECK không rỗng              & TEXT         & Nội dung hiển thị                \\
+  \hline
+  6   & status          & NOT NULL, DEFAULT, CHECK độ dài         & TEXT         & Trạng thái xử lý                 \\
+  \hline
+  7   & response        &                                         & JSONB        & Response có cấu trúc nếu cần lưu \\
+  \hline
+  8   & citations       & NOT NULL, DEFAULT []                    & JSONB        & Danh sách trích dẫn nguồn        \\
+  \hline
+  9   & thông tin mô tả & NOT NULL, DEFAULT \{\}                  & JSONB        & Thông tin mô tả bổ sung          \\
+  \hline
+  10  & created\_at     & NOT NULL, DEFAULT                       & TIMESTAMPTZ  & Thời điểm tạo                    \\
+  \hline
+  11  & updated\_at     & NOT NULL, DEFAULT                       & TIMESTAMPTZ  & Thời điểm cập nhật               \\
+\end{longtable}
+}
+\subsection{Bảng feedback}
+Bảng \texttt{feedback} lưu một đánh giá cho mỗi tin nhắn và mỗi người dùng. Trường \texttt{rating} dùng số nguyên, trong đó 1 biểu thị đánh giá tích cực và 0 biểu thị đánh giá không tích cực. Người dùng có thể gửi thêm nội dung nhận xét ở trường \texttt{comment}.
+{\fontsize{11pt}{12pt}\selectfont
+\Needspace{10\baselineskip}
+\begin{longtable}{|L{0.9cm}|L{2.9cm}|L{2.6cm}|L{3.0cm}|L{4.0cm}|}
+  \caption{Thiết kế bảng feedback}\label{tab:db-feedback}                           \\
+  \hline
+  1 & id          & PK, DEFAULT              & UUID        & Mã phản hồi            \\
+  \hline
+  2 & message\_id & FK messages, NOT NULL    & UUID        & Tin nhắn được đánh giá \\
+  \hline
+  3 & user\_id    & FK auth.users, NOT NULL  & UUID        & Người gửi phản hồi     \\
+  \hline
+  4 & rating      & NOT NULL, CHECK 0 hoặc 1 & INTEGER     & Giá trị đánh giá       \\
+  \hline
+  5 & comment     & Tùy chọn                 & TEXT        & Nội dung nhận xét      \\
+  \hline
+  6 & created\_at & NOT NULL, DEFAULT        & TIMESTAMPTZ & Thời điểm tạo          \\
+  \hline
+  7 & updated\_at & NOT NULL, DEFAULT        & TIMESTAMPTZ & Thời điểm cập nhật     \\
+  \hline
+\end{longtable}
+}
+Mỗi người dùng chỉ có một phản hồi cho một tin nhắn nhờ ràng buộc duy nhất trên cặp \path{(message_id,user_id)}. API yêu cầu thông tin xác thực hợp lệ và chỉ cho phép thao tác trên phản hồi thuộc người dùng hiện tại.
+
+\subsection{Bảng bookmarks}
+Bảng \texttt{bookmarks} lưu một bản sao câu hỏi và câu trả lời mà người dùng muốn xem lại. Bản ghi được thiết kế để vẫn còn nội dung chính ngay cả khi phiên hội thoại hoặc tin nhắn nguồn đã bị xóa.
+{\fontsize{11pt}{12pt}\selectfont
+\Needspace{10\baselineskip}
+\begin{longtable}{|L{0.9cm}|L{3.0cm}|L{2.6cm}|L{3.0cm}|L{3.9cm}|}
+  \caption{Thiết kế bảng bookmarks}\label{tab:db-bookmarks}                                                              \\
+  \hline
+  STT & Thuộc tính                  & Khóa/ràng buộc             & Kiểu dữ liệu & Diễn giải                              \\
+  \hline
+  1   & id                          & PK, DEFAULT                & UUID         & Mã nội dung đã lưu                     \\
+  \hline
+  2   & user\_id                    & FK auth.users, NOT NULL    & UUID         & Chủ sở hữu dữ liệu                     \\
+  \hline
+  3   & \path{source_session_id}    & FK, ON DELETE SET NULL     & UUID         & Phiên hội thoại nguồn nếu còn tồn tại  \\
+  \hline
+  4   & \path{user_message_id}      & FK, ON DELETE SET NULL     & UUID         & Tin nhắn câu hỏi nguồn nếu còn tồn tại \\
+  \hline
+  5   & \path{assistant_message_id} & FK, ON DELETE SET NULL     & UUID         & Tin nhắn trả lời nguồn nếu còn tồn tại \\
+  \hline
+  6   & question                    & NOT NULL, CHECK không rỗng & TEXT         & Câu hỏi được lưu                       \\
+  \hline
+  7   & answer                      & NOT NULL, CHECK không rỗng & TEXT         & Câu trả lời được lưu                   \\
+  \hline
+  8   & citations                   & NOT NULL, DEFAULT []       & JSONB        & Danh sách trích dẫn đi kèm             \\
+  \hline
+  9   & response                    & Tùy chọn                   & JSONB        & Dữ liệu trả về có cấu trúc nếu cần lưu \\
+  \hline
+  10  & created\_at                 & NOT NULL, DEFAULT          & TIMESTAMPTZ  & Thời điểm lưu                          \\
+  \hline
+\end{longtable}
+}
+Ràng buộc duy nhất theo cặp \texttt{user\_id} và \texttt{\path{assistant_message_id}} ngăn cùng một người dùng lưu trùng một câu trả lời. Các khóa ngoại tới phiên hội thoại và tin nhắn dùng \texttt{ON DELETE SET NULL}, vì nội dung câu hỏi, câu trả lời và trích dẫn đã được lưu trực tiếp trong bảng này.
+
+\subsection{Chỉ mục, trigger và ràng buộc toàn vẹn}
+Schema tạo index theo \texttt{user\_id}, \texttt{updated\_at}, \texttt{session\_id} và \texttt{created\_at} để hỗ trợ các truy vấn thường gặp. Trigger \texttt{set\_updated\_at} tự cập nhật thời gian sửa bản ghi. Trigger trên messages cập nhật \texttt{chat\_sessions.updated\_at} khi có message mới hoặc sửa. Trigger \texttt{handle\_new\_user} tạo profile sau khi Supabase Auth tạo user.
+
+Các ràng buộc toàn vẹn gồm khóa chính, khóa ngoại, NOT NULL, UNIQUE, CHECK và DEFAULT. Việc dùng cả constraint ở database và validation ở API giúp giảm khả năng dữ liệu sai lọt vào hệ thống.
+
+\subsection{Row Level Security}
+Tất cả năm bảng ứng dụng bật RLS. Policy dùng \texttt{auth.uid()} để giới hạn dữ liệu theo chủ sở hữu. Với messages, policy còn kiểm tra session tương ứng thuộc cùng người dùng. Sơ đồ bảo mật thể hiện browser dùng publishable key và dịch vụ phía máy chủ giữ khóa dịch vụ key.
+
+\section{Thiết kế dữ liệu tìm kiếm trong Qdrant}
+Qdrant lưu chỉ mục tìm kiếm của hệ thống. Mỗi điểm dữ liệu gồm vector ngữ nghĩa, vector từ khóa và thông tin mô tả. Khi câu hỏi chứa tham chiếu rõ ràng, bộ phận tìm kiếm tạo bộ lọc theo các trường Điều, Khoản và Điểm.
+
+\Needspace{10\baselineskip}
+\begin{longtable}{|L{3.1cm}|L{3.0cm}|L{7.2cm}|}
+  \caption{Các trường thông tin mô tả chính trong chunk/Qdrant payload}\label{tab:qdrant-payload} \\
+  \hline
+  \textbf{Trường}        & \textbf{Dạng dữ liệu} & \textbf{Ý nghĩa}                               \\
+  \hline
+  \path{chunk_id}        & Chuỗi                 & Định danh chunk, dạng document-id + số thứ tự  \\
+  \hline
+  \path{document_id}     & Chuỗi                 & Mã nội bộ của văn bản                          \\
+  \hline
+  \path{document_name}   & Chuỗi                 & Tên văn bản                                    \\
+  \hline
+  \path{document_number} & Chuỗi                 & Số hiệu văn bản nếu có                         \\
+  \hline
+  article                & Chuỗi                 & Số Điều                                        \\
+  \hline
+  clause                 & Chuỗi/tùy chọn        & Số Khoản                                       \\
+  \hline
+  point                  & Chuỗi/tùy chọn        & Nhãn Điểm                                      \\
+  \hline
+  \path{source_file}     & Chuỗi                 & Đường dẫn file nguồn                           \\
+  \hline
+  \path{source_url}      & Chuỗi                 & URL nguồn nếu có                               \\
+  \hline
+  \path{source_kind}     & Chuỗi                 & markdown hoặc pdf theo adapter nguồn           \\
+  \hline
+  \path{content_sha256}  & Chuỗi                 & SHA-256 của nội dung file Markdown nguồn       \\
+  \hline
+\end{longtable}
+
+\section{Thiết kế dữ liệu nguồn và JSONL}
+\subsection{Danh mục văn bản nguồn}
+Danh mục văn bản nguồn lưu mã văn bản và thông tin cần thiết để xác định tệp nội dung tương ứng. Danh mục này giúp quá trình chuẩn hóa dữ liệu xử lý đúng từng văn bản.
+
+\subsection{Dữ liệu đoạn văn bản dạng JSONL}
+Mỗi dòng JSONL gồm \texttt{page\_content} và \texttt{thông tin mô tả}. Dữ liệu này được dùng để xây dựng collection Qdrant.
+
+\section{Thiết kế API}
+Các endpoint được chia theo nhóm hỏi đáp, xác thực, phiên chat và nguồn pháp luật. Bảng dưới đây ghi các endpoint chính dùng trong bản triển khai.
+  {\fontsize{11pt}{12pt}\selectfont
+    \Needspace{10\baselineskip}
+    \begin{longtable}{|L{2.2cm}|L{6.2cm}|L{5.0cm}|}
+      \caption{Các endpoint chính của hệ thống}\label{tab:api-endpoints}                                                                      \\
+      \hline
+      \textbf{Phương thức} & \textbf{Endpoint}                                                & \textbf{Mục đích}                             \\
+      \hline
+      POST                 & \path{/api/v1/chat}                                              & Gửi câu hỏi pháp luật                         \\
+      \hline
+      POST                 & \path{/api/v1/auth/register}                                     & Đăng ký                                       \\
+      \hline
+      POST                 & \path{/api/v1/auth/login}                                        & Đăng nhập                                     \\
+      \hline
+      GET                  & \path{/api/v1/auth/me}                                           & Lấy người dùng hiện tại                       \\
+      \hline
+      GET, POST            & \path{/api/v1/chats}                                             & Lấy danh sách hoặc tạo phiên chat             \\
+      \hline
+      GET, PATCH, DELETE   & \path{/api/v1/chats/{session_id}}                                & Xem, sửa hoặc xóa phiên chat                  \\
+      \hline
+      POST                 & \path{/api/v1/chats/{session_id}/messages}                       & Lưu tin nhắn                                  \\
+      \hline
+      POST                 & \path{/api/v1/chats/{session_id}/messages/{message_id}/feedback} & Lưu phản hồi                                  \\
+      \hline
+      GET                  & \path{/api/v1/bookmarks}                                         & Lấy danh sách nội dung đã lưu                 \\
+      \hline
+      GET                  & \path{/api/v1/bookmarks/{assistant_message_id}/status}           & Kiểm tra một câu trả lời đã được lưu hay chưa \\
+      \hline
+      POST                 & \path{/api/v1/bookmarks/{session_id}}                            & Lưu câu hỏi và câu trả lời                    \\
+      \hline
+      DELETE               & \path{/api/v1/bookmarks/{assistant_message_id}}                  & Xóa nội dung đã lưu                           \\
+      \hline
+      GET                  & \path{/api/v1/legal-documents}                                   & Danh sách văn bản                             \\
+      \hline
+      GET                  & \path{/api/v1/legal-documents/{document_id}}                     & Chi tiết văn bản                              \\
+      \hline
+      GET                  & \path{/api/v1/legal-documents/{document_id}/provisions}          & Danh sách điều khoản                          \\
+      \hline
+      GET                  & \path{/api/v1/legal-search}                                      & Tìm nguồn pháp luật                           \\
+      \hline
+      GET                  & \path{/api/v1/health/live}                                       & Kiểm tra tiến trình API đang sống             \\
+      \hline
+      GET                  & \path{/api/v1/health/ready}                                      & Kiểm tra sẵn sàng gồm Supabase và Qdrant      \\
+      \hline
+    \end{longtable}
+  }
+
+\section{Lưu đồ xử lý chính}
+Các giải thuật dưới đây tập trung vào những bước quyết định trực tiếp đến chất lượng câu trả lời. Mỗi phần mô tả đầu vào, cách xử lý và đầu ra để có thể đối chiếu với chương trình khi kiểm thử.
+
+\subsection{Tách Điều, Khoản và Điểm}
+Quá trình xử lý đọc văn bản theo từng dòng và nhận diện các mẫu đánh dấu Điều, Khoản và Điểm. Khi gặp một vị trí pháp lý mới, hệ thống kết thúc đoạn đang thu thập, lưu nội dung cùng thông tin vị trí và bắt đầu đoạn mới. Cách làm này giữ cho mỗi đoạn dữ liệu gắn với vị trí pháp lý cụ thể.
+\AssetFigure[0.90\textwidth]{ch3_flow_ingestion.png}{8.3cm}{Lưu đồ tách và chuẩn hóa dữ liệu pháp luật}{}
+
+\subsection{Tìm kiếm căn cứ}
+Khi nhận câu hỏi, hệ thống trước hết kiểm tra xem câu hỏi có nêu rõ số văn bản, Điều, Khoản hoặc Điểm hay không. Nếu có, các thông tin này được dùng làm điều kiện lọc. Sau đó hệ thống thực hiện tìm kiếm theo ngữ nghĩa và theo từ khóa, gộp thứ hạng của hai danh sách, ưu tiên các kết quả khớp vị trí pháp lý và trả về số lượng kết quả đã cấu hình.
+\AssetFigure[0.90\textwidth]{ch3_flow_retrieval.png}{8.5cm}{Lưu đồ tìm kiếm căn cứ pháp luật}{}
+
+\subsection{Xử lý câu hỏi và kiểm tra căn cứ}
+Câu hỏi có thể chứa nhiều yêu cầu, chẳng hạn mức phạt và trừ điểm giấy phép lái xe. Hệ thống tách các yêu cầu này thành các ý cần tìm. Sau khi tìm kiếm, bước kiểm tra căn cứ xác nhận rằng có đủ dữ liệu để trả lời các ý chính. Nếu chưa đủ, hệ thống trả thông báo chưa có đủ căn cứ thay vì tạo câu trả lời suy đoán.
+\AssetFigure[0.92\textwidth]{ch3_flow_chat.png}{9.0cm}{Lưu đồ xử lý câu hỏi pháp luật}{}
+
+\subsection{Gộp thứ hạng bằng RRF}
+Mỗi phương pháp tìm kiếm tạo một danh sách kết quả có thứ tự riêng. RRF chuyển vị trí của mỗi kết quả thành điểm rồi cộng điểm khi cùng một đoạn xuất hiện trong nhiều danh sách. Với cấu hình của đề tài, điểm cộng cho một kết quả ở vị trí $r$ được tính theo công thức $1/(60+r)$. Sau khi cộng điểm, các đoạn được sắp xếp lại từ cao xuống thấp.
+
+\subsection{Tạo trích dẫn nguồn}
+Sau khi có câu trả lời, dịch vụ phía máy chủ lấy thông tin mô tả của các đoạn đã dùng để tạo trích dẫn. Thông tin gồm tên và số hiệu văn bản, Điều, Khoản, Điểm, trang nguồn nếu có và đoạn trích ngắn. Trích dẫn được tạo từ dữ liệu đã lưu cùng đoạn pháp luật, không yêu cầu mô hình ngôn ngữ tự tạo tên nguồn.
+\AssetFigure[0.90\textwidth]{ch3_flow_citation.png}{7.8cm}{Lưu đồ tạo và mở trích dẫn nguồn}{}
+
+\section{Thiết kế bảo mật}
+Các khóa bí mật chỉ được sử dụng ở phía máy chủ. Trình duyệt không nhận khóa có quyền quản trị. Với các API cần đăng nhập, dịch vụ phía máy chủ kiểm tra thông tin xác thực trước khi đọc hoặc ghi dữ liệu. Dữ liệu phiên hội thoại, phản hồi và nội dung đánh dấu được gắn với mã người dùng. Row Level Security trong PostgreSQL hỗ trợ giới hạn dữ liệu theo tài khoản đã xác thực.
+
+\section{Thiết kế kiểm thử}
+Kiểm thử được chia thành ba nhóm. Kiểm thử đơn vị kiểm tra các hàm xử lý văn bản, nhận diện tham chiếu pháp lý, phân tích câu hỏi và tính chỉ số. Kiểm thử tích hợp kiểm tra việc phối hợp giữa API, Supabase và Qdrant. Kiểm thử giao diện kiểm tra các luồng người dùng như đăng nhập, gửi câu hỏi, mở nguồn và xem lịch sử hội thoại. Kết quả chỉ được ghi là đạt khi có lần chạy kiểm thử tương ứng.
+
+% ============================================================
+% CHUONG IV
+% ============================================================
+\clearpage
+\setcounter{chapter}{4}
+\setcounter{section}{0}
+\setcounter{subsection}{0}
+\setcounter{figure}{0}
+\setcounter{table}{0}
+\chapter*{CHƯƠNG IV. KẾT QUẢ THỰC HIỆN VÀ GIAO DIỆN}
+\addcontentsline{toc}{chapter}{CHƯƠNG IV. KẾT QUẢ THỰC HIỆN VÀ GIAO DIỆN}
+
+\section{Tổng quan kết quả triển khai}
+Chương này trình bày các chức năng đã triển khai ở giao diện người dùng, API vận hành, kiểm thử và đánh giá hệ thống. Các màn hình chính gồm đăng ký, đăng nhập, hỏi đáp, xem trích dẫn, tra cứu nguồn pháp luật, lịch sử hội thoại, phản hồi và đánh dấu câu trả lời.
+
+\section{Giao diện trang đầu}
+Trang đầu là điểm bắt đầu của luồng sử dụng. Người dùng có thể đi tới chức năng hỏi đáp pháp luật từ khu vực điều hướng, sau đó chuyển sang đăng ký hoặc đăng nhập khi cần các chức năng cá nhân.
+\AssetFigure[0.94\textwidth]{ch4_home.png}{8.5cm}{Giao diện trang đầu của hệ thống}{}
+
+\section{Đăng ký và đăng nhập}
+\subsection{Đăng ký}
+Người dùng nhập thông tin tài khoản trên biểu mẫu. Giao diện kiểm tra các trường bắt buộc và hiển thị phản hồi sau khi Supabase xử lý yêu cầu tạo tài khoản.
+\AssetFigure[0.88\textwidth]{ch4_register.png}{8.2cm}{Giao diện đăng ký tài khoản}{}
+\subsection{Đăng nhập}
+Người dùng gửi thông tin tài khoản để tạo phiên làm việc. Khi dữ liệu không hợp lệ hoặc dịch vụ xác thực trả lỗi, giao diện hiển thị trạng thái tương ứng.
+\AssetFigure[0.88\textwidth]{ch4_login.png}{8.2cm}{Giao diện đăng nhập}{}
+
+\section{Giao diện hỏi đáp pháp luật}
+\subsection{Trạng thái chưa có câu hỏi}
+Khi bắt đầu phiên, trang chat hiển thị vùng nhập câu hỏi và các thành phần điều hướng của phiên hội thoại. Người dùng có thể nhập câu hỏi để bắt đầu luồng hỏi đáp.
+\AssetFigure[0.94\textwidth]{ch4_chat_empty.png}{8.5cm}{Giao diện chat khi bắt đầu phiên}{}
+
+\subsection{Câu trả lời có căn cứ}
+Sau khi xử lý, giao diện hiển thị nội dung trả lời cùng các trích dẫn. Người dùng có thể chọn trích dẫn để mở văn bản và vị trí pháp lý tương ứng.
+\AssetFigure[0.94\textwidth]{ch4_chat_answer.png}{9.0cm}{Giao diện câu trả lời pháp luật có trích dẫn}{}
+
+\subsection{Trường hợp không đủ căn cứ}
+Khi hệ thống không tìm thấy đủ căn cứ, giao diện hiển thị trạng thái từ chối và không đưa ra nội dung pháp luật suy đoán.
+\AssetFigure[0.92\textwidth]{ch4_chat_abstention.png}{7.8cm}{Giao diện khi hệ thống từ chối trả lời do thiếu căn cứ}{}
+
+\section{Hiển thị trích dẫn nguồn}
+Thông tin trích dẫn cho biết văn bản, vị trí Điều, Khoản, Điểm và thao tác mở nguồn. Người dùng dùng phần này để đối chiếu câu trả lời với văn bản pháp luật.
+\AssetFigure[0.94\textwidth]{ch4_citation_panel.png}{8.5cm}{Citation và thông tin văn bản nguồn}{}
+
+\section{Trang nguồn pháp luật}
+\subsection{Danh sách văn bản}
+Trang nguồn pháp luật đọc danh sách từ legal API và hiển thị thông tin nhận biết của từng văn bản để người dùng chọn nguồn cần xem.
+\AssetFigure[0.94\textwidth]{ch4_legal_sources.png}{8.5cm}{Danh sách nguồn pháp luật}{}
+\subsection{Tìm kiếm và lọc}
+Người dùng có thể nhập từ khóa hoặc thông tin định danh, chọn bộ lọc và xem các kết quả theo văn bản hoặc điều khoản.
+\AssetFigure[0.94\textwidth]{ch4_legal_search.png}{8.5cm}{Tìm kiếm văn bản và điều khoản}{}
+\subsection{Xem chi tiết luật}
+Khi chọn một văn bản, trình xem hiển thị nội dung Markdown theo cấu trúc pháp lý và vị trí được mở từ trích dẫn.
+\AssetFigure[0.94\textwidth]{ch4_markdown_viewer.png}{9.0cm}{Hiển thị nguồn pháp luật dạng Markdown}{}
+
+\section{Lịch sử hội thoại}
+Trang lịch sử hiển thị các phiên chat thuộc tài khoản hiện tại. Người dùng có thể mở lại nội dung hoặc thực hiện các thao tác quản lý phiên.
+\AssetFigure[0.92\textwidth]{ch4_chat_history.png}{8.5cm}{Giao diện quản lý phiên chat}{}
+
+\section{Phản hồi và đánh dấu câu trả lời}
+Người dùng có thể đánh giá câu trả lời đã lưu hoặc đánh dấu nội dung để xem lại sau.
+\AssetFigure[0.88\textwidth]{ch4_feedback.png}{7.5cm}{Giao diện gửi phản hồi cho câu trả lời}{}
+\section{Kết quả kiểm thử}
+Kết quả kiểm thử được trình bày theo chức năng và điều kiện chạy. Các ca kiểm thử đơn vị tập trung vào xử lý văn bản và quy tắc tìm kiếm. Kiểm thử tích hợp kiểm tra API cùng các dịch vụ dữ liệu. Kiểm thử giao diện xác nhận các thao tác chính của người dùng. Hình 4.15 ghi lại kết quả của các ca kiểm thử đã thực hiện.
+\AssetFigure[0.94\textwidth]{ch4_test_report.png}{7.5cm}{Kết quả kiểm thử của hệ thống}{}
+
+\subsection{Kiểm tra trạng thái dịch vụ}
+API cung cấp chức năng kiểm tra tiến trình đang hoạt động và khả năng kết nối đến các dịch vụ cần thiết. Kết quả này hỗ trợ phát hiện nhanh lỗi kết nối trước khi thực hiện các phép đo chất lượng tìm kiếm.
+\AssetFigure[0.90\textwidth]{ch4_health_api.png}{7.5cm}{Kết quả kiểm tra trạng thái dịch vụ}{}
+
+\subsection{Tài liệu API}
+FastAPI tự tạo tài liệu OpenAPI cho các route đã khai báo. Giao diện Swagger giúp kiểm tra phương thức HTTP, dữ liệu đầu vào và cấu trúc kết quả trả về của từng API trong quá trình phát triển và kiểm thử.
+\AssetFigure[0.94\textwidth]{ch4_swagger.png}{8.5cm}{Tài liệu API tự động của FastAPI}{}
+
+\section{Đánh giá khả năng tra cứu và trả lời}
+Bộ dữ liệu gồm 40 trường hợp, chia đều cho tám nhóm câu hỏi. Chương trình gọi API hỏi đáp hoặc đọc kết quả đã lưu để tính các chỉ số về căn cứ, vị trí pháp lý, trích dẫn, quyết định từ chối và thời gian xử lý. Phần nội dung được chấm thủ công bằng cách đối chiếu câu trả lời với căn cứ pháp luật. Kết quả đánh giá đã được tổng hợp từ lần chạy trên; phần đo hiệu năng cũng được thực hiện trong cùng quy trình. Sáu trường hợp thiếu dữ liệu được loại khỏi mẫu tính chất lượng. Các chỉ số được trình bày trong Hình 4.16.
+\begin{table}[H]
+  \caption{Trạng thái các hạng mục đánh giá của hệ thống}
+  \label{tab:evaluation-status}
+  \centering
+  \begin{tabularx}{\textwidth}{|L{5.8cm}|Y|}
+    \hline
+    \textbf{Hạng mục}             & \textbf{Kết quả tại thời điểm viết}                                        \\
+    \hline
+    Bộ câu hỏi đánh giá           & Đã hoàn tất 40 trường hợp, gồm năm trường hợp cho mỗi nhóm                 \\
+    \hline
+    Chỉ số tìm kiếm và trích dẫn  & Đã tính toán và tổng hợp kết quả từ bộ dữ liệu đánh giá                    \\
+    \hline
+    Đánh giá nội dung câu trả lời & Có bước chấm thủ công riêng; kết quả hiển thị theo trạng thái chấm thực tế \\
+    \hline
+    Đánh giá thời gian xử lý      & Đã đo thời gian phản hồi trung bình và P95 trong lần chạy đánh giá         \\
+    \hline
+  \end{tabularx}
+\end{table}
+
+\AssetFigure[0.94\textwidth]{ch4_evaluation_report.png}{8.2cm}{Kết quả tổng hợp đánh giá hệ thống trên bộ dữ liệu 40 trường hợp}{}
+
+% ============================================================
+% KET LUAN VA HUONG PHAT TRIEN
+% ============================================================
+\clearpage
+\phantomsection
+\addcontentsline{toc}{chapter}{KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN}
+\begin{center}
+  {\bfseries\fontsize{13pt}{15.6pt}\selectfont KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN}
+\end{center}
+\vspace{6pt}
+
+\section*{Kết quả đạt được}
+\phantomsection
+\addcontentsline{toc}{section}{Kết quả đạt được}
+Khóa luận đã xây dựng được hệ thống hỗ trợ tra cứu pháp luật giao thông Việt Nam theo hướng tìm căn cứ trước khi tạo câu trả lời. Dữ liệu pháp luật được chia theo Điều, Khoản và Điểm, sau đó lập chỉ mục để phục vụ tìm kiếm theo từ khóa và theo ngữ nghĩa. Hệ thống có bước kiểm tra căn cứ nhằm hạn chế việc tạo câu trả lời khi dữ liệu tìm được chưa đủ hỗ trợ nội dung.
+
+Phần ứng dụng đã có các chức năng đăng ký, đăng nhập, hỏi đáp, hiển thị trích dẫn, mở văn bản nguồn, lưu lịch sử hội thoại, gửi phản hồi và đánh dấu câu trả lời. Dữ liệu người dùng được lưu riêng với dữ liệu pháp luật. Cách tách này giúp quản lý quyền truy cập rõ ràng và tránh trộn dữ liệu hội thoại với chỉ mục tìm kiếm.
+
+Hệ thống đã có bộ dữ liệu đánh giá 40 trường hợp và các chương trình cần thiết để đo khả năng tìm căn cứ, kiểm tra trích dẫn, quyết định từ chối trả lời và thời gian xử lý. Kết quả đo đã được tổng hợp theo bộ dữ liệu đánh giá; các chỉ số được trình bày trong Hình 4.16. Sáu trường hợp thiếu dữ liệu được loại khỏi mẫu tính chất lượng. Hệ thống vẫn là công cụ hỗ trợ tra cứu trong phạm vi dữ liệu đã chuẩn bị và không thay thế việc kiểm tra văn bản pháp luật chính thức.
+
+\section*{Hạn chế}
+\phantomsection
+\addcontentsline{toc}{section}{Hạn chế}
+Phạm vi văn bản pháp luật của đề tài còn giới hạn. Một số câu hỏi có thể nằm ngoài tập dữ liệu đã chuẩn bị. Khi đó hệ thống không có đủ căn cứ để trả lời. Khả năng nhận diện số hiệu văn bản, Điều, Khoản và Điểm dựa nhiều vào quy tắc xử lý tiếng Việt nên có thể gặp khó khăn với cách hỏi viết tắt, thiếu dấu hoặc diễn đạt không theo mẫu thường gặp.
+
+Độ khó của việc tìm kiếm tăng khi câu hỏi cần xác định tới Khoản hoặc Điểm, hoặc khi một câu hỏi có nhiều ý nằm ở nhiều vị trí pháp lý. Một số trường hợp thiếu dữ liệu được loại khỏi mẫu tính chất lượng theo quy trình đánh giá. Phần hiệu năng đã được đo trong lần chạy đánh giá hiện tại; các phép đo khác nhau có thể cho kết quả khác khi môi trường chạy thay đổi.
+
+\section*{Hướng phát triển}
+\phantomsection
+\addcontentsline{toc}{section}{Hướng phát triển}
+Hướng phát triển đầu tiên là mở rộng tập văn bản theo một quy trình có kiểm tra nguồn, ngày hiệu lực và quan hệ sửa đổi giữa các văn bản. Phần tìm kiếm cần được cải thiện để xác định tốt hơn Khoản và Điểm, đặc biệt với câu hỏi chứa nhiều điều kiện hoặc nhiều hành vi.
+
+Bộ đánh giá có thể được mở rộng về số lượng câu hỏi và cách diễn đạt. Mỗi câu trả lời nên tiếp tục được chấm thủ công theo các tiêu chí dễ kiểm tra như đúng căn cứ, đúng mức xử phạt, đủ ý và diễn đạt rõ ràng. Hệ thống có thể bổ sung cơ chế theo dõi thời gian xử lý của từng bước để xác định nguyên nhân gây chậm và tối ưu phần tìm kiếm trước khi triển khai cho số lượng người dùng lớn hơn.
+
+% ============================================================
+% TAI LIEU THAM KHAO
+% ============================================================
+\clearpage
+\begin{thebibliography}{99}
+  \bibitem{tdu_laptrinhcanban}
+  \textbf{Nguyễn Chí Cường}. \textit{Lập trình căn bản}. Khoa Kỹ thuật - Công nghệ, Đại học Tây Đô, 2023.
+
+  \bibitem{tdu_pttkhttt}
+  \textbf{Nguyễn Chí Cường}. \textit{Phân tích và thiết kế hệ thống thông tin}. Khoa Kỹ thuật - Công nghệ, Đại học Tây Đô, 2024.
+
+  \bibitem{tdu_nmcpm}
+  \textbf{Ngô Thị Lan}. \textit{Nhập môn Công nghệ Phần mềm}. Khoa Kỹ thuật - Công nghệ, Đại học Tây Đô, 2024.
+
+  \bibitem{tdu_web}
+  \textbf{Lâm Tấn Phương}. \textit{Giáo trình Lý thuyết Thiết kế và lập trình Web}. Khoa Kỹ thuật - Công nghệ, Đại học Tây Đô, 2024.
+
+  \bibitem{tdu_cdnnlt}
+  \textbf{Lâm Tấn Phương}. \textit{Chuyên đề ngôn ngữ lập trình}. Khoa Kỹ thuật - Công nghệ, Đại học Tây Đô, 2024.
+
+  \bibitem{qdrant_hybrid_docs}
+  \textbf{Qdrant}. \textit{Combining Semantic and Lexical Search using Hybrid Search}. Tài liệu chính thức. \url{https://qdrant.tech/documentation/search/text-search/hybrid-search/}.
+
+  \bibitem{qdrant_bm25_docs}
+  \textbf{Qdrant}. \textit{Full-Text Search and BM25}. Tài liệu chính thức. \url{https://qdrant.tech/documentation/search/text-search/full-text-search/}.
+
+  \bibitem{qdrant_vectors_docs}
+  \textbf{Qdrant}. \textit{Vectors: Dense and Sparse Vectors}. Tài liệu chính thức. \url{https://qdrant.tech/documentation/manage-data/vectors/}.
+
+  \bibitem{fastapi_docs}
+  \textbf{FastAPI}. \textit{Features}. Tài liệu chính thức. \url{https://fastapi.tiangolo.com/features/}.
+
+  \bibitem{supabase_auth_docs}
+  \textbf{Supabase}. \textit{Auth Documentation}. Tài liệu chính thức. \url{https://supabase.com/docs/guides/auth}.
+
+  \bibitem{supabase_rls_docs}
+  \textbf{Supabase}. \textit{Row Level Security}. Tài liệu chính thức. \url{https://supabase.com/docs/guides/database/postgres/row-level-security}.
+
+  \bibitem{nextjs_app_router_docs}
+  \textbf{Vercel}. \textit{Next.js Documentation}. Tài liệu chính thức. \url{https://nextjs.org/docs}.
+
+  \bibitem{python311_docs}
+  \textbf{Python Software Foundation}. \textit{Python 3.11 Documentation}. Tài liệu chính thức. \url{https://docs.python.org/3.11/}.
+
+  \bibitem{react_docs}
+  \textbf{Meta Open Source}. \textit{React Documentation}. Tài liệu chính thức. \url{https://react.dev/learn}.
+
+  \bibitem{react_state_docs}
+  \textbf{Meta Open Source}. \textit{Managing State}. Tài liệu chính thức. \url{https://react.dev/learn/managing-state}.
+
+  \bibitem{typescript_docs}
+  \textbf{Microsoft}. \textit{The TypeScript Handbook}. Tài liệu chính thức. \url{https://www.typescriptlang.org/docs/handbook/intro.html}.
+
+  \bibitem{pdfjs_docs}
+  \textbf{Mozilla}. \textit{PDF.js Getting Started}. Tài liệu chính thức. \url{https://mozilla.github.io/pdf.js/getting_started/}.
+
+  \bibitem{docker_compose_docs}
+  \textbf{Docker}. \textit{Docker Compose Documentation}. Tài liệu chính thức. \url{https://docs.docker.com/compose/}.
+  \bibitem{openrouter_embeddings_docs}
+  \textbf{OpenRouter}. \textit{Embeddings and RAG Documentation}. Tài liệu chính thức. \url{https://openrouter.ai/docs/cookbook/evaluate-and-optimize/rag}.
+  \bibitem{openrouter_chat_docs}
+  \textbf{OpenRouter}. \textit{Chat Completions API Documentation}. Tài liệu chính thức. \url{https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request}.
+
+\end{thebibliography}
+
+\end{document}

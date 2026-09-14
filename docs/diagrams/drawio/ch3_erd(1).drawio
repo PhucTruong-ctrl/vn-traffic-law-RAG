@@ -1,0 +1,71 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Page-1" id="2867bfe2-0764-4713-9aed-b006d655f0bd">
+    <mxGraphModel dx="2635" dy="974" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="2000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="auth" parent="1" style="shape=rectangle;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fillColor=#ffffff;strokeColor=#000000;" value="&lt;b&gt;auth.users&lt;/b&gt;&lt;hr/&gt;PK id : UUID&lt;br/&gt;email : VARCHAR" vertex="1">
+          <mxGeometry height="86" width="240" x="60" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="profiles" parent="1" style="shape=rectangle;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fillColor=#ffffff;strokeColor=#000000;" value="&lt;b&gt;profiles&lt;/b&gt;&lt;hr/&gt;PK/FK id : UUID&lt;br/&gt;display_name : VARCHAR&lt;br/&gt;avatar_url : TEXT&lt;br/&gt;created_at : TIMESTAMPTZ&lt;br/&gt;updated_at : TIMESTAMPTZ" vertex="1">
+          <mxGeometry height="155" width="260" x="380" y="85.5" as="geometry" />
+        </mxCell>
+        <mxCell id="sessions" parent="1" style="shape=rectangle;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fillColor=#ffffff;strokeColor=#000000;" value="&lt;b&gt;chat_sessions&lt;/b&gt;&lt;hr/&gt;PK id : UUID&lt;br/&gt;FK user_id : UUID&lt;br/&gt;title : VARCHAR&lt;br/&gt;deleted : BOOLEAN&lt;br/&gt;created_at : TIMESTAMPTZ&lt;br/&gt;updated_at : TIMESTAMPTZ" vertex="1">
+          <mxGeometry height="178" width="270" x="45" y="457.5" as="geometry" />
+        </mxCell>
+        <mxCell id="messages" parent="1" style="shape=rectangle;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fillColor=#ffffff;strokeColor=#000000;" value="&lt;b&gt;messages&lt;/b&gt;&lt;hr/&gt;PK id : UUID&lt;br/&gt;FK session_id : UUID&lt;br/&gt;FK user_id : UUID&lt;br/&gt;role : VARCHAR&lt;br/&gt;content : TEXT&lt;br/&gt;status : VARCHAR&lt;br/&gt;response : JSONB&lt;br/&gt;citations : JSONB&lt;br/&gt;metadata : JSONB&lt;br/&gt;created_at : TIMESTAMPTZ&lt;br/&gt;updated_at : TIMESTAMPTZ" vertex="1">
+          <mxGeometry height="293" width="300" x="430" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="feedback" parent="1" style="shape=rectangle;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fillColor=#ffffff;strokeColor=#000000;" value="&lt;b&gt;feedback&lt;/b&gt;&lt;hr/&gt;PK id : UUID&lt;br/&gt;FK message_id : UUID&lt;br/&gt;FK user_id : UUID&lt;br/&gt;rating : INTEGER&lt;br/&gt;comment : TEXT&lt;br/&gt;created_at : TIMESTAMPTZ&lt;br/&gt;updated_at : TIMESTAMPTZ" vertex="1">
+          <mxGeometry height="201" width="270" x="60" y="860" as="geometry" />
+        </mxCell>
+        <mxCell id="bookmarks" parent="1" style="shape=rectangle;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fillColor=#ffffff;strokeColor=#000000;" value="&lt;b&gt;bookmarks&lt;/b&gt;&lt;hr/&gt;PK id : UUID&lt;br/&gt;FK user_id : UUID&lt;br/&gt;FK source_session_id : UUID&lt;br/&gt;FK user_message_id : UUID&lt;br/&gt;FK assistant_message_id : UUID&lt;br/&gt;question : TEXT&lt;br/&gt;answer : TEXT&lt;br/&gt;citations : JSONB&lt;br/&gt;response : JSONB&lt;br/&gt;created_at : TIMESTAMPTZ" vertex="1">
+          <mxGeometry height="270" width="330" x="760" y="820" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="auth" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" target="profiles" value="1 : 1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="auth" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" target="sessions" value="1 : N">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="sessions" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" target="messages" value="1 : N">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="messages" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" target="feedback" value="1 : 0..N">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="580" y="960" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="auth" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" target="feedback" value="1 : N">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-69.94" y="163.06" />
+              <mxPoint x="-69.94" y="960.47" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="auth" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" target="bookmarks" value="1 : N">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="220" y="350" />
+              <mxPoint x="960" y="350" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="sessions" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" target="bookmarks" value="1 : 0..N">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="280" y="380" />
+              <mxPoint x="1000" y="380" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="messages" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" target="bookmarks" value="1 : 0..N">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

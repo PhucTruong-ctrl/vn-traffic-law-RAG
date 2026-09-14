@@ -1,0 +1,49 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Page-1" id="8aaca7a7-da78-46fd-b29d-7aa5a02aab2a">
+    <mxGraphModel dx="1246" dy="828" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="a_user" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" value="Người dùng" vertex="1">
+          <mxGeometry height="60" width="30" x="70" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="uc_new" parent="1" style="ellipse;whiteSpace=wrap;html=1;shapeInside=1;" value="Tạo hội thoại mới" vertex="1">
+          <mxGeometry height="60" width="190" x="330" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="uc_history" parent="1" style="ellipse;whiteSpace=wrap;html=1;shapeInside=1;" value="Xem lịch sử hội thoại" vertex="1">
+          <mxGeometry height="60" width="200" x="330" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="uc_reopen" parent="1" style="ellipse;whiteSpace=wrap;html=1;shapeInside=1;" value="Mở lại hội thoại" vertex="1">
+          <mxGeometry height="60" width="180" x="590" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="uc_delete" parent="1" style="ellipse;whiteSpace=wrap;html=1;shapeInside=1;" value="Xóa hội thoại" vertex="1">
+          <mxGeometry height="60" width="180" x="590" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;endFill=0;" target="uc_new" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="170.03" y="270.03" />
+              <mxPoint x="170.03" y="120.03" />
+            </Array>
+            <mxPoint x="100" y="270" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="a_user" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;endFill=0;" target="uc_history" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="uc_reopen" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=8 4;endArrow=open;endFill=0;" target="uc_history" value="&lt;&lt;extend&gt;&gt;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="uc_delete" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=8 4;endArrow=open;endFill=0;" target="uc_history" value="&lt;&lt;extend&gt;&gt;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="R1u3DRygsSsipuiYlepa-1" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="extend" vertex="1">
+          <mxGeometry height="30" width="60" x="460" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="R1u3DRygsSsipuiYlepa-2" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="extend" vertex="1">
+          <mxGeometry height="30" width="60" x="450" y="320" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -5,12 +5,12 @@ A structure-aware, temporal RAG system for Vietnamese traffic-law question answe
 ## Language
 
 **Legal Reference Resolver**:
-Extracts version-bound relations between legal entities — `ProvisionReference` (PARENT_OF, REFERS_TO, SIBLING_OF, PENALTY_COMPANION) and `DocumentRelation` (AMENDS, REPEALS, SUPERSEDES, CORRECTS, GUIDES, RELATED_TO) — from extracted text and manifest relation notes, persisting them in PostgreSQL. Never guesses: unresolved references route to review.
-_Avoid_: reference extraction, relation parser
+The MVP is single-user on localhost/private network. It has no authentication, admin/reviewer role, approval UI/API, or human approval. Manual CLI ingestion is the sole ingestion trigger; automatic quality, provenance and temporal gates classify records as `ACCEPTED` or `REJECTED`. Only `ACCEPTED` records may be indexed or served, and a failed rebuild leaves the prior alias active.
 
-**Temporal & Amendment Resolver**:
-Computes the half-open effective interval `[effective_from, effective_to)` per provision version from manifests, `LegalEffectEvent`s, document relations, and reviewer decisions. A provision is valid at date `d` iff `effective_from <= d` AND (`effective_to IS NULL` OR `d < effective_to`) AND `review_status = ACCEPTED`. Partial amendments produce new versions of the same stable `provision_id`.
-_Avoid_: effective-date calculator, time resolver
+The serving corpus is exactly 14 deduplicated local PDFs from `datafiles.chinhphu.vn`, identified by immutable snapshot/file hashes. Release evaluation is a fixed 200-question gold set across 17 categories, split 40 development / 40 validation / 120 final test. Feedback is anonymous `LIKE`/`DISLIKE` telemetry only and is explicitly non-gating. Local embedding candidates are benchmarked before selecting and recording one model/version manifest; no unmeasured model or threshold is an active claim.
+
+**Historical terminology**:
+References to reviewer decisions, review routing, upload ingestion, background ingestion, or a 5–10-document / 30–50-question scope in older material are superseded. They may remain only when explicitly labeled historical; they are not runtime requirements.
 
 **LegalEffectEvent**:
 A dated record of a change to a provision: EFFECTIVE, AMENDED, PARTIAL_AMENDED, SUPERSEDED, REPEALED, CORRECTED, EXPIRED. Carries structured `affected_provision_versions`. The input to interval computation, never the output.

@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "manifest_version": "release-manifest-v1",
+  "status": "RELEASED",
+  "release": {
+    "version": "release-2026-09-10",
+    "code_commit": "5703a7a8e75235377d56f67cf03a34a8a02ee6f2",
+    "created_at": "2026-09-10T00:00:00Z"
+  },
+  "corpus": {
+    "source_allowlist": ["datafiles.chinhphu.vn"],
+    "snapshot_id": "candidate-corpus-14",
+    "snapshot_sha256": "c922a2f192c31d341d9c2171e4be015432111e35edc2a167a82cb6ecb63e6296",
+    "document_count": 14,
+    "accepted_document_ids": ["nd-44-2024","nd-67-2023","nd-119-2024","nd-158-2024","nd-160-2024","nd-161-2024","nd-165-2024","nd-166-2024","nd-168-2024","tt-05-2024","tt-16-2024","tt-18-2024","tt-39-2024","tt-51-2024"],
+    "rejected_document_ids": [],
+    "identity_deduplication": "document_identity_or_file_hash",
+    "gate_report": "14-document serving snapshot only; expanded official documents remain auxiliary and are not promoted"
+  },
+  "serving": {
+    "active_alias": "legal_provisions_active",
+    "collection": "legal_provisions_v9",
+    "promotion_status": "VERIFIED",
+    "rollback_target": "legal_provisions_v2",
+    "postgres_accepted_rows": 4138,
+    "qdrant_active_points": 4138
+  },
+  "embedding": {
+    "benchmark_artifact": "data/benchmarks/embedding-benchmark.json",
+    "selected_model": "multilingual-e5-base-paddle",
+    "model_revision": "paddle-e5-base-v1",
+    "dimensions": 768,
+    "configuration": {"provider": "local-paddle", "device": "cuda", "fallback": false},
+    "artifact_sha256": "2ecbc4af92d58ce3bc2763f6d69223717327284cb1d5895e0f8ab9b057a695fb"
+  },
+  "gold": {
+    "dataset": "gold-v1",
+    "readiness": "FROZEN",
+    "record_count": 200,
+    "splits": {"development": 40, "validation": 40, "final_test": 120},
+    "category_count": 17,
+    "dataset_sha256": "e92858c301ae5a7608c55535748784d682bc00d60efb36885a2020ccc46e79c6"
+  },
+  "evaluation": {
+    "run_artifact": "data/evaluation/probe/checkpoint.json",
+    "report_artifact": "data/evaluation/release-run/final-report.json",
+    "report_sha256": "9d298448bc7123e898bfb2bd88be4685fc81a8fc32297533cd21b062fe506039",
+    "hard_gates": {
+      "all_questions_executed": true,
+      "invalid_citation_rate_zero": true,
+      "non_serving_exclusion": true,
+      "temporal": true,
+      "abstention": true,
+      "exact_lookup": true,
+      "multi_document": true,
+      "unsupported_numeric": true,
+      "workflow": true
+    },
+    "feedback_gating": "NON_GATING"
+  },
+  "evidence": {
+    "ingestion_report": "data/ingestion/per-document",
+    "evaluation_report": "data/evaluation/release-run/final-report.json",
+    "runbook": "DEFENSE-RUNBOOK.md"
+  }
+}

@@ -1,111 +1,98 @@
-> **MVP rebaseline — 06/09/2026**: The defense release scope is reduced to a fixed 5–10-document reviewed corpus, 30–50 evaluation questions, current and as-of-date retrieval, structure-aware citations, evidence gating, abstention, and a working chat UI. RAGFlow comparison, feedback, large-scale background ingestion, advanced observability/security, and production backup automation are deferred.
->
-> **Model policy**: Gemini 3.7 Flash is the primary structured-answer generator. Gemini 3.5 Flash Lite is the independent semantic judge. OpenAI/GPT-5.4 is not used. Earlier scope/model statements in this document are superseded by this rebaseline.
-# ARCHITECTURE — Kiến Trúc Hệ Thống VNLRAG v2
+# Architecture — VN Traffic Law RAG MVP
 
-Tài liệu này mô tả kiến trúc tổng quan của hệ thống VN Traffic Law RAG (bản thiết kế lại v2) ở mức đủ để triển khai theo phạm vi đã đóng băng tại M0 — Scope Freeze 19/07/2026 (xem [SCOPE.md](SCOPE.md)). Chi tiết thiết kế nằm ở `docs/03-thiet-ke-he-thong.md` và `docs/04-tech-stack-llm-research.md`.
+This document describes the active implementation served by this repository.
+Historical v1/v2 designs (including seven-service ingestion topologies) are not
+runtime claims; deployment authority is `deploy/compose/compose.release.yml`.
 
-## Tổng quan
+# Data, source seam, and ingestion
 
-Hệ thống là một RAG pipeline **nhận biết cấu trúc và thời gian hiệu lực** cho pháp luật giao thông Việt Nam: tài liệu nguồn được phân tích cấu trúc pháp lý, lưu trữ trong PostgreSQL (nguồn chân lý), tạo index retrieval dẫn xuất trong Qdrant, và câu hỏi được trả lời theo workflow có kiểm soát với trích dẫn `provision_id` được verify, verified-or-abstain.
+- **Canonical inputs:** `data/sources/manifest.json` identifies legal documents; the active local corpus is under `data/corpus/mds/`, and processed chunks are written to `data/processed/chunks.jsonl`.
+- **Ingestion ownership:** `backend/app/ingestion/markdown.py` loads the manifest and Markdown into LangChain `Document` objects with article/clause/point, source, and effective-date metadata. `backend/app/ingestion/source.py` normalizes the viewer-facing `source_kind` (`markdown` or `pdf`) without rewriting provenance. `backend/app/ingestion/pdf.py` is a metadata adapter; PDF extraction/chunking remains owned by the ingestion scripts.
+- **Corpus/viewer seam:** `backend/app/legal/corpus.py` provides read-only chunk loading, metadata filtering, and text search. `backend/app/legal/api.py` and `backend/app/legal/schemas.py` expose the legal-document/provision/search viewer contract and preserve Markdown/PDF source provenance.
+- **Chunk command:**
 
-Luồng xử lý chính:
+  ```bash
+  uv run --project backend python backend/scripts/fetch_sources.py
+  ```
 
-- **Offline ingestion**: Nguồn văn bản chính thống → Source Registry và Corpus Manifest → Ingestion Queue (Redis + Dramatiq) → Parser Router (Docling | MinerU) → Canonical Document IR → Legal Structure Extractor → Legal Context Enricher → Legal Reference Resolver → Temporal and Amendment Resolver → Quality Gates → Human Review → PostgreSQL → Embedding and Sparse Indexing → Qdrant (index dẫn xuất).
-- **Online query**: Câu hỏi người dùng → Query Understanding (intent, query_date, evidence plan) → Temporal Resolution → Query Expansion (original | normalized | multi-query rewrite | conditional HyDE) → Parallel Multi-Recall (exact legal lookup | dense | sparse BM25) → RRF Fusion → Reranking → Legal Context Expansion (parent | sibling | cross-reference | penalty companion) → Evidence Completeness Gate → Context Builder → Structured Answer Generator → Verification (schema, citation ID, temporal, numeric grounding, claim support, evidence completeness) → Verified Answer | Abstention.
-- **LangGraph controlled workflow** điều phối nhánh xác định trước: `START → analyze_query → resolve_temporal → expand_query → retrieve_parallel → fuse → rerank → expand_legal_context → check_evidence → build_context → generate → verify → finalize | repair | abstain → END`, với vòng repair có giới hạn (`MAX_REPAIR_ATTEMPTS`) trước khi ABSTAIN.
+  Defaults are `data/sources/manifest.json`, `data/corpus/mds/`, and `data/processed/chunks.jsonl`. Override them with `--manifest`, `--local-dir`, and `--output`.
 
-## Sơ đồ thành phần
+The source seam is deliberately narrow: adapters normalize source metadata for the legal API/viewer, while legal structure and chunking remain owned by the established ingestion pipeline. The rule engine under `backend/src/rule_engine/` remains domain-agnostic; traffic-law values belong in domain-specific specifications/plugins, not in that engine.
 
-- **FastAPI app** — REST API (chat, search, documents, jobs, reviews, feedback, health, evaluation, corpus-qa), OpenAPI, validation bằng Pydantic v2.
-- **Parser Router** — chọn parser theo đặc tính tài liệu và quality gate: PDF searchable → Docling trước; scan/broken layout → Docling trước, MinerU nếu quality gate fail; bảng phức tạp → so sánh đầu ra hai parser (config tại [`docs/parser_router.yaml`](docs/parser_router.yaml)). Docling là parser chính, MinerU là parser phụ/fallback (challenger).
-- **Canonical Document IR** — biểu diễn trung gian parser-neutral do dự án sở hữu (`ParsedDocument → ParsedPage[] → DocumentElement[]`), schema version `document-ir-v1` (contract tại [`docs/canonical-document-ir-design.md`](docs/canonical-document-ir-design.md)). Mọi module khác chỉ đọc IR, không đọc định dạng Docling/MinerU.
-- **Legal Structure Extractor** — bộ phân tích pháp lý riêng của VNLRAG: nhận diện Chương/Mục/Điều/Khoản/Điểm (kể cả nhãn tiếng Việt a) b) c) d) đ) e) và short-Point retention), chỉ đọc IR.
-- **PostgreSQL 18** — nguồn chân lý dữ liệu pháp lý: metadata, phiên bản, quan hệ (`ProvisionReference`, `DocumentRelation`), hiệu lực thời gian `[effective_from, effective_to)`, review routing, audit, query trace và feedback.
-- **Qdrant v1.19** — retrieval engine duy nhất: dense + sparse (BM25) + payload filter + RRF fusion trong cùng collection; index dẫn xuất, luôn dựng lại được từ PostgreSQL; nếu dữ liệu lệch nhau, PostgreSQL thắng.
-- **Redis + Dramatiq 2.x** — background ingestion: upload trả `202 Accepted` kèm `ingestion_job_id`; các actor ngắn, rời rạc, idempotent (parse → normalize → extract → resolve_refs → resolve_temporal → quality_gate → embed → index); `MAX_INGESTION_WORKERS=1` trên máy cá nhân.
-- **ObjectStoragePort (S3-compatible)** — MinIO là ứng viên hiện tại; lưu PDF nguồn, parser output, ảnh trang, artifact ingestion/review/evaluation; PostgreSQL lưu object key và metadata.
-- **Langfuse Cloud (mặc định)** — observability, prompt management, trace, experiment; nằm ngoài đường tới hạn tính đúng đắn (nếu không khả dụng, query vẫn hoạt động).
-- **LangGraph 1.x** — controlled workflow, KHÔNG phải autonomous agent; LLM không tự chọn tool hay tự lập kế hoạch.
-- **RAGFlow v0.26.x** — chỉ là baseline so sánh bên ngoài (RAGFlow default / +Docling / +MinerU so với VNLRAG custom pipeline), chạy trong môi trường benchmark riêng, không nằm trong compose production.
+## Retrieval and question analysis
 
-## Bảng công nghệ
+`backend/scripts/index.py` creates a fresh local Qdrant collection from the chunk JSONL. `backend/app/rag/retrieval.py` owns the persistent LangChain Qdrant hybrid retriever:
 
-Tổng hợp từ `docs/04-tech-stack-llm-research.md` §4.2 (đồng bộ với doc 00 §7):
+- dense OpenRouter embeddings with 768 dimensions;
+- sparse FastEmbed BM25 (`Qdrant/bm25`);
+- Qdrant local persistence at `QDRANT_PATH` (default `backend/data/processed/qdrant` in application settings);
+- collection name from `QDRANT_COLLECTION` (default `traffic_law`).
 
-| Lớp | Công nghệ | Phiên bản | Ghi chú |
-|---|---|---|---|
-| Ngôn ngữ | Python | 3.11.x | Backend, ingestion, retrieval, workflow, evaluation |
-| Package manager | uv | Pin bằng `uv.lock` | Dependency và virtual environment |
-| API / web framework | FastAPI | Minor ổn định đã lock | REST API, OpenAPI, validation |
-| Workflow | LangGraph | 1.x (pin `langgraph>=1.1`) | Controlled workflow orchestration |
-| Parser chính | Docling | 2.x line, pin exact | PDF/DOCX/PPTX/XLSX/HTML parse, OCR, hierarchy, provenance |
-| Parser phụ / fallback | MinerU | 3.4.x, pipeline backend CPU | Parser thay thế khi quality gate fail (challenger) |
-| IR trung gian | Canonical Document IR | `document-ir-v1` | Biểu diễn parser-neutral do dự án sở hữu |
-| Relational database | PostgreSQL | 18.x (18.4) | Source of truth: metadata, relation, version, review, audit |
-| ORM | SQLAlchemy | 2.0.x | Persistence và transaction |
-| Migration | Alembic | 1.18.x | Database migrations |
-| Vector database | Qdrant | v1.19.0 | Dense + sparse + payload filter + RRF fusion, index dẫn xuất |
-| Dense embedding | Gemini Embedding 2 (ứng viên E1) | 768 dimensions (cấu hình thử nghiệm) | Chưa chốt vĩnh viễn, chọn sau Suite B |
-| Dense embedding | Jina Embeddings v5 text-nano (E2) | 768 dims | Ứng viên |
-| Dense embedding | Jina Embeddings v5 text-small (E3) | 1024 dims | Ứng viên |
-| Generator | Gemini 3.7 Flash | `gemini-3.7-flash` | Structured legal answer theo schema cấp claim |
-| Judge độc lập | Gemini 3.5 Flash Lite | `gemini-3.5-flash-lite` | L5 semantic judge + evaluation metric thứ cấp |
-| Reranker | Jina Reranker v3 | `jina-reranker-v3` (ứng viên chính) | Rerank sau RRF; chưa khẳng định cải thiện trước benchmark |
-| Generator | Gemini 3.7 Flash | `gemini-3.7-flash` | Structured legal answer theo schema cấp claim |
-| Judge độc lập | Gemini 3.5 Flash Lite | `gemini-3.5-flash-lite` | L5 semantic judge + evaluation metric thứ cấp |
-| Evaluation | Ragas + deterministic custom metrics | Ragas 0.4.x (0.4.3) | Deterministic là headline, LLM judge là thứ cấp |
-| Object storage | ObjectStoragePort (S3-compatible); MinIO là ứng viên hiện tại | MinIO date-tagged community release (AIStor) | PDF nguồn, parser output, artifact review/evaluation |
-| Background jobs | Dramatiq | v2.2.0 | Actor ingestion idempotent, Redis broker |
-| Cache / broker | Redis | 8.10.0 | Dramatiq broker + cache |
-| Observability | Langfuse | Server v4, SDK v4.x | Trace, prompt management, experiments; ngoài đường tới hạn |
-| Frontend | Next.js | 16.x App Router | Chat, search, citation panel |
-| UI | React + TypeScript + Tailwind + shadcn/ui | Pin lock file | Giao diện |
-| Testing | pytest + Playwright | Pin exact | Unit, integration, E2E |
-| Container | Docker + Compose Spec | Pin image tags | Local deployment |
-| CI/CD | GitHub Actions | Action SHA hoặc major pin | Automated checks |
-| Benchmark baseline | RAGFlow | v0.26.x, môi trường benchmark riêng | Baseline so sánh bên ngoài |
+The index is derived data. Rebuild it from the manifest and chunks rather than treating it as the source of truth. Retrieval uses exact legal-reference matching where supplied, then bounded sibling-sanction completion and cross-reference expansion from `backend/app/rag/cross_refs.py`. `backend/app/rag/service.py` decomposes compound questions with `backend/app/rag/analyzer.py`, retrieves each legal intent, and merges ranked lists with reciprocal-rank fusion (RRF), followed by document-level diversity limits.
 
-Ghi chú ràng buộc tech stack:
+## Grounded generation, verification, and abstention
 
-- **Không dùng pgvector**: vector retrieval nằm trong Qdrant; PostgreSQL giữ metadata và quan hệ pháp lý.
-- **Không dùng full LangChain, Haystack hoặc LlamaIndex** trong core implementation; chỉ giữ `langgraph`, `langchain-core` nếu cần, SDK chính thức của provider và các thư viện hạ tầng trực tiếp.
-- Embedding và reranker **chưa được chốt vĩnh viễn**; quyết định phải dựa trên bằng chứng thực nghiệm (Suite B, C), không dựa trên tuyên bố nhà cung cấp.
-- Model ID nằm trong cấu hình, không hardcode trong domain logic; trước evaluation cuối phải pin model snapshot hoặc ghi lại model version thực tế.
+`backend/app/rag/router.py` classifies requests without external I/O; the canonical public chat statuses are `VERIFIED`, `GREETING`, `OUT_OF_SCOPE`, `CORPUS_NOT_COVERED`, `INSUFFICIENT_EVIDENCE`, and `WORKFLOW_UNAVAILABLE`. `backend/app/rag/references.py` parses and matches explicit Điều/Khoản/Điểm and document-number references. `backend/app/rag/evidence.py` applies the exact evidence-completeness gate before generation: every evidence type required by the query plan must be supported by the retrieved context, otherwise the service abstains. Only supported evidence reaches `backend/app/rag/generator.py`; citations are assembled from stored metadata in `backend/app/rag/service.py`. The query path is corpus-only: it never performs web retrieval, and traffic-law questions unsupported by the serving corpus are classified as `CORPUS_NOT_COVERED`.
 
-## Mô hình dữ liệu tổng quan
 
-- **PostgreSQL là nguồn chân lý** (ADR-006): mọi dữ liệu pháp lý (văn bản, version, provision, quan hệ, hiệu lực, review, audit, query trace, feedback) được xác nhận trong PostgreSQL trước khi phục vụ query. Các thực thể chính: `LegalDocument`, `DocumentVersion`, `LegalProvision` (kèm `provision_id` ổn định, `source_text`/`retrieval_text`, `[effective_from, effective_to)`), `ProvisionReference`, `DocumentRelation`, `LegalEffectEvent`, cùng các thực thể vận hành (`IngestionRun`, `ReviewItem`, `QueryTrace`, ...).
-- **Qdrant là index dẫn xuất, dựng lại được từ PostgreSQL** (ADR-005): collection dùng named dense vector + sparse vectors + payload (alias `legal_provisions_active`); thay đổi schema (embedding model, dimension, sparse encoding, chunking) bằng rebuild + alias switch, không rebuild in place. Nếu dữ liệu hai nơi lệch nhau, PostgreSQL thắng.
-- **Object keys + metadata nằm trong PostgreSQL** (ADR-012): MinIO lưu nội dung file (PDF nguồn, parser output, ảnh trang, artifact), PostgreSQL lưu object key và metadata truy vết; nội dung file không nằm trong database.
+The request path is therefore:
 
-## Liên kết ADR
+```text
+manifest + source files
+  -> ingestion adapters / normalized metadata
+  -> chunks.jsonl
+  -> local Qdrant hybrid retrieval
+  -> analyzer intent decomposition
+  -> per-intent retrieval + RRF + sibling/cross-reference expansion
+  -> reference/evidence verification
+  -> configured ChatOpenRouter generation
+  -> metadata-derived citations or abstention
+```
 
-20 ADR đã chốt, tài liệu hóa tại `docs/adr/` (chi tiết ban đầu ở doc 03 §3.32):
+`GENERATION_MODEL` selects the configured model (default: `deepseek/deepseek-v4-flash-0731`). `OPENROUTER_API_KEY` and `OPENROUTER_BASE_URL` configure the provider.
 
-| ADR | Quyết định |
-|---|---|
-| [ADR-001](docs/adr/ADR-001.md) | Loại bỏ UDEF, thay bằng Parser Router + Canonical Document IR + Legal Structure Extractor |
-| [ADR-002](docs/adr/ADR-002.md) | Parser Router (Docling chính, MinerU phụ/fallback) |
-| [ADR-003](docs/adr/ADR-003.md) | Canonical Document IR là biểu diễn parser-neutral do dự án sở hữu |
-| [ADR-004](docs/adr/ADR-004.md) | Đồ thị quan hệ bằng bảng PostgreSQL, không dùng Neo4j |
-| [ADR-005](docs/adr/ADR-005.md) | Qdrant là index dẫn xuất, thay ChromaDB và rank-bm25 pickle |
-| [ADR-006](docs/adr/ADR-006.md) | PostgreSQL là nguồn chân lý dữ liệu pháp lý |
-| [ADR-007](docs/adr/ADR-007.md) | Evidence Completeness Gate bắt buộc trước generation |
-| [ADR-008](docs/adr/ADR-008.md) | Verification sáu tầng với bất biến Returned Invalid Citation Rate = 0 |
-| [ADR-009](docs/adr/ADR-009.md) | Langfuse là observability, nằm ngoài đường tới hạn |
-| [ADR-010](docs/adr/ADR-010.md) | RAGFlow chỉ là baseline bên ngoài |
-| [ADR-011](docs/adr/ADR-011.md) | Background ingestion qua Redis + Dramatiq, không parse đồng bộ |
-| [ADR-012](docs/adr/ADR-012.md) | MinIO làm object storage |
-| [ADR-013](docs/adr/ADR-013.md) | Embedding model chưa được chốt vĩnh viễn cho tới khi benchmark |
-| [ADR-014](docs/adr/ADR-014.md) | Reranker là stage chuẩn, Jina Reranker v3 là ứng viên chính |
-| [ADR-015](docs/adr/ADR-015.md) | Không dùng open-web search và không có query-time HITL |
-| [ADR-016](docs/adr/ADR-016.md) | LangGraph là controlled workflow, không phải autonomous agent |
-| [ADR-017](docs/adr/ADR-017.md) | Citation-by-ID và dựng citation từ metadata |
-| [ADR-018](docs/adr/ADR-018.md) | Structured generation theo schema cấp claim |
-| [ADR-019](docs/adr/ADR-019.md) | Failure-aware repair có giới hạn thay vì regenerate vô hạn |
-| [ADR-020](docs/adr/ADR-020.md) | Chính sách canonical date cho câu hỏi lịch sử |
+## Supabase application persistence
 
----
+Supabase stores application data, not the local retrieval corpus. `backend/app/database/models.py`
+names application tables: `profiles`, `chat_sessions`, `messages`, `feedback`, and `bookmarks`.
+Auth and chat services own authentication, sessions, messages, feedback, and saved Q&A snapshots.
+Saving a bookmark persists the user question, answer, citations, response payload, and source message
+IDs; saved items can be listed, checked, and deleted. Qdrant holds derived vectors; manifest and
+Markdown remain ingestion inputs.
 
-> **Nguồn**: `docs/03-thiet-ke-he-thong.md` (§3.1, §3.2, §3.32) — kiến trúc tổng quan, pipeline, LangGraph workflow, danh mục ADR; `docs/04-tech-stack-llm-research.md` (§4.1, §4.2) — bảng công nghệ và ràng buộc tech stack; `docs/00-scope-and-decisions.md` (§3, §6, §7, §8, §15) — nguyên tắc, pipeline, mô hình dữ liệu cốt lõi.
+
+## HTTP API, readiness, and traceability
+
+FastAPI mounts the active routers from `backend/app/main.py`:
+
+- `backend/app/rag/api.py`: `POST /api/v1/chat` for grounded legal chat (`question`, `top_k`, optional `effective_date`);
+- `backend/app/auth/api.py`: register, login, and current-user endpoints backed by Supabase auth;
+- `backend/app/chats/api.py`: chat sessions, messages, feedback, and saved Q&A bookmark snapshots;
+- `backend/app/legal/api.py`: legal documents, provisions, and `GET /api/v1/legal-search` text search with optional `document_id`, `article`, `clause`, `point`, and bounded `limit` filters.
+
+Legal explorer deep links use `/legal-sources` and citation metadata to open a document/provision or
+source passage; the API preserves Markdown/PDF provenance for that viewer. Saved Q&A routes include
+`POST /api/v1/chats/{session_id}/bookmarks`, `GET /api/v1/saved` (also `/bookmarks`), status lookup,
+and deletion. `backend/app/main.py` also provides `GET /api/v1/health/live` and
+## Implementation status notes
+
+The documented runtime contract is limited to the implemented local corpus and APIs.
+Saved Q&A persistence, Legal Explorer search/deep links, canonical chat statuses,
+the exact evidence gate, and bounded browser timeout are implemented behavior.
+Remote corpus migration/manual UI work and final evaluation evidence remain pending;
+this document does not claim release readiness or evaluation completion.
+
+Run the API from the repository root:
+
+```bash
+uv run --project backend uvicorn app.main:app --reload
+```
+
+## Thesis evaluation interfaces
+
+The provider-independent schemas and deterministic metrics live in `backend/app/evaluation/schemas.py` and `backend/app/evaluation/metrics.py`. `backend/scripts/run_thesis_evaluation.py` validates a 40-case dataset (five cases per category), invokes `POST /api/v1/chat` or scores saved prediction JSONL, and reports retrieval/citation/coordinate/abstention/latency metrics without inferring manual answer correctness. `backend/scripts/review_thesis_answers.py` is the manual-review interface for answer correctness. The evaluation runner covers exact references, natural-language and penalty questions, multi-intent/cross-reference/follow-up cases, insufficient evidence, and out-of-scope behavior.
+
+## P2 paused scope
+
+P2 work is paused. It is not part of the active runtime contract: no additional ingestion orchestration, external retrieval, autonomous agent workflow, or expanded review platform should be inferred from this MVP.
+

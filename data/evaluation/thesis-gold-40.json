@@ -1,0 +1,937 @@
+{
+  "dataset": "thesis-gold-40",
+  "cases": [
+    {
+      "id": "thesis-gold-40-00",
+      "category": "exact_reference",
+      "query": "Vui lòng giải thích chính xác quy định tại nd-119-2024__dieu-1 và trích dẫn đúng tọa độ.",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-1"
+      ],
+      "expected_clause_ids": [],
+      "expected_point_ids": [],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-1"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Đối chiếu trực tiếp mã điều khoản được hỏi."
+      }
+    },
+    {
+      "id": "thesis-gold-40-01",
+      "category": "exact_reference",
+      "query": "Vui lòng giải thích chính xác quy định tại nd-119-2024__dieu-10 và trích dẫn đúng tọa độ.",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-10"
+      ],
+      "expected_clause_ids": [],
+      "expected_point_ids": [],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-10"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Đối chiếu trực tiếp mã điều khoản được hỏi."
+      }
+    },
+    {
+      "id": "thesis-gold-40-02",
+      "category": "exact_reference",
+      "query": "Vui lòng giải thích chính xác quy định tại nd-119-2024__dieu-10__khoan-2 và trích dẫn đúng tọa độ.",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-10"
+      ],
+      "expected_clause_ids": [
+        "nd-119-2024__dieu-10__khoan-2"
+      ],
+      "expected_point_ids": [],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-10__khoan-2"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Đối chiếu trực tiếp mã điều khoản được hỏi."
+      }
+    },
+    {
+      "id": "thesis-gold-40-03",
+      "category": "exact_reference",
+      "query": "Vui lòng giải thích chính xác quy định tại nd-119-2024__dieu-11 và trích dẫn đúng tọa độ.",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-11"
+      ],
+      "expected_clause_ids": [],
+      "expected_point_ids": [],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-11"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Đối chiếu trực tiếp mã điều khoản được hỏi."
+      }
+    },
+    {
+      "id": "thesis-gold-40-04",
+      "category": "exact_reference",
+      "query": "Vui lòng giải thích chính xác quy định tại nd-119-2024__dieu-11__khoan-4 và trích dẫn đúng tọa độ.",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-11"
+      ],
+      "expected_clause_ids": [
+        "nd-119-2024__dieu-11__khoan-4"
+      ],
+      "expected_point_ids": [],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-11__khoan-4"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Đối chiếu trực tiếp mã điều khoản được hỏi."
+      }
+    },
+    {
+      "id": "thesis-gold-40-05",
+      "category": "natural_language",
+      "query": "Tôi nghe nói quy định về nghĩa vụ giao thông ở đây là “diem-a”. Quy định cụ thể là gì?",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-11"
+      ],
+      "expected_clause_ids": [
+        "nd-119-2024__dieu-11__khoan-4__diem-a"
+      ],
+      "expected_point_ids": [
+        "nd-119-2024__dieu-11__khoan-4__diem-a"
+      ],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-11__khoan-4__diem-a"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Diễn giải câu hỏi đời thường nhưng định tuyến về provision đã biết."
+      }
+    },
+    {
+      "id": "thesis-gold-40-06",
+      "category": "natural_language",
+      "query": "Tôi nghe nói quy định về nghĩa vụ giao thông ở đây là “diem-b”. Quy định cụ thể là gì?",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-11"
+      ],
+      "expected_clause_ids": [
+        "nd-119-2024__dieu-11__khoan-4__diem-b"
+      ],
+      "expected_point_ids": [
+        "nd-119-2024__dieu-11__khoan-4__diem-b"
+      ],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-11__khoan-4__diem-b"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Diễn giải câu hỏi đời thường nhưng định tuyến về provision đã biết."
+      }
+    },
+    {
+      "id": "thesis-gold-40-07",
+      "category": "natural_language",
+      "query": "Tôi nghe nói quy định về nghĩa vụ giao thông ở đây là “diem-c”. Quy định cụ thể là gì?",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-11"
+      ],
+      "expected_clause_ids": [
+        "nd-119-2024__dieu-11__khoan-4__diem-c"
+      ],
+      "expected_point_ids": [
+        "nd-119-2024__dieu-11__khoan-4__diem-c"
+      ],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-11__khoan-4__diem-c"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Diễn giải câu hỏi đời thường nhưng định tuyến về provision đã biết."
+      }
+    },
+    {
+      "id": "thesis-gold-40-08",
+      "category": "natural_language",
+      "query": "Tôi nghe nói quy định về nghĩa vụ giao thông ở đây là “dieu-12”. Quy định cụ thể là gì?",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-12"
+      ],
+      "expected_clause_ids": [],
+      "expected_point_ids": [],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-12"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Diễn giải câu hỏi đời thường nhưng định tuyến về provision đã biết."
+      }
+    },
+    {
+      "id": "thesis-gold-40-09",
+      "category": "natural_language",
+      "query": "Tôi nghe nói quy định về nghĩa vụ giao thông ở đây là “khoan-2”. Quy định cụ thể là gì?",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-12"
+      ],
+      "expected_clause_ids": [
+        "nd-119-2024__dieu-12__khoan-2"
+      ],
+      "expected_point_ids": [],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-12__khoan-2"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Diễn giải câu hỏi đời thường nhưng định tuyến về provision đã biết."
+      }
+    },
+    {
+      "id": "thesis-gold-40-10",
+      "category": "penalty",
+      "query": "Nếu vi phạm nội dung tại nd-119-2024__dieu-12__khoan-3 thì quy định xử phạt hoặc hậu quả nào được nêu trong nguồn?",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-12"
+      ],
+      "expected_clause_ids": [
+        "nd-119-2024__dieu-12__khoan-3"
+      ],
+      "expected_point_ids": [],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-12__khoan-3"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Chỉ nêu chế tài nếu bằng chứng hỗ trợ; không tự tính mức phạt."
+      }
+    },
+    {
+      "id": "thesis-gold-40-11",
+      "category": "penalty",
+      "query": "Nếu vi phạm nội dung tại nd-119-2024__dieu-12__khoan-4 thì quy định xử phạt hoặc hậu quả nào được nêu trong nguồn?",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-12"
+      ],
+      "expected_clause_ids": [
+        "nd-119-2024__dieu-12__khoan-4"
+      ],
+      "expected_point_ids": [],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-12__khoan-4"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Chỉ nêu chế tài nếu bằng chứng hỗ trợ; không tự tính mức phạt."
+      }
+    },
+    {
+      "id": "thesis-gold-40-12",
+      "category": "penalty",
+      "query": "Nếu vi phạm nội dung tại nd-158-2024__dieu-1 thì quy định xử phạt hoặc hậu quả nào được nêu trong nguồn?",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-158-2024"
+      ],
+      "expected_article_ids": [
+        "nd-158-2024__dieu-1"
+      ],
+      "expected_clause_ids": [],
+      "expected_point_ids": [],
+      "expected_provision_ids": [
+        "nd-158-2024__dieu-1"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Chỉ nêu chế tài nếu bằng chứng hỗ trợ; không tự tính mức phạt."
+      }
+    },
+    {
+      "id": "thesis-gold-40-13",
+      "category": "penalty",
+      "query": "Nếu vi phạm nội dung tại nd-119-2024__dieu-13__khoan-2__diem-b thì quy định xử phạt hoặc hậu quả nào được nêu trong nguồn?",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-13"
+      ],
+      "expected_clause_ids": [
+        "nd-119-2024__dieu-13__khoan-2__diem-b"
+      ],
+      "expected_point_ids": [
+        "nd-119-2024__dieu-13__khoan-2__diem-b"
+      ],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-13__khoan-2__diem-b"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Chỉ nêu chế tài nếu bằng chứng hỗ trợ; không tự tính mức phạt."
+      }
+    },
+    {
+      "id": "thesis-gold-40-14",
+      "category": "penalty",
+      "query": "Nếu vi phạm nội dung tại nd-119-2024__dieu-14 thì quy định xử phạt hoặc hậu quả nào được nêu trong nguồn?",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-14"
+      ],
+      "expected_clause_ids": [],
+      "expected_point_ids": [],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-14"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Chỉ nêu chế tài nếu bằng chứng hỗ trợ; không tự tính mức phạt."
+      }
+    },
+    {
+      "id": "thesis-gold-40-15",
+      "category": "multi_intent",
+      "query": "Đồng thời cho biết nội dung tại nd-119-2024__dieu-14__khoan-2 và đối chiếu với nd-119-2024__dieu-14__khoan-3__diem-a; hãy trả lời từng ý riêng.",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-14"
+      ],
+      "expected_clause_ids": [
+        "nd-119-2024__dieu-14__khoan-2",
+        "nd-119-2024__dieu-14__khoan-3__diem-a"
+      ],
+      "expected_point_ids": [
+        "nd-119-2024__dieu-14__khoan-3__diem-a"
+      ],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-14__khoan-2",
+        "nd-119-2024__dieu-14__khoan-3__diem-a"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Hai ý độc lập, phải giữ đủ cả hai citations."
+      }
+    },
+    {
+      "id": "thesis-gold-40-16",
+      "category": "multi_intent",
+      "query": "Đồng thời cho biết nội dung tại nd-119-2024__dieu-13 và đối chiếu với nd-119-2024__dieu-14__khoan-3__diem-b; hãy trả lời từng ý riêng.",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-13",
+        "nd-119-2024__dieu-14"
+      ],
+      "expected_clause_ids": [
+        "nd-119-2024__dieu-14__khoan-3__diem-b"
+      ],
+      "expected_point_ids": [
+        "nd-119-2024__dieu-14__khoan-3__diem-b"
+      ],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-13",
+        "nd-119-2024__dieu-14__khoan-3__diem-b"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Hai ý độc lập, phải giữ đủ cả hai citations."
+      }
+    },
+    {
+      "id": "thesis-gold-40-17",
+      "category": "multi_intent",
+      "query": "Đồng thời cho biết nội dung tại nd-119-2024__dieu-14__khoan-2__diem-b và đối chiếu với nd-119-2024__dieu-14__khoan-4; hãy trả lời từng ý riêng.",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-14"
+      ],
+      "expected_clause_ids": [
+        "nd-119-2024__dieu-14__khoan-2__diem-b",
+        "nd-119-2024__dieu-14__khoan-4"
+      ],
+      "expected_point_ids": [
+        "nd-119-2024__dieu-14__khoan-2__diem-b"
+      ],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-14__khoan-2__diem-b",
+        "nd-119-2024__dieu-14__khoan-4"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Hai ý độc lập, phải giữ đủ cả hai citations."
+      }
+    },
+    {
+      "id": "thesis-gold-40-18",
+      "category": "multi_intent",
+      "query": "Đồng thời cho biết nội dung tại nd-119-2024__dieu-14__khoan-2__diem-c và đối chiếu với nd-119-2024__dieu-14__khoan-5; hãy trả lời từng ý riêng.",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-14"
+      ],
+      "expected_clause_ids": [
+        "nd-119-2024__dieu-14__khoan-2__diem-c",
+        "nd-119-2024__dieu-14__khoan-5"
+      ],
+      "expected_point_ids": [
+        "nd-119-2024__dieu-14__khoan-2__diem-c"
+      ],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-14__khoan-2__diem-c",
+        "nd-119-2024__dieu-14__khoan-5"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Hai ý độc lập, phải giữ đủ cả hai citations."
+      }
+    },
+    {
+      "id": "thesis-gold-40-19",
+      "category": "multi_intent",
+      "query": "Đồng thời cho biết nội dung tại nd-119-2024__dieu-14__khoan-3 và đối chiếu với nd-119-2024__dieu-14__khoan-6; hãy trả lời từng ý riêng.",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-14"
+      ],
+      "expected_clause_ids": [
+        "nd-119-2024__dieu-14__khoan-3",
+        "nd-119-2024__dieu-14__khoan-6"
+      ],
+      "expected_point_ids": [],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-14__khoan-3",
+        "nd-119-2024__dieu-14__khoan-6"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Hai ý độc lập, phải giữ đủ cả hai citations."
+      }
+    },
+    {
+      "id": "thesis-gold-40-20",
+      "category": "cross_reference",
+      "query": "Quy định nd-119-2024__dieu-16 dẫn chiếu hoặc liên quan đến quy định nào? Hãy chỉ ra căn cứ trong corpus.",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-16"
+      ],
+      "expected_clause_ids": [],
+      "expected_point_ids": [],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-16"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Phân biệt dẫn chiếu rõ trong văn bản với suy đoán liên hệ."
+      }
+    },
+    {
+      "id": "thesis-gold-40-21",
+      "category": "cross_reference",
+      "query": "Quy định nd-119-2024__dieu-18 dẫn chiếu hoặc liên quan đến quy định nào? Hãy chỉ ra căn cứ trong corpus.",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-18"
+      ],
+      "expected_clause_ids": [],
+      "expected_point_ids": [],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-18"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Phân biệt dẫn chiếu rõ trong văn bản với suy đoán liên hệ."
+      }
+    },
+    {
+      "id": "thesis-gold-40-22",
+      "category": "cross_reference",
+      "query": "Quy định nd-119-2024__dieu-18__khoan-1 dẫn chiếu hoặc liên quan đến quy định nào? Hãy chỉ ra căn cứ trong corpus.",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-18"
+      ],
+      "expected_clause_ids": [
+        "nd-119-2024__dieu-18__khoan-1"
+      ],
+      "expected_point_ids": [],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-18__khoan-1"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Phân biệt dẫn chiếu rõ trong văn bản với suy đoán liên hệ."
+      }
+    },
+    {
+      "id": "thesis-gold-40-23",
+      "category": "cross_reference",
+      "query": "Quy định nd-119-2024__dieu-18__khoan-2 dẫn chiếu hoặc liên quan đến quy định nào? Hãy chỉ ra căn cứ trong corpus.",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-18"
+      ],
+      "expected_clause_ids": [
+        "nd-119-2024__dieu-18__khoan-2"
+      ],
+      "expected_point_ids": [],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-18__khoan-2"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Phân biệt dẫn chiếu rõ trong văn bản với suy đoán liên hệ."
+      }
+    },
+    {
+      "id": "thesis-gold-40-24",
+      "category": "cross_reference",
+      "query": "Quy định nd-119-2024__dieu-19 dẫn chiếu hoặc liên quan đến quy định nào? Hãy chỉ ra căn cứ trong corpus.",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-19"
+      ],
+      "expected_clause_ids": [],
+      "expected_point_ids": [],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-19"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Phân biệt dẫn chiếu rõ trong văn bản với suy đoán liên hệ."
+      }
+    },
+    {
+      "id": "thesis-gold-40-25",
+      "category": "follow_up",
+      "query": "Còn trường hợp ngoại lệ hoặc điều kiện áp dụng thì sao?",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-1"
+      ],
+      "expected_clause_ids": [],
+      "expected_point_ids": [],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-1"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Giữ ngữ cảnh provision trước; nếu không đủ dữ liệu thì nói rõ."
+      },
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Quy định tại nd-119-2024__dieu-1 là gì?"
+        },
+        {
+          "role": "assistant",
+          "content": "Cần kiểm tra đúng văn bản và trích dẫn."
+        }
+      ]
+    },
+    {
+      "id": "thesis-gold-40-26",
+      "category": "follow_up",
+      "query": "Còn trường hợp ngoại lệ hoặc điều kiện áp dụng thì sao?",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-10"
+      ],
+      "expected_clause_ids": [],
+      "expected_point_ids": [],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-10"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Giữ ngữ cảnh provision trước; nếu không đủ dữ liệu thì nói rõ."
+      },
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Quy định tại nd-119-2024__dieu-10 là gì?"
+        },
+        {
+          "role": "assistant",
+          "content": "Cần kiểm tra đúng văn bản và trích dẫn."
+        }
+      ]
+    },
+    {
+      "id": "thesis-gold-40-27",
+      "category": "follow_up",
+      "query": "Còn trường hợp ngoại lệ hoặc điều kiện áp dụng thì sao?",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-10"
+      ],
+      "expected_clause_ids": [
+        "nd-119-2024__dieu-10__khoan-2"
+      ],
+      "expected_point_ids": [],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-10__khoan-2"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Giữ ngữ cảnh provision trước; nếu không đủ dữ liệu thì nói rõ."
+      },
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Quy định tại nd-119-2024__dieu-10__khoan-2 là gì?"
+        },
+        {
+          "role": "assistant",
+          "content": "Cần kiểm tra đúng văn bản và trích dẫn."
+        }
+      ]
+    },
+    {
+      "id": "thesis-gold-40-28",
+      "category": "follow_up",
+      "query": "Còn trường hợp ngoại lệ hoặc điều kiện áp dụng thì sao?",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-11"
+      ],
+      "expected_clause_ids": [],
+      "expected_point_ids": [],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-11"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Giữ ngữ cảnh provision trước; nếu không đủ dữ liệu thì nói rõ."
+      },
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Quy định tại nd-119-2024__dieu-11 là gì?"
+        },
+        {
+          "role": "assistant",
+          "content": "Cần kiểm tra đúng văn bản và trích dẫn."
+        }
+      ]
+    },
+    {
+      "id": "thesis-gold-40-29",
+      "category": "follow_up",
+      "query": "Còn trường hợp ngoại lệ hoặc điều kiện áp dụng thì sao?",
+      "expected_status": "VERIFIED",
+      "expected_abstain": false,
+      "expected_document_ids": [
+        "nd-119-2024"
+      ],
+      "expected_article_ids": [
+        "nd-119-2024__dieu-11"
+      ],
+      "expected_clause_ids": [
+        "nd-119-2024__dieu-11__khoan-4"
+      ],
+      "expected_point_ids": [],
+      "expected_provision_ids": [
+        "nd-119-2024__dieu-11__khoan-4"
+      ],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Giữ ngữ cảnh provision trước; nếu không đủ dữ liệu thì nói rõ."
+      },
+      "conversation_history": [
+        {
+          "role": "user",
+          "content": "Quy định tại nd-119-2024__dieu-11__khoan-4 là gì?"
+        },
+        {
+          "role": "assistant",
+          "content": "Cần kiểm tra đúng văn bản và trích dẫn."
+        }
+      ]
+    },
+    {
+      "id": "thesis-gold-40-30",
+      "category": "insufficient_evidence",
+      "query": "Tôi bị phạt hôm qua, phải làm gì và mức phạt chính xác bao nhiêu?",
+      "expected_status": "ABSTAIN",
+      "expected_abstain": true,
+      "expected_document_ids": [],
+      "expected_article_ids": [],
+      "expected_clause_ids": [],
+      "expected_point_ids": [],
+      "expected_provision_ids": [],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Thiếu loại phương tiện, hành vi, địa điểm và văn bản áp dụng; yêu cầu làm rõ."
+      }
+    },
+    {
+      "id": "thesis-gold-40-31",
+      "category": "insufficient_evidence",
+      "query": "Tôi bị phạt hôm qua, phải làm gì và mức phạt chính xác bao nhiêu?",
+      "expected_status": "ABSTAIN",
+      "expected_abstain": true,
+      "expected_document_ids": [],
+      "expected_article_ids": [],
+      "expected_clause_ids": [],
+      "expected_point_ids": [],
+      "expected_provision_ids": [],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Thiếu loại phương tiện, hành vi, địa điểm và văn bản áp dụng; yêu cầu làm rõ."
+      }
+    },
+    {
+      "id": "thesis-gold-40-32",
+      "category": "insufficient_evidence",
+      "query": "Tôi bị phạt hôm qua, phải làm gì và mức phạt chính xác bao nhiêu?",
+      "expected_status": "ABSTAIN",
+      "expected_abstain": true,
+      "expected_document_ids": [],
+      "expected_article_ids": [],
+      "expected_clause_ids": [],
+      "expected_point_ids": [],
+      "expected_provision_ids": [],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Thiếu loại phương tiện, hành vi, địa điểm và văn bản áp dụng; yêu cầu làm rõ."
+      }
+    },
+    {
+      "id": "thesis-gold-40-33",
+      "category": "insufficient_evidence",
+      "query": "Tôi bị phạt hôm qua, phải làm gì và mức phạt chính xác bao nhiêu?",
+      "expected_status": "ABSTAIN",
+      "expected_abstain": true,
+      "expected_document_ids": [],
+      "expected_article_ids": [],
+      "expected_clause_ids": [],
+      "expected_point_ids": [],
+      "expected_provision_ids": [],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Thiếu loại phương tiện, hành vi, địa điểm và văn bản áp dụng; yêu cầu làm rõ."
+      }
+    },
+    {
+      "id": "thesis-gold-40-34",
+      "category": "insufficient_evidence",
+      "query": "Tôi bị phạt hôm qua, phải làm gì và mức phạt chính xác bao nhiêu?",
+      "expected_status": "ABSTAIN",
+      "expected_abstain": true,
+      "expected_document_ids": [],
+      "expected_article_ids": [],
+      "expected_clause_ids": [],
+      "expected_point_ids": [],
+      "expected_provision_ids": [],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Thiếu loại phương tiện, hành vi, địa điểm và văn bản áp dụng; yêu cầu làm rõ."
+      }
+    },
+    {
+      "id": "thesis-gold-40-35",
+      "category": "out_of_scope",
+      "query": "Tư vấn tranh chấp hợp đồng mua bán nhà, không liên quan giao thông.",
+      "expected_status": "ABSTAIN",
+      "expected_abstain": true,
+      "expected_document_ids": [],
+      "expected_article_ids": [],
+      "expected_clause_ids": [],
+      "expected_point_ids": [],
+      "expected_provision_ids": [],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Ngoài phạm vi corpus; không tạo tọa độ pháp lý giả."
+      }
+    },
+    {
+      "id": "thesis-gold-40-36",
+      "category": "out_of_scope",
+      "query": "Tính thuế thu nhập cá nhân cho người lái xe.",
+      "expected_status": "ABSTAIN",
+      "expected_abstain": true,
+      "expected_document_ids": [],
+      "expected_article_ids": [],
+      "expected_clause_ids": [],
+      "expected_point_ids": [],
+      "expected_provision_ids": [],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Ngoài phạm vi corpus; không tạo tọa độ pháp lý giả."
+      }
+    },
+    {
+      "id": "thesis-gold-40-37",
+      "category": "out_of_scope",
+      "query": "Xin dự thảo đơn khởi kiện dân sự về tai nạn.",
+      "expected_status": "ABSTAIN",
+      "expected_abstain": true,
+      "expected_document_ids": [],
+      "expected_article_ids": [],
+      "expected_clause_ids": [],
+      "expected_point_ids": [],
+      "expected_provision_ids": [],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Ngoài phạm vi corpus; không tạo tọa độ pháp lý giả."
+      }
+    },
+    {
+      "id": "thesis-gold-40-38",
+      "category": "out_of_scope",
+      "query": "Hỏi quy định hàng không quốc tế về máy bay.",
+      "expected_status": "ABSTAIN",
+      "expected_abstain": true,
+      "expected_document_ids": [],
+      "expected_article_ids": [],
+      "expected_clause_ids": [],
+      "expected_point_ids": [],
+      "expected_provision_ids": [],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Ngoài phạm vi corpus; không tạo tọa độ pháp lý giả."
+      }
+    },
+    {
+      "id": "thesis-gold-40-39",
+      "category": "out_of_scope",
+      "query": "Xin phân tích luật hình sự ngoài các văn bản giao thông trong corpus.",
+      "expected_status": "ABSTAIN",
+      "expected_abstain": true,
+      "expected_document_ids": [],
+      "expected_article_ids": [],
+      "expected_clause_ids": [],
+      "expected_point_ids": [],
+      "expected_provision_ids": [],
+      "answer_key": {
+        "manual_correctness": null,
+        "notes": "Ngoài phạm vi corpus; không tạo tọa độ pháp lý giả."
+      }
+    }
+  ]
+}

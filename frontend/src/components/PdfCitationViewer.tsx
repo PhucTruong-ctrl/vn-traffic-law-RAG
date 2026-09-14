@@ -1,6 +1,5 @@
-"use client";
-
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, RefreshCw, ZoomIn, ZoomOut } from "lucide-react";
 import type { CSSProperties } from "react";
 import type { Citation } from "./CitationCard";
 
@@ -8,8 +7,8 @@ type ViewerState = "loading" | "ready" | "error";
 type ZoomMode = "fit" | number;
 
 export default function PdfCitationViewer({ citation }: { citation: Citation }) {
-  const initialPage = Math.max(1, Number(citation.page_number) || 1);
-  const key = `${citation.document_id ?? "missing"}:${initialPage}`;
+  const initialPage = citation.page == null ? 1 : Math.max(1, citation.page);
+  const key = `${citation.document_id}:${citation.page ?? "none"}`;
   return <PdfCitationDocument key={key} citation={citation} initialPage={initialPage} />;
 }
 
@@ -20,6 +19,7 @@ function PdfCitationDocument({
   citation: Citation;
   initialPage: number;
 }) {
+  const pageInputId = useId();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLSpanElement>(null);
@@ -28,9 +28,11 @@ function PdfCitationDocument({
   const [pageCount, setPageCount] = useState(0);
   const [zoom, setZoom] = useState<ZoomMode>("fit");
   const [containerWidth, setContainerWidth] = useState(720);
-  const [state, setState] = useState<ViewerState>(citation.document_id ? "loading" : "error");
+  const [state, setState] = useState<ViewerState>(
+    citation.document_id && citation.pdf_url ? "loading" : "error",
+  );
   const [error, setError] = useState(
-    citation.document_id ? "" : "Trích dẫn này chưa có mã tài liệu để mở bản PDF.",
+    citation.document_id && citation.pdf_url ? "" : "Trích dẫn này chưa có nguồn PDF để mở.",
   );
   const [retryToken, setRetryToken] = useState(0);
   const highlightStyle = useMemo(() => normalizeBbox(citation.bbox), [citation.bbox]);
@@ -44,7 +46,7 @@ function PdfCitationDocument({
     return () => observer.disconnect();
   }, []);
   useEffect(() => {
-    if (!citation.document_id) return;
+    if (!citation.document_id || !citation.pdf_url) return;
     let cancelled = false;
     let renderTask: { promise: Promise<void>; cancel: () => void } | undefined;
     let loadingTask: { promise: Promise<unknown>; destroy: () => Promise<void> } | undefined;
@@ -56,8 +58,7 @@ function PdfCitationDocument({
         setError("");
         pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.mjs";
         loadingTask = pdfjs.getDocument({
-          url: `/api/v1/documents/${encodeURIComponent(citation.document_id!)}/source`,
-          wasmUrl: "/pdfjs/wasm/",
+          url: citation.pdf_url ?? citation.source_url ?? "",
           standardFontDataUrl: "/pdfjs/standard_fonts/",
           isImageDecoderSupported: false,
         }) as typeof loadingTask;
@@ -108,7 +109,15 @@ function PdfCitationDocument({
       renderTask?.cancel();
       void loadingTask?.destroy();
     };
-  }, [citation.document_id, containerWidth, pageNumber, zoom, retryToken]);
+  }, [
+    citation.document_id,
+    citation.pdf_url,
+    citation.source_url,
+    containerWidth,
+    pageNumber,
+    zoom,
+    retryToken,
+  ]);
   const zoomLabel = zoom === "fit" ? "Vừa chiều rộng" : `${Math.round(zoom * 100)}%`;
   const changeZoom = (delta: number) =>
     setZoom((value) => Math.min(3, Math.max(0.5, (value === "fit" ? 1 : value) + delta)));
@@ -133,12 +142,14 @@ function PdfCitationDocument({
             onClick={() => setPageNumber((page) => Math.max(1, page - 1))}
             disabled={pageNumber <= 1}
             aria-label="Trang trước"
+            title="Trang trước"
           >
-            ‹
+            <ChevronLeft aria-hidden="true" />
           </button>
-          <label>
+          <label htmlFor={pageInputId}>
             Trang{" "}
             <input
+              id={pageInputId}
               type="number"
               min={1}
               max={pageCount || undefined}
@@ -159,19 +170,35 @@ function PdfCitationDocument({
             onClick={() => setPageNumber((page) => Math.min(pageCount || page + 1, page + 1))}
             disabled={!pageCount || pageNumber >= pageCount}
             aria-label="Trang sau"
+            title="Trang sau"
           >
-            ›
+            <ChevronRight aria-hidden="true" />
           </button>
         </div>
         <div className="pdf-viewer__zoom">
-          <button type="button" onClick={() => changeZoom(-0.1)} aria-label="Thu nhỏ">
-            −
+          <button
+            type="button"
+            onClick={() => changeZoom(-0.1)}
+            aria-label="Thu nhỏ"
+            title="Thu nhỏ"
+          >
+            <ZoomOut aria-hidden="true" />
           </button>
           <span>{zoomLabel}</span>
-          <button type="button" onClick={() => changeZoom(0.1)} aria-label="Phóng to">
-            +
+          <button
+            type="button"
+            onClick={() => changeZoom(0.1)}
+            aria-label="Phóng to"
+            title="Phóng to"
+          >
+            <ZoomIn aria-hidden="true" />
           </button>
-          <button type="button" onClick={() => setZoom("fit")}>
+          <button
+            type="button"
+            onClick={() => setZoom("fit")}
+            aria-label="Vừa chiều rộng"
+            title="Vừa chiều rộng"
+          >
             Vừa chiều rộng
           </button>
         </div>
@@ -186,8 +213,14 @@ function PdfCitationDocument({
           <div className="pdf-viewer__error" role="alert">
             <strong>Không mở được PDF</strong>
             <span>{error || "Nguồn PDF không khả dụng."}</span>
-            <button type="button" onClick={() => setRetryToken((token) => token + 1)}>
-              Thử lại
+            <button
+              type="button"
+              onClick={() => setRetryToken((token) => token + 1)}
+              aria-label="Thử lại"
+              title="Thử lại"
+            >
+              <RefreshCw aria-hidden="true" />
+              <span>Thử lại</span>
             </button>
             {citation.source_url && (
               <a href={citation.source_url} target="_blank" rel="noreferrer">

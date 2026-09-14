@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kiểm tra căn cứ trước khi sinh câu trả lời</title>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f5f5f5; color: #2d3142; font-family: 'Be Vietnam Pro', sans-serif; }
+    .page { width: min(960px, 100%); margin: auto; padding: 32px 40px 24px; }
+    .eyebrow { margin: 0 0 8px; color: #4f5d75; font: 500 8px 'Be Vietnam Pro', sans-serif; letter-spacing: .16em; }
+    h1 { margin: 0 0 24px; font: 400 28px/1.15 'Be Vietnam Pro', sans-serif; }
+    svg { display: block; width: 100%; height: auto; }
+    .name { fill: #2d3142; font: 600 16px 'Be Vietnam Pro', sans-serif; }
+    .body { fill: #2d3142; font: 500 12px 'Be Vietnam Pro', sans-serif; }
+    .sub { fill: #4f5d75; font: 400 12px 'Be Vietnam Pro', sans-serif; }
+    .tag { fill: #4f5d75; font: 500 8px 'Be Vietnam Pro', sans-serif; letter-spacing: .08em; }
+    .branch { fill: #4f5d75; font: 500 8px 'Be Vietnam Pro', sans-serif; letter-spacing: .08em; }
+    .legend { fill: #4f5d75; font: 500 8px 'Be Vietnam Pro', sans-serif; letter-spacing: .06em; }
+  </style>
+</head>
+<body>
+<main class="page">
+  <p class="eyebrow">CHƯƠNG 2 · 2.11 EVIDENCE GATE</p>
+  <h1>Kiểm tra căn cứ trước khi sinh câu trả lời</h1>
+  <svg viewBox="0 0 960 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="ch2-evidence-gate-title ch2-evidence-gate-desc">
+    <title id="ch2-evidence-gate-title">Kiểm tra căn cứ trước khi sinh câu trả lời</title>
+    <desc id="ch2-evidence-gate-desc">Bước kiểm tra căn cứ xét số lượng tài liệu, tham chiếu, ý cần trả lời và ngưỡng điểm nếu có. Hệ thống chỉ gọi mô hình khi các điều kiện đạt; nếu không, API trả trạng thái thiếu căn cứ.</desc>
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+      <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+      <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+    </defs>
+
+    <rect width="960" height="600" fill="#f5f5f5"/>
+
+    <!-- Connectors before nodes. -->
+    <line x1="480" y1="100" x2="480" y2="148" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+    <path d="M600 248 H672 Q680 248 680 256 V308" fill="none" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+    <path d="M480 348 V372 Q480 380 472 380 H304 Q296 380 296 388 V416" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+    <line x1="680" y1="396" x2="680" y2="444" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+
+    <!-- Input -->
+    <g>
+      <rect x="320" y="36" width="320" height="64" rx="20" fill="#f5f5f5"/>
+      <rect x="320" y="36" width="320" height="64" rx="20" fill="#fff" stroke="#2d3142"/>
+      <text x="480" y="64" class="name" text-anchor="middle">Tài liệu đã truy xuất</text>
+      <text x="480" y="84" class="sub" text-anchor="middle">đã lọc theo câu hỏi và thời gian</text>
+    </g>
+
+    <!-- Evidence gate -->
+    <g>
+      <polygon points="480,148 600,248 480,348 360,248" fill="#f5f5f5"/>
+      <polygon points="480,148 600,248 480,348 360,248" fill="rgba(235,108,54,.08)" stroke="#eb6c36" stroke-width="1.2"/>
+      <text x="480" y="204" class="tag" text-anchor="middle">ASSESS_EVIDENCE</text>
+      <text x="480" y="232" class="name" text-anchor="middle">Căn cứ đã đủ?</text>
+      <text x="480" y="260" class="sub" text-anchor="middle">Số tài liệu · tham chiếu</text>
+      <text x="480" y="280" class="sub" text-anchor="middle">Các ý cần trả lời</text>
+      <text x="480" y="300" class="sub" text-anchor="middle">Ngưỡng điểm tùy chọn</text>
+    </g>
+
+    <!-- Branch labels with masks and clear gaps. -->
+    <rect x="624" y="220" width="32" height="12" rx="4" fill="#f5f5f5"/>
+    <text x="640" y="228" class="branch" text-anchor="middle">ĐẠT</text>
+    <rect x="400" y="360" width="72" height="12" rx="4" fill="#f5f5f5"/>
+    <text x="436" y="368" class="branch" text-anchor="middle">KHÔNG ĐẠT</text>
+
+    <!-- Allowed -->
+    <g>
+      <rect x="584" y="308" width="192" height="88" rx="8" fill="rgba(235,108,54,.08)" stroke="#eb6c36" stroke-width="1.2"/>
+      <text x="600" y="332" class="tag">CHO PHÉP</text>
+      <text x="680" y="360" class="name" text-anchor="middle">Gọi mô hình ngôn ngữ</text>
+      <text x="680" y="380" class="sub" text-anchor="middle">Tạo câu trả lời có căn cứ</text>
+    </g>
+
+    <!-- Abstention -->
+    <g>
+      <rect x="160" y="416" width="272" height="104" rx="20" fill="#f5f5f5"/>
+      <rect x="160" y="416" width="272" height="104" rx="20" fill="rgba(45,49,66,.05)" stroke="#4f5d75"/>
+      <text x="176" y="440" class="tag">TỪ CHỐI AN TOÀN</text>
+      <text x="296" y="468" class="name" text-anchor="middle">Chưa đủ căn cứ</text>
+      <text x="296" y="492" class="sub" text-anchor="middle">Không gọi LLM · không suy đoán</text>
+      <text x="296" y="512" class="sub" text-anchor="middle">status: insufficient_evidence</text>
+    </g>
+
+    <!-- Complete -->
+    <g>
+      <rect x="568" y="444" width="224" height="76" rx="20" fill="#f5f5f5"/>
+      <rect x="568" y="444" width="224" height="76" rx="20" fill="#fff" stroke="#2d3142"/>
+      <text x="680" y="476" class="name" text-anchor="middle">Câu trả lời hoàn chỉnh</text>
+      <text x="680" y="500" class="sub" text-anchor="middle">status: complete</text>
+    </g>
+
+    <line x1="40" y1="544" x2="920" y2="544" stroke="rgba(45,49,66,.10)" stroke-width="0.8"/>
+    <text x="40" y="572" class="legend">CHÚ GIẢ</text>
+    <polygon points="148,556 160,568 148,580 136,568" fill="rgba(235,108,54,.08)" stroke="#eb6c36"/>
+    <text x="176" y="572" class="legend">KIỂM TRA XÁC ĐỊNH</text>
+    <rect x="400" y="560" width="20" height="16" rx="8" fill="rgba(45,49,66,.05)" stroke="#4f5d75"/>
+    <text x="432" y="572" class="legend">DỪNG TRƯỚC KHI TẠO CÂU TRẢ LỜI</text>
+    <text x="920" y="572" class="legend" text-anchor="end">HÌNH 2.12</text>
+  </svg>
+</main>
+</body>
+</html>
