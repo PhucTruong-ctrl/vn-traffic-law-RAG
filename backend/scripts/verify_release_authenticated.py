@@ -40,7 +40,7 @@ def require_chat_contract(
     result: Any,
     label: str,
     *,
-    expected_status: str = "complete",
+    expected_status: str = "verified",
     require_citations: bool = True,
     required_reference: str | None = None,
 ) -> None:
@@ -73,14 +73,15 @@ def require_chat_contract(
     if required_reference and not any(
         required_reference.casefold()
         in " ".join(
-            str(citation.get(field, ""))
-            for field in ("document_id", "document_number", "article")
+            str(citation.get(field, "")) for field in ("document_id", "document_number", "article")
         ).casefold()
         for citation in citations
     ):
         raise RuntimeError(
             f"{label}: no citation matches required reference {required_reference!r}"
         )
+
+
 def main() -> int:
     base = os.getenv("RELEASE_API_BASE", "http://127.0.0.1:8000/api/v1").rstrip("/")
     questions = [

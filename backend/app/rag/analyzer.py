@@ -184,6 +184,10 @@ def classify_intent(text: str) -> str:
         return "web"
     if re.search(r"\b(?:nd|tt)-\d+-\d{4}__dieu-\d+(?:__khoan-\d+)?(?:__diem-[a-z])?\b", lowered):
         return "legal"
+    # Reject clearly foreign legal domains before broad words such as “điều” or
+    # “phạt” can make an incidental traffic mention look in scope.
+    if _is_dominantly_nontraffic(lowered):
+        return "out_of_scope"
     if re.search(
         r"\b(luật|điều|khoản|nghị định|thông tư|phạt|giao thông|đường bộ|"
         r"tốc độ|km/?h|khu vực đông dân cư|vượt đèn đỏ|điện thoại|lái xe|"
@@ -198,6 +202,24 @@ def classify_intent(text: str) -> str:
     ):
         return "legal"
     return "out_of_scope"
+
+
+_NONTRAFFIC_TERMS = (
+    r"thuế|thuế vụ|nhà đất|bất động sản|đất đai|xây dựng",
+    r"hình sự|tội phạm|giết người|trộm cắp|ma túy hình sự",
+    r"hôn nhân|ly hôn|lao động|hợp đồng|bảo hiểm xã hội",
+)
+_TRAFFIC_CONTEXT_TERMS = (
+    r"giao thông|đường bộ|lái xe|phương tiện|xe máy|ô tô|mô tô|"
+    r"giấy phép lái xe|gplx|biển báo|làn đường|đèn tín hiệu|"
+    r"vượt đèn đỏ|nồng độ cồn|mũ bảo hiểm|tốc độ",
+)
+
+
+def _is_dominantly_nontraffic(text: str) -> bool:
+    return any(re.search(pattern, text, flags=re.I) for pattern in _NONTRAFFIC_TERMS) and not any(
+        re.search(pattern, text, flags=re.I) for pattern in _TRAFFIC_CONTEXT_TERMS
+    )
 
 
 def _from_model(value: object) -> list[Intent]:

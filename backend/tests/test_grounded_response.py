@@ -16,12 +16,17 @@ def _doc(chunk_id: str, text: str, **metadata: object) -> Document:
     )
 
 
-def test_complete_claims_and_citations_are_bidirectional(monkeypatch) -> None:
+def test_verified_claims_and_citations_are_bidirectional(monkeypatch) -> None:
     monkeypatch.setattr("app.rag.service.generate_answer", lambda *_args, **_kwargs: "Đáp án")
-    evidence = _doc("chunk-1", "Hành vi bị phạt tiền.", article="6")
+    evidence = _doc(
+        "chunk-1",
+        "Hành vi bị phạt tiền.",
+        article="6",
+        document_number="168/2024/NĐ-CP",
+    )
     service = RAGService()
     result = service.answer("Điều 6 Nghị định 168/2024 quy định gì?", chunks=[evidence])
-    assert result["status"] == "complete"
+    assert result["status"] == "verified"
     citation_ids = {item["source_id"] for item in result["citations"]}
     claim_ids = {source_id for claim in result["claims"] for source_id in claim["provision_ids"]}
     assert citation_ids == claim_ids == {"chunk-1"}
@@ -58,6 +63,39 @@ def test_invalid_citation_identity_abstains() -> None:
     assert result["reason_code"] == "insufficient_evidence"
 
 
+def test_incomplete_legal_identity_never_verifies(monkeypatch) -> None:
+    monkeypatch.setattr("app.rag.service.generate_answer", lambda *_args, **_kwargs: "unsafe")
+    result = RAGService().answer(
+        "Vượt đèn đỏ bị phạt thế nào?",
+        chunks=[
+            _doc(
+                "chunk-unsafe",
+                "Không chấp hành hiệu lệnh của đèn tín hiệu giao thông.",
+                document_id="nd-168-2024",
+            )
+        ],
+    )
+    assert result["status"] == "insufficient_evidence"
+    assert not result["citations"]
+
+
+def test_multi_intent_missing_evidence_abstains(monkeypatch) -> None:
+    monkeypatch.setattr("app.rag.service.generate_answer", lambda *_args, **_kwargs: "partial")
+    result = RAGService().answer(
+        "Vượt đèn đỏ và dùng điện thoại khi lái xe bị phạt thế nào?",
+        chunks=[
+            _doc(
+                "chunk-one",
+                "Vượt đèn đỏ bị phạt.",
+                document_id="nd-168-2024",
+                document_number="168/2024/NĐ-CP",
+                article="6",
+            )
+        ],
+    )
+    assert result["status"] == "insufficient_evidence"
+
+
 def test_effective_date_filters_future_evidence() -> None:
     future = _doc(
         "future",
@@ -89,7 +127,7 @@ def test_explicit_railway_context_overrides_default_road_context(monkeypatch) ->
         chunks=[railway],
     )
 
-    assert result["status"] == "complete"
+    assert result["status"] == "verified"
     assert result["citations"][0]["source_id"] == "rail"
 
 
@@ -129,7 +167,7 @@ def test_current_query_drops_ceased_and_superseded_candidates(monkeypatch) -> No
         chunks=[old, ceased, current],
     )
 
-    assert result["status"] == "complete"
+    assert result["status"] == "verified"
     assert [citation["source_id"] for citation in result["citations"]] == ["current"]
 
 

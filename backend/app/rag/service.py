@@ -17,6 +17,7 @@ from .generator import generate_answer
 from .query_rules import expand_query, requested_context
 from .references import extract_references, metadata_matches
 from .retrieval import Retriever
+from .verification import verify_response
 
 logger = logging.getLogger(__name__)
 _GENERIC_VEHICLE_CATEGORIES = ("ô tô", "xe mô tô, xe gắn máy", "xe thô sơ")
@@ -357,11 +358,7 @@ class RAGService:
         route = classify_intent(question)
         if route == "chitchat":
             return {**CHITCHAT_RESPONSE, "claims": []}
-        if (
-            route in {"web", "out_of_scope"}
-            and not references
-            and not any(i.kind == "legal" for i in analysis.intents)
-        ):
+        if route in {"web", "out_of_scope"} and not references:
             return {
                 "answer": "Tôi chỉ có thể hỗ trợ các câu hỏi về pháp luật giao thông.",
                 "citations": [],
@@ -490,7 +487,26 @@ class RAGService:
             {"claim": d.page_content, "provision_ids": [c["source_id"]]}
             for d, c in zip(cited, citations, strict=True)
         ]
-        return {"answer": answer, "citations": citations, "claims": claims, "status": "complete"}
+        verification = verify_response(
+            question,
+            route,
+            analysis,
+            references,
+            effective_date,
+            filtered,
+            answer,
+            citations,
+            claims,
+        )
+        if not verification.allowed:
+            return {
+                "answer": ABSTENTION_MESSAGE,
+                "citations": [],
+                "claims": [],
+                "status": "insufficient_evidence",
+                "reason_code": verification.reason,
+            }
+        return {"answer": answer, "citations": citations, "claims": claims, "status": "verified"}
 
 
 CHITCHAT_RESPONSE = {

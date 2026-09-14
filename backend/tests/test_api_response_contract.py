@@ -3,16 +3,14 @@ from __future__ import annotations
 from app.rag.api import _frontend_response
 
 
-def test_complete_response_forwards_service_claims_unchanged() -> None:
-    claims = [
-        {"claim": "Claim one", "provision_ids": ["chunk-1", "chunk-2"]},
-        {"claim": "Claim two", "provision_ids": ["chunk-3"]},
-    ]
+def test_verified_response_forwards_explicit_claims_unchanged() -> None:
+    citation = {"source_id": "chunk-1", "excerpt": "Supported"}
+    claims = [{"claim": citation["excerpt"], "provision_ids": [citation["source_id"]]}]
     result = {
         "answer": "Answer",
-        "citations": [{"source_id": "irrelevant", "excerpt": "Unrelated"}],
+        "citations": [citation],
         "claims": claims,
-        "status": "complete",
+        "status": "verified",
     }
 
     response = _frontend_response(result)
@@ -23,20 +21,18 @@ def test_complete_response_forwards_service_claims_unchanged() -> None:
     assert response["citations"] == result["citations"]
 
 
-def test_legacy_complete_derives_only_identity_backed_claims() -> None:
+def test_legacy_complete_is_not_upgraded_to_public_verified() -> None:
     result = {
         "answer": "Answer",
-        "citations": [
-            {"source_id": "chunk-1", "excerpt": "Supported"},
-            {"excerpt": "No source identity"},
-            {"source_id": "", "excerpt": "Empty source identity"},
-        ],
+        "citations": [{"source_id": "chunk-1", "excerpt": "Supported"}],
         "status": "complete",
     }
 
     response = _frontend_response(result)
 
-    assert response["claims"] == [{"claim": "Supported", "provision_ids": ["chunk-1"]}]
+    assert response["status"] == "complete"
+    assert response["status"] != "VERIFIED"
+    assert "claims" not in response
 
 
 def test_out_of_scope_maps_internal_reason_to_public_status() -> None:

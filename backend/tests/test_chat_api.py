@@ -119,14 +119,14 @@ def test_exact_reference_match_allows_answer(monkeypatch) -> None:
         ],
     )
 
-    assert result["status"] == "complete"
+    assert result["status"] == "verified"
 
 
 def test_release_chat_contract_rejects_wrong_reference_or_citation() -> None:
     from scripts.verify_release_authenticated import require_chat_contract
 
     valid = {
-        "status": "complete",
+        "status": "verified",
         "answer": "Theo quy định.",
         "citations": [
             {
@@ -180,7 +180,7 @@ def test_vehicle_penalty_query_retrieves_all_categories(monkeypatch) -> None:
     retriever = RecordingRetriever()
     result = RAGService(retriever).answer("Vượt đèn đỏ thì mức phạt bao nhiêu?")
 
-    assert result["status"] == "complete"
+    assert result["status"] == "verified"
     assert result["citations"]
     vehicle_queries = [query for query in retriever.queries if "đối với" in query]
     assert len(vehicle_queries) == len(set(VEHICLE_LABELS.values()))
@@ -225,7 +225,7 @@ def test_phone_use_while_driving_reaches_retrieval_and_returns_evidence(monkeypa
     retriever = PhoneRetriever()
     result = RAGService(retriever).answer("Có được dùng điện thoại khi đang lái xe không?")
 
-    assert result["status"] == "complete"
+    assert result["status"] == "verified"
     assert result["citations"][0]["source_id"] == "nd-168-2024:phone"
     assert len(retriever.queries) == len(set(VEHICLE_LABELS.values()))
     assert all(
@@ -337,7 +337,8 @@ def test_authenticated_chat_creates_session_and_persists_snapshots(
     rag_result = {
         "answer": "Được đi tối đa 50 km/h.",
         "citations": [citation],
-        "status": "complete",
+        "claims": [{"claim": citation["excerpt"], "provision_ids": [citation["source_id"]]}],
+        "status": "verified",
     }
     monkeypatch.setattr("app.rag.api.rag_service.answer", lambda question, **kwargs: rag_result)
     supabase_client.responses.extend(
@@ -367,7 +368,7 @@ def test_authenticated_chat_creates_session_and_persists_snapshots(
     assert body["citations"] == [citation]
 
 
-def test_authenticated_chat_normalizes_legacy_rag_result_for_frontend(
+def test_authenticated_chat_forwards_verified_claims_unchanged(
     client, supabase_client, monkeypatch
 ) -> None:
     supabase_client.auth_response = {"id": "user-1"}
@@ -381,7 +382,8 @@ def test_authenticated_chat_normalizes_legacy_rag_result_for_frontend(
     rag_result = {
         "answer": "Không được dùng điện thoại khi điều khiển xe.",
         "citations": [citation],
-        "status": "complete",
+        "claims": [{"claim": citation["excerpt"], "provision_ids": [citation["source_id"]]}],
+        "status": "verified",
     }
     monkeypatch.setattr("app.rag.api.rag_service.answer", lambda question, **kwargs: rag_result)
     supabase_client.responses.extend(
@@ -400,9 +402,8 @@ def test_authenticated_chat_normalizes_legacy_rag_result_for_frontend(
     )
     assert response.status_code == 200
     assert response.json()["status"] == "VERIFIED"
-    assert response.json()["claims"] == [
-        {"claim": citation["excerpt"], "provision_ids": [citation["source_id"]]}
-    ]
+    assert response.json()["claims"] is not rag_result["claims"]
+    assert response.json()["claims"] == rag_result["claims"]
 
 
 def test_cross_owner_session_is_not_visible(client, supabase_client) -> None:

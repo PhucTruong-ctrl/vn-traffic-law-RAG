@@ -58,7 +58,10 @@ class ChatResponse(BaseModel):
 
     answer: str = Field(min_length=1)
     citations: list[Citation] = Field(default_factory=list)
-    status: str | None = None
+    status: str | None = Field(
+        default=None,
+        pattern=("^(VERIFIED|GREETING|OUT_OF_SCOPE|CORPUS_NOT_COVERED|INSUFFICIENT_EVIDENCE)$"),
+    )
     debug: dict[str, Any] | None = None
 
 

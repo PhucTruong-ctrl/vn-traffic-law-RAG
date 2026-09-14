@@ -25,18 +25,10 @@ rag_service = RAGService()
 
 
 def _frontend_response(result: dict[str, Any]) -> dict[str, Any]:
-    citations = result.get("citations", [])
-    if result.get("status") == "complete":
+    if result.get("status") == "verified":
         claims = result.get("claims")
         if claims is None:
-            claims = [
-                {
-                    "claim": citation.get("excerpt") or result["answer"],
-                    "provision_ids": [citation["source_id"]],
-                }
-                for citation in citations
-                if citation.get("source_id")
-            ]
+            claims = []
         return {
             **result,
             "status": "VERIFIED",
@@ -48,6 +40,13 @@ def _frontend_response(result: dict[str, Any]) -> dict[str, Any]:
             "status": "OUT_OF_SCOPE",
             "claims": [],
             "abstention": {"reason_code": result.get("reason_code", "OUT_OF_SCOPE")},
+        }
+    if result.get("status") == "insufficient_evidence":
+        return {
+            **result,
+            "status": "INSUFFICIENT_EVIDENCE",
+            "claims": [],
+            "abstention": {"reason_code": result.get("reason_code", "INSUFFICIENT_EVIDENCE")},
         }
     return result
 
@@ -104,7 +103,7 @@ def chat(
             {
                 "content": result["answer"],
                 "role": "assistant",
-                "status": result.get("status", "complete"),
+                "status": result.get("status", "INSUFFICIENT_EVIDENCE"),
                 "response": result,
                 "citations": result.get("citations", []),
                 "metadata": {"citations": result.get("citations", [])},
@@ -124,8 +123,42 @@ def chat(
         }
     except HTTPException:
         raise
-    except (RuntimeError, ValueError) as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception:
+        logger.exception("chat request failed")
+        # Provider and schema failures are user-visible abstentions, never 5xx
+        # responses or persisted unverified drafts.
+        fallback = {
+            "answer": "Chưa thể tạo câu trả lời đáng tin cậy từ các căn cứ đã truy xuất.",
+            "citations": [],
+            "claims": [],
+            "status": "insufficient_evidence",
+            "reason_code": "generation_failed",
+        }
+        try:
+            assistant_message = add_message(
+                client,
+                user_id,
+                session_id,
+                {
+                    "content": fallback["answer"],
+                    "role": "assistant",
+                    "status": fallback["status"],
+                    "response": fallback,
+                    "citations": [],
+                    "metadata": {"citations": []},
+                },
+                token,
+            )
+            return {
+                **fallback,
+                "session_id": session_id,
+                "conversation_id": session_id,
+                "chat_id": session_id,
+                "user_message_id": user_message.get("id"),
+                "assistant_message_id": assistant_message.get("id"),
+            }
+        except Exception as persistence_exc:
+            raise HTTPException(status_code=503, detail="Chat request failed") from persistence_exc
 
 
 __all__ = ["ChatRequest", "chat", "router"]
