@@ -141,18 +141,17 @@
 \contentsline {section}{\numberline {4.6}Trang nguồn pháp luật}{69}{section.4.6}%
 \contentsline {subsection}{\numberline {4.6.1}Danh sách văn bản}{69}{subsection.4.6.1}%
 \contentsline {subsection}{\numberline {4.6.2}Tìm kiếm và lọc}{69}{subsection.4.6.2}%
-\contentsline {subsection}{\numberline {4.6.3}Viewer Markdown}{70}{subsection.4.6.3}%
-\contentsline {subsection}{\numberline {4.6.4}Viewer PDF}{70}{subsection.4.6.4}%
-\contentsline {section}{\numberline {4.7}Lịch sử hội thoại}{71}{section.4.7}%
+\contentsline {subsection}{\numberline {4.6.3}Xem chi tiết luật}{70}{subsection.4.6.3}%
+\contentsline {section}{\numberline {4.7}Lịch sử hội thoại}{70}{section.4.7}%
 \contentsline {section}{\numberline {4.8}Phản hồi và đánh dấu câu trả lời}{71}{section.4.8}%
-\contentsline {section}{\numberline {4.9}Kết quả kiểm thử}{72}{section.4.9}%
+\contentsline {section}{\numberline {4.9}Kết quả kiểm thử}{71}{section.4.9}%
 \contentsline {subsection}{\numberline {4.9.1}Kiểm tra trạng thái dịch vụ}{72}{subsection.4.9.1}%
-\contentsline {subsection}{\numberline {4.9.2}Tài liệu API}{73}{subsection.4.9.2}%
+\contentsline {subsection}{\numberline {4.9.2}Tài liệu API}{72}{subsection.4.9.2}%
 \contentsline {section}{\numberline {4.10}Đánh giá khả năng tra cứu và trả lời}{73}{section.4.10}%
 \contentsline {section}{\numberline {4.11}Các hạn chế cần tiếp tục kiểm tra}{74}{section.4.11}%
 \contentsline {section}{\numberline {4.12}Kết luận chương}{74}{section.4.12}%
-\contentsline {chapter}{KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN}{75}{section*.93}%
-\contentsline {section}{Kết quả đạt được}{75}{section*.94}%
-\contentsline {section}{Hạn chế}{75}{section*.95}%
-\contentsline {section}{Hướng phát triển}{75}{section*.96}%
-\contentsline {section}{Bài học kinh nghiệm}{76}{section*.97}%
+\contentsline {chapter}{KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN}{75}{section*.92}%
+\contentsline {section}{Kết quả đạt được}{75}{section*.93}%
+\contentsline {section}{Hạn chế}{75}{section*.94}%
+\contentsline {section}{Hướng phát triển}{75}{section*.95}%
+\contentsline {section}{Bài học kinh nghiệm}{76}{section*.96}%

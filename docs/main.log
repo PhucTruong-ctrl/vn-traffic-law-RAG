@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.9.14)  14 SEP 2026 16:08
+This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.9.14)  14 SEP 2026 16:46
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -980,11 +980,11 @@ LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
 (Font)              scaled to size 6.4993pt on input line 2.
  [5
 
-] [6] [7] [8])
+] [6] [7])
 \tf@toc=\write4
 \openout4 = `main.toc'.
 
- [9] (./main.lot)
+ [8] [9] (./main.lot)
 \tf@lot=\write5
 \openout5 = `main.lot'.
 
@@ -1159,6 +1159,8 @@ ignored: Infinite glue shrinkage found in box being split [44] [45]
 ignored: Infinite glue shrinkage found in box being split [46]
 File: diagrams/ch3_activity_auth.png Graphic file (type bmp)
 <diagrams/ch3_activity_auth.png>
+File: diagrams/ch3_activity_chat.png Graphic file (type bmp)
+<diagrams/ch3_activity_chat.png>
  [47]
 File: diagrams/ch3_activity_legal_sources.png Graphic file (type bmp)
 <diagrams/ch3_activity_legal_sources.png>
@@ -1206,10 +1208,51 @@ File: diagrams/ch3_flow_chat.png Graphic file (type bmp)
  [62]
 File: diagrams/ch3_flow_citation.png Graphic file (type bmp)
 <diagrams/ch3_flow_citation.png>
- [63] [64] [65
+ [63] [64]
+File: diagrams/ch4_home.png Graphic file (type bmp)
+<diagrams/ch4_home.png>
+File: diagrams/ch4_register.png Graphic file (type bmp)
+<diagrams/ch4_register.png>
+ [65
 
 
-] [66] [67] [68] [69] [70] [71] [72] [73] [74] [75
+]
+File: diagrams/ch4_login.png Graphic file (type bmp)
+<diagrams/ch4_login.png>
+ [66]
+File: diagrams/ch4_chat_empty.png Graphic file (type bmp)
+<diagrams/ch4_chat_empty.png>
+File: diagrams/ch4_chat_answer.png Graphic file (type bmp)
+<diagrams/ch4_chat_answer.png>
+ [67]
+File: diagrams/ch4_chat_abstention.png Graphic file (type bmp)
+<diagrams/ch4_chat_abstention.png>
+File: diagrams/ch4_citation_panel.png Graphic file (type bmp)
+<diagrams/ch4_citation_panel.png>
+ [68]
+File: diagrams/ch4_legal_sources.png Graphic file (type bmp)
+<diagrams/ch4_legal_sources.png>
+File: diagrams/ch4_legal_search.png Graphic file (type bmp)
+<diagrams/ch4_legal_search.png>
+ [69]
+File: diagrams/ch4_markdown_viewer.png Graphic file (type bmp)
+<diagrams/ch4_markdown_viewer.png>
+File: diagrams/ch4_chat_history.png Graphic file (type bmp)
+<diagrams/ch4_chat_history.png>
+ [70]
+File: diagrams/ch4_feedback.png Graphic file (type bmp)
+<diagrams/ch4_feedback.png>
+File: diagrams/ch4_test_report.png Graphic file (type bmp)
+<diagrams/ch4_test_report.png>
+ [71]
+File: diagrams/ch4_health_api.png Graphic file (type bmp)
+<diagrams/ch4_health_api.png>
+File: diagrams/ch4_swagger.png Graphic file (type bmp)
+<diagrams/ch4_swagger.png>
+ [72]
+File: diagrams/ch4_evaluation_report.png Graphic file (type bmp)
+<diagrams/ch4_evaluation_report.png>
+ [73] [74] [75
 
 ] [76] [77
 
@@ -1220,13 +1263,13 @@ LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
  ***********
 Package rerunfilecheck Info: File `main.out' has not changed.
-(rerunfilecheck)             Checksum: FDDD1F2A91C654D7F03D3C7698BE88C1;33734.
+(rerunfilecheck)             Checksum: 22C5913A599EBCABB818427C8C7CA1B9;33640.
  ) 
 Here is how much of TeX's memory you used:
- 27542 strings out of 470191
- 527951 string characters out of 5479697
- 1148209 words of memory out of 5000000
- 55699 multiletter control sequences out of 15000+600000
+ 27659 strings out of 470191
+ 531662 string characters out of 5479697
+ 1147209 words of memory out of 5000000
+ 55799 multiletter control sequences out of 15000+600000
  633492 words of font info for 111 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
  73i,13n,107p,1073b,655s stack positions out of 10000i,1000n,20000p,200000b,200000s
