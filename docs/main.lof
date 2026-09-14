@@ -16,10 +16,10 @@
 \contentsline {figure}{\numberline {2.12}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Bước kiểm tra căn cứ trước khi sinh câu trả lời}}{14}{figure.caption.26}%
 \contentsline {figure}{\numberline {2.13}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Luồng sinh câu trả lời từ các căn cứ đã truy xuất}}{15}{figure.caption.27}%
 \contentsline {figure}{\numberline {2.14}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Kiểm tra mối liên hệ giữa câu trả lời, căn cứ và trích dẫn}}{16}{figure.caption.28}%
-\contentsline {figure}{\numberline {2.15}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Tạo và hiển thị trích dẫn từ thông tin mô tả nguồn}}{16}{figure.caption.29}%
+\contentsline {figure}{\numberline {2.15}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Tạo và hiển thị trích dẫn từ thông tin mô tả nguồn}}{17}{figure.caption.29}%
 \contentsline {figure}{\numberline {2.16}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Các nhóm API chính của dịch vụ phía máy chủ FastAPI}}{17}{figure.caption.30}%
 \contentsline {figure}{\numberline {2.17}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Các nhóm chức năng Python được dùng trong dịch vụ phía máy chủ}}{18}{figure.caption.31}%
-\contentsline {figure}{\numberline {2.18}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Vòng đời một yêu cầu HTTP giữa trình duyệt và FastAPI}}{18}{figure.caption.32}%
+\contentsline {figure}{\numberline {2.18}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Vòng đời một yêu cầu HTTP giữa trình duyệt và FastAPI}}{19}{figure.caption.32}%
 \contentsline {figure}{\numberline {2.19}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Bảo vệ dữ liệu ứng dụng bằng Supabase Auth và RLS}}{20}{figure.caption.33}%
 \contentsline {figure}{\numberline {2.20}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Khóa chính, khóa ngoại, chỉ mục và ràng buộc trong dữ liệu ứng dụng}}{21}{figure.caption.34}%
 \contentsline {figure}{\numberline {2.21}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Luồng Supabase Auth, JWT, auth.uid và Row Level Security}}{22}{figure.caption.35}%
@@ -28,49 +28,48 @@
 \contentsline {figure}{\numberline {2.24}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Luồng mở citation đến nguồn Markdown hoặc PDF viewer}}{24}{figure.caption.38}%
 \contentsline {figure}{\numberline {2.25}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Môi trường phát triển với Docker Compose và các dịch vụ liên quan}}{25}{figure.caption.39}%
 \contentsline {figure}{\numberline {2.26}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Chuỗi công cụ cài đặt, kiểm tra kiểu, lint và test của dự án}}{26}{figure.caption.40}%
-\contentsline {figure}{\numberline {2.27}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Kiến trúc dữ liệu: nguồn pháp luật, chỉ mục Qdrant và dữ liệu ứng dụng Supabase}}{26}{figure.caption.41}%
-\contentsline {figure}{\numberline {2.28}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Các nhóm chỉ số trong bộ đánh giá 40 trường hợp}}{28}{figure.caption.42}%
-\contentsline {figure}{\numberline {3.1}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ phân rã chức năng của hệ thống}}{32}{figure.caption.46}%
-\contentsline {figure}{\numberline {3.2}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ luồng dữ liệu mức ngữ cảnh}}{32}{figure.caption.47}%
-\contentsline {figure}{\numberline {3.3}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ luồng dữ liệu mức 0}}{33}{figure.caption.48}%
-\contentsline {figure}{\numberline {3.4}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ Use Case tổng quát của hệ thống}}{34}{figure.caption.49}%
-\contentsline {figure}{\numberline {3.5}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ Use Case phân rã nhóm xác thực}}{34}{figure.caption.50}%
-\contentsline {figure}{\numberline {3.6}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ Use Case phân rã chức năng hỏi đáp pháp luật}}{36}{figure.caption.51}%
-\contentsline {figure}{\numberline {3.7}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ Use Case phân rã quản lý hội thoại}}{39}{figure.caption.52}%
-\contentsline {figure}{\numberline {3.8}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ Use Case phân rã tra cứu nguồn pháp luật}}{41}{figure.caption.53}%
-\contentsline {figure}{\numberline {3.9}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ Use Case phân rã phản hồi và nội dung đã lưu}}{44}{figure.caption.54}%
-\contentsline {figure}{\numberline {3.10}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ hoạt động đăng ký và đăng nhập}}{47}{figure.caption.55}%
-\contentsline {figure}{\numberline {3.11}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ hoạt động xử lý câu hỏi pháp luật}}{48}{figure.caption.56}%
-\contentsline {figure}{\numberline {3.12}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ hoạt động tra cứu nguồn pháp luật}}{48}{figure.caption.57}%
-\contentsline {figure}{\numberline {3.13}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ hoạt động quản lý hội thoại}}{49}{figure.caption.58}%
-\contentsline {figure}{\numberline {3.14}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ hoạt động phản hồi và lưu câu trả lời}}{49}{figure.caption.59}%
-\contentsline {figure}{\numberline {3.15}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự đăng nhập hệ thống}}{50}{figure.caption.60}%
-\contentsline {figure}{\numberline {3.16}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự xử lý một câu hỏi pháp luật}}{51}{figure.caption.61}%
-\contentsline {figure}{\numberline {3.17}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự tìm kiếm và tổng hợp căn cứ}}{51}{figure.caption.62}%
-\contentsline {figure}{\numberline {3.18}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự tạo và kiểm tra câu trả lời}}{52}{figure.caption.63}%
-\contentsline {figure}{\numberline {3.19}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự mở nguồn trích dẫn}}{52}{figure.caption.64}%
-\contentsline {figure}{\numberline {3.20}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự phản hồi và lưu câu trả lời}}{53}{figure.caption.65}%
-\contentsline {figure}{\numberline {3.21}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Mô hình dữ liệu khái niệm MCD}}{54}{figure.caption.66}%
-\contentsline {figure}{\numberline {3.22}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Mô hình dữ liệu logic LDM}}{54}{figure.caption.67}%
-\contentsline {figure}{\numberline {3.23}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Mô hình dữ liệu vật lý PDM}}{55}{figure.caption.68}%
-\contentsline {figure}{\numberline {3.24}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ thực thể liên kết ERD của dữ liệu ứng dụng}}{55}{figure.caption.69}%
-\contentsline {figure}{\numberline {3.25}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Lưu đồ tách và chuẩn hóa dữ liệu pháp luật}}{61}{figure.caption.70}%
-\contentsline {figure}{\numberline {3.26}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Lưu đồ tìm kiếm căn cứ pháp luật}}{62}{figure.caption.71}%
-\contentsline {figure}{\numberline {3.27}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Lưu đồ xử lý câu hỏi pháp luật}}{62}{figure.caption.72}%
-\contentsline {figure}{\numberline {3.28}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Lưu đồ tạo và mở trích dẫn nguồn}}{63}{figure.caption.73}%
-\contentsline {figure}{\numberline {4.1}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện trang đầu của hệ thống}}{65}{figure.caption.75}%
-\contentsline {figure}{\numberline {4.2}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện đăng ký tài khoản}}{66}{figure.caption.76}%
-\contentsline {figure}{\numberline {4.3}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện đăng nhập}}{66}{figure.caption.77}%
-\contentsline {figure}{\numberline {4.4}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện chat khi bắt đầu phiên}}{67}{figure.caption.78}%
-\contentsline {figure}{\numberline {4.5}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện câu trả lời pháp luật có trích dẫn}}{67}{figure.caption.79}%
-\contentsline {figure}{\numberline {4.6}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện khi hệ thống từ chối trả lời do thiếu căn cứ}}{68}{figure.caption.80}%
-\contentsline {figure}{\numberline {4.7}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Citation và thông tin văn bản nguồn}}{68}{figure.caption.81}%
-\contentsline {figure}{\numberline {4.8}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Danh sách nguồn pháp luật}}{69}{figure.caption.82}%
-\contentsline {figure}{\numberline {4.9}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Tìm kiếm văn bản và điều khoản}}{69}{figure.caption.83}%
-\contentsline {figure}{\numberline {4.10}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Hiển thị nguồn pháp luật dạng Markdown}}{70}{figure.caption.84}%
-\contentsline {figure}{\numberline {4.11}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện quản lý phiên chat}}{70}{figure.caption.85}%
-\contentsline {figure}{\numberline {4.12}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện gửi phản hồi cho câu trả lời}}{71}{figure.caption.86}%
-\contentsline {figure}{\numberline {4.13}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Kết quả kiểm thử của hệ thống}}{71}{figure.caption.87}%
-\contentsline {figure}{\numberline {4.14}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Kết quả kiểm tra trạng thái dịch vụ}}{72}{figure.caption.88}%
-\contentsline {figure}{\numberline {4.15}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Tài liệu API tự động của FastAPI}}{72}{figure.caption.89}%
-\contentsline {figure}{\numberline {4.16}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Mẫu tổng hợp kết quả đánh giá sau khi hoàn tất}}{73}{figure.caption.91}%
+\contentsline {figure}{\numberline {2.27}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Kiến trúc dữ liệu: nguồn pháp luật, chỉ mục Qdrant và dữ liệu ứng dụng Supabase}}{27}{figure.caption.41}%
+\contentsline {figure}{\numberline {3.1}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ phân rã chức năng của hệ thống}}{32}{figure.caption.45}%
+\contentsline {figure}{\numberline {3.2}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ luồng dữ liệu mức ngữ cảnh}}{33}{figure.caption.46}%
+\contentsline {figure}{\numberline {3.3}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ luồng dữ liệu mức 0}}{33}{figure.caption.47}%
+\contentsline {figure}{\numberline {3.4}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ Use Case tổng quát của hệ thống}}{34}{figure.caption.48}%
+\contentsline {figure}{\numberline {3.5}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ Use Case phân rã nhóm xác thực}}{34}{figure.caption.49}%
+\contentsline {figure}{\numberline {3.6}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ Use Case phân rã chức năng hỏi đáp pháp luật}}{36}{figure.caption.50}%
+\contentsline {figure}{\numberline {3.7}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ Use Case phân rã quản lý hội thoại}}{39}{figure.caption.51}%
+\contentsline {figure}{\numberline {3.8}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ Use Case phân rã tra cứu nguồn pháp luật}}{41}{figure.caption.52}%
+\contentsline {figure}{\numberline {3.9}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ Use Case phân rã phản hồi và nội dung đã lưu}}{44}{figure.caption.53}%
+\contentsline {figure}{\numberline {3.10}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ hoạt động đăng ký và đăng nhập}}{48}{figure.caption.54}%
+\contentsline {figure}{\numberline {3.11}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ hoạt động xử lý câu hỏi pháp luật}}{48}{figure.caption.55}%
+\contentsline {figure}{\numberline {3.12}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ hoạt động tra cứu nguồn pháp luật}}{49}{figure.caption.56}%
+\contentsline {figure}{\numberline {3.13}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ hoạt động quản lý hội thoại}}{49}{figure.caption.57}%
+\contentsline {figure}{\numberline {3.14}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ hoạt động phản hồi và lưu câu trả lời}}{50}{figure.caption.58}%
+\contentsline {figure}{\numberline {3.15}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự đăng nhập hệ thống}}{51}{figure.caption.59}%
+\contentsline {figure}{\numberline {3.16}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự xử lý một câu hỏi pháp luật}}{51}{figure.caption.60}%
+\contentsline {figure}{\numberline {3.17}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự tìm kiếm và tổng hợp căn cứ}}{52}{figure.caption.61}%
+\contentsline {figure}{\numberline {3.18}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự tạo và kiểm tra câu trả lời}}{53}{figure.caption.62}%
+\contentsline {figure}{\numberline {3.19}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự mở nguồn trích dẫn}}{53}{figure.caption.63}%
+\contentsline {figure}{\numberline {3.20}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự phản hồi và lưu câu trả lời}}{54}{figure.caption.64}%
+\contentsline {figure}{\numberline {3.21}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Mô hình dữ liệu khái niệm MCD}}{55}{figure.caption.65}%
+\contentsline {figure}{\numberline {3.22}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Mô hình dữ liệu logic LDM}}{55}{figure.caption.66}%
+\contentsline {figure}{\numberline {3.23}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Mô hình dữ liệu vật lý PDM}}{56}{figure.caption.67}%
+\contentsline {figure}{\numberline {3.24}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ thực thể liên kết ERD của dữ liệu ứng dụng}}{57}{figure.caption.68}%
+\contentsline {figure}{\numberline {3.25}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Lưu đồ tách và chuẩn hóa dữ liệu pháp luật}}{63}{figure.caption.69}%
+\contentsline {figure}{\numberline {3.26}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Lưu đồ tìm kiếm căn cứ pháp luật}}{64}{figure.caption.70}%
+\contentsline {figure}{\numberline {3.27}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Lưu đồ xử lý câu hỏi pháp luật}}{64}{figure.caption.71}%
+\contentsline {figure}{\numberline {3.28}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Lưu đồ tạo và mở trích dẫn nguồn}}{65}{figure.caption.72}%
+\contentsline {figure}{\numberline {4.1}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện trang đầu của hệ thống}}{67}{figure.caption.74}%
+\contentsline {figure}{\numberline {4.2}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện đăng ký tài khoản}}{68}{figure.caption.75}%
+\contentsline {figure}{\numberline {4.3}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện đăng nhập}}{68}{figure.caption.76}%
+\contentsline {figure}{\numberline {4.4}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện chat khi bắt đầu phiên}}{69}{figure.caption.77}%
+\contentsline {figure}{\numberline {4.5}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện câu trả lời pháp luật có trích dẫn}}{69}{figure.caption.78}%
+\contentsline {figure}{\numberline {4.6}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện khi hệ thống từ chối trả lời do thiếu căn cứ}}{70}{figure.caption.79}%
+\contentsline {figure}{\numberline {4.7}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Citation và thông tin văn bản nguồn}}{70}{figure.caption.80}%
+\contentsline {figure}{\numberline {4.8}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Danh sách nguồn pháp luật}}{71}{figure.caption.81}%
+\contentsline {figure}{\numberline {4.9}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Tìm kiếm văn bản và điều khoản}}{71}{figure.caption.82}%
+\contentsline {figure}{\numberline {4.10}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Hiển thị nguồn pháp luật dạng Markdown}}{72}{figure.caption.83}%
+\contentsline {figure}{\numberline {4.11}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện quản lý phiên chat}}{72}{figure.caption.84}%
+\contentsline {figure}{\numberline {4.12}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện gửi phản hồi cho câu trả lời}}{73}{figure.caption.85}%
+\contentsline {figure}{\numberline {4.13}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Kết quả kiểm thử của hệ thống}}{73}{figure.caption.86}%
+\contentsline {figure}{\numberline {4.14}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Kết quả kiểm tra trạng thái dịch vụ}}{74}{figure.caption.87}%
+\contentsline {figure}{\numberline {4.15}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Tài liệu API tự động của FastAPI}}{74}{figure.caption.88}%
+\contentsline {figure}{\numberline {4.16}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Kết quả tổng hợp đánh giá hệ thống trên bộ dữ liệu 40 trường hợp}}{75}{figure.caption.90}%

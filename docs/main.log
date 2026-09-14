@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.9.14)  14 SEP 2026 16:46
+This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.9.14)  14 SEP 2026 17:42
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -78,20 +78,20 @@ Package: fontenc 2025/07/18 v2.1d Standard LaTeX package
 ) (/usr/share/texmf-dist/tex/latex/fontspec/fontspec.cfg)))
 
 Package fontspec Info: 
-(fontspec)             Font family 'Tinos(0)' created for font 'Tinos' with
-(fontspec)             options [Ligatures=TeX].
+(fontspec)             Font family 'TimesNewRoman(0)' created for font 'Times
+(fontspec)             New Roman' with options [Ligatures=TeX].
 (fontspec)              
 (fontspec)              This font family consists of the following NFSS
 (fontspec)             series/shapes:
 (fontspec)              
-(fontspec)             - 'normal' (m/n) with NFSS spec.:
-(fontspec)             <->"Tinos/OT:script=latn;language=dflt;mapping=tex-text;"
-(fontspec)             - 'bold' (b/n) with NFSS spec.:
-(fontspec)             <->"Tinos/B/OT:script=latn;language=dflt;mapping=tex-text;"
-(fontspec)             - 'italic' (m/it) with NFSS spec.:
-(fontspec)             <->"Tinos/I/OT:script=latn;language=dflt;mapping=tex-text;"
-(fontspec)             - 'bold italic' (b/it) with NFSS spec.:
-(fontspec)             <->"Tinos/BI/OT:script=latn;language=dflt;mapping=tex-text;"
+(fontspec)             - 'normal' (m/n) with NFSS spec.: <->"Times New
+(fontspec)             Roman/OT:language=dflt;mapping=tex-text;"
+(fontspec)             - 'bold' (b/n) with NFSS spec.: <->"Times New
+(fontspec)             Roman/B/OT:language=dflt;mapping=tex-text;"
+(fontspec)             - 'italic' (m/it) with NFSS spec.: <->"Times New
+(fontspec)             Roman/I/OT:language=dflt;mapping=tex-text;"
+(fontspec)             - 'bold italic' (b/it) with NFSS spec.: <->"Times New
+(fontspec)             Roman/BI/OT:language=dflt;mapping=tex-text;"
 
  (/usr/share/texmf-dist/tex/latex/polyglossia/polyglossia.sty
 Package: polyglossia 2025/12/01 v2.9 Modern multilingual typesetting with XeLaTeX and LuaLaTeX
@@ -814,26 +814,26 @@ Package hyperref Info: Option `colorlinks' set `false' on input line 40.
  (./main.aux)
 \openout1 = `main.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 183.
-LaTeX Font Info:    ... okay on input line 183.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 183.
-LaTeX Font Info:    ... okay on input line 183.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 183.
-LaTeX Font Info:    ... okay on input line 183.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 183.
-LaTeX Font Info:    ... okay on input line 183.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 183.
-LaTeX Font Info:    ... okay on input line 183.
-LaTeX Font Info:    Checking defaults for TU/lmr/m/n on input line 183.
-LaTeX Font Info:    ... okay on input line 183.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 183.
-LaTeX Font Info:    ... okay on input line 183.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 183.
-LaTeX Font Info:    ... okay on input line 183.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 183.
-LaTeX Font Info:    ... okay on input line 183.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 183.
-LaTeX Font Info:    ... okay on input line 183.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 184.
+LaTeX Font Info:    ... okay on input line 184.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 184.
+LaTeX Font Info:    ... okay on input line 184.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 184.
+LaTeX Font Info:    ... okay on input line 184.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 184.
+LaTeX Font Info:    ... okay on input line 184.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 184.
+LaTeX Font Info:    ... okay on input line 184.
+LaTeX Font Info:    Checking defaults for TU/lmr/m/n on input line 184.
+LaTeX Font Info:    ... okay on input line 184.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 184.
+LaTeX Font Info:    ... okay on input line 184.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 184.
+LaTeX Font Info:    ... okay on input line 184.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 184.
+LaTeX Font Info:    ... okay on input line 184.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 184.
+LaTeX Font Info:    ... okay on input line 184.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: xetex
@@ -873,41 +873,41 @@ Package caption Info: Begin \AtBeginDocument code.
 Package caption Info: float package is loaded.
 Package caption Info: hyperref package is loaded.
 Package caption Info: End \AtBeginDocument code.
-Package hyperref Info: Link coloring OFF on input line 183.
+Package hyperref Info: Link coloring OFF on input line 184.
 (./main.out) (./main.out)
 \@outlinefile=\write3
 \openout3 = `main.out'.
 
-LaTeX Info: Redefining \microtypecontext on input line 183.
-Package microtype Info: Applying patch `item' on input line 183.
-Package microtype Info: Applying patch `toc' on input line 183.
-Package microtype Info: Applying patch `eqnum' on input line 183.
-Package microtype Info: Applying patch `footnote' on input line 183.
-Package microtype Info: Applying patch `verbatim' on input line 183.
-LaTeX Info: Redefining \microtypesetup on input line 183.
+LaTeX Info: Redefining \microtypecontext on input line 184.
+Package microtype Info: Applying patch `item' on input line 184.
+Package microtype Info: Applying patch `toc' on input line 184.
+Package microtype Info: Applying patch `eqnum' on input line 184.
+Package microtype Info: Applying patch `footnote' on input line 184.
+Package microtype Info: Applying patch `verbatim' on input line 184.
+LaTeX Info: Redefining \microtypesetup on input line 184.
 Package microtype Info: Character protrusion enabled (level 2).
 Package microtype Info: Using default protrusion set `alltext'.
 Package microtype Info: No adjustment of tracking.
 Package microtype Info: No adjustment of spacing.
 Package microtype Info: No adjustment of kerning.
 Package microtype Info: Loading generic protrusion settings for font family
-(microtype)             `Tinos' (encoding: TU).
+(microtype)             `TimesNewRoman' (encoding: TU).
 (microtype)             For optimal results, create family-specific settings.
 (microtype)             See the microtype manual for details.
 LaTeX Font Info:    Overwriting math alphabet `\mathrm' in version `normal'
-(Font)                  TU/latinmodern-math.otf(1)/m/n --> TU/Tinos(0)/m/n on input line 183.
+(Font)                  TU/latinmodern-math.otf(1)/m/n --> TU/TimesNewRoman(0)/m/n on input line 184.
 LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `normal'
-(Font)                  OT1/cmr/m/it --> TU/Tinos(0)/m/it on input line 183.
+(Font)                  OT1/cmr/m/it --> TU/TimesNewRoman(0)/m/it on input line 184.
 LaTeX Font Info:    Overwriting math alphabet `\mathbf' in version `normal'
-(Font)                  OT1/cmr/bx/n --> TU/Tinos(0)/b/n on input line 183.
+(Font)                  OT1/cmr/bx/n --> TU/TimesNewRoman(0)/b/n on input line 184.
 LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `normal'
-(Font)                  OT1/cmss/m/n --> TU/lmss/m/n on input line 183.
+(Font)                  OT1/cmss/m/n --> TU/lmss/m/n on input line 184.
 LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `bold'
-(Font)                  OT1/cmss/bx/n --> TU/lmss/b/n on input line 183.
+(Font)                  OT1/cmss/bx/n --> TU/lmss/b/n on input line 184.
 LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `normal'
-(Font)                  OT1/cmtt/m/n --> TU/lmtt/m/n on input line 183.
+(Font)                  OT1/cmtt/m/n --> TU/lmtt/m/n on input line 184.
 LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `bold'
-(Font)                  OT1/cmtt/m/n --> TU/lmtt/b/n on input line 183.
+(Font)                  OT1/cmtt/m/n --> TU/lmtt/b/n on input line 184.
 *geometry* verbose mode - [ newgeometry ] result:
 * driver: xetex
 * paper: a4paper
@@ -984,41 +984,41 @@ LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
 \tf@toc=\write4
 \openout4 = `main.toc'.
 
- [8] [9] (./main.lot)
+ [8] (./main.lot)
 \tf@lot=\write5
 \openout5 = `main.lot'.
 
- [10
+ [9
 
-] (./main.lof [11
+] (./main.lof [10
 
 ])
 \tf@lof=\write6
 \openout6 = `main.lof'.
 
- [12] [13
+ [11] [12
 
 
 ]
-LaTeX Font Info:    Calculating math sizes for size <11> on input line 544.
+LaTeX Font Info:    Calculating math sizes for size <11> on input line 553.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
-(Font)              scaled to size 11.00117pt on input line 544.
+(Font)              scaled to size 11.00117pt on input line 553.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
-(Font)              scaled to size 7.70078pt on input line 544.
+(Font)              scaled to size 7.70078pt on input line 553.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
-(Font)              scaled to size 5.50058pt on input line 544.
+(Font)              scaled to size 5.50058pt on input line 553.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
-(Font)              scaled to size 10.99883pt on input line 544.
+(Font)              scaled to size 10.99883pt on input line 553.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
-(Font)              scaled to size 7.69914pt on input line 544.
+(Font)              scaled to size 7.69914pt on input line 553.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
-(Font)              scaled to size 5.4994pt on input line 544.
- [14
+(Font)              scaled to size 5.4994pt on input line 553.
+ [13
+
+] [14
+
 
 ] [15
-
-
-] [16
 
 
 ]
@@ -1086,9 +1086,9 @@ File: diagrams/ch2_citation_flow.png Graphic file (type bmp)
  [16]
 File: diagrams/ch2_api_architecture.png Graphic file (type bmp)
 <diagrams/ch2_api_architecture.png>
+ [17]
 File: diagrams/ch2_python_backend.png Graphic file (type bmp)
 <diagrams/ch2_python_backend.png>
- [17]
 File: diagrams/ch2_http_rest.png Graphic file (type bmp)
 <diagrams/ch2_http_rest.png>
  [18] [19]
@@ -1111,16 +1111,13 @@ File: diagrams/ch2_pdfjs_viewer.png Graphic file (type bmp)
  [24]
 File: diagrams/ch2_docker_compose.png Graphic file (type bmp)
 <diagrams/ch2_docker_compose.png>
+ [25]
 File: diagrams/ch2_toolchain.png Graphic file (type bmp)
 <diagrams/ch2_toolchain.png>
- [25]
 File: diagrams/ch2_data_architecture.png Graphic file (type bmp)
 <diagrams/ch2_data_architecture.png>
  [26] [27]
-File: diagrams/ch2_evaluation.png Graphic file (type bmp)
-<diagrams/ch2_evaluation.png>
- [28] [29]
-ignored: Infinite glue shrinkage found in box being split [30
+ignored: Infinite glue shrinkage found in box being split [28] [29] [30
 
 
 ] [31]
@@ -1131,9 +1128,9 @@ File: diagrams/ch3_dfd_context.png Graphic file (type bmp)
  [32]
 File: diagrams/ch3_dfd_level0.png Graphic file (type bmp)
 <diagrams/ch3_dfd_level0.png>
+ [33]
 File: diagrams/ch3_usecase_overall.png Graphic file (type bmp)
 <diagrams/ch3_usecase_overall.png>
- [33]
 File: diagrams/ch3_usecase_auth.png Graphic file (type bmp)
 <diagrams/ch3_usecase_auth.png>
  [34]
@@ -1145,133 +1142,130 @@ ignored: Infinite glue shrinkage found in box being split [38]
 File: diagrams/ch3_usecase_conversation.png Graphic file (type bmp)
 <diagrams/ch3_usecase_conversation.png>
 
-ignored: Infinite glue shrinkage found in box being split [39]
-ignored: Infinite glue shrinkage found in box being split [40]
+ignored: Infinite glue shrinkage found in box being split [39] [40]
 File: diagrams/ch3_usecase_legal_sources.png Graphic file (type bmp)
 <diagrams/ch3_usecase_legal_sources.png>
-
-ignored: Infinite glue shrinkage found in box being split [41] [42]
-ignored: Infinite glue shrinkage found in box being split [43]
+ [41]
+ignored: Infinite glue shrinkage found in box being split [42] [43]
 File: diagrams/ch3_usecase_feedback.png Graphic file (type bmp)
 <diagrams/ch3_usecase_feedback.png>
-
-ignored: Infinite glue shrinkage found in box being split [44] [45]
-ignored: Infinite glue shrinkage found in box being split [46]
+ [44]
+ignored: Infinite glue shrinkage found in box being split [45] [46]
 File: diagrams/ch3_activity_auth.png Graphic file (type bmp)
 <diagrams/ch3_activity_auth.png>
+ [47]
 File: diagrams/ch3_activity_chat.png Graphic file (type bmp)
 <diagrams/ch3_activity_chat.png>
- [47]
+ [48]
 File: diagrams/ch3_activity_legal_sources.png Graphic file (type bmp)
 <diagrams/ch3_activity_legal_sources.png>
- [48]
 File: diagrams/ch3_activity_conversation.png Graphic file (type bmp)
 <diagrams/ch3_activity_conversation.png>
+ [49]
 File: diagrams/ch3_activity_feedback.png Graphic file (type bmp)
 <diagrams/ch3_activity_feedback.png>
- [49]
 File: diagrams/ch3_sequence_auth.png Graphic file (type bmp)
 <diagrams/ch3_sequence_auth.png>
+ [50]
 File: diagrams/ch3_sequence_chat.png Graphic file (type bmp)
 <diagrams/ch3_sequence_chat.png>
- [50]
+ [51]
 File: diagrams/ch3_sequence_retrieval.png Graphic file (type bmp)
 <diagrams/ch3_sequence_retrieval.png>
- [51]
 File: diagrams/ch3_sequence_generation.png Graphic file (type bmp)
 <diagrams/ch3_sequence_generation.png>
+ [52]
 File: diagrams/ch3_sequence_citation.png Graphic file (type bmp)
 <diagrams/ch3_sequence_citation.png>
- [52]
+ [53]
 File: diagrams/ch3_sequence_feedback_bookmark.png Graphic file (type bmp)
 <diagrams/ch3_sequence_feedback_bookmark.png>
 File: diagrams/ch3_cdm.png Graphic file (type bmp)
 <diagrams/ch3_cdm.png>
- [53]
+ [54]
 File: diagrams/ch3_ldm.png Graphic file (type bmp)
 <diagrams/ch3_ldm.png>
- [54]
+ [55]
 File: diagrams/ch3_pdm.png Graphic file (type bmp)
 <diagrams/ch3_pdm.png>
 File: diagrams/ch3_erd.png Graphic file (type bmp)
 <diagrams/ch3_erd.png>
- [55] [56]
-ignored: Infinite glue shrinkage found in box being split [57] [58] [59]
-ignored: Infinite glue shrinkage found in box being split [60]
+ [56] [57]
+ignored: Infinite glue shrinkage found in box being split [58] [59] [60] [61] [62]
 File: diagrams/ch3_flow_ingestion.png Graphic file (type bmp)
 <diagrams/ch3_flow_ingestion.png>
 File: diagrams/ch3_flow_retrieval.png Graphic file (type bmp)
 <diagrams/ch3_flow_retrieval.png>
- [61]
+ [63]
 File: diagrams/ch3_flow_chat.png Graphic file (type bmp)
 <diagrams/ch3_flow_chat.png>
- [62]
+ [64]
 File: diagrams/ch3_flow_citation.png Graphic file (type bmp)
 <diagrams/ch3_flow_citation.png>
- [63] [64]
+ [65] [66]
 File: diagrams/ch4_home.png Graphic file (type bmp)
 <diagrams/ch4_home.png>
 File: diagrams/ch4_register.png Graphic file (type bmp)
 <diagrams/ch4_register.png>
- [65
+ [67
 
 
 ]
 File: diagrams/ch4_login.png Graphic file (type bmp)
 <diagrams/ch4_login.png>
- [66]
+ [68]
 File: diagrams/ch4_chat_empty.png Graphic file (type bmp)
 <diagrams/ch4_chat_empty.png>
 File: diagrams/ch4_chat_answer.png Graphic file (type bmp)
 <diagrams/ch4_chat_answer.png>
- [67]
+ [69]
 File: diagrams/ch4_chat_abstention.png Graphic file (type bmp)
 <diagrams/ch4_chat_abstention.png>
 File: diagrams/ch4_citation_panel.png Graphic file (type bmp)
 <diagrams/ch4_citation_panel.png>
- [68]
+ [70]
 File: diagrams/ch4_legal_sources.png Graphic file (type bmp)
 <diagrams/ch4_legal_sources.png>
 File: diagrams/ch4_legal_search.png Graphic file (type bmp)
 <diagrams/ch4_legal_search.png>
- [69]
+ [71]
 File: diagrams/ch4_markdown_viewer.png Graphic file (type bmp)
 <diagrams/ch4_markdown_viewer.png>
 File: diagrams/ch4_chat_history.png Graphic file (type bmp)
 <diagrams/ch4_chat_history.png>
- [70]
+ [72]
 File: diagrams/ch4_feedback.png Graphic file (type bmp)
 <diagrams/ch4_feedback.png>
 File: diagrams/ch4_test_report.png Graphic file (type bmp)
 <diagrams/ch4_test_report.png>
- [71]
+ [73]
 File: diagrams/ch4_health_api.png Graphic file (type bmp)
 <diagrams/ch4_health_api.png>
 File: diagrams/ch4_swagger.png Graphic file (type bmp)
 <diagrams/ch4_swagger.png>
- [72]
+ [74]
 File: diagrams/ch4_evaluation_report.png Graphic file (type bmp)
 <diagrams/ch4_evaluation_report.png>
- [73] [74] [75
+ [75] [76
 
-] [76] [77
+] [77] [78
 
 
-] [78] (./main.aux)
+] [79] (./main.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
  ***********
 Package rerunfilecheck Info: File `main.out' has not changed.
-(rerunfilecheck)             Checksum: 22C5913A599EBCABB818427C8C7CA1B9;33640.
+(rerunfilecheck)             Checksum: 545215FEDA88F66E9FCB4F50110BB779;30694.
  ) 
 Here is how much of TeX's memory you used:
- 27659 strings out of 470191
- 531662 string characters out of 5479697
- 1147209 words of memory out of 5000000
- 55799 multiletter control sequences out of 15000+600000
+ 27650 strings out of 470191
+ 531741 string characters out of 5479697
+ 1146246 words of memory out of 5000000
+ 55792 multiletter control sequences out of 15000+600000
  633492 words of font info for 111 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
- 73i,13n,107p,1073b,655s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 73i,13n,107p,1073b,657s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
 Output written on main.pdf (96 pages).

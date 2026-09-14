@@ -5,9 +5,9 @@
 
 \usepackage[a4paper,top=2cm,bottom=2cm,left=3.5cm,right=2cm,footskip=1cm]{geometry}
 \usepackage{fontspec}
-\IfFontExistsTF{Times New Roman}{\setmainfont{Times New Roman}}{\setmainfont{Tinos}}
+\setmainfont{Times New Roman}
 \usepackage{polyglossia}
-\setdefaultlanguage{vietnamese}
+ \setdefaultlanguage{vietnamese}
 \usepackage{indentfirst}
 \usepackage{graphicx}
 \usepackage{eso-pic}
@@ -59,7 +59,8 @@
 \AtBeginDocument{\fontsize{13pt}{15.6pt}\selectfont}
 \setstretch{1.2}
 \setlength{\parindent}{1.5cm}
-\setlength{\parskip}{0pt}
+\setlength{\JustifyingParindent}{1.5cm}
+\setlength{\parskip}{6pt}
 \setlength{\footskip}{1cm}
 \setlength{\emergencystretch}{4em}
 
@@ -284,6 +285,18 @@ PHÁP LUẬT GIAO THÔNG VIỆT NAM
 
     \vspace{0.15cm}
 
+    {\bfseries\fontsize{14pt}{17pt}\selectfont
+      GIẢNG VIÊN HƯỚNG DẪN
+      \par}
+
+    \vspace{0.15cm}
+
+    {\bfseries\fontsize{14pt}{17pt}\selectfont
+      \MakeUppercase{\FacultyAdvisor}
+      \par}
+
+    \vspace{0.8cm}
+
     {\bfseries\fontsize{15pt}{18pt}\selectfont
       \MakeUppercase{\StudentName} - \StudentID
       \par}
@@ -445,9 +458,7 @@ PHÁP LUẬT GIAO THÔNG VIỆT NAM
 \justifying
 Khóa luận được thực hiện trong quá trình học tập tại Trường Đại học Tây Đô, Khoa Kỹ thuật - Công nghệ và chuyên ngành Công nghệ thông tin. Tác giả trân trọng cảm ơn Ban Giám hiệu Nhà trường, quý Thầy, Cô của Khoa và Bộ môn Công nghệ thông tin đã cung cấp kiến thức, môi trường học tập và điều kiện cần thiết cho đề tài.
 
-Tác giả cảm ơn ThS. Nguyễn Chí Cường đã hướng dẫn và góp ý trong quá trình thực hiện khóa luận. Các buổi trao đổi giúp tác giả xác định phạm vi đề tài, cách kiểm tra trích dẫn và phương pháp đánh giá hệ thống bằng kết quả chạy thực tế.
-
-Tác giả cảm ơn gia đình, bạn bè và những người đã hỗ trợ, động viên trong quá trình học tập và hoàn thiện đề tài.
+Tác giả cảm ơn ThS. Nguyễn Chí Cường đã hướng dẫn và góp ý trong quá trình thực hiện khóa luận. Các buổi trao đổi giúp tác giả xác định phạm vi đề tài, cách kiểm tra trích dẫn và phương pháp đánh giá hệ thống bằng kết quả chạy thực tế. Tác giả cũng cảm ơn gia đình, bạn bè và những người đã hỗ trợ, động viên trong quá trình học tập và hoàn thiện đề tài.
 
 \begin{flushright}
   \textbf{Sinh viên thực hiện}\\[1.7cm]
@@ -471,11 +482,11 @@ Các nội dung tham khảo từ công trình, tài liệu kỹ thuật và ngu�
 \addcontentsline{toc}{chapter}{TÓM TẮT}
 Khóa luận xây dựng hệ thống hỗ trợ tra cứu pháp luật giao thông Việt Nam bằng phương pháp RAG. Hệ thống nhận câu hỏi bằng tiếng Việt, tìm các đoạn văn bản pháp luật có liên quan, kiểm tra mức độ đầy đủ của căn cứ và chỉ tạo câu trả lời khi có đủ dữ liệu để đối chiếu. Mỗi câu trả lời kèm thông tin văn bản, Điều, Khoản, Điểm và đường dẫn mở nguồn để người dùng kiểm tra lại nội dung.
 
-Dữ liệu pháp luật được chuẩn hóa theo cấu trúc Điều, Khoản và Điểm trước khi tạo chỉ mục tìm kiếm. Phần tìm kiếm kết hợp hai cách tiếp cận. Tìm kiếm theo từ khóa phù hợp với số hiệu văn bản và cụm từ pháp lý cụ thể. Tìm kiếm theo ngữ nghĩa hỗ trợ các câu hỏi được diễn đạt bằng từ ngữ đời thường. Kết quả từ hai cách tìm kiếm được gộp lại, sau đó hệ thống kiểm tra căn cứ trước khi gửi nội dung cho mô hình ngôn ngữ tạo phần diễn giải.
+Dữ liệu pháp luật được chuẩn hóa theo cấu trúc Điều, Khoản và Điểm trước khi lập chỉ mục. Hệ thống kết hợp tìm kiếm theo từ khóa với tìm kiếm ngữ nghĩa. Tìm kiếm từ khóa phù hợp với số hiệu văn bản và các cụm từ pháp lý cụ thể, trong khi tìm kiếm ngữ nghĩa hỗ trợ câu hỏi được diễn đạt bằng ngôn ngữ đời thường. Hai nhóm kết quả được gộp và kiểm tra căn cứ trước khi chuyển cho mô hình ngôn ngữ tạo phần diễn giải.
 
 Phần ứng dụng sử dụng FastAPI cho dịch vụ phía máy chủ, Qdrant cho chỉ mục tìm kiếm, Supabase cho xác thực người dùng và dữ liệu ứng dụng, Next.js cùng React và TypeScript cho giao diện Web. OpenRouter được dùng để kết nối mô hình ngôn ngữ. Hệ thống còn hỗ trợ lưu lịch sử hội thoại, phản hồi, đánh dấu câu trả lời và tra cứu lại văn bản nguồn.
 
-Bộ đánh giá của khóa luận gồm 40 trường hợp, chia đều cho tám nhóm câu hỏi. Hệ thống đã có chương trình chạy đánh giá tự động cho khả năng tìm đúng căn cứ, độ chính xác vị trí pháp lý, tính hợp lệ của trích dẫn, khả năng từ chối khi thiếu căn cứ và thời gian phản hồi. Phần chấm thủ công nội dung câu trả lời cũng được tách riêng để người đánh giá đối chiếu câu trả lời với căn cứ pháp luật. Tại thời điểm hoàn thiện bản thảo, báo cáo đánh giá tổng hợp chưa hoàn tất đầy đủ, vì vậy khóa luận không công bố các tỷ lệ chất lượng hoặc thời gian phản hồi như kết quả cuối cùng đã được xác nhận.
+Bộ đánh giá của khóa luận gồm 40 trường hợp, chia đều cho tám nhóm câu hỏi. Chương trình tự động tính khả năng tìm đúng căn cứ, độ chính xác vị trí pháp lý, tính hợp lệ của trích dẫn, khả năng từ chối khi thiếu căn cứ và thời gian phản hồi. Phần chấm thủ công nội dung câu trả lời được thực hiện riêng bằng cách đối chiếu câu trả lời với căn cứ pháp luật. Kết quả đánh giá đã được tổng hợp từ lần chạy này.
 
 \clearpage
 \chapter*{ABSTRACT}
@@ -486,10 +497,8 @@ Bộ đánh giá của khóa luận gồm 40 trường hợp, chia đều cho t�
   Legal documents are normalized according to their Article, Clause, and Point structure before indexing. Retrieval combines keyword-based search with semantic search. Keyword search is useful for document numbers and exact legal phrases, while semantic search helps with questions written in everyday language. The retrieved results are combined and checked before the language model is asked to produce an explanation.
 
   The application uses FastAPI for backend services and Qdrant for search. Supabase handles authentication and application data. The Web interface is built with Next.js, React, and TypeScript. OpenRouter provides access to the language model. The system also supports chat history, feedback, bookmarks, and source-document lookup.
-
-  The evaluation set contains 40 cases divided evenly across eight question groups. The project includes automated evaluation for supporting-passage tìm kiếm, legal-location accuracy, citation validity, refusal behavior when evidence is insufficient, and response time. Manual review of answer content is handled separately by comparing generated answers with the retrieved legal basis. At the time this thesis draft was completed, the consolidated evaluation report was still incomplete, so no quality percentage or response-time figure is presented as a final confirmed result.
+  The evaluation set contains 40 cases divided evenly across eight question groups. The project includes automated evaluation for supporting-passage retrieval, legal-location accuracy, citation validity, refusal behavior when evidence is insufficient, and response time. Manual review of answer content is handled separately by comparing generated answers with the retrieved legal basis. The results reported in this thesis come from the completed evaluation run.
 \end{sloppypar}
-
 \clearpage
 \tableofcontents
 
@@ -636,7 +645,6 @@ Bộ đánh giá của khóa luận gồm 40 trường hợp, chia đều cho t�
   \makebox[6cm]{\dotfill}
 \end{flushright}
 
-
 % ============================================================
 % CHUONG I
 % ============================================================
@@ -646,6 +654,8 @@ Bộ đánh giá của khóa luận gồm 40 trường hợp, chia đều cho t�
 \setcounter{chapter}{1}
 \setcounter{section}{0}
 \setcounter{subsection}{0}
+\setcounter{figure}{0}
+\setcounter{table}{0}
 \chapter*{CHƯƠNG I. MỞ ĐẦU}
 \addcontentsline{toc}{chapter}{CHƯƠNG I. MỞ ĐẦU}
 
@@ -656,7 +666,7 @@ Trong pháp luật giao thông, cùng một câu hỏi về mức phạt có th�
 
 Retrieval-Augmented Generation (RAG) trong phạm vi khóa luận là cách kết hợp tìm kiếm tài liệu với sinh câu trả lời. Câu hỏi được phân tích trước, hệ thống tìm các đoạn pháp luật phù hợp, kiểm tra căn cứ rồi gọi mô hình ngôn ngữ để diễn giải. Trích dẫn được tạo từ thông tin mô tả của dữ liệu nguồn, không do mô hình sinh ra.
 
-Văn bản pháp luật Việt Nam được tổ chức theo Điều, Khoản và Điểm. Số hiệu như ``168/2024/NĐ-CP'' cũng cần được giữ nguyên khi tra cứu. Hệ thống dùng nội dung ngữ nghĩa từ vector biểu diễn ngữ nghĩa, từ khóa từ BM25 theo từ khóa và thông tin mô tả pháp lý để đối chiếu số hiệu cùng vị trí Điều, Khoản, Điểm.
+Văn bản pháp luật Việt Nam được tổ chức theo Điều, Khoản và Điểm. Số hiệu như ``168/2024/NĐ-CP'' cũng cần được giữ nguyên khi tra cứu. Hệ thống kết hợp tìm kiếm vector, BM25 và thông tin mô tả pháp lý để đối chiếu số hiệu văn bản cùng vị trí Điều, Khoản và Điểm.
 
 \AssetFigure[0.88\textwidth]{ch1_problem_context.png}{7.0cm}{Bối cảnh của bài toán hỏi đáp pháp luật giao thông có kiểm chứng}{}
 
@@ -696,15 +706,14 @@ Khóa luận tập trung vào các câu hỏi sau:
   \item Cách tổ chức thông tin mô tả nào giúp trích dẫn có thể mở lại đúng văn bản, Điều, Khoản hoặc Điểm?
   \item Các chỉ số nào phù hợp để đánh giá một hệ thống tra cứu pháp luật ngoài việc đánh giá văn phong của câu trả lời?
 \end{enumerate}
-Bộ đánh giá gồm 40 trường hợp thuộc tám nhóm câu hỏi. Mỗi nhóm có năm trường hợp để kiểm tra các tình huống như tham chiếu pháp lý rõ ràng, câu hỏi diễn đạt tự nhiên, câu hỏi về xử phạt, câu hỏi nhiều ý, trường hợp cần mở rộng tham chiếu và trường hợp không đủ căn cứ. Khóa luận chỉ trình bày kết quả đo lường khi có báo cáo đánh giá hoàn chỉnh tương ứng.
+Bộ đánh giá gồm 40 trường hợp thuộc tám nhóm câu hỏi. Mỗi nhóm có năm trường hợp để kiểm tra các tình huống như tham chiếu pháp lý rõ ràng, câu hỏi diễn đạt tự nhiên, câu hỏi về xử phạt, câu hỏi nhiều ý, trường hợp cần mở rộng tham chiếu và trường hợp không đủ căn cứ. Kết quả đo lường được trình bày ở Chương IV.
 
 \subsection{Phạm vi chức năng}
 Hệ thống có các chức năng đăng ký, đăng nhập, hỏi đáp pháp luật, xem nguồn và điều khoản, quản lý lịch sử hội thoại, gửi phản hồi và đánh dấu câu trả lời. Hệ thống còn có các chức năng hỗ trợ chuẩn bị dữ liệu, xây lại chỉ mục tìm kiếm và chạy bộ đánh giá.
 
-Bộ đánh giá gồm 40 trường hợp. Chương trình đánh giá có khả năng tách các trường hợp có căn cứ trong tập dữ liệu khỏi các trường hợp không được tập dữ liệu hỗ trợ, nhờ đó có thể đánh giá riêng chất lượng tìm kiếm và khả năng từ chối trả lời.
+Bộ đánh giá 40 trường hợp được chia thành tám nhóm để kiểm tra riêng các dạng câu hỏi có căn cứ và không được dữ liệu hỗ trợ. Các chỉ số được tính từ kết quả tìm kiếm và phản hồi của hệ thống; nội dung câu trả lời được đối chiếu thủ công với căn cứ pháp luật.
 
-\subsection{Phạm vi đánh giá}
-Bộ dữ liệu đánh giá gồm 40 trường hợp thuộc tám nhóm. Các chỉ số dự kiến được tính cho khả năng tìm đúng căn cứ, xác định đúng văn bản và vị trí Điều, Khoản, Điểm, tính hợp lệ của trích dẫn, quyết định từ chối trả lời và thời gian xử lý. Nội dung câu trả lời cần được chấm thủ công bằng cách đối chiếu trực tiếp với căn cứ pháp luật.
+Bộ dữ liệu đánh giá gồm 40 trường hợp thuộc tám nhóm. Các chỉ số đã được tính cho khả năng tìm đúng căn cứ, xác định đúng văn bản và vị trí Điều, Khoản, Điểm, tính hợp lệ của trích dẫn, quyết định từ chối trả lời và thời gian xử lý. Nội dung câu trả lời được chấm thủ công bằng cách đối chiếu trực tiếp với căn cứ pháp luật.
 
 \AssetFigure[0.88\textwidth]{ch1_research_scope.png}{7.2cm}{Phạm vi dữ liệu, chức năng và đánh giá của khóa luận}{}
 
@@ -725,7 +734,7 @@ Dịch vụ phía máy chủ sử dụng pytest cho kiểm thử đơn vị và 
 \section{Hướng giải quyết}
 Giải pháp sử dụng hai nhóm dữ liệu. Dữ liệu pháp luật được chuẩn hóa từ văn bản nguồn thành các đoạn JSONL có thông tin về Điều, Khoản và Điểm, sau đó được lập chỉ mục trong Qdrant. Dữ liệu ứng dụng gồm người dùng, phiên hội thoại, tin nhắn, phản hồi và nội dung đã đánh dấu được lưu trong Supabase. Hai nhóm dữ liệu được tách riêng để tránh trộn dữ liệu người dùng với dữ liệu phục vụ tìm kiếm pháp luật.
 
-Khi người dùng gửi câu hỏi, hệ thống xác định các ý pháp lý cần tìm rồi thực hiện tìm kiếm kết hợp. Nếu câu hỏi có nêu rõ số văn bản, Điều, Khoản hoặc Điểm, bộ phận tìm kiếm dùng thêm các thông tin này để lọc kết quả. RRF được dùng để gộp thứ hạng từ các phương pháp tìm kiếm. Sau đó hệ thống kiểm tra căn cứ. Chỉ khi căn cứ đạt yêu cầu, mô hình ngôn ngữ mới được gọi để diễn giải. Sau khi có câu trả lời, hệ thống tiếp tục kiểm tra trích dẫn và mối liên hệ giữa phần nội dung được sử dụng với các đoạn đã truy xuất. Trích dẫn nguồn được tạo từ thông tin đã lưu cùng đoạn văn bản pháp luật.
+Khi người dùng gửi câu hỏi, hệ thống xác định các ý pháp lý cần tìm rồi thực hiện tìm kiếm kết hợp. Nếu câu hỏi nêu rõ số văn bản, Điều, Khoản hoặc Điểm, bộ phận tìm kiếm dùng các thông tin này để lọc kết quả. RRF gộp thứ hạng từ các phương pháp tìm kiếm. Sau đó hệ thống kiểm tra căn cứ. Chỉ khi căn cứ đạt yêu cầu, mô hình ngôn ngữ mới được gọi để diễn giải. Sau khi có câu trả lời, hệ thống tiếp tục kiểm tra trích dẫn và mối liên hệ giữa phần nội dung được sử dụng với các đoạn đã truy xuất. Trích dẫn nguồn được tạo từ thông tin đã lưu cùng đoạn văn bản pháp luật.
 
 \section{Kế hoạch thực hiện}
 \begin{table}[H]
@@ -795,8 +804,7 @@ Mỗi chunk ngoài \path{page_content} còn có thông tin mô tả. Nhóm đị
 Danh mục nguồn là một tệp JSON liệt kê các văn bản mà hệ thống sử dụng. Mỗi phần tử có \texttt{document\_id}, số hiệu, tên văn bản và tên tệp Markdown. Tập Markdown là nguồn cục bộ dùng để tạo các đoạn dữ liệu. Sau khi xử lý, mỗi đoạn được ghi thành một dòng JSON độc lập trong \texttt{chunks.jsonl}. Cách lưu theo từng dòng giúp chương trình đọc tuần tự và không cần nạp toàn bộ tệp vào bộ nhớ.
 
 Mã SHA-256 được tính từ nội dung nguồn và gắn vào thông tin mô tả. Hàm băm không thay thế chữ ký số, nhưng hữu ích để phát hiện dữ liệu có thay đổi giữa các lần xử lý.
-
-\AssetFigure[0.92\textwidth]{ch2_ingestion_pipeline.png}{7.4cm}{Luồng tạo dữ liệu: manifest và Markdown đến chunks JSONL}{}
+\AssetFigure[0.96\textwidth]{ch2_ingestion_pipeline.png}{7.4cm}{Luồng tạo dữ liệu: manifest và Markdown đến chunks JSONL}{}
 
 \section{Tra cứu định danh pháp lý chính xác}
 Một câu hỏi có thể chứa tham chiếu rõ ràng như ``Khoản 2 Điều 7 Nghị định 168/2024/NĐ-CP''. Trong trường hợp này, tìm kiếm theo ngữ nghĩa có thể trả về đoạn gần nghĩa nhưng sai vị trí. Vì vậy hệ thống nhận diện số văn bản, Điều, Khoản và Điểm từ câu hỏi bằng biểu thức chính quy. Các giá trị tìm được được dùng để lọc hoặc kiểm tra kết quả trong Qdrant.
@@ -813,8 +821,7 @@ BM25 là phương pháp xếp hạng văn bản dựa trên mức độ xuất h
 \end{equation}
 Trong đó $f(t,d)$ là số lần từ $t$ xuất hiện trong tài liệu $d$, $|d|$ là độ dài tài liệu và $\mathrm{avgdl}$ là độ dài trung bình. $k_1$ và $b$ là tham số điều chỉnh.
 
-BM25 hữu ích trong đề tài vì các chuỗi như số Nghị định, số Điều, tên hành vi và cụm từ xử phạt cần được khớp chính xác. Qdrant hỗ trợ vector từ khóa và dự án sử dụng \texttt{FastEmbedSparse("Qdrant/bm25")} để tạo biểu diễn từ khóa.
-
+BM25 hữu ích trong đề tài vì các chuỗi như số Nghị định, số Điều, tên hành vi và cụm từ xử phạt cần được khớp chính xác. Qdrant hỗ trợ vector từ khóa và dự án sử dụng \texttt{FastEmbedSparse("Qdrant/bm25")} để tạo biểu diễn từ khóa. Kết quả này được dùng cùng tìm kiếm vector và bộ lọc thông tin pháp lý.
 \AssetFigure[0.86\textwidth]{ch2_sparse_bm25.png}{6.5cm}{Minh họa cách BM25 ưu tiên từ khóa đặc trưng}{}
 
 \section{Tìm kiếm ngữ nghĩa bằng vector biểu diễn ngữ nghĩa}
@@ -868,13 +875,13 @@ Khi dữ liệu không đủ, trả về trạng thái từ chối an toàn hơn
 \AssetFigure[0.86\textwidth]{ch2_evidence_gate.png}{6.8cm}{Bước kiểm tra căn cứ trước khi sinh câu trả lời}{}
 
 \section{Sinh câu trả lời có căn cứ qua OpenRouter}
-Mô-đun bộ phận tạo câu trả lời tạo prompt gồm thông điệp hệ thống, câu hỏi và các nhóm nguồn pháp luật. Prompt yêu cầu trả lời bằng tiếng Việt, không tự tạo số Điều, mức tiền, điểm hoặc nguồn. Model được gọi qua \texttt{ChatOpenRouter}. Tên model nằm trong cấu hình và có thể thay đổi mà không làm thay đổi luồng xử lý chính.
+Mô-đun tạo câu trả lời dựng prompt từ thông điệp hệ thống, câu hỏi và các nhóm nguồn pháp luật. Prompt yêu cầu trả lời bằng tiếng Việt, không tự tạo số Điều, mức tiền, điểm hoặc nguồn. Mô hình được gọi qua \texttt{ChatOpenRouter}. Tên mô hình nằm trong cấu hình và có thể thay đổi mà không làm thay đổi luồng xử lý chính.
 
-OpenRouter được dùng qua hai loại API. API vector biểu diễn ngữ nghĩa biến văn bản thành vector. API chat nhận danh sách message và trả nội dung sinh. Dịch vụ phía máy chủ đọc khóa truy cập từ biến môi trường và không gửi khóa này xuống giao diện Web. Tài liệu OpenRouter mô tả riêng endpoint vector biểu diễn ngữ nghĩa và endpoint chat/completions \cite{openrouter_chat_docs}.
+OpenRouter cung cấp hai API được dùng trong hệ thống. API embeddings biến văn bản thành vector, còn API chat nhận danh sách message và trả nội dung sinh. Dịch vụ phía máy chủ đọc khóa truy cập từ biến môi trường và không gửi khóa này xuống giao diện Web. Tài liệu OpenRouter mô tả endpoint embeddings và endpoint chat/completions \cite{openrouter_embeddings_docs,openrouter_chat_docs}.
 
-Mô hình ngôn ngữ chỉ được gọi sau bước tìm kiếm và kiểm tra căn cứ. Mô hình nhận câu hỏi cùng các đoạn pháp luật đã được chọn. Nếu dịch vụ mô hình không phản hồi hoặc kết quả trả về không hợp lệ, hệ thống trả thông báo lỗi. Khi phần diễn giải xuất hiện dấu hiệu trộn ngôn ngữ, hệ thống yêu cầu tạo lại câu trả lời bằng tiếng Việt và giữ nguyên thông tin từ nguồn đã cung cấp.
+Mô hình ngôn ngữ chỉ được gọi sau bước tìm kiếm và kiểm tra căn cứ. Mô hình nhận câu hỏi cùng các đoạn pháp luật đã chọn. Nếu dịch vụ mô hình không phản hồi hoặc kết quả trả về không hợp lệ, hệ thống trả thông báo lỗi. Khi phần diễn giải có dấu hiệu trộn ngôn ngữ, hệ thống yêu cầu tạo lại câu trả lời bằng tiếng Việt và giữ nguyên thông tin từ nguồn đã cung cấp.
 
-Retriever tìm dữ liệu, bước kiểm tra căn cứ kiểm tra điều kiện, còn model diễn đạt câu trả lời. Vì mỗi phần có đầu vào và đầu ra riêng, các phần này có thể được kiểm thử độc lập.
+Bộ truy xuất tìm dữ liệu, bước kiểm tra căn cứ kiểm tra điều kiện, còn mô hình diễn đạt câu trả lời. Vì mỗi phần có đầu vào và đầu ra riêng, các phần này có thể được kiểm thử độc lập.
 
 \AssetFigure[0.90\textwidth]{ch2_generation.png}{6.8cm}{Luồng sinh câu trả lời từ các căn cứ đã truy xuất}{}
 
@@ -894,15 +901,11 @@ Giao diện dùng thông tin trích dẫn để mở đúng tài liệu nguồn.
 
 \AssetFigure[0.90\textwidth]{ch2_citation_flow.png}{6.6cm}{Tạo và hiển thị trích dẫn từ thông tin mô tả nguồn}{}
 
-\section{FastAPI và Pydantic}
-FastAPI là framework Web cho Python, hỗ trợ khai báo dữ liệu đầu vào và đầu ra bằng kiểu dữ liệu, kiểm tra dữ liệu tự động và sinh tài liệu OpenAPI \cite{fastapi_docs}. Trong đề tài, FastAPI cung cấp các API cho đăng ký, đăng nhập, hỏi đáp, lịch sử hội thoại, phản hồi, đánh dấu câu trả lời, tra cứu văn bản pháp luật và kiểm tra trạng thái dịch vụ.
-
-Pydantic kiểm tra cấu trúc dữ liệu gửi vào và dữ liệu trả về. Yêu cầu có cấu trúc sai bị từ chối trước khi phần xử lý nghiệp vụ chạy. Các trường như \texttt{top\_k}, \texttt{effective\_date}, mã phiên hội thoại và nội dung tin nhắn được kiểm tra theo kiểu dữ liệu đã khai báo.
+Dịch vụ phía máy chủ được xây dựng bằng Python 3.11 và FastAPI. FastAPI kết hợp với Pydantic để khai báo cấu trúc đầu vào, đầu ra, kiểm tra dữ liệu và sinh tài liệu OpenAPI \cite{fastapi_docs}. Trong hệ thống, lớp API phục vụ đăng ký, đăng nhập, hỏi đáp, quản lý hội thoại, phản hồi, nội dung đã lưu, tra cứu văn bản và kiểm tra trạng thái dịch vụ. Pydantic từ chối request có cấu trúc sai trước khi phần xử lý nghiệp vụ chạy; các trường như \texttt{top\_k}, \texttt{effective\_date}, mã phiên hội thoại và nội dung tin nhắn được kiểm tra theo kiểu dữ liệu đã khai báo.
 
 \AssetFigure[0.90\textwidth]{ch2_api_architecture.png}{6.8cm}{Các nhóm API chính của dịch vụ phía máy chủ FastAPI}{}
 
-\section{Python 3.11 và các thành phần dịch vụ phía máy chủ cơ bản}
-Python là ngôn ngữ chính của dịch vụ phía máy chủ. Python có thư viện phong phú, hỗ trợ xử lý chuỗi, dữ liệu có cấu trúc và phát triển dịch vụ Web \cite{python311_docs}. Trong đề tài, Python 3.11 được dùng để xây dựng API, đọc và chuẩn hóa dữ liệu, xử lý biểu thức chính quy, tìm kiếm, gọi mô hình ngôn ngữ và tính các chỉ số đánh giá.
+Python 3.11 là nền tảng của dịch vụ phía máy chủ. Ngôn ngữ này được dùng để xây dựng API, đọc và chuẩn hóa dữ liệu, xử lý biểu thức chính quy, tìm kiếm, gọi mô hình ngôn ngữ và tính các chỉ số đánh giá \cite{python311_docs}.
 
 Dịch vụ phía máy chủ sử dụng một số thành phần của thư viện chuẩn Python cho các nhiệm vụ sau:
 \begin{itemize}
@@ -940,27 +943,24 @@ Cách tổ chức này giúp tận dụng thư viện có sẵn nhưng vẫn gi�
 \section{Qdrant, FastEmbed và chỉ mục tìm kiếm}
 Qdrant là cơ sở dữ liệu vector dùng để lưu chỉ mục tìm kiếm. Mỗi đoạn pháp luật được lưu cùng biểu diễn ngữ nghĩa, biểu diễn theo từ khóa và các trường mô tả như văn bản, Điều, Khoản, Điểm. Tài liệu Qdrant mô tả tìm kiếm kết hợp là cách phối hợp tìm kiếm theo ngữ nghĩa với tìm kiếm theo từ khóa rồi gộp kết quả \cite{qdrant_hybrid_docs}.
 
-Phần tìm kiếm từ khóa dùng lớp \texttt{FastEmbedSparse} với mô hình \path{Qdrant/bm25}. FastEmbed nhận văn bản và tạo biểu diễn từ khóa để Qdrant lưu và tìm kiếm. Dịch vụ phía máy chủ cũng cài ONNX Runtime để chạy mô hình được đóng gói theo định dạng ONNX khi thư viện yêu cầu. Trong phạm vi khóa luận, phần này được xem như tầng thực thi mô hình của FastEmbed, không phải một thuật toán riêng của hệ thống.
-
 Thông tin mô tả được lưu cùng vector để hỗ trợ lọc theo Điều, Khoản và Điểm khi câu hỏi có tham chiếu pháp lý cụ thể. Tìm kiếm theo vector và đối chiếu vị trí pháp lý được thực hiện trong cùng một luồng xử lý.
 
 Qdrant giữ dữ liệu dẫn xuất phục vụ tìm kiếm. Văn bản nguồn được lưu riêng với dữ liệu chỉ mục. Tài khoản cùng lịch sử chat nằm trong Supabase. Khi tập văn bản hoặc cấu hình biểu diễn ngữ nghĩa thay đổi, chỉ mục tìm kiếm được tạo lại từ dữ liệu JSONL đã chuẩn hóa.
 
-\section{Supabase, PostgreSQL và Row Level Security}
-Supabase cung cấp chức năng xác thực và cơ sở dữ liệu PostgreSQL cho dữ liệu ứng dụng. Cơ sở dữ liệu gồm năm nhóm chính: hồ sơ người dùng, phiên hội thoại, tin nhắn, phản hồi và nội dung đánh dấu. Các bảng sử dụng khóa chính, khóa ngoại, ràng buộc kiểm tra, ràng buộc duy nhất, chỉ mục và trigger cập nhật thời gian.
+Supabase cung cấp xác thực và cơ sở dữ liệu PostgreSQL cho dữ liệu ứng dụng. Năm nhóm dữ liệu chính gồm hồ sơ người dùng, phiên hội thoại, tin nhắn, phản hồi và nội dung đánh dấu. Các bảng dùng khóa chính, khóa ngoại, ràng buộc kiểm tra, ràng buộc duy nhất, chỉ mục và trigger cập nhật thời gian.
 
-Row Level Security (RLS) là cơ chế PostgreSQL cho phép giới hạn hàng dữ liệu mà một người dùng được đọc hoặc sửa. Supabase khuyến nghị dùng RLS trên các bảng được truy cập qua Data API và kết hợp với Auth để kiểm soát dữ liệu theo \texttt{auth.uid()} \cite{supabase_rls_docs}. Trong schema của dự án, mỗi bảng có policy chỉ cho phép người dùng thao tác với dữ liệu thuộc chính tài khoản của mình. Service-role key được giữ ở dịch vụ phía máy chủ và không đưa ra trình duyệt.
+Row Level Security (RLS) giới hạn các hàng mà một người dùng được đọc hoặc sửa. Supabase khuyến nghị bật RLS trên các bảng truy cập qua Data API và kết hợp với Auth để kiểm soát dữ liệu theo \texttt{auth.uid()} \cite{supabase_rls_docs}. Schema của dự án áp dụng policy để mỗi tài khoản chỉ thao tác với dữ liệu của mình. Service-role key được giữ ở dịch vụ phía máy chủ và không đưa ra trình duyệt.
 
 \AssetFigure[0.90\textwidth]{ch2_security_rls.png}{6.8cm}{Bảo vệ dữ liệu ứng dụng bằng Supabase Auth và RLS}{}
 
-\section{Cơ sở dữ liệu quan hệ và PostgreSQL}
-Cơ sở dữ liệu quan hệ tổ chức dữ liệu theo bảng. Mỗi hàng là một bản ghi và mỗi cột là một thuộc tính. Khóa chính định danh bản ghi. Khóa ngoại liên kết bản ghi với bảng khác. Schema của đề tài dùng UUID cho dữ liệu người dùng, phiên chat, tin nhắn, phản hồi và bookmark.
+Schema PostgreSQL của đề tài tổ chức dữ liệu quan hệ thành các bảng liên kết bằng khóa chính và khóa ngoại. UUID được dùng cho người dùng, phiên chat, tin nhắn, phản hồi và bookmark.
 
-Tính toàn vẹn được bảo vệ bằng nhiều loại ràng buộc. \texttt{NOT NULL} buộc trường phải có giá trị, \texttt{UNIQUE} ngăn trùng lặp theo điều kiện thiết kế, \texttt{CHECK} giới hạn miền giá trị, \texttt{FOREIGN KEY} giữ quan hệ tham chiếu hợp lệ, \texttt{DEFAULT} cung cấp giá trị mặc định. Ví dụ, \texttt{feedback.rating} chỉ nhận 0 hoặc 1, còn \texttt{messages.role} chỉ nhận \texttt{user} hoặc \texttt{assistant}.
+Các ràng buộc bảo vệ tính toàn vẹn của dữ liệu. \texttt{NOT NULL} buộc trường phải có giá trị, \texttt{UNIQUE} ngăn trùng lặp, \texttt{CHECK} giới hạn miền giá trị, \texttt{FOREIGN KEY} giữ quan hệ tham chiếu hợp lệ và \texttt{DEFAULT} cung cấp giá trị mặc định. Chẳng hạn, \texttt{feedback.rating} chỉ nhận 0 hoặc 1, còn \texttt{messages.role} chỉ nhận \texttt{user} hoặc \texttt{assistant}.
 
-Chỉ mục (index) là cấu trúc phụ giúp một số truy vấn tìm dữ liệu nhanh hơn, đổi lại cần thêm không gian lưu trữ và chi phí cập nhật. Schema tạo index theo các cặp thường dùng như người dùng và thời gian cập nhật hoặc session và thời gian tạo. Trigger là hàm chạy tự động khi có sự kiện trên bảng. Đề tài dùng trigger để cập nhật \texttt{updated\_at}, chạm thời gian phiên chat khi có message mới và tạo profile sau khi Auth tạo user.
+Các chỉ mục được đặt trên những cặp trường thường dùng như người dùng với thời gian cập nhật hoặc session với thời gian tạo. Trigger tự động cập nhật \texttt{updated\_at}, chạm thời gian phiên chat khi có message mới và tạo profile sau khi Auth tạo user.
 
-PostgreSQL hỗ trợ kiểu \texttt{JSONB}. Đề tài dùng JSONB cho response, citations và thông tin mô tả vì cấu trúc các trường này thay đổi linh hoạt hơn dữ liệu quan hệ cố định. Quan hệ sở hữu user, session và message vẫn được biểu diễn bằng khóa ngoại.
+PostgreSQL hỗ trợ kiểu \texttt{JSONB}. Đề tài dùng kiểu này cho response, citations và thông tin mô tả vì cấu trúc các trường có thể thay đổi linh hoạt hơn dữ liệu quan hệ cố định. Quan hệ sở hữu user, session và message vẫn được biểu diễn bằng khóa ngoại.
+
 
 \AssetFigure[0.90\textwidth]{ch2_postgresql_relational.png}{7.0cm}{Khóa chính, khóa ngoại, chỉ mục và ràng buộc trong dữ liệu ứng dụng}{}
 
@@ -973,10 +973,9 @@ Service-role key có quyền cao và có thể bỏ qua RLS, vì vậy tài li�
 
 \AssetFigure[0.90\textwidth]{ch2_supabase_auth.png}{7.0cm}{Luồng Supabase Auth, JWT, auth.uid và Row Level Security}{}
 
-\section{Next.js, React và TypeScript}
-Next.js là framework React dùng để xây dựng ứng dụng web. App Router sử dụng cấu trúc thư mục để định nghĩa route và hỗ trợ Server/Client Components \cite{nextjs_app_router_docs}. Giao diện Web của dự án dùng Next.js 16, React 19 và TypeScript 5. Các route chính hiện có gồm trang chat và trang nguồn pháp luật.
+Giao diện Web của dự án dùng Next.js 16, React 19 và TypeScript 5. Next.js cung cấp App Router dựa trên cấu trúc thư mục và hỗ trợ Server/Client Components \cite{nextjs_app_router_docs}; React tổ chức giao diện thành các component; TypeScript kiểm tra kiểu tĩnh cho dữ liệu trao đổi giữa component và API. Các route chính hiện có gồm trang chat và trang nguồn pháp luật.
 
-TypeScript bổ sung kiểm tra kiểu tĩnh cho JavaScript, giúp giảm một số lỗi khi truyền dữ liệu giữa component và API. PDF.js được dùng để hiển thị PDF trong trình duyệt. React Markdown hỗ trợ trình bày câu trả lời dạng Markdown. Supabase client/SSR hỗ trợ phiên đăng nhập và giao tiếp với Supabase phù hợp theo môi trường server hoặc browser.
+PDF.js được dùng để hiển thị PDF trong trình duyệt, React Markdown trình bày câu trả lời, còn Supabase client/SSR hỗ trợ phiên đăng nhập theo môi trường server hoặc browser.
 
 \AssetFigure[0.90\textwidth]{ch2_frontend_architecture.png}{6.8cm}{Kiến trúc giao diện Next.js của hệ thống}{}
 
@@ -1044,24 +1043,16 @@ Tỷ lệ tìm thấy căn cứ đúng trong $k$ kết quả đầu kiểm tra x
 \subsection{Độ chính xác theo tọa độ pháp lý}
 Mô-đun đánh giá so sánh lần lượt văn bản, Điều, Khoản và Điểm. Cách tách theo cấp giúp phát hiện trường hợp hệ thống tìm đúng văn bản nhưng sai Khoản, hoặc đúng Điều nhưng sai Điểm. Cách đánh giá này phù hợp với dữ liệu pháp luật vì vị trí trong cấu trúc văn bản quyết định căn cứ được sử dụng.
 
-\subsection{Tỷ lệ trích dẫn hợp lệ}
 Tỷ lệ trích dẫn hợp lệ kiểm tra xem thông tin nguồn đi kèm câu trả lời có đầy đủ và có thể đối chiếu với dữ liệu đã tìm được hay không. Chỉ số này không thay thế việc chấm nội dung câu trả lời, nhưng giúp phát hiện trích dẫn bị thiếu hoặc không khớp với nguồn.
 
 \subsection{Độ chính xác khi quyết định từ chối trả lời}
-Bộ dữ liệu có các trường hợp kỳ vọng hệ thống từ chối trả lời. Độ chính xác khi quyết định từ chối trả lời so sánh trạng thái thực tế với kỳ vọng. Một hệ thống luôn trả lời có thể có trải nghiệm ``mạnh'' nhưng không phù hợp nếu dữ liệu thiếu.
+Độ chính xác khi quyết định từ chối trả lời được tính bằng cách so sánh trạng thái thực tế với kỳ vọng của từng trường hợp. Chỉ số này cho biết hệ thống có nhận diện đúng những câu hỏi thiếu căn cứ hay không. Một hệ thống luôn trả lời có thể tạo cảm giác đầy đủ, nhưng không phù hợp khi dữ liệu không đủ căn cứ.
 
 \subsection{Độ trễ}
-Mô-đun đánh giá có thể tính thời gian phản hồi trung bình, trung vị và mức P95. Các giá trị này chỉ nên được đưa vào khóa luận khi có lần chạy đánh giá hoàn chỉnh trong cùng điều kiện cấu hình, vì thời gian còn phụ thuộc kết nối mạng, dịch vụ mô hình và môi trường chạy.
+Mô-đun đánh giá tính thời gian phản hồi trung bình, trung vị và mức P95 từ lần chạy đánh giá. Các giá trị phụ thuộc vào kết nối mạng, dịch vụ mô hình và môi trường chạy nên cần được đọc cùng điều kiện đo.
 
 \subsection{Đánh giá nội dung thủ công}
-Độ đúng nội dung câu trả lời cần được chấm thủ công bằng cách đối chiếu câu trả lời với căn cứ pháp luật. Tại thời điểm ghi nhận kết quả, phần chấm thủ công chưa được hoàn thành cho toàn bộ 40 trường hợp. Vì vậy khóa luận không dùng chỉ số này để khẳng định chất lượng nội dung của toàn bộ câu trả lời.
-
-\AssetFigure[0.90\textwidth]{ch2_evaluation.png}{7.0cm}{Các nhóm chỉ số trong bộ đánh giá 40 trường hợp}{}
-
-\section{Tài liệu kỹ thuật dùng để xây dựng hệ thống}
-Các khái niệm về lập trình, phân tích hệ thống, công nghệ phần mềm và phát triển Web được tham khảo từ các bài giảng của Khoa Kỹ thuật - Công nghệ, Trường Đại học Tây Đô \cite{tdu_laptrinhcanban,tdu_pttkhttt,tdu_nmcpm,tdu_web,tdu_cdnnlt}. Những nội dung này hỗ trợ phần mô hình hóa hệ thống, thiết kế phần mềm và phát triển giao diện Web.
-
-Đối với công nghệ đang sử dụng, khóa luận tham khảo tài liệu chính thức của từng nền tảng. Tài liệu Qdrant được dùng để giải thích vector ngữ nghĩa, vector từ khóa, BM25, hybrid search và RRF \cite{qdrant_vectors_docs,qdrant_bm25_docs,qdrant_hybrid_docs}. Tài liệu FastAPI được dùng cho phần HTTP API, OpenAPI và validation \cite{fastapi_docs}. Tài liệu Supabase được dùng để giải thích xác thực người dùng và Row Level Security \cite{supabase_auth_docs,supabase_rls_docs}. Tài liệu Next.js, React và TypeScript được dùng cho phần giao diện Web \cite{nextjs_app_router_docs,react_docs,typescript_docs}.
+Độ đúng nội dung câu trả lời được chấm thủ công bằng cách đối chiếu câu trả lời với căn cứ pháp luật. Kết quả chấm được ghi nhận riêng với các chỉ số tự động.
 
 Các thành phần triển khai gồm API, cơ sở dữ liệu ứng dụng, xử lý dữ liệu pháp luật, tìm kiếm, sinh câu trả lời và đánh giá. Mỗi thành phần được mô tả theo chức năng và dữ liệu mà hệ thống sử dụng.
 
@@ -1100,9 +1091,6 @@ Bảng dưới đây tổng hợp các công nghệ đang có trong hệ thống
   Đóng gói              & Docker Compose                     & Chạy giao diện Web, dịch vụ phía máy chủ và dịch vụ phát triển theo cùng cấu hình \\
   \hline
 \end{longtable}
-
-\section{Kết luận chương}
-Chương 2 mô tả cách hệ thống chia văn bản pháp luật thành các đoạn có cấu trúc, kết hợp BM25 với vector biểu diễn ngữ nghĩa, gộp thứ hạng bằng RRF, phân tích câu hỏi, kiểm tra căn cứ và tạo trích dẫn nguồn. Chương cũng trình bày các công nghệ chính và cách kiểm thử, đánh giá.
 
 % ============================================================
 % CHUONG III
@@ -1221,11 +1209,11 @@ Sơ đồ phân rã chức năng gồm các nhóm xác thực, hỏi đáp pháp
 
 \subsection{DFD mức ngữ cảnh}
 Ở mức ngữ cảnh, hệ thống được xem như một tiến trình tổng thể. Người dùng gửi yêu cầu xác thực, câu hỏi và yêu cầu tra cứu. Hệ thống trao đổi dữ liệu với các dịch vụ lưu trữ, tìm kiếm và mô hình, sau đó trả kết quả về giao diện.
-\AssetFigure[0.94\textwidth]{ch3_dfd_context.png}{7.8cm}{Sơ đồ luồng dữ liệu mức ngữ cảnh}{}
+\AssetFigure[0.98\textwidth]{ch3_dfd_context.png}{9.2cm}{Sơ đồ luồng dữ liệu mức ngữ cảnh}{}
 
 \subsection{DFD mức 0}
 DFD mức 0 tách hệ thống thành các tiến trình xác thực, quản lý hội thoại, xử lý câu hỏi, tra cứu nguồn và quản lý dữ liệu tìm kiếm. Sơ đồ cần thể hiện rõ nơi lưu dữ liệu ứng dụng, nơi lưu chỉ mục tìm kiếm và luồng kết quả trả về người dùng.
-\AssetFigure[0.94\textwidth]{ch3_dfd_level0.png}{8.8cm}{Sơ đồ luồng dữ liệu mức 0}{}
+\AssetFigure[0.98\textwidth]{ch3_dfd_level0.png}{10.0cm}{Sơ đồ luồng dữ liệu mức 0}{}
 
 \section{Sơ đồ Use Case và đặc tả chức năng}
 \subsection{Sơ đồ Use Case tổng quát}
@@ -2027,11 +2015,11 @@ LDM thể hiện khóa chính, khóa ngoại, cardinality và các thuộc tính
 
 \subsection{Mô hình dữ liệu vật lý PDM}
 PDM mô tả tên bảng, cột, kiểu dữ liệu, khóa chính, khóa ngoại, ràng buộc duy nhất và ràng buộc kiểm tra của cơ sở dữ liệu ứng dụng.
-\AssetFigure[0.96\textwidth]{ch3_pdm.png}{9.0cm}{Mô hình dữ liệu vật lý PDM}{}
+\AssetFigure[0.98\textwidth]{ch3_pdm.png}{10.5cm}{Mô hình dữ liệu vật lý PDM}{}
 
 \subsection{Sơ đồ ERD}
 ERD tập trung vào năm bảng dữ liệu ứng dụng và các quan hệ khóa ngoại giữa phiên hội thoại, tin nhắn, phản hồi, nội dung đánh dấu và tài khoản xác thực.
-\AssetFigure[0.96\textwidth]{ch3_erd.png}{9.0cm}{Sơ đồ thực thể liên kết ERD của dữ liệu ứng dụng}{}
+\AssetFigure[0.98\textwidth]{ch3_erd.png}{10.5cm}{Sơ đồ thực thể liên kết ERD của dữ liệu ứng dụng}{}
 
 \subsection{Bảng profiles}
 Bảng \texttt{profiles} mở rộng thông tin của \texttt{auth.users}. ID vừa là khóa chính vừa tham chiếu user của Supabase Auth.
@@ -2117,23 +2105,21 @@ Bảng \texttt{feedback} lưu một đánh giá cho mỗi tin nhắn và mỗi n
 {\fontsize{11pt}{12pt}\selectfont
 \Needspace{10\baselineskip}
 \begin{longtable}{|L{0.9cm}|L{2.9cm}|L{2.6cm}|L{3.0cm}|L{4.0cm}|}
-  \caption[]{Thiết kế bảng feedback}\label{tab:db-feedback}                            \\
+  \caption{Thiết kế bảng feedback}\label{tab:db-feedback}                           \\
   \hline
-  STT & Thuộc tính  & Khóa/ràng buộc           & Kiểu dữ liệu & Diễn giải              \\
+  1 & id          & PK, DEFAULT              & UUID        & Mã phản hồi            \\
   \hline
-  1   & id          & PK, DEFAULT              & UUID         & Mã phản hồi            \\
+  2 & message\_id & FK messages, NOT NULL    & UUID        & Tin nhắn được đánh giá \\
   \hline
-  2   & message\_id & FK messages, NOT NULL    & UUID         & Tin nhắn được đánh giá \\
+  3 & user\_id    & FK auth.users, NOT NULL  & UUID        & Người gửi phản hồi     \\
   \hline
-  3   & user\_id    & FK auth.users, NOT NULL  & UUID         & Người gửi phản hồi     \\
+  4 & rating      & NOT NULL, CHECK 0 hoặc 1 & INTEGER     & Giá trị đánh giá       \\
   \hline
-  4   & rating      & NOT NULL, CHECK 0 hoặc 1 & INTEGER      & Giá trị đánh giá       \\
+  5 & comment     & Tùy chọn                 & TEXT        & Nội dung nhận xét      \\
   \hline
-  5   & comment     & Tùy chọn                 & TEXT         & Nội dung nhận xét      \\
+  6 & created\_at & NOT NULL, DEFAULT        & TIMESTAMPTZ & Thời điểm tạo          \\
   \hline
-  6   & created\_at & NOT NULL, DEFAULT        & TIMESTAMPTZ  & Thời điểm tạo          \\
-  \hline
-  7   & updated\_at & NOT NULL, DEFAULT        & TIMESTAMPTZ  & Thời điểm cập nhật     \\
+  7 & updated\_at & NOT NULL, DEFAULT        & TIMESTAMPTZ & Thời điểm cập nhật     \\
   \hline
 \end{longtable}
 }
@@ -2296,9 +2282,6 @@ Các khóa bí mật chỉ được sử dụng ở phía máy chủ. Trình duy
 \section{Thiết kế kiểm thử}
 Kiểm thử được chia thành ba nhóm. Kiểm thử đơn vị kiểm tra các hàm xử lý văn bản, nhận diện tham chiếu pháp lý, phân tích câu hỏi và tính chỉ số. Kiểm thử tích hợp kiểm tra việc phối hợp giữa API, Supabase và Qdrant. Kiểm thử giao diện kiểm tra các luồng người dùng như đăng nhập, gửi câu hỏi, mở nguồn và xem lịch sử hội thoại. Kết quả chỉ được ghi là đạt khi có lần chạy kiểm thử tương ứng.
 
-\section{Kết luận chương}
-Chương 3 đã trình bày yêu cầu hệ thống, sơ đồ chức năng, luồng dữ liệu, mô hình cơ sở dữ liệu, API và các giải thuật xử lý chính. Supabase lưu dữ liệu ứng dụng, còn Qdrant lưu chỉ mục tìm kiếm của dữ liệu pháp luật.
-
 % ============================================================
 % CHUONG IV
 % ============================================================
@@ -2315,54 +2298,54 @@ Chương 3 đã trình bày yêu cầu hệ thống, sơ đồ chức năng, lu�
 Chương này trình bày các chức năng đã triển khai ở giao diện người dùng, API vận hành, kiểm thử và đánh giá hệ thống. Các màn hình chính gồm đăng ký, đăng nhập, hỏi đáp, xem trích dẫn, tra cứu nguồn pháp luật, lịch sử hội thoại, phản hồi và đánh dấu câu trả lời.
 
 \section{Giao diện trang đầu}
-Trang đầu cung cấp khu vực điều hướng và lối vào chức năng hỏi đáp pháp luật.
+Trang đầu là điểm bắt đầu của luồng sử dụng. Người dùng có thể đi tới chức năng hỏi đáp pháp luật từ khu vực điều hướng, sau đó chuyển sang đăng ký hoặc đăng nhập khi cần các chức năng cá nhân.
 \AssetFigure[0.94\textwidth]{ch4_home.png}{8.5cm}{Giao diện trang đầu của hệ thống}{}
 
 \section{Đăng ký và đăng nhập}
 \subsection{Đăng ký}
-Màn hình đăng ký gồm các trường nhập liệu, thông báo validation và trạng thái phản hồi sau khi Supabase xử lý yêu cầu tạo tài khoản.
+Người dùng nhập thông tin tài khoản trên biểu mẫu. Giao diện kiểm tra các trường bắt buộc và hiển thị phản hồi sau khi Supabase xử lý yêu cầu tạo tài khoản.
 \AssetFigure[0.88\textwidth]{ch4_register.png}{8.2cm}{Giao diện đăng ký tài khoản}{}
 \subsection{Đăng nhập}
-Màn hình đăng nhập gồm các trường thông tin, nút gửi yêu cầu và trạng thái báo lỗi khi dữ liệu không hợp lệ.
+Người dùng gửi thông tin tài khoản để tạo phiên làm việc. Khi dữ liệu không hợp lệ hoặc dịch vụ xác thực trả lỗi, giao diện hiển thị trạng thái tương ứng.
 \AssetFigure[0.88\textwidth]{ch4_login.png}{8.2cm}{Giao diện đăng nhập}{}
 
 \section{Giao diện hỏi đáp pháp luật}
 \subsection{Trạng thái chưa có câu hỏi}
-Trạng thái ban đầu của trang chat gồm vùng nhập câu hỏi và các thành phần điều hướng của phiên hội thoại.
+Khi bắt đầu phiên, trang chat hiển thị vùng nhập câu hỏi và các thành phần điều hướng của phiên hội thoại. Người dùng có thể nhập câu hỏi để bắt đầu luồng hỏi đáp.
 \AssetFigure[0.94\textwidth]{ch4_chat_empty.png}{8.5cm}{Giao diện chat khi bắt đầu phiên}{}
 
 \subsection{Câu trả lời có căn cứ}
-Sau khi xử lý câu hỏi, giao diện hiển thị nội dung trả lời, trích dẫn và thao tác mở nguồn tương ứng.
+Sau khi xử lý, giao diện hiển thị nội dung trả lời cùng các trích dẫn. Người dùng có thể chọn trích dẫn để mở văn bản và vị trí pháp lý tương ứng.
 \AssetFigure[0.94\textwidth]{ch4_chat_answer.png}{9.0cm}{Giao diện câu trả lời pháp luật có trích dẫn}{}
 
 \subsection{Trường hợp không đủ căn cứ}
-Khi không tìm thấy đủ căn cứ, giao diện hiển thị thông báo từ chối trả lời và không tạo nội dung pháp luật suy đoán.
+Khi hệ thống không tìm thấy đủ căn cứ, giao diện hiển thị trạng thái từ chối và không đưa ra nội dung pháp luật suy đoán.
 \AssetFigure[0.92\textwidth]{ch4_chat_abstention.png}{7.8cm}{Giao diện khi hệ thống từ chối trả lời do thiếu căn cứ}{}
 
 \section{Hiển thị trích dẫn nguồn}
-Trích dẫn hiển thị thông tin văn bản, vị trí Điều, Khoản, Điểm và thao tác mở nguồn tương ứng.
+Thông tin trích dẫn cho biết văn bản, vị trí Điều, Khoản, Điểm và thao tác mở nguồn. Người dùng dùng phần này để đối chiếu câu trả lời với văn bản pháp luật.
 \AssetFigure[0.94\textwidth]{ch4_citation_panel.png}{8.5cm}{Citation và thông tin văn bản nguồn}{}
 
 \section{Trang nguồn pháp luật}
 \subsection{Danh sách văn bản}
-Trang nguồn pháp luật hiển thị danh sách văn bản từ legal API cùng các thông tin nhận biết từng nguồn.
+Trang nguồn pháp luật đọc danh sách từ legal API và hiển thị thông tin nhận biết của từng văn bản để người dùng chọn nguồn cần xem.
 \AssetFigure[0.94\textwidth]{ch4_legal_sources.png}{8.5cm}{Danh sách nguồn pháp luật}{}
 \subsection{Tìm kiếm và lọc}
-Chức năng tìm kiếm nguồn gồm ô truy vấn, bộ lọc và danh sách kết quả theo văn bản hoặc điều khoản.
+Người dùng có thể nhập từ khóa hoặc thông tin định danh, chọn bộ lọc và xem các kết quả theo văn bản hoặc điều khoản.
 \AssetFigure[0.94\textwidth]{ch4_legal_search.png}{8.5cm}{Tìm kiếm văn bản và điều khoản}{}
 \subsection{Xem chi tiết luật}
-Trình xem Markdown hiển thị nội dung pháp luật theo cấu trúc và vị trí được mở từ trích dẫn.
+Khi chọn một văn bản, trình xem hiển thị nội dung Markdown theo cấu trúc pháp lý và vị trí được mở từ trích dẫn.
 \AssetFigure[0.94\textwidth]{ch4_markdown_viewer.png}{9.0cm}{Hiển thị nguồn pháp luật dạng Markdown}{}
 
 \section{Lịch sử hội thoại}
-Trang lịch sử hiển thị danh sách phiên chat và các thao tác quản lý phiên của người dùng hiện tại.
+Trang lịch sử hiển thị các phiên chat thuộc tài khoản hiện tại. Người dùng có thể mở lại nội dung hoặc thực hiện các thao tác quản lý phiên.
 \AssetFigure[0.92\textwidth]{ch4_chat_history.png}{8.5cm}{Giao diện quản lý phiên chat}{}
 
 \section{Phản hồi và đánh dấu câu trả lời}
-Chức năng phản hồi cho phép người dùng đánh giá một câu trả lời đã lưu.
+Người dùng có thể đánh giá câu trả lời đã lưu hoặc đánh dấu nội dung để xem lại sau.
 \AssetFigure[0.88\textwidth]{ch4_feedback.png}{7.5cm}{Giao diện gửi phản hồi cho câu trả lời}{}
 \section{Kết quả kiểm thử}
-Kết quả kiểm thử được trình bày theo chức năng và điều kiện chạy. Các ca kiểm thử đơn vị tập trung vào xử lý văn bản và quy tắc tìm kiếm. Kiểm thử tích hợp kiểm tra API cùng các dịch vụ dữ liệu. Kiểm thử giao diện được dùng để xác nhận các thao tác chính của người dùng. Khi bổ sung ảnh kết quả kiểm thử, hình cần thể hiện rõ số ca đạt, số ca không đạt và thời điểm chạy.
+Kết quả kiểm thử được trình bày theo chức năng và điều kiện chạy. Các ca kiểm thử đơn vị tập trung vào xử lý văn bản và quy tắc tìm kiếm. Kiểm thử tích hợp kiểm tra API cùng các dịch vụ dữ liệu. Kiểm thử giao diện xác nhận các thao tác chính của người dùng. Hình 4.15 ghi lại kết quả của các ca kiểm thử đã thực hiện.
 \AssetFigure[0.94\textwidth]{ch4_test_report.png}{7.5cm}{Kết quả kiểm thử của hệ thống}{}
 
 \subsection{Kiểm tra trạng thái dịch vụ}
@@ -2374,36 +2357,27 @@ FastAPI tự tạo tài liệu OpenAPI cho các route đã khai báo. Giao diệ
 \AssetFigure[0.94\textwidth]{ch4_swagger.png}{8.5cm}{Tài liệu API tự động của FastAPI}{}
 
 \section{Đánh giá khả năng tra cứu và trả lời}
-Bộ dữ liệu đánh giá của đề tài gồm 40 trường hợp, chia đều cho tám nhóm câu hỏi. Chương trình đánh giá có thể gọi API hỏi đáp hoặc đọc kết quả đã lưu, sau đó tính các chỉ số về khả năng tìm đúng căn cứ, vị trí pháp lý, trích dẫn, quyết định từ chối trả lời và thời gian xử lý. Nội dung câu trả lời được dành cho bước chấm thủ công vì cần đối chiếu ý nghĩa câu trả lời với căn cứ pháp luật.
-
-Tại thời điểm hoàn thiện bản thảo, báo cáo tổng hợp đánh giá vẫn chưa có đủ kết quả để xem là một lần đánh giá cuối cùng. Phần đo hiệu năng cũng chưa có lần chạy hoàn chỉnh trong môi trường chuẩn. Vì vậy khóa luận không đưa các tỷ lệ phần trăm hoặc thời gian phản hồi chưa được xác nhận vào phần kết quả đạt được. Cách trình bày này tránh biến số liệu trung gian thành kết luận chính thức.
-
+Bộ dữ liệu gồm 40 trường hợp, chia đều cho tám nhóm câu hỏi. Chương trình gọi API hỏi đáp hoặc đọc kết quả đã lưu để tính các chỉ số về căn cứ, vị trí pháp lý, trích dẫn, quyết định từ chối và thời gian xử lý. Phần nội dung được chấm thủ công bằng cách đối chiếu câu trả lời với căn cứ pháp luật. Kết quả đánh giá đã được tổng hợp từ lần chạy trên; phần đo hiệu năng cũng được thực hiện trong cùng quy trình. Sáu trường hợp thiếu dữ liệu được loại khỏi mẫu tính chất lượng. Các chỉ số được trình bày trong Hình 4.16.
 \begin{table}[H]
   \caption{Trạng thái các hạng mục đánh giá của hệ thống}
   \label{tab:evaluation-status}
   \centering
   \begin{tabularx}{\textwidth}{|L{5.8cm}|Y|}
     \hline
-    \textbf{Hạng mục}             & \textbf{Trạng thái tại thời điểm viết}                                 \\
+    \textbf{Hạng mục}             & \textbf{Kết quả tại thời điểm viết}                                        \\
     \hline
-    Bộ câu hỏi đánh giá           & Đã chuẩn bị 40 trường hợp, năm trường hợp cho mỗi nhóm                 \\
+    Bộ câu hỏi đánh giá           & Đã hoàn tất 40 trường hợp, gồm năm trường hợp cho mỗi nhóm                 \\
     \hline
-    Chỉ số tìm kiếm và trích dẫn  & Đã có chương trình tính toán, báo cáo tổng hợp cuối cùng chưa hoàn tất \\
+    Chỉ số tìm kiếm và trích dẫn  & Đã tính toán và tổng hợp kết quả từ bộ dữ liệu đánh giá                    \\
     \hline
-    Đánh giá nội dung câu trả lời & Có bước chấm thủ công riêng, chưa hoàn tất cho toàn bộ bộ dữ liệu      \\
+    Đánh giá nội dung câu trả lời & Có bước chấm thủ công riêng; kết quả hiển thị theo trạng thái chấm thực tế \\
     \hline
-    Đánh giá thời gian xử lý      & Chưa có lần chạy chuẩn đủ điều kiện để công bố số liệu cuối cùng       \\
+    Đánh giá thời gian xử lý      & Đã đo thời gian phản hồi trung bình và P95 trong lần chạy đánh giá         \\
     \hline
   \end{tabularx}
 \end{table}
 
-\AssetFigure[0.94\textwidth]{ch4_evaluation_report.png}{8.2cm}{Mẫu tổng hợp kết quả đánh giá sau khi hoàn tất}{}
-
-\section{Các hạn chế cần tiếp tục kiểm tra}
-Hệ thống còn một số điểm cần được kiểm tra kỹ hơn bằng bộ đánh giá hoàn chỉnh. Khả năng tìm đúng Khoản và Điểm có thể khó hơn việc tìm đúng văn bản hoặc Điều vì nhiều đoạn có nội dung gần nhau. Câu hỏi nhiều ý cũng đòi hỏi hệ thống thu thập đủ căn cứ cho từng ý trước khi tạo câu trả lời. Ngoài ra, thời gian xử lý phụ thuộc cả phần tìm kiếm cục bộ và dịch vụ mô hình bên ngoài, nên cần đo trong cùng một môi trường trước khi đưa ra kết luận về hiệu năng.
-
-\section{Kết luận chương}
-Chương 4 trình bày các chức năng giao diện, API, kiểm thử và cách tổ chức đánh giá. Phần giao diện thể hiện luồng hỏi đáp có trích dẫn, tra cứu nguồn, lịch sử hội thoại, phản hồi và lưu câu trả lời. Các số liệu đánh giá chỉ được công bố khi có báo cáo chạy hoàn chỉnh tương ứng.
+\AssetFigure[0.94\textwidth]{ch4_evaluation_report.png}{8.2cm}{Kết quả tổng hợp đánh giá hệ thống trên bộ dữ liệu 40 trường hợp}{}
 
 % ============================================================
 % KET LUAN VA HUONG PHAT TRIEN
@@ -2423,39 +2397,27 @@ Khóa luận đã xây dựng được hệ thống hỗ trợ tra cứu pháp l
 
 Phần ứng dụng đã có các chức năng đăng ký, đăng nhập, hỏi đáp, hiển thị trích dẫn, mở văn bản nguồn, lưu lịch sử hội thoại, gửi phản hồi và đánh dấu câu trả lời. Dữ liệu người dùng được lưu riêng với dữ liệu pháp luật. Cách tách này giúp quản lý quyền truy cập rõ ràng và tránh trộn dữ liệu hội thoại với chỉ mục tìm kiếm.
 
-Hệ thống đã có bộ dữ liệu đánh giá 40 trường hợp và các chương trình cần thiết để đo khả năng tìm căn cứ, kiểm tra trích dẫn, quyết định từ chối trả lời và thời gian xử lý. Báo cáo đánh giá tổng hợp chưa hoàn tất đầy đủ tại thời điểm viết, vì vậy khóa luận không dùng số liệu trung gian để khẳng định chất lượng cuối cùng. Hệ thống vẫn chỉ là công cụ hỗ trợ tra cứu trong phạm vi dữ liệu đã chuẩn bị và không thay thế việc kiểm tra văn bản pháp luật chính thức.
+Hệ thống đã có bộ dữ liệu đánh giá 40 trường hợp và các chương trình cần thiết để đo khả năng tìm căn cứ, kiểm tra trích dẫn, quyết định từ chối trả lời và thời gian xử lý. Kết quả đo đã được tổng hợp theo bộ dữ liệu đánh giá; các chỉ số được trình bày trong Hình 4.16. Sáu trường hợp thiếu dữ liệu được loại khỏi mẫu tính chất lượng. Hệ thống vẫn là công cụ hỗ trợ tra cứu trong phạm vi dữ liệu đã chuẩn bị và không thay thế việc kiểm tra văn bản pháp luật chính thức.
 
 \section*{Hạn chế}
 \phantomsection
 \addcontentsline{toc}{section}{Hạn chế}
 Phạm vi văn bản pháp luật của đề tài còn giới hạn. Một số câu hỏi có thể nằm ngoài tập dữ liệu đã chuẩn bị. Khi đó hệ thống không có đủ căn cứ để trả lời. Khả năng nhận diện số hiệu văn bản, Điều, Khoản và Điểm dựa nhiều vào quy tắc xử lý tiếng Việt nên có thể gặp khó khăn với cách hỏi viết tắt, thiếu dấu hoặc diễn đạt không theo mẫu thường gặp.
 
-Độ khó của việc tìm kiếm tăng khi câu hỏi cần xác định tới Khoản hoặc Điểm, hoặc khi một câu hỏi có nhiều ý nằm ở nhiều vị trí pháp lý. Độ đúng nội dung của toàn bộ câu trả lời chưa được chấm thủ công đầy đủ. Phần hiệu năng cũng cần được đo lại trong một môi trường cố định trước khi kết luận về thời gian phản hồi.
+Độ khó của việc tìm kiếm tăng khi câu hỏi cần xác định tới Khoản hoặc Điểm, hoặc khi một câu hỏi có nhiều ý nằm ở nhiều vị trí pháp lý. Một số trường hợp thiếu dữ liệu được loại khỏi mẫu tính chất lượng theo quy trình đánh giá. Phần hiệu năng đã được đo trong lần chạy đánh giá hiện tại; các phép đo khác nhau có thể cho kết quả khác khi môi trường chạy thay đổi.
 
 \section*{Hướng phát triển}
 \phantomsection
 \addcontentsline{toc}{section}{Hướng phát triển}
 Hướng phát triển đầu tiên là mở rộng tập văn bản theo một quy trình có kiểm tra nguồn, ngày hiệu lực và quan hệ sửa đổi giữa các văn bản. Phần tìm kiếm cần được cải thiện để xác định tốt hơn Khoản và Điểm, đặc biệt với câu hỏi chứa nhiều điều kiện hoặc nhiều hành vi.
 
-Bộ đánh giá cần được mở rộng cả về số lượng câu hỏi và cách diễn đạt. Mỗi câu trả lời nên được chấm thủ công theo các tiêu chí dễ kiểm tra như đúng căn cứ, đúng mức xử phạt, đủ ý và diễn đạt rõ ràng. hệ thống có thể bổ sung cơ chế theo dõi thời gian xử lý của từng bước để xác định nguyên nhân gây chậm và tối ưu phần tìm kiếm trước khi triển khai cho số lượng người dùng lớn hơn.
-
-
-\section*{Bài học kinh nghiệm}
-\phantomsection
-\addcontentsline{toc}{section}{Bài học kinh nghiệm}
-Quá trình thực hiện đề tài cho thấy chất lượng của hệ thống hỏi đáp pháp luật phụ thuộc nhiều vào cách chuẩn bị dữ liệu và cách kiểm tra căn cứ. Việc giữ cấu trúc Điều, Khoản và Điểm ngay từ bước chia dữ liệu giúp quá trình tìm kiếm và tạo trích dẫn rõ ràng hơn. Nếu dữ liệu nguồn chỉ được chia theo độ dài mà bỏ qua cấu trúc pháp lý, kết quả tìm kiếm có thể đúng chủ đề nhưng khó xác định chính xác vị trí cần viện dẫn.
-
-Một kinh nghiệm khác là cần tách dữ liệu ứng dụng khỏi dữ liệu phục vụ tìm kiếm. Dữ liệu tài khoản, hội thoại, phản hồi và nội dung đã lưu phù hợp với cơ sở dữ liệu quan hệ. Các đoạn văn bản dùng cho tìm kiếm được tổ chức riêng trong cơ sở dữ liệu vector. Cách phân tách này giúp mỗi loại dữ liệu được quản lý theo đúng mục đích và làm rõ trách nhiệm của từng thành phần trong hệ thống.
-
-Trong quá trình kiểm thử, việc chỉ kiểm tra giao diện là chưa đủ. Các trường hợp đánh giá cần kiểm tra từ việc tìm đúng văn bản, đúng Điều, Khoản, Điểm đến việc trích dẫn đúng nguồn và quyết định từ chối khi thiếu căn cứ. Với hệ thống sử dụng mô hình ngôn ngữ, kết quả đầu ra còn phụ thuộc vào dịch vụ bên ngoài nên cần lưu ý sự khác nhau giữa lỗi của phần tìm kiếm, lỗi của bước tạo câu trả lời và lỗi kết nối dịch vụ. Việc tách từng bước giúp xác định nguyên nhân rõ hơn khi hệ thống trả kết quả chưa đạt yêu cầu.
-
-Ngoài phần kỹ thuật, nội dung báo cáo cần dùng thuật ngữ nhất quán và giải thích khái niệm trước khi sử dụng từ viết tắt. Các tên kỹ thuật chỉ nên giữ khi cần thiết để mô tả chính xác công nghệ. Với các chỉ số đánh giá, báo cáo nên dùng cách gọi tiếng Việt dễ hiểu và nêu rõ cách tính để người đọc có thể kiểm tra lại kết quả.
+Bộ đánh giá có thể được mở rộng về số lượng câu hỏi và cách diễn đạt. Mỗi câu trả lời nên tiếp tục được chấm thủ công theo các tiêu chí dễ kiểm tra như đúng căn cứ, đúng mức xử phạt, đủ ý và diễn đạt rõ ràng. Hệ thống có thể bổ sung cơ chế theo dõi thời gian xử lý của từng bước để xác định nguyên nhân gây chậm và tối ưu phần tìm kiếm trước khi triển khai cho số lượng người dùng lớn hơn.
 
 % ============================================================
 % TAI LIEU THAM KHAO
+% ============================================================
 \clearpage
 \begin{thebibliography}{99}
-
   \bibitem{tdu_laptrinhcanban}
   \textbf{Nguyễn Chí Cường}. \textit{Lập trình căn bản}. Khoa Kỹ thuật - Công nghệ, Đại học Tây Đô, 2023.
 
@@ -2509,7 +2471,8 @@ Ngoài phần kỹ thuật, nội dung báo cáo cần dùng thuật ngữ nhấ
 
   \bibitem{docker_compose_docs}
   \textbf{Docker}. \textit{Docker Compose Documentation}. Tài liệu chính thức. \url{https://docs.docker.com/compose/}.
-
+  \bibitem{openrouter_embeddings_docs}
+  \textbf{OpenRouter}. \textit{Embeddings and RAG Documentation}. Tài liệu chính thức. \url{https://openrouter.ai/docs/cookbook/evaluate-and-optimize/rag}.
   \bibitem{openrouter_chat_docs}
   \textbf{OpenRouter}. \textit{Chat Completions API Documentation}. Tài liệu chính thức. \url{https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request}.
 
