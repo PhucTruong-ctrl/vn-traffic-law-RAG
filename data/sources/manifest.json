@@ -1,6 +1,46 @@
 {
   "documents": [
     {
+      "document_id": "luat-35-2024",
+      "document_number": "35/2024/QH15",
+      "document_name": "Luật Đường bộ 35/2024/QH15",
+      "file": "luat-35-2024.md",
+      "status": "EFFECTIVE",
+      "effective_from": "2025-01-01"
+    },
+    {
+      "document_id": "luat-36-2024",
+      "document_number": "36/2024/QH15",
+      "document_name": "Luật Trật tự, an toàn giao thông đường bộ 36/2024/QH15",
+      "file": "luat-36-2024.md",
+      "status": "EFFECTIVE",
+      "effective_from": "2025-01-01"
+    },
+    {
+      "document_id": "luat-118-2025",
+      "document_number": "118/2025/QH15",
+      "document_name": "Luật 118/2025/QH15 sửa đổi, bổ sung một số luật về an ninh, trật tự",
+      "file": "luat-118-2025.md",
+      "status": "EFFECTIVE",
+      "effective_from": "2026-07-01"
+    },
+    {
+      "document_id": "nd-44-2024",
+      "document_number": "44/2024/NĐ-CP",
+      "document_name": "Nghị định 44/2024/NĐ-CP",
+      "file": "nd-44-2024.md",
+      "status": "EFFECTIVE",
+      "effective_from": "2024-06-10"
+    },
+    {
+      "document_id": "nd-67-2023",
+      "document_number": "67/2023/NĐ-CP",
+      "document_name": "Nghị định 67/2023/NĐ-CP",
+      "file": "nd-67-2023.md",
+      "status": "EFFECTIVE",
+      "effective_from": "2023-09-06"
+    },
+    {
       "document_id": "nd-100-2019",
       "document_number": "100/2019/NĐ-CP",
       "document_name": "Nghị định 100/2019/NĐ-CP",
@@ -17,6 +57,14 @@
       "effective_from": "2024-10-01"
     },
     {
+      "document_id": "nd-151-2024",
+      "document_number": "151/2024/NĐ-CP",
+      "document_name": "Nghị định 151/2024/NĐ-CP",
+      "file": "nd-151-2024.md",
+      "status": "EFFECTIVE",
+      "effective_from": "2025-01-01"
+    },
+    {
       "document_id": "nd-158-2024",
       "document_number": "158/2024/NĐ-CP",
       "document_name": "Nghị định 158/2024/NĐ-CP",
@@ -29,8 +77,9 @@
       "document_number": "160/2024/NĐ-CP",
       "document_name": "Nghị định 160/2024/NĐ-CP",
       "file": "nd-160-2024.md",
-      "status": "EFFECTIVE",
-      "effective_from": "2025-01-01"
+      "status": "EXPIRED",
+      "effective_from": "2025-01-01",
+      "effective_to": "2026-07-01"
     },
     {
       "document_id": "nd-161-2024",
@@ -65,27 +114,19 @@
       "effective_from": "2025-01-01"
     },
     {
-      "document_id": "nd-44-2024",
-      "document_number": "44/2024/NĐ-CP",
-      "document_name": "Nghị định 44/2024/NĐ-CP",
-      "file": "nd-44-2024.md",
+      "document_id": "nd-336-2025",
+      "document_number": "336/2025/NĐ-CP",
+      "document_name": "Nghị định 336/2025/NĐ-CP",
+      "file": "nd-336-2025.md",
       "status": "EFFECTIVE",
-      "effective_from": "2024-06-10"
-    },
-    {
-      "document_id": "nd-67-2023",
-      "document_number": "67/2023/NĐ-CP",
-      "document_name": "Nghị định 67/2023/NĐ-CP",
-      "file": "nd-67-2023.md",
-      "status": "EFFECTIVE",
-      "effective_from": "2023-09-06"
+      "effective_from": "2026-03-01"
     },
     {
       "document_id": "tt-05-2024",
       "document_number": "05/2024/TT-BGTVT",
       "document_name": "Thông tư 05/2024/TT-BGTVT",
       "file": "tt-05-2024.md",
-      "status": "EFFECTIVE",
+      "status": "PARTIALLY_EFFECTIVE",
       "effective_from": "2024-06-01"
     },
     {
@@ -101,23 +142,58 @@
       "document_number": "18/2024/TT-BGTVT",
       "document_name": "Thông tư 18/2024/TT-BGTVT",
       "file": "tt-18-2024.md",
-      "status": "EFFECTIVE",
-      "effective_from": "2024-07-15"
+      "status": "EXPIRED",
+      "effective_from": "2024-07-15",
+      "effective_to": "2025-01-01"
     },
     {
       "document_id": "tt-24-2023",
-      "document_number": "24/2023/TT-BGTVT",
-      "document_name": "Thông tư 24/2023/TT-BGTVT",
+      "document_number": "24/2023/TT-BCA",
+      "document_name": "Thông tư 24/2023/TT-BCA",
       "file": "tt-24-2023.md",
       "status": "EXPIRED",
       "effective_from": "2023-08-15",
       "effective_to": "2025-01-01"
     },
     {
+      "document_id": "tt-35-2024",
+      "document_number": "35/2024/TT-BGTVT",
+      "document_name": "Thông tư 35/2024/TT-BGTVT",
+      "file": "tt-35-2024.md",
+      "status": "EXPIRED",
+      "effective_from": "2025-01-01",
+      "effective_to": "2025-09-01"
+    },
+    {
+      "document_id": "tt-36-2024",
+      "document_number": "36/2024/TT-BGTVT",
+      "document_name": "Thông tư 36/2024/TT-BGTVT",
+      "file": "tt-36-2024.md",
+      "status": "EFFECTIVE",
+      "effective_from": "2025-01-01"
+    },
+    {
+      "document_id": "tt-38-2024",
+      "document_number": "38/2024/TT-BGTVT",
+      "document_name": "Thông tư 38/2024/TT-BGTVT",
+      "file": "tt-38-2024.md",
+      "status": "EFFECTIVE",
+      "effective_from": "2025-01-01"
+    },
+    {
       "document_id": "tt-39-2024",
       "document_number": "39/2024/TT-BGTVT",
       "document_name": "Thông tư 39/2024/TT-BGTVT",
       "file": "tt-39-2024.md",
+      "status": "EXPIRED",
+      "effective_from": "2025-01-01",
+      "effective_to": "2025-07-01"
+    },
+    {
+      "document_id": "tt-47-2024",
+      "document_number": "47/2024/TT-BGTVT",
+      "document_name": "Thông tư 47/2024/TT-BGTVT",
+      "file": "tt-47-2024.md",
       "status": "EFFECTIVE",
       "effective_from": "2025-01-01"
     },
@@ -130,12 +206,61 @@
       "effective_from": "2025-01-01"
     },
     {
+      "document_id": "tt-71-2024-bca",
+      "document_number": "71/2024/TT-BCA",
+      "document_name": "Thông tư 71/2024/TT-BCA",
+      "file": "tt-71-2024-bca.md",
+      "status": "EFFECTIVE",
+      "effective_from": "2025-01-01"
+    },
+    {
+      "document_id": "tt-72-2024-bca",
+      "document_number": "72/2024/TT-BCA",
+      "document_name": "Thông tư 72/2024/TT-BCA",
+      "file": "tt-72-2024-bca.md",
+      "status": "EFFECTIVE",
+      "effective_from": "2025-01-01"
+    },
+    {
+      "document_id": "tt-73-2024-bca",
+      "document_number": "73/2024/TT-BCA",
+      "document_name": "Thông tư 73/2024/TT-BCA",
+      "file": "tt-73-2024-bca.md",
+      "status": "EFFECTIVE",
+      "effective_from": "2025-01-01"
+    },
+    {
       "document_id": "tt-79-2024",
-      "document_number": "79/2024/TT-BGTVT",
-      "document_name": "Thông tư 79/2024/TT-BGTVT",
+      "document_number": "79/2024/TT-BCA",
+      "document_name": "Thông tư 79/2024/TT-BCA",
       "file": "tt-79-2024.md",
       "status": "EFFECTIVE",
       "effective_from": "2025-01-01"
+    },
+    {
+      "document_id": "tt-83-2024-bca",
+      "document_number": "83/2024/TT-BCA",
+      "document_name": "Thông tư 83/2024/TT-BCA",
+      "file": "tt-83-2024-bca.md",
+      "status": "EFFECTIVE",
+      "effective_from": "2025-01-01"
+    },
+    {
+      "document_id": "tt-12-2025-bca",
+      "document_number": "12/2025/TT-BCA",
+      "document_name": "Thông tư 12/2025/TT-BCA",
+      "file": "tt-12-2025-bca.md",
+      "status": "PARTIALLY_EFFECTIVE",
+      "effective_from": "2025-03-01",
+      "effective_to": "2027-03-01"
+    },
+    {
+      "document_id": "tt-13-2025-bca",
+      "document_number": "13/2025/TT-BCA",
+      "document_name": "Thông tư 13/2025/TT-BCA",
+      "file": "tt-13-2025-bca.md",
+      "status": "EFFECTIVE",
+      "effective_from": "2025-03-01"
     }
   ]
 }
