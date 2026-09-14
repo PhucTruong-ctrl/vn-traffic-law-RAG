@@ -115,7 +115,7 @@ def test_generator_mixed_output_retries_once(monkeypatch) -> None:
         == "Mức phạt là 2 triệu đồng."
     )
     assert model.calls == 2
-    assert constructor_kwargs["timeout"] == 120_000
+    assert constructor_kwargs["timeout"] == 8
     assert constructor_kwargs["max_retries"] == 0
 
 
@@ -218,7 +218,16 @@ def test_retrieve_query_fanout_is_bounded_and_preserves_vehicle_scopes() -> None
             )
         else:
             assert all(" đối với " not in query.casefold() for query in retriever.queries)
-        assert len(retriever.queries) <= 12
+        assert len(retriever.queries) <= 4
+
+
+def test_retrieve_query_fanout_never_exceeds_four_queries() -> None:
+    question = "Vượt đèn đỏ, không đội mũ bảo hiểm và dùng điện thoại khi lái xe bị phạt?"
+    retriever = FakeRetriever()
+
+    RAGService(retriever).retrieve(question)
+
+    assert len(retriever.queries) <= 4
 
 
 def test_answer_analyzes_question_once(monkeypatch) -> None:

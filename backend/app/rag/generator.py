@@ -109,6 +109,8 @@ def generate_answer(
     documents: Sequence[Document],
     *,
     evidence_groups: Mapping[str, Sequence[Document]] | None = None,
+    deadline: float | None = None,
+    clock: Any | None = None,
 ) -> str:
     if not documents and not evidence_groups:
         return "Chưa tìm thấy căn cứ phù hợp trong các nguồn pháp luật hiện có."
@@ -122,12 +124,21 @@ def generate_answer(
             "OpenRouter integration is not installed; run `uv sync --project backend`"
         ) from exc
 
+    now = clock or __import__("time").monotonic
+
+    def remaining() -> float:
+        return deadline - now() if deadline is not None else float("inf")
+
+    primary_timeout = min(float(getattr(settings, "timeout_seconds", 18.0)), 18.0, remaining())
+    if primary_timeout <= 0:
+        raise TimeoutError("request_timeout")
+    primary_timeout_seconds = max(1, int(primary_timeout))
     try:
         model = ChatOpenRouter(
             model=settings.model,
             api_key=SecretStr(settings.openrouter_api_key),
             base_url=settings.openrouter_base_url,
-            timeout=120_000,
+            timeout=primary_timeout_seconds,
             max_retries=0,
         )
         prompts = build_prompt(question, documents, evidence_groups=evidence_groups)
@@ -137,13 +148,24 @@ def generate_answer(
             raise RuntimeError("OpenRouter returned an empty answer")
         answer = content.strip()
         if _is_mixed_language(answer):
+            retry_timeout = min(8.0, remaining())
+            if retry_timeout < 8.0:
+                return _VIETNAMESE_FALLBACK
+            retry_timeout_seconds = max(1, int(retry_timeout))
             prompts[-1] = (
                 "human",
                 prompts[-1][1] + "\n\nBẢN NHÁP VỪA RỒI KHÔNG HỢP LỆ. Hãy viết lại toàn bộ bằng "
                 "tiếng Việt tự nhiên; giữ nguyên căn cứ, số liệu và trích dẫn từ "
                 "nguồn đã cung cấp, không thêm thông tin.",
             )
-            retry = model.invoke(prompts)
+            retry_model = ChatOpenRouter(
+                model=settings.model,
+                api_key=SecretStr(settings.openrouter_api_key),
+                base_url=settings.openrouter_base_url,
+                timeout=retry_timeout_seconds,
+                max_retries=0,
+            )
+            retry = retry_model.invoke(prompts)
             retry_content: Any = retry.content
             if not isinstance(retry_content, str) or not retry_content.strip():
                 return _VIETNAMESE_FALLBACK
@@ -151,6 +173,8 @@ def generate_answer(
             if _is_mixed_language(answer):
                 return _VIETNAMESE_FALLBACK
         return answer
+    except TimeoutError:
+        raise
     except RuntimeError:
         raise
     except Exception as exc:

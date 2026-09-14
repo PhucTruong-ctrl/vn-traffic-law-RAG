@@ -29,6 +29,9 @@ class GenerationSettings(_Env):
     model: str = Field(
         default="deepseek/deepseek-v4-flash-0731", validation_alias="GENERATION_MODEL"
     )
+    timeout_seconds: float = Field(
+        default=18.0, validation_alias="GENERATION_TIMEOUT_SECONDS", le=18.0, gt=0
+    )
 
 
 class SupabaseSettings(_Env):

@@ -35,3 +35,14 @@ def test_cold_start_creates_store_once_for_concurrent_callers() -> None:
 
     assert len(created) == 1
     assert all(result is store for result in results)
+    assert all(result is store for result in results)
+
+
+def test_retrieval_cold_start_proof_uses_no_wall_clock_sleep() -> None:
+    retriever = Retriever()
+    store = object()
+    retriever._store = store
+
+    with patch.object(retriever, "_create_store") as create_store:
+        assert retriever._store_for_query() is store
+        create_store.assert_not_called()

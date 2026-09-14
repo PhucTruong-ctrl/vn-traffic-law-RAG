@@ -235,7 +235,8 @@ def _citation(document: Document) -> dict[str, Any]:
 def _intent_groups(
     question: str, documents: list[Document], *, analysis: Any | None = None
 ) -> tuple[dict[str, list[Document]], list[Document]]:
-    analysis = analysis or analyze_question(question)
+    if analysis is None:
+        analysis = analyze_question(question)
     intents = [i for i in analysis.intents if i.kind == "legal"]
     if not intents:
         return {}, documents
@@ -253,8 +254,9 @@ def _intent_groups(
 
 
 class RAGService:
-    def __init__(self, retriever: Retriever | None = None) -> None:
+    def __init__(self, retriever: Retriever | None = None, *, clock: Any | None = None) -> None:
         self.retriever = retriever or Retriever()
+        self.clock = clock or __import__("time").monotonic
 
     def retrieve(
         self,
@@ -263,8 +265,10 @@ class RAGService:
         top_k: int = 5,
         effective_date: date | None = None,
         analysis: Any | None = None,
+        deadline: float | None = None,
     ) -> list[Document]:
-        analysis = analysis or analyze_question(question)
+        if analysis is None:
+            analysis = analyze_question(question)
         queries = [(i.text, i.text) for i in analysis.intents if i.kind == "legal"] or [
             (question, question)
         ]
@@ -275,12 +279,24 @@ class RAGService:
                 if vehicle_types
                 else tuple(VEHICLE_LABELS.values())
             )
-            queries = [(f"{q} đối với {scope}", label) for q, label in queries for scope in scopes][
-                :12
-            ]
+            if len(queries) == 1:
+                queries = [(f"{queries[0][0]} đối với {scope}", queries[0][1]) for scope in scopes]
+            else:
+                # Seed each intent, then fill remaining slots round-robin by scope.
+                expanded = [(f"{query} đối với {scopes[0]}", label) for query, label in queries]
+                for scope_index in range(1, len(scopes)):
+                    expanded.extend(
+                        (f"{query} đối với {scopes[scope_index]}", label)
+                        for query, label in queries
+                    )
+                    if len(expanded) >= 4:
+                        break
+                queries = expanded[:4]
 
         def retrieve_one(item):
             index, (query, label) = item
+            if deadline is not None and self.clock() >= deadline:
+                return index, []
             return index, [
                 Document(d.page_content, metadata={**(d.metadata or {}), "intent": label})
                 for d in self.retriever.retrieve(
@@ -289,9 +305,25 @@ class RAGService:
             ]
 
         ranked_lists: list[list[Document]] = [[] for _ in queries]
-        with ThreadPoolExecutor(max_workers=min(4, len(queries))) as executor:
-            for index, docs in executor.map(retrieve_one, enumerate(queries)):
-                ranked_lists[index] = docs
+        if queries:
+            with ThreadPoolExecutor(max_workers=min(4, len(queries))) as executor:
+                futures = [executor.submit(retrieve_one, item) for item in enumerate(queries)]
+                for future in futures:
+                    if deadline is not None:
+                        remaining = deadline - self.clock()
+                        if remaining <= 0:
+                            for pending in futures:
+                                pending.cancel()
+                            break
+                        try:
+                            index, docs = future.result(timeout=remaining)
+                        except TimeoutError:
+                            for pending in futures:
+                                pending.cancel()
+                            break
+                    else:
+                        index, docs = future.result()
+                    ranked_lists[index] = docs
         scores: dict[tuple[str, ...], float] = {}
         first_seen: dict[tuple[str, ...], tuple[int, int]] = {}
         representatives: dict[tuple[str, ...], Document] = {}
@@ -326,7 +358,6 @@ class RAGService:
             selected.append(key)
             selected_set.add(key)
 
-        # Reserve capacity for distinct intents, but never emit beyond top_k.
         for label in legal_labels[:top_k]:
             candidates = [
                 key for key in scores if label in labels.get(key, set()) and key not in selected_set
@@ -352,7 +383,9 @@ class RAGService:
         chunks: Iterable[Document] | None = None,
         top_k: int = 5,
         effective_date: date | None = None,
+        deadline: float | None = None,
     ) -> dict[str, Any]:
+        deadline = deadline if deadline is not None else self.clock() + 30.0
         analysis = analyze_question(question)
         references = extract_references(question)
         route = classify_intent(question)
@@ -366,13 +399,33 @@ class RAGService:
                 "status": "insufficient_evidence",
                 "reason_code": "out_of_scope",
             }
+        if self.clock() >= deadline:
+            return {
+                "answer": ABSTENTION_MESSAGE,
+                "citations": [],
+                "claims": [],
+                "status": "insufficient_evidence",
+                "reason_code": "request_timeout",
+            }
         documents = (
             list(chunks)
             if chunks is not None
             else self.retrieve(
-                question, top_k=top_k, effective_date=effective_date, analysis=analysis
+                question,
+                top_k=top_k,
+                effective_date=effective_date,
+                analysis=analysis,
+                deadline=min(deadline, self.clock() + 8.0),
             )
         )
+        if self.clock() >= deadline:
+            return {
+                "answer": ABSTENTION_MESSAGE,
+                "citations": [],
+                "claims": [],
+                "status": "insufficient_evidence",
+                "reason_code": "request_timeout",
+            }
         for reference in references:
             structural = [d for d in documents if metadata_matches(d.metadata or {}, reference)]
             if not structural:
@@ -403,10 +456,9 @@ class RAGService:
                 d, question=question, references=references[:1], effective_date=effective_date
             )
         ]
-        if not direct and documents and not references:
-            mismatch_reason = "no_relevant_provision"
-        else:
-            mismatch_reason = None
+        mismatch_reason = (
+            "no_relevant_provision" if not direct and documents and not references else None
+        )
         if not references and effective_date is None:
             direct = _prefer_current_versions(direct)
         families = {_provision_family(d) for d in direct}
@@ -466,7 +518,21 @@ class RAGService:
                 for label, docs in _intent_groups(question, filtered, analysis=analysis)[0].items()
                 if docs
             }
-            answer = generate_answer(question, filtered, evidence_groups=groups or None)
+            answer = generate_answer(
+                question,
+                filtered,
+                evidence_groups=groups or None,
+                deadline=min(deadline, self.clock() + 18.0),
+                clock=self.clock,
+            )
+        except TimeoutError:
+            return {
+                "answer": ABSTENTION_MESSAGE,
+                "citations": [],
+                "claims": [],
+                "status": "insufficient_evidence",
+                "reason_code": "request_timeout",
+            }
         except Exception:
             return {
                 "answer": ABSTENTION_MESSAGE,

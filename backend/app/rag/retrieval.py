@@ -165,7 +165,7 @@ def _exact_qdrant_documents(store: Any, reference: LegalReference, limit: int) -
             points, _ = client.scroll(
                 collection_name=collection,
                 scroll_filter=query_filter,
-                limit=max(limit * 3, limit),
+                limit=min(max(limit * 3, limit), 64),
                 with_payload=True,
             )
         except Exception:
@@ -214,26 +214,19 @@ def _metadata_text_documents(
     normalized_text = _normalized_action(text)
     if client is None or not collection or not normalized_text:
         return []
-    documents: list[Document] = []
-    offset: Any = None
     try:
-        while len(documents) < limit:
-            points, next_offset = client.scroll(
-                collection_name=collection,
-                offset=offset,
-                limit=max(limit * 4, 64),
-                with_payload=True,
-            )
-            documents.extend(
-                document
-                for point in points
-                if isinstance((payload := getattr(point, "payload", None)), Mapping)
-                and (document := _payload_document(payload)) is not None
-                and _action_matches(document.metadata.get(field, ""), normalized_text, context)
-            )
-            if next_offset is None or next_offset == offset:
-                break
-            offset = next_offset
+        points, _ = client.scroll(
+            collection_name=collection,
+            limit=64,
+            with_payload=True,
+        )
+        documents = [
+            document
+            for point in points
+            if isinstance((payload := getattr(point, "payload", None)), Mapping)
+            and (document := _payload_document(payload)) is not None
+            and _action_matches(document.metadata.get(field, ""), normalized_text, context)
+        ]
     except Exception:
         return []
     return documents[:limit]
@@ -300,7 +293,7 @@ def _sibling_completion_documents(
         points, _ = client.scroll(
             collection_name=collection,
             scroll_filter=Filter(must=must),
-            limit=max(limit * 4, limit),
+            limit=min(max(limit * 4, limit), 64),
             with_payload=True,
         )
     except Exception:
@@ -365,7 +358,7 @@ class Retriever:
     def __init__(self, *, top_k: int = 8) -> None:
         if top_k < 1:
             raise ValueError("top_k must be positive")
-        self.top_k = top_k
+        self.top_k = min(top_k, 50)
         self._store: Any = None
         self._store_lock = Lock()
 
@@ -455,7 +448,7 @@ class Retriever:
         top_k: int | None = None,
         effective_date: date | None = None,
     ) -> list[Document]:
-        limit = top_k or self.top_k
+        limit = min(top_k or self.top_k, 50)
         if limit < 1:
             raise ValueError("top_k must be positive")
         from .references import extract_references

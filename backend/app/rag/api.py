@@ -61,6 +61,24 @@ def chat(
     token = credentials.credentials
     started = perf_counter()
     stages: dict[str, float] = {}
+    outcomes: dict[str, str] = {}
+    timeout_stage: str | None = None
+    timing_logged = False
+
+    def log_timing() -> None:
+        nonlocal timing_logged
+        if timing_logged:
+            return
+        timing_logged = True
+        record: dict[str, Any] = {
+            "total_ms": round((perf_counter() - started) * 1000, 2),
+            "stages_ms": {key: value for key, value in stages.items()},
+            "outcomes": {key: value for key, value in outcomes.items()},
+        }
+        if timeout_stage:
+            record["timeout_stage"] = timeout_stage
+        logger.info("chat_timing %s", record)
+
     try:
         stage_started = perf_counter()
         user_id = str(user.get("id") or user.get("user_id") or user["sub"])
@@ -74,7 +92,8 @@ def chat(
         query = resolve_vehicle_followup(request.question, history)
         if query == request.question.strip():
             query = build_followup_query(query, history)
-        stages["history_ms"] = round((perf_counter() - stage_started) * 1000, 2)
+        stages["route_analyze_ms"] = round((perf_counter() - stage_started) * 1000, 2)
+        outcomes["route_analyze"] = "ok"
 
         stage_started = perf_counter()
         user_message = add_message(
@@ -84,17 +103,27 @@ def chat(
             {"content": request.question, "role": "user", "status": "pending"},
             token,
         )
-        stages["persistence_ms"] = round((perf_counter() - stage_started) * 1000, 2)
+        outcomes["persistence"] = "ok"
 
         stage_started = perf_counter()
-        result = _frontend_response(
-            rag_service.answer(
-                query,
-                top_k=request.top_k,
-                effective_date=request.effective_date,
-            )
+        raw_result = rag_service.answer(
+            query,
+            top_k=request.top_k,
+            effective_date=request.effective_date,
         )
+        service_timing = raw_result.pop("_timing", None)
+        result = _frontend_response(raw_result)
         stages["rag_ms"] = round((perf_counter() - stage_started) * 1000, 2)
+        outcomes["rag"] = str(result.get("status", "ok"))
+        if isinstance(service_timing, dict):
+            for key, value in service_timing.get("stages_ms", {}).items():
+                if isinstance(value, (int, float)) and 0 <= value <= 30000:
+                    stages[str(key)] = round(float(value), 2)
+            for key, value in service_timing.get("outcomes", {}).items():
+                if isinstance(value, str) and len(value) <= 32:
+                    outcomes[str(key)] = value
+            if isinstance(service_timing.get("timeout_stage"), str):
+                timeout_stage = service_timing["timeout_stage"][:64]
 
         assistant_message = add_message(
             client,
@@ -111,8 +140,8 @@ def chat(
             token,
         )
         touch_session(client, user_id, session_id, token)
-        stages["total_ms"] = round((perf_counter() - started) * 1000, 2)
-        logger.info("chat_stage_timings %s", stages)
+        outcomes["request"] = "ok"
+        log_timing()
         return {
             **result,
             "session_id": session_id,
@@ -122,9 +151,13 @@ def chat(
             "assistant_message_id": assistant_message.get("id"),
         }
     except HTTPException:
+        outcomes["request"] = "http_error"
+        log_timing()
         raise
     except Exception:
         logger.exception("chat request failed")
+        outcomes["request"] = "failed"
+        log_timing()
         # Provider and schema failures are user-visible abstentions, never 5xx
         # responses or persisted unverified drafts.
         fallback = {
