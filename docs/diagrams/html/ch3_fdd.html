@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sơ đồ phân rã chức năng của hệ thống</title>
+<style>
+:root{--paper:#f5f5f5;--paper-2:#fff;--ink:#2d3142;--muted:#4f5d75;--soft:#7a8399;--rule:rgba(45,49,66,.14);--accent:#eb6c36;--accent-tint:#fbe5da}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:'Be Vietnam Pro','Segoe UI',sans-serif}main{max-width:1600px;margin:0 auto;padding:40px 44px 32px}.eyebrow{margin:0 0 12px;color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase}.title{margin:0;font-size:32px;line-height:1.15;font-weight:600;letter-spacing:-.025em}.subtitle{margin:12px 0 0;color:var(--muted);font-size:16px;line-height:1.6}figure{width:1600px;margin:32px 0 0;overflow:visible}svg{display:block;width:1600px;height:600px;overflow:visible}svg rect,svg path,svg text,svg g,svg tspan{box-sizing:content-box}.legend{margin-top:18px;padding-top:14px;border-top:1px solid var(--rule);display:flex;gap:28px;align-items:center;color:var(--muted);font-size:12px}.legend strong{font-size:11px;letter-spacing:.14em}.legend span{display:inline-flex;align-items:center;gap:8px}.dot{width:9px;height:9px;border:1px solid var(--muted);display:inline-block}.dot.root{background:var(--accent-tint);border-color:var(--accent)}.dot.group{background:#fff}.dot.leaf{background:rgba(45,49,66,.05)}footer{margin-top:28px;padding-top:14px;border-top:1px solid var(--rule);color:var(--soft);font-size:11px}
+.leaf-label.long{font-size:11px}
+svg .node-label,svg .tag{font-family:'Be Vietnam Pro','Segoe UI',sans-serif}.node-label{fill:var(--ink);font-size:14px;font-weight:600}.root-label{font-size:17px;font-weight:700}.leaf-label{font-size:12px;font-weight:500}.tag{fill:var(--muted);font-size:9px;font-weight:600;letter-spacing:.12em}.connector{fill:none;stroke:var(--muted);stroke-width:1.2}.bus{stroke:var(--soft);stroke-width:1}.node{stroke-width:1}.root{fill:var(--accent-tint);stroke:var(--accent)}.group{fill:#fff;stroke:var(--ink)}.leaf{fill:rgba(45,49,66,.05);stroke:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+<p class="eyebrow">CH3 · FUNCTIONAL DECOMPOSITION</p>
+<h1 class="title">Sơ đồ phân rã chức năng của hệ thống</h1>
+<p class="subtitle">Hệ thống hỗ trợ tra cứu pháp luật giao thông Việt Nam — phân rã theo chức năng nghiệp vụ, không phụ thuộc công nghệ.</p>
+<figure>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 600" width="1600" height="600" preserveAspectRatio="xMinYMin meet" role="img" aria-labelledby="ch3-fdd-title ch3-fdd-desc">
+<title id="ch3-fdd-title">Sơ đồ phân rã chức năng của hệ thống</title>
+<desc id="ch3-fdd-desc">Cây chức năng phân rã hệ thống hỗ trợ tra cứu pháp luật giao thông Việt Nam thành sáu nhóm nghiệp vụ và các chức năng chi tiết.</desc>
+<defs>
+<marker id="ch3-fdd-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#4f5d75"/></marker>
+</defs>
+<g id="ch3-fdd-connectors">
+<path class="connector" d="M800 112V140M200 140H1400M200 140V164M600 140V164M1000 140V164M1400 140V164"/>
+<path class="connector" d="M200 230V250M60 250H340M60 250V274M200 250V274M340 250V274"/>
+<path class="connector" d="M600 230V250M420 250H780M420 250V274M540 250V274M660 250V274M780 250V274"/>
+<path class="connector" d="M1000 230V250M860 250H1140M860 250V274M1000 250V274M1140 250V274"/>
+<path class="connector" d="M1400 230V250M1250 250H1550M1250 250V274M1350 250V274M1450 250V274M1550 250V274"/>
+<path class="connector" d="M200 426V448M60 448H340M60 448V472M200 448V472M340 448V472"/>
+<path class="connector" d="M1000 426V448M860 448H1140M860 448V472M1000 448V472M1140 448V472"/>
+</g>
+<!-- root -->
+<rect class="node root" x="600" y="48" width="400" height="64" rx="8"/>
+<text class="tag" x="800" y="72" text-anchor="middle">HỆ THỐNG</text><text class="node-label root-label" x="800" y="94" text-anchor="middle">Hỗ trợ tra cứu pháp luật giao thông</text>
+<!-- groups -->
+<g><rect class="node group" x="100" y="164" width="200" height="66" rx="6"/><text class="tag" x="200" y="188" text-anchor="middle">F01</text><text class="node-label" x="200" y="213" text-anchor="middle">Quản lý tài khoản</text></g>
+<g><rect class="node group" x="500" y="164" width="200" height="66" rx="6"/><text class="tag" x="600" y="188" text-anchor="middle">F02</text><text class="node-label" x="600" y="213" text-anchor="middle">Hỏi đáp pháp luật</text></g>
+<g><rect class="node group" x="900" y="164" width="200" height="66" rx="6"/><text class="tag" x="1000" y="188" text-anchor="middle">F03</text><text class="node-label" x="1000" y="213" text-anchor="middle">Quản lý hội thoại</text></g>
+<g><rect class="node group" x="1300" y="164" width="200" height="66" rx="6"/><text class="tag" x="1400" y="188" text-anchor="middle">F04</text><text class="node-label" x="1400" y="213" text-anchor="middle">Tra cứu nguồn pháp luật</text></g>
+<!-- first leaves -->
+<g><rect class="node leaf" x="4" y="274" width="112" height="54" rx="6"/><text class="node-label leaf-label" x="60" y="307" text-anchor="middle">Đăng ký</text></g>
+<g><rect class="node leaf" x="144" y="274" width="112" height="54" rx="6"/><text class="node-label leaf-label" x="200" y="307" text-anchor="middle">Đăng nhập</text></g>
+<g><rect class="node leaf" x="284" y="274" width="112" height="54" rx="6"/><text class="node-label leaf-label" x="340" y="307" text-anchor="middle">Đăng xuất</text></g>
+<g><rect class="node leaf" x="364" y="274" width="112" height="54" rx="6"/><text class="node-label leaf-label" x="420" y="307" text-anchor="middle">Phân tích</text></g>
+<g><rect class="node leaf" x="484" y="274" width="112" height="54" rx="6"/><text class="node-label leaf-label" x="540" y="307" text-anchor="middle">Tìm kiếm</text></g>
+<g><rect class="node leaf" x="604" y="274" width="112" height="54" rx="6"/><text class="node-label leaf-label" x="660" y="307" text-anchor="middle">Kiểm căn cứ</text></g>
+<g><rect class="node leaf" x="724" y="274" width="112" height="54" rx="6"/><text class="node-label leaf-label" x="780" y="307" text-anchor="middle">Trả lời</text></g>
+<g><rect class="node leaf" x="824" y="274" width="112" height="54" rx="6"/><text class="node-label leaf-label" x="880" y="307" text-anchor="middle">Tạo phiên</text></g>
+<g><rect class="node leaf" x="940" y="274" width="120" height="54" rx="6"/><text class="node-label leaf-label" x="1000" y="307" text-anchor="middle">Trích dẫn</text></g>
+<g><rect class="node leaf" x="1064" y="274" width="112" height="54" rx="6"/><text class="node-label leaf-label" x="1120" y="307" text-anchor="middle">Tạo lời</text></g>
+<g><rect class="node leaf" x="1194" y="274" width="112" height="54" rx="6"/><text class="node-label leaf-label" x="1250" y="307" text-anchor="middle">Danh sách</text></g>
+<g><rect class="node leaf" x="1310" y="274" width="80" height="54" rx="6"/><text class="node-label leaf-label" x="1350" y="307" text-anchor="middle">Tìm kiếm</text></g>
+<g><rect class="node leaf" x="1410" y="274" width="112" height="54" rx="6"/><text class="node-label leaf-label long" x="1466" y="299" text-anchor="middle"><tspan x="1466" dy="0">Xem nội</tspan><tspan x="1466" dy="16">dung</tspan></text></g>
+<g><rect class="node leaf" x="1530" y="274" width="66" height="54" rx="6"/><text class="node-label leaf-label" x="1563" y="307" text-anchor="middle">PDF</text></g>
+<!-- lower groups -->
+<g><rect class="node group" x="100" y="360" width="200" height="66" rx="6"/><text class="tag" x="200" y="384" text-anchor="middle">F05</text><text class="node-label" x="200" y="409" text-anchor="middle">Quản lý lịch sử</text></g>
+<g><rect class="node group" x="900" y="360" width="200" height="66" rx="6"/><text class="tag" x="1000" y="384" text-anchor="middle">F06</text><text class="node-label" x="1000" y="409" text-anchor="middle">Phản hồi và nội dung đã lưu</text></g>
+<!-- lower leaves -->
+<g><rect class="node leaf" x="4" y="472" width="112" height="54" rx="6"/><text class="node-label leaf-label" x="60" y="505" text-anchor="middle">Xem lịch sử</text></g>
+<g><rect class="node leaf" x="144" y="472" width="112" height="54" rx="6"/><text class="node-label leaf-label" x="200" y="505" text-anchor="middle">Xóa phiên</text></g>
+<g><rect class="node leaf" x="284" y="472" width="112" height="54" rx="6"/><text class="node-label leaf-label" x="340" y="505" text-anchor="middle">Quản lý phiên</text></g>
+<g><rect class="node leaf" x="824" y="472" width="150" height="54" rx="6"/><text class="node-label leaf-label long" x="899" y="497" text-anchor="middle"><tspan x="899" dy="0">Đánh giá câu</tspan><tspan x="899" dy="16">trả lời</tspan></text></g>
+<g><rect class="node leaf" x="984" y="472" width="130" height="54" rx="6"/><text class="node-label leaf-label long" x="1049" y="497" text-anchor="middle"><tspan x="1049" dy="0">Lưu câu</tspan><tspan x="1049" dy="16">trả lời</tspan></text></g>
+<g><rect class="node leaf" x="1124" y="472" width="150" height="54" rx="6"/><text class="node-label leaf-label long" x="1199" y="497" text-anchor="middle"><tspan x="1199" dy="0">Bỏ lưu</tspan><tspan x="1199" dy="16">nội dung</tspan></text></g>
+<!-- lower leaves -->
+<g><rect class="node leaf" x="4" y="472" width="112" height="54" rx="6"/><text class="node-label leaf-label" x="60" y="505" text-anchor="middle">Xem lịch sử</text></g>
+<g><rect class="node leaf" x="144" y="472" width="112" height="54" rx="6"/><text class="node-label leaf-label" x="200" y="505" text-anchor="middle">Xóa phiên</text></g>
+<g><rect class="node leaf" x="284" y="472" width="112" height="54" rx="6"/><text class="node-label leaf-label" x="340" y="505" text-anchor="middle">Quản lý phiên</text></g>
+<g><rect class="node leaf" x="824" y="472" width="150" height="54" rx="6"/><text class="node-label leaf-label long" x="899" y="497" text-anchor="middle"><tspan x="899" dy="0">Đánh giá câu</tspan><tspan x="899" dy="16">trả lời</tspan></text></g>
+<g><rect class="node leaf" x="984" y="472" width="130" height="54" rx="6"/><text class="node-label leaf-label long" x="1049" y="497" text-anchor="middle"><tspan x="1049" dy="0">Lưu câu</tspan><tspan x="1049" dy="16">trả lời</tspan></text></g>
+<g><rect class="node leaf" x="1124" y="472" width="150" height="54" rx="6"/><text class="node-label leaf-label long" x="1199" y="497" text-anchor="middle"><tspan x="1199" dy="0">Bỏ lưu</tspan><tspan x="1199" dy="16">nội dung</tspan></text></g>
+</svg>
+</figure>
+<div class="legend"><strong>CHÚ GIẢI</strong><span><i class="dot root"></i>Hệ thống</span><span><i class="dot group"></i>Nhóm chức năng</span><span><i class="dot leaf"></i>Chức năng chi tiết</span></div>
+<footer>FDD · Chức năng nghiệp vụ · Không biểu diễn actor hoặc thành phần công nghệ</footer>
+</main>
+</body>
+</html>

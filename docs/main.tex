@@ -38,7 +38,7 @@
 \setmathfont{latinmodern-math.otf}
 
 \hypersetup{colorlinks=false,hidelinks,pdfauthor={Quách Trường Phúc},pdftitle={Khóa luận tốt nghiệp - VN Traffic Law RAG}}
-\graphicspath{{assets/}{./assets/}{diagrams/}{./diagrams/}}
+\graphicspath{{diagrams/}{./diagrams/}{diagrams/}{./diagrams/}}
 
 \pagestyle{fancy}
 \fancyhf{}
@@ -89,11 +89,11 @@
 \newcommand{\AssetFigure}[5][0.86\textwidth]{%
   \begin{figure}[H]
     \centering
-    \IfFileExists{assets/#2}{%
-      \includegraphics[width=#1,height=#3,keepaspectratio]{assets/#2}%
+    \IfFileExists{diagrams/#2}{%
+      \includegraphics[width=#1,height=#3,keepaspectratio]{diagrams/#2}%
     }{%
-      \IfFileExists{assets/#2}{%
-        \includegraphics[width=#1,height=#3,keepaspectratio]{assets/#2}%
+      \IfFileExists{diagrams/#2}{%
+        \includegraphics[width=#1,height=#3,keepaspectratio]{diagrams/#2}%
       }{%
         \fbox{\rule{0pt}{#3}\rule{0.82\textwidth}{0pt}}%
       }%
@@ -225,8 +225,8 @@ PHÁP LUẬT GIAO THÔNG VIỆT NAM
 
     \vspace{0.65cm}
 
-    \IfFileExists{assets/tdu_logo.png}{
-      \includegraphics[width=4.6cm]{assets/tdu_logo.png}
+    \IfFileExists{diagrams/tdu_logo.png}{
+      \includegraphics[width=4.6cm]{diagrams/tdu_logo.png}
     }{
       \vspace{3.2cm}
     }
@@ -336,8 +336,8 @@ PHÁP LUẬT GIAO THÔNG VIỆT NAM
 
     \vspace{0.65cm}
 
-    \IfFileExists{assets/tdu_logo.png}{
-      \includegraphics[width=4.6cm]{assets/tdu_logo.png}
+    \IfFileExists{diagrams/tdu_logo.png}{
+      \includegraphics[width=4.6cm]{diagrams/tdu_logo.png}
     }{
       \vspace{3.2cm}
     }
@@ -835,7 +835,7 @@ Qdrant cho phép lưu nhiều dạng vector trong cùng một point và hỗ tr�
 
 Qdrant lưu đồng thời biểu diễn ngữ nghĩa và biểu diễn theo từ khóa của từng đoạn pháp luật. Khi tập văn bản thay đổi, chỉ mục được xây dựng lại từ dữ liệu JSONL đã chuẩn hóa. Văn bản nguồn vẫn được lưu riêng để người dùng có thể mở và kiểm tra lại.
 
-\AssetFigure[0.92\textwidth]{ch2_hybrid_tìm kiếm.png}{7.2cm}{Tìm kiếm kết hợp ngữ nghĩa và từ khóa trong Qdrant}{}
+\AssetFigure[0.92\textwidth]{ch2_hybrid_retrieval.png}{7.2cm}{Tìm kiếm kết hợp ngữ nghĩa và từ khóa trong Qdrant}{}
 
 \section{Phân tích câu hỏi bằng quy tắc xác định trước}
 Mô-đun phân tích câu hỏi có nhiệm vụ xác định các ý pháp lý cần tìm. Hệ thống dùng biểu thức chính quy để phát hiện loại phương tiện, các từ khóa như phạt tiền, trừ điểm, tước quyền sử dụng và một số hành vi phổ biến. Câu hỏi có thể được tách thành tối đa bốn intent để giới hạn số lượng truy vấn phát sinh.
@@ -876,7 +876,7 @@ Mô hình ngôn ngữ chỉ được gọi sau bước tìm kiếm và kiểm tr
 
 Retriever tìm dữ liệu, bước kiểm tra căn cứ kiểm tra điều kiện, còn model diễn đạt câu trả lời. Vì mỗi phần có đầu vào và đầu ra riêng, các phần này có thể được kiểm thử độc lập.
 
-\AssetFigure[0.90\textwidth]{ch2_tạo câu trả lời.png}{6.8cm}{Luồng sinh câu trả lời từ các căn cứ đã truy xuất}{}
+\AssetFigure[0.90\textwidth]{ch2_generation.png}{6.8cm}{Luồng sinh câu trả lời từ các căn cứ đã truy xuất}{}
 
 \section{Kiểm tra kết quả sau khi tạo câu trả lời}
 Sau khi mô hình ngôn ngữ tạo nội dung, hệ thống thực hiện thêm một bước kiểm tra bằng các quy tắc xác định. Bước này không đánh giá văn phong của câu trả lời mà kiểm tra mối liên hệ giữa câu trả lời, căn cứ đã tìm được và danh sách trích dẫn.
@@ -1213,7 +1213,7 @@ Yêu cầu phi chức năng tập trung vào độ tin cậy, bảo mật, khả
 \end{table}
 
 \section{Sơ đồ chức năng và sơ đồ luồng dữ liệu}
-Quy định của Khoa yêu cầu phần ứng dụng thể hiện sơ đồ chức năng và sơ đồ luồng dữ liệu. Với hệ thống này, sơ đồ chức năng dùng để nhóm các chức năng theo mục đích sử dụng. DFD dùng để mô tả dữ liệu đi giữa người dùng, tiến trình xử lý và các nơi lưu trữ.
+Với hệ thống này, sơ đồ chức năng dùng để nhóm các chức năng theo mục đích sử dụng. DFD dùng để mô tả dữ liệu đi giữa người dùng, tiến trình xử lý và các nơi lưu trữ.
 
 \subsection{Sơ đồ phân rã chức năng}
 Sơ đồ phân rã chức năng gồm các nhóm xác thực, hỏi đáp pháp luật, quản lý hội thoại, tra cứu nguồn, phản hồi và xử lý dữ liệu pháp luật. Sơ đồ chỉ cho biết quan hệ phân cấp chức năng, không thể hiện thứ tự xử lý.
@@ -1999,11 +1999,11 @@ Sơ đồ tổng quát của một lượt hỏi đáp cần thể hiện Ngư�
 
 \subsection{Sơ đồ tuần tự tìm kiếm căn cứ}
 Sơ đồ này đi sâu vào phần tìm kiếm. Dịch vụ RAG tạo các truy vấn cần thiết, thực hiện tìm kiếm theo từ khóa và theo vector, nhận danh sách kết quả từ Qdrant, gộp thứ hạng, giới hạn số đoạn trùng lặp và bổ sung các đoạn liên quan trước khi trả tập căn cứ về bước kiểm tra.
-\AssetFigure[0.98\textwidth]{ch3_sequence_tìm kiếm.png}{9.0cm}{Sơ đồ tuần tự tìm kiếm và tổng hợp căn cứ}{}
+\AssetFigure[0.98\textwidth]{ch3_sequence_retrieval.png}{9.0cm}{Sơ đồ tuần tự tìm kiếm và tổng hợp căn cứ}{}
 
 \subsection{Sơ đồ tuần tự tạo và kiểm tra câu trả lời}
 Khi tập căn cứ đạt yêu cầu, dịch vụ phía máy chủ tạo nội dung yêu cầu cho mô hình và gửi đến dịch vụ mô hình. Sau khi nhận kết quả, hệ thống kiểm tra lại trích dẫn, đoạn trích và mức độ liên kết giữa câu trả lời với căn cứ. Nếu bước kiểm tra sau cùng không đạt, kết quả được chuyển về trạng thái chưa đủ căn cứ.
-\AssetFigure[0.98\textwidth]{ch3_sequence_tạo câu trả lời.png}{9.0cm}{Sơ đồ tuần tự tạo và kiểm tra câu trả lời}{}
+\AssetFigure[0.98\textwidth]{ch3_sequence_generation.png}{9.0cm}{Sơ đồ tuần tự tạo và kiểm tra câu trả lời}{}
 
 \subsection{Sơ đồ tuần tự mở nguồn trích dẫn}
 Người dùng chọn trích dẫn trên giao diện. Frontend sử dụng thông tin định danh văn bản và vị trí pháp lý để yêu cầu dữ liệu nguồn. Hệ thống trả nội dung đã chuẩn hóa hoặc thông tin tệp PDF tương ứng. Trình xem hiển thị tài liệu để người dùng đối chiếu với câu trả lời.
@@ -2277,7 +2277,7 @@ Quá trình xử lý đọc văn bản theo từng dòng và nhận diện các 
 
 \subsection{Tìm kiếm căn cứ}
 Khi nhận câu hỏi, hệ thống trước hết kiểm tra xem câu hỏi có nêu rõ số văn bản, Điều, Khoản hoặc Điểm hay không. Nếu có, các thông tin này được dùng làm điều kiện lọc. Sau đó hệ thống thực hiện tìm kiếm theo ngữ nghĩa và theo từ khóa, gộp thứ hạng của hai danh sách, ưu tiên các kết quả khớp vị trí pháp lý và trả về số lượng kết quả đã cấu hình.
-\AssetFigure[0.90\textwidth]{ch3_flow_tìm kiếm.png}{8.5cm}{Lưu đồ tìm kiếm căn cứ pháp luật}{}
+\AssetFigure[0.90\textwidth]{ch3_flow_retrieval.png}{8.5cm}{Lưu đồ tìm kiếm căn cứ pháp luật}{}
 
 \subsection{Xử lý câu hỏi và kiểm tra căn cứ}
 Câu hỏi có thể chứa nhiều yêu cầu, chẳng hạn mức phạt và trừ điểm giấy phép lái xe. Hệ thống tách các yêu cầu này thành các ý cần tìm. Sau khi tìm kiếm, bước kiểm tra căn cứ xác nhận rằng có đủ dữ liệu để trả lời các ý chính. Nếu chưa đủ, hệ thống trả thông báo chưa có đủ căn cứ thay vì tạo câu trả lời suy đoán.

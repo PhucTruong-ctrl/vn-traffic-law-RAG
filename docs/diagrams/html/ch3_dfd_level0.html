@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sơ đồ luồng dữ liệu mức 0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#f5f5f5;--paper2:#fff;--ink:#2d3142;--muted:#4f5d75;--soft:#7a8399;--rule:rgba(45,49,66,.16);--accent:#eb6c36}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:"Be Vietnam Pro",Arial,sans-serif}main{max-width:1440px;margin:auto;padding:48px 56px 32px}.eyebrow{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:0 0 12px;font-weight:600}h1{font-size:32px;line-height:1.15;font-weight:600;margin:0 0 8px}.sub{font-size:16px;color:var(--muted);margin:0 0 28px}.frame{background:var(--paper2);border:1px solid var(--rule);border-radius:8px;padding:20px;overflow:auto}svg{display:block;width:100%;min-width:1184px;height:auto}.note{margin:18px 0 0;color:var(--muted);font-size:13px;line-height:1.6;border-top:1px solid var(--rule);padding-top:16px}.footer{margin-top:24px;border-top:1px solid var(--rule);padding-top:12px;color:var(--soft);font-size:12px}
+</style></head><body><main>
+<p class="eyebrow">CHAPTER 03 · DATA FLOW DIAGRAM</p><h1>Sơ đồ luồng dữ liệu mức 0</h1><p class="sub">Luồng xác thực, hỏi đáp pháp luật, quản lý hội thoại, tra cứu nguồn và phản hồi nội dung.</p>
+<div class="frame"><svg viewBox="0 0 1280 1060" role="img" aria-labelledby="ch3-dfd-level0-title ch3-dfd-level0-desc">
+<title id="ch3-dfd-level0-title">Sơ đồ luồng dữ liệu mức 0</title><desc id="ch3-dfd-level0-desc">Người dùng trao đổi dữ liệu với năm tiến trình chính và năm kho dữ liệu logic trong hệ thống hỏi đáp pháp luật.</desc>
+<defs><marker id="dfd-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#4f5d75"/></marker><marker id="dfd-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#eb6c36"/></marker><style>
+.t{font-family:"Be Vietnam Pro",Arial,sans-serif;fill:#2d3142}.name{font-size:16px;font-weight:600}.small{font-size:12px;fill:#4f5d75}.tag{font-size:10px;font-weight:600;letter-spacing:.1em;fill:#4f5d75}.label{font-size:11px;font-weight:500;fill:#4f5d75}.flow{fill:none;stroke:#4f5d75;stroke-width:1.5;marker-end:url(#dfd-arrow)}.accent{fill:none;stroke:#eb6c36;stroke-width:1.8;marker-end:url(#dfd-accent)}.proc{fill:#fff;stroke:#2d3142;stroke-width:1.2}.store{fill:rgba(45,49,66,.05);stroke:#4f5d75;stroke-width:1.2}.external{fill:rgba(45,49,66,.03);stroke:rgba(45,49,66,.45);stroke-width:1.2}.mask{fill:#fff}
+</style></defs><rect width="1280" height="1060" fill="#f5f5f5"/>
+<!-- connectors: user to processes -->
+<path class="flow" d="M224 100 H280"/><path class="accent" d="M224 276 H280"/><path class="flow" d="M224 452 H280"/><path class="flow" d="M224 628 H280"/><path class="flow" d="M224 804 H280"/>
+<!-- process 1 to D1 --> <path class="flow" d="M440 100 H520 V68 H600"/>
+<!-- process 2 to data stores and answer --> <path class="flow" d="M440 276 H520 V236 H600"/><path class="flow" d="M440 276 H520 V332 H600"/><path class="flow" d="M440 276 H760 V276 H1000"/>
+<!-- process 3 to D4 --> <path class="flow" d="M440 452 H600"/>
+<!-- process 4 to D2 --> <path class="flow" d="M440 628 H520 V236 H600"/>
+<!-- process 5 to D5 --> <path class="flow" d="M440 804 H600"/>
+<!-- labels, placed in open canvas with masks -->
+<rect class="mask" x="236" y="78" width="68" height="18" rx="2"/><text class="label t" x="270" y="91" text-anchor="middle">đăng nhập</text>
+<rect class="mask" x="236" y="254" width="52" height="18" rx="2"/><text class="label t" x="262" y="267" text-anchor="middle">câu hỏi</text>
+<rect class="mask" x="236" y="430" width="76" height="18" rx="2"/><text class="label t" x="274" y="443" text-anchor="middle">quản lý chat</text>
+<rect class="mask" x="236" y="606" width="64" height="18" rx="2"/><text class="label t" x="268" y="619" text-anchor="middle">tra cứu</text>
+<rect class="mask" x="236" y="782" width="64" height="18" rx="2"/><text class="label t" x="268" y="795" text-anchor="middle">feedback</text>
+<rect class="mask" x="468" y="50" width="68" height="18" rx="2"/><text class="label t" x="502" y="63" text-anchor="middle">xác thực</text>
+<rect class="mask" x="468" y="218" width="64" height="18" rx="2"/><text class="label t" x="500" y="231" text-anchor="middle">truy vấn</text>
+<rect class="mask" x="468" y="314" width="64" height="18" rx="2"/><text class="label t" x="500" y="327" text-anchor="middle">truy vấn</text>
+<rect class="mask" x="560" y="258" width="64" height="18" rx="2"/><text class="label t" x="592" y="271" text-anchor="middle">trả lời</text>
+<rect class="mask" x="472" y="610" width="64" height="18" rx="2"/><text class="label t" x="504" y="623" text-anchor="middle">nguồn luật</text>
+<rect class="mask" x="468" y="786" width="72" height="18" rx="2"/><text class="label t" x="504" y="799" text-anchor="middle">lưu phản hồi</text>
+<!-- external entities -->
+<g><rect class="external" x="48" y="68" width="176" height="64" rx="8"/><text class="tag t" x="64" y="92">EXTERNAL</text><text class="name t" x="136" y="116" text-anchor="middle">Người dùng</text></g>
+<g><rect class="external" x="48" y="244" width="176" height="64" rx="8"/><text class="tag t" x="64" y="268">EXTERNAL</text><text class="name t" x="136" y="292" text-anchor="middle">Người dùng</text></g>
+<g><rect class="external" x="48" y="420" width="176" height="64" rx="8"/><text class="tag t" x="64" y="444">EXTERNAL</text><text class="name t" x="136" y="468" text-anchor="middle">Người dùng</text></g>
+<g><rect class="external" x="48" y="596" width="176" height="64" rx="8"/><text class="tag t" x="64" y="620">EXTERNAL</text><text class="name t" x="136" y="644" text-anchor="middle">Người dùng</text></g>
+<g><rect class="external" x="48" y="772" width="176" height="64" rx="8"/><text class="tag t" x="64" y="796">EXTERNAL</text><text class="name t" x="136" y="820" text-anchor="middle">Người dùng</text></g>
+<!-- processes -->
+<g><rect class="proc" x="280" y="68" width="160" height="64" rx="6"/><rect x="296" y="80" width="40" height="16" rx="2" fill="rgba(45,49,66,.04)" stroke="#4f5d75"/><text class="tag t" x="316" y="92" text-anchor="middle">1.0</text><text class="name t" x="360" y="116" text-anchor="middle">Xác thực</text></g>
+<g><rect class="proc" x="280" y="244" width="160" height="64" rx="6"/><rect x="296" y="256" width="40" height="16" rx="2" fill="#eb6c36"/><text class="tag" x="316" y="268" text-anchor="middle" fill="#fff">2.0</text><text class="name t" x="360" y="292" text-anchor="middle">Hỏi đáp pháp luật</text></g>
+<g><rect class="proc" x="280" y="420" width="160" height="64" rx="6"/><rect x="296" y="432" width="40" height="16" rx="2" fill="rgba(45,49,66,.04)" stroke="#4f5d75"/><text class="tag t" x="316" y="444" text-anchor="middle">3.0</text><text class="name t" x="360" y="468" text-anchor="middle">Quản lý hội thoại</text></g>
+<g><rect class="proc" x="280" y="596" width="160" height="64" rx="6"/><rect x="296" y="608" width="40" height="16" rx="2" fill="rgba(45,49,66,.04)" stroke="#4f5d75"/><text class="tag t" x="316" y="620" text-anchor="middle">4.0</text><text class="name t" x="360" y="644" text-anchor="middle">Tra cứu nguồn luật</text></g>
+<g><rect class="proc" x="280" y="772" width="160" height="64" rx="6"/><rect x="296" y="784" width="40" height="16" rx="2" fill="rgba(45,49,66,.04)" stroke="#4f5d75"/><text class="tag t" x="316" y="796" text-anchor="middle">5.0</text><text class="name t" x="360" y="820" text-anchor="middle">Phản hồi và lưu</text></g>
+<!-- data stores -->
+<g><rect class="store" x="600" y="36" width="160" height="64" rx="6"/><text class="tag t" x="616" y="60">D1</text><text class="name t" x="680" y="84" text-anchor="middle">Người dùng</text></g>
+<g><rect class="store" x="600" y="204" width="160" height="64" rx="6"/><text class="tag t" x="616" y="228">D2</text><text class="name t" x="680" y="252" text-anchor="middle">Dữ liệu pháp luật</text></g>
+<g><rect class="store" x="600" y="300" width="160" height="64" rx="6"/><text class="tag t" x="616" y="324">D3</text><text class="name t" x="680" y="348" text-anchor="middle">Dữ liệu tìm kiếm</text></g>
+<g><rect class="store" x="600" y="420" width="160" height="64" rx="6"/><text class="tag t" x="616" y="444">D4</text><text class="name t" x="680" y="468" text-anchor="middle">Hội thoại</text></g>
+<g><rect class="store" x="600" y="772" width="160" height="64" rx="6"/><text class="tag t" x="616" y="796">D5</text><text class="name t" x="680" y="820" text-anchor="middle">Feedback / Bookmark</text></g>
+<g><rect class="store" x="1000" y="244" width="200" height="64" rx="6"/><text class="tag t" x="1016" y="268">OUTPUT</text><text class="name t" x="1100" y="292" text-anchor="middle">Câu trả lời + citation</text></g>
+<!-- legend -->
+<line x1="48" y1="920" x2="1200" y2="920" stroke="rgba(45,49,66,.16)"/><text class="tag t" x="48" y="948">CHÚ GIẢI</text><text class="small t" x="144" y="948">Ô bo tròn = tác nhân ngoài</text><text class="small t" x="408" y="948">Ô trắng = tiến trình</text><text class="small t" x="620" y="948">Ô xám = kho dữ liệu</text><text class="small t" x="880" y="948">Mũi tên = luồng dữ liệu</text>
+</svg></div><p class="note"><strong>Ghi chú triển khai:</strong> D4 và D5 có thể được lưu cùng trong Supabase ở mức triển khai. DFD này giữ tên dữ liệu logic, không dùng tên sản phẩm.</p><div class="footer">VN Traffic Law RAG · Chapter 03 · DFD level 0</div>
+</main></body></html>
