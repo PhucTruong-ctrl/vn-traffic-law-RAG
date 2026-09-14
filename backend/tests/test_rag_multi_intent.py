@@ -76,92 +76,91 @@ def test_generator_prompt_addresses_legal_audience_without_internal_fallback_ter
     assert "CONTEXT" not in human[1]
 
 
+def _fake_openai(monkeypatch, responses: list[str]):
+    import app.rag.generator as generator
+
+    class Completions:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def create(self, **_kwargs):
+            text = responses[min(self.calls, len(responses) - 1)]
+            self.calls += 1
+            message = type("Message", (), {"content": text})()
+            return type("Response", (), {"choices": [type("Choice", (), {"message": message})()]})()
+
+    completions = Completions()
+
+    class Client:
+        def __init__(self, **_kwargs):
+            self.chat = type("Chat", (), {"completions": completions})()
+
+    monkeypatch.setattr(generator, "OpenAI", Client)
+    return completions
+
+
 def test_generator_mixed_output_retries_once(monkeypatch) -> None:
     import app.rag.generator as generator
 
-    class Model:
-        def __init__(self, *args, **kwargs):
-            self.calls = 0
-
-        def invoke(self, prompt):
-            self.calls += 1
-            return type(
-                "Response",
-                (),
-                {
-                    "content": "Aceasta este o sancțiune și este pentru test."
-                    if self.calls == 1
-                    else "Mức phạt là 2 triệu đồng."
-                },
-            )()
-
-    model = Model()
-    constructor_kwargs = {}
     monkeypatch.setattr(
         generator,
         "get_generation_settings",
         lambda: type(
-            "S", (), {"openrouter_api_key": "x", "model": "m", "openrouter_base_url": "u"}
+            "S",
+            (),
+            {"openrouter_api_key": "x", "model": "m", "openrouter_base_url": "https://provider"},
         )(),
     )
-
-    def fake_chat_openrouter(**kwargs):
-        constructor_kwargs.update(kwargs)
-        return model
-
-    monkeypatch.setattr("langchain_openrouter.ChatOpenRouter", fake_chat_openrouter)
+    client = _fake_openai(
+        monkeypatch,
+        ["Aceasta este o sancțiune și este pentru test.", "Mức phạt là 2 triệu đồng."],
+    )
     assert (
         generator.generate_answer("Vượt đèn đỏ?", [Document("Điều 6")])
         == "Mức phạt là 2 triệu đồng."
     )
-    assert model.calls == 2
-    assert constructor_kwargs["timeout"] == 8
-    assert constructor_kwargs["max_retries"] == 0
+    assert client.calls == 2
 
 
 def test_generator_clean_vietnamese_does_not_retry(monkeypatch) -> None:
     import app.rag.generator as generator
 
-    class Model:
-        calls = 0
-
-        def invoke(self, prompt):
-            self.calls += 1
-            return type(
-                "Response", (), {"content": "Người điều khiển phải chấp hành tín hiệu đèn."}
-            )()
-
-    model = Model()
     monkeypatch.setattr(
         generator,
         "get_generation_settings",
         lambda: type(
-            "S", (), {"openrouter_api_key": "x", "model": "m", "openrouter_base_url": "u"}
+            "S",
+            (),
+            {"openrouter_api_key": "x", "model": "m", "openrouter_base_url": "https://provider"},
         )(),
     )
-    monkeypatch.setattr("langchain_openrouter.ChatOpenRouter", lambda **kwargs: model)
+    client = _fake_openai(monkeypatch, ["Người điều khiển phải chấp hành tín hiệu đèn."])
     assert generator.generate_answer("Vượt đèn đỏ?", [Document("Điều 6")])
-    assert model.calls == 1
+    assert client.calls == 1
 
 
 def test_generator_two_mixed_outputs_return_vietnamese_fallback(monkeypatch) -> None:
     import app.rag.generator as generator
 
-    class Model:
-        def invoke(self, prompt):
-            return type(
-                "Response", (), {"content": "Aceasta este o sancțiune și este pentru test."}
-            )()
-
     monkeypatch.setattr(
         generator,
         "get_generation_settings",
         lambda: type(
-            "S", (), {"openrouter_api_key": "x", "model": "m", "openrouter_base_url": "u"}
+            "S",
+            (),
+            {"openrouter_api_key": "x", "model": "m", "openrouter_base_url": "https://provider"},
         )(),
     )
-    monkeypatch.setattr("langchain_openrouter.ChatOpenRouter", lambda **kwargs: Model())
-    result = generator.generate_answer("Vượt đèn đỏ?", [Document("Điều 6")])
+    _fake_openai(
+        monkeypatch,
+        [
+            "Aceasta este o sancțiune și este pentru test.",
+            "Aceasta este o sancțiune și este pentru test.",
+        ],
+    )
+    result = generator.generate_answer(
+        "Vượt đèn đỏ?", [Document("Điều 6")], deadline=20.0, clock=lambda: 10.0
+    )
     assert result.startswith("Chưa thể tạo câu trả lời tiếng Việt")
 
 

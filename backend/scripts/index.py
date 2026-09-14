@@ -13,7 +13,30 @@ from langchain_core.documents import Document  # noqa: E402
 from langchain_openai import OpenAIEmbeddings  # noqa: E402
 from langchain_qdrant import FastEmbedSparse, QdrantVectorStore, RetrievalMode  # noqa: E402
 
-from app.config import get_embedding_settings, get_qdrant_settings  # noqa: E402
+from app.config import (  # noqa: E402
+    get_embedding_settings,
+    get_qdrant_settings,
+)
+
+
+def _setting(settings: object, name: str, default: object) -> object:
+    """Read optional embedding settings from lightweight test doubles."""
+    return getattr(settings, name, default)
+
+
+_DEFAULT_EMBEDDING = get_embedding_settings()
+
+
+def _embedding_kwargs(settings: object) -> dict[str, object]:
+    return {
+        "model": _setting(settings, "model", _DEFAULT_EMBEDDING.model),
+        "dimensions": _setting(settings, "dimensions", _DEFAULT_EMBEDDING.dimensions),
+        "api_key": _setting(settings, "openrouter_api_key", _DEFAULT_EMBEDDING.openrouter_api_key)
+        or None,
+        "base_url": _setting(
+            settings, "openrouter_base_url", _DEFAULT_EMBEDDING.openrouter_base_url
+        ),
+    }
 
 
 def _load(path: Path) -> list[Document]:
@@ -39,7 +62,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     if args.force_recreate and args.collection is None:
-        parser.error("--force-recreate requires explicit --collection")
+        raise SystemExit("--force-recreate requires explicit --collection")
     if not args.chunks.is_file():
         raise SystemExit(f"chunks file not found: {args.chunks}")
     documents = _load(args.chunks)
@@ -51,12 +74,7 @@ def main(argv: list[str] | None = None) -> int:
     store = None
     try:
         qdrant.path.mkdir(parents=True, exist_ok=True)
-        dense = OpenAIEmbeddings(
-            model=embedding.model,
-            dimensions=embedding.dimensions,
-            api_key=embedding.openrouter_api_key or None,
-            base_url=embedding.openrouter_base_url,
-        )
+        dense = OpenAIEmbeddings(**_embedding_kwargs(embedding))
         sparse = FastEmbedSparse("Qdrant/bm25")
         client_options = (
             {

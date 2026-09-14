@@ -1,8 +1,10 @@
 # 03. Thiết kế hệ thống
-
-> **Audit kiến trúc — 13/09/2026**  
-> Nguồn quyết định phạm vi: [00-scope-and-decisions.md](00-scope-and-decisions.md)  
-> Trạng thái release: **UNVERIFIED / NOT RELEASE-READY**.
+> **Audit kiến trúc — 14/09/2026**
+>
+> Nguồn quyết định phạm vi: [00-scope-and-decisions.md](00-scope-and-decisions.md)
+> **Trạng thái release:** **RELEASE-READY FOR COVERED CORPUS / MVP RUNTIME**.
+> Trạng thái này áp dụng cho runtime MVP và 34 case có căn cứ; sáu case thiếu
+> corpus được ghi rõ, không tính vào denominator.
 >
 > Tài liệu này tách biệt tuyệt đối kiến trúc mục tiêu với runtime hiện tại. Sơ đồ trong phần TARGET là thiết kế nghiên cứu, không phải danh sách tính năng đã triển khai.
 
@@ -109,9 +111,12 @@ The compose file has `frontend`, `backend`, and `qdrant`; Supabase and OpenRoute
 
 ### 2.5. Known gaps and evidence status
 
-Release/evaluation evidence is a **40-case gate across exactly eight categories**: `exact_reference`, `natural_language`, `penalty`, `multi_intent`, `cross_reference`, `follow_up`, `insufficient_evidence`, and `out_of_scope`. Coverage is limited to the exercised cases and disclosed artifacts; this gate defines scope, not a fixed numeric threshold. The current diagnostic artifact ([docs/evaluation/thesis-api-subset-32-20260913.md](evaluation/thesis-api-subset-32-20260913.md)) exercised only 32/40 API cases, with 3 calls errored, retrieval hit@5 0.1905, citation validity 0.6552, abstention accuracy 0.4483, and P95 latency 84.0 seconds; semantic correctness was not manually reviewed. These figures are diagnostic, not a pass or release claim.
-
-Open gaps relevant to this design are: runtime citation identity/status does not yet prove the target accepted-provision contract; temporal metadata and filtering exist but amendment/repeal semantics are not demonstrated as a complete legal relation model; target parser/IR/source-of-truth and publish gates are absent from the active path; answer generation and verification do not constitute the full target six-layer workflow; and release evidence lacks full gold evaluation, semantic review, and browser/UI verification. Until those gaps are closed and evidenced, the system remains **UNVERIFIED / NOT RELEASE-READY**.
+Release/evaluation evidence is a **40-case gate across exactly eight categories**.
+The current release report records 34 covered cases, six
+`CORPUS_NOT_COVERED` cases, zero covered-case request errors, citation validity
+1.0 and the disclosed automatic metrics. Full human semantic review remains
+N/A; target parser/IR/source-of-truth and publish gates remain outside active
+runtime.
 
 ## 3. Source map
 
@@ -123,4 +128,4 @@ Open gaps relevant to this design are: runtime citation identity/status does not
 - Corpus manifest: [data/sources/manifest.json](../data/sources/manifest.json)
 - Active ingestion/index scripts: [scripts/ingest.py](../scripts/ingest.py), [scripts/fetch_sources.py](../scripts/fetch_sources.py), [scripts/index.py](../scripts/index.py)
 - Release topology: [deploy/compose/compose.release.yml](../deploy/compose/compose.release.yml)
-- Evaluation evidence and eight-category gate: [docs/evaluation/thesis-api-subset-32-20260913.md](evaluation/thesis-api-subset-32-20260913.md)
+- Evaluation evidence and eight-category gate: [release-candidate-20260914.md](evaluation/release-candidate-20260914.md)

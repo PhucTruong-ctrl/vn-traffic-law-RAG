@@ -1,9 +1,8 @@
 # 01. Phân tích tính khả thi
-
-> **Trạng thái audit:** UNVERIFIED / NOT RELEASE-READY  
-> **Tài liệu quyết định phạm vi:** [00-scope-and-decisions.md](00-scope-and-decisions.md)  
-> **Evidence artifact:** [evaluation/thesis-release-full-40-20260913.md](evaluation/thesis-release-full-40-20260913.md)  
-> **Historical diagnostic artifact:** [evaluation/thesis-api-subset-32-20260913.md](evaluation/thesis-api-subset-32-20260913.md)
+> **Trạng thái audit:** RELEASE-READY FOR COVERED CORPUS / MVP RUNTIME (14/09/2026)
+> **Tài liệu quyết định phạm vi:** [00-scope-and-decisions.md](00-scope-and-decisions.md)
+> **Evidence artifact:** [evaluation/release-candidate-20260914.md](evaluation/release-candidate-20260914.md)
+> **Giới hạn:** sáu case thiếu corpus không tính denominator; semantic correctness toàn bộ là N/A.
 
 ## 1. Bài toán và giá trị nghiên cứu
 
@@ -41,7 +40,9 @@ Audit hiện tại cho thấy:
 - Citation được dựng từ `chunk_id`, `document_id`, Điều/Khoản/Điểm và source metadata. Có deterministic checks trong evidence layer, nhưng chưa có bằng chứng đầy đủ cho stable `provision_id`/accepted review workflow, production reranker, LangGraph, sáu verifier độc lập hoặc failure-aware repair graph.
 - Ingestion runtime là Markdown/JSONL loader (`backend/app/ingestion/markdown.py`), đọc `data/sources/manifest.json` và Markdown dưới `data/corpus/mds`. Manifest hiện có 17 entries; điều này không chứng minh release corpus đúng 14 PDF. Chưa có bằng chứng runtime cho Parser Router, Canonical IR, PostgreSQL legal source-of-truth hoặc immutable accepted-publish pipeline.
 - Release compose hiện có Qdrant, backend và frontend; Supabase/OpenRouter là dịch vụ bên ngoài. Audit không thấy active runtime path cho PostgreSQL/SQLAlchemy/Alembic legal source-of-truth, Redis/Dramatiq, MinIO, Langfuse, LangGraph hoặc Docling/MinerU Parser Router.
-Evidence artifact hiện có diagnostic run 40/40 case qua API, không qua UI; kết quả cho thấy retrieval hit@5 và legal-coordinate accuracy bằng 0, citation validity chưa đạt gate, có timeout/null prediction và semantic review còn kết quả incorrect/partial/unavailable. Đây là bằng chứng chẩn đoán, không phải bằng chứng release-ready. Artifact 32/40 trước đó chỉ là lịch sử chẩn đoán, không phải release result.
+Evidence release candidate ghi nhận 40 rows, 34 covered rows, sáu
+`CORPUS_NOT_COVERED`, covered-case errors bằng 0, citation validity 1.0 và
+invalid citation rate 0%. Semantic review toàn bộ vẫn N/A.
 
 ## 4. Khả thi phần cứng và vận hành — có điều kiện
 
@@ -58,18 +59,18 @@ Lịch cũ không đủ để chứng minh hoàn thành. Các hạng mục còn 
 
 ## 7. Blocker và rủi ro chính
 
-1. **Corpus mismatch:** loader hiện dùng 17 Markdown entries, trong khi frozen release contract yêu cầu 14 PDF allowlisted; provenance và publish gate chưa được chứng minh.
-2. **Citation/evidence risk:** evidence checks có nhưng citation validity và abstention accuracy trong subset còn thấp; có nguy cơ trả claim thiếu căn cứ hoặc citation sai.
-3. **Temporal/reference risk:** filtering hiện có, nhưng semantics sửa đổi/thay thế và relation source-of-truth mục tiêu chưa được chứng minh end-to-end.
-4. **Performance risk:** diagnostic run có latency cao; chưa có phân tích đầy đủ qua UI, tải đồng thời hoặc đánh giá coverage rộng hơn bộ 40 case.
-5. **Operational dependency risk:** Supabase, OpenRouter-compatible embeddings/generation và Qdrant deployment cần cấu hình, quota và availability ngoài repository.
-6. **Scope confusion:** các thành phần PostgreSQL, queue, object storage, observability, parser router và workflow orchestration là target/historical design, không được báo cáo như runtime.
-7. **Evaluation gap:** đã có diagnostic run 40 case qua API nhưng chưa chứng minh release gate đầy đủ; semantic review, manual browser verification và các gate corpus/provenance vẫn chưa đạt.
-
+1. **Corpus scope:** runtime release dùng corpus hiện có; sáu case thiếu căn cứ được
+   phân loại `CORPUS_NOT_COVERED`, không làm giả dữ liệu để đạt gold.
+2. **Citation/evidence:** release candidate covered-case citation validity là 1.0;
+   invalid citation rate bằng 0%.
+3. **Temporal/reference risk:** filtering hiện có, nhưng semantics sửa đổi/thay
+   thế và relation source-of-truth mục tiêu chưa được chứng minh đầy đủ.
+4. **Performance:** mean latency 13.13 giây và P95 24.11 giây; chưa có load test.
+5. **Operational dependencies:** Supabase, OpenRouter-compatible embeddings/generation
+   và Qdrant deployment cần quota/availability ngoài repository.
+6. **Scope confusion:** PostgreSQL, queue, object storage, observability, parser
 ## 8. Kết luận
 
-Đề tài có **giá trị nghiên cứu rõ ràng** và kiến trúc mục tiêu **có thể triển khai về nguyên tắc**, nhưng tính khả thi kỹ thuật, vận hành, tài chính và lịch trình chỉ là kết luận có điều kiện. Runtime hiện tại chứng minh một MVP RAG có auth, persistence, hybrid retrieval, temporal filtering giới hạn và citation assembly; chưa chứng minh toàn bộ frozen release contract hay target architecture.
-
-> **Quyết định hiện tại: UNVERIFIED / NOT RELEASE-READY.**
-
-Chỉ có thể chuyển trạng thái sau khi evidence artifact đầy đủ xác nhận corpus/provenance, retrieval và citation, evidence-gated abstention, temporal/reference behavior, performance, release gate 40 case/8 category và UI/browser release gates. Bộ đánh giá này có coverage giới hạn, không thay thế đánh giá toàn diện. Không dùng thiết kế mục tiêu, kế hoạch chi phí hoặc lịch cũ thay cho bằng chứng runtime.
+Runtime hiện tại đủ điều kiện release cho covered corpus và MVP runtime. Sáu case
+thiếu corpus được fail closed; public production hardening và semantic review
+toàn bộ vẫn là công việc ngoài scope release hiện tại.

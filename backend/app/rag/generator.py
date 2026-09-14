@@ -6,7 +6,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from langchain_core.documents import Document
-from pydantic import SecretStr
+from openai import OpenAI
 
 from app.config import get_generation_settings
 
@@ -117,12 +117,6 @@ def generate_answer(
     settings = get_generation_settings()
     if not settings.openrouter_api_key:
         raise RuntimeError("OpenRouter API key is missing (set OPENROUTER_API_KEY)")
-    try:
-        from langchain_openrouter import ChatOpenRouter
-    except ImportError as exc:
-        raise RuntimeError(
-            "OpenRouter integration is not installed; run `uv sync --project backend`"
-        ) from exc
 
     now = clock or __import__("time").monotonic
 
@@ -133,17 +127,25 @@ def generate_answer(
     if primary_timeout <= 0:
         raise TimeoutError("request_timeout")
     primary_timeout_seconds = max(1, int(primary_timeout))
+    prompts = build_prompt(question, documents, evidence_groups=evidence_groups)
+    openai_messages: list[dict[str, str]] = [
+        {"role": "user" if role == "human" else role, "content": content}
+        for role, content in prompts
+    ]
     try:
-        model = ChatOpenRouter(
-            model=settings.model,
-            api_key=SecretStr(settings.openrouter_api_key),
+        model = OpenAI(
+            api_key=settings.openrouter_api_key,
             base_url=settings.openrouter_base_url,
             timeout=primary_timeout_seconds,
             max_retries=0,
         )
-        prompts = build_prompt(question, documents, evidence_groups=evidence_groups)
-        response = model.invoke(prompts)
-        content: Any = response.content
+        response = model.chat.completions.create(
+            model=settings.model,
+            messages=openai_messages,  # type: ignore[arg-type]
+            max_tokens=1024,
+            extra_body={"reasoning_effort": "none"},
+        )
+        content: Any = response.choices[0].message.content
         if not isinstance(content, str) or not content.strip():
             raise RuntimeError("OpenRouter returned an empty answer")
         answer = content.strip()
@@ -151,22 +153,23 @@ def generate_answer(
             retry_timeout = min(8.0, remaining())
             if retry_timeout < 8.0:
                 return _VIETNAMESE_FALLBACK
-            retry_timeout_seconds = max(1, int(retry_timeout))
             prompts[-1] = (
-                "human",
+                "user",
                 prompts[-1][1] + "\n\nBẢN NHÁP VỪA RỒI KHÔNG HỢP LỆ. Hãy viết lại toàn bộ bằng "
                 "tiếng Việt tự nhiên; giữ nguyên căn cứ, số liệu và trích dẫn từ "
                 "nguồn đã cung cấp, không thêm thông tin.",
             )
-            retry_model = ChatOpenRouter(
+            openai_messages = [
+                {"role": "user" if role == "human" else role, "content": content}
+                for role, content in prompts
+            ]
+            retry_response = model.chat.completions.create(
                 model=settings.model,
-                api_key=SecretStr(settings.openrouter_api_key),
-                base_url=settings.openrouter_base_url,
-                timeout=retry_timeout_seconds,
-                max_retries=0,
+                messages=openai_messages,  # type: ignore[arg-type]
+                max_tokens=1024,
+                extra_body={"reasoning_effort": "none"},
             )
-            retry = retry_model.invoke(prompts)
-            retry_content: Any = retry.content
+            retry_content: Any = retry_response.choices[0].message.content
             if not isinstance(retry_content, str) or not retry_content.strip():
                 return _VIETNAMESE_FALLBACK
             answer = retry_content.strip()

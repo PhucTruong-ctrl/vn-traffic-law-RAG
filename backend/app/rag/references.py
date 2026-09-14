@@ -8,8 +8,8 @@ from dataclasses import dataclass
 from typing import Any
 
 _CANONICAL_RE = re.compile(
-    r"(?<![a-z0-9-])(?P<document_id>nd-\d+-\d{4}__dieu-\d+"
-    r"(?:__khoan-\d+)?(?:__diem-[a-zđ])?)(?![a-z0-9_-])",
+    r"(?<![a-z0-9-])nd-\d+-\d{4}__dieu-\d+"
+    r"(?:__khoan-\d+)?(?:__diem-[a-zđ])?(?![a-z0-9_-])",
     re.IGNORECASE,
 )
 _REFERENCE_RE = re.compile(
@@ -58,7 +58,7 @@ def parse_reference(text: str) -> LegalReference | None:
     canonical = _CANONICAL_RE.search(text)
     natural = _REFERENCE_RE.search(text)
     if canonical and (not natural or canonical.start() < natural.start()):
-        return _parse_canonical(canonical.group("document_id"))
+        return _parse_canonical(canonical.group(0))
     if natural:
         values = natural.groupdict()
         return LegalReference(**{key: value for key, value in values.items() if value})
@@ -75,7 +75,7 @@ def extract_references(text: str, *, limit: int = 4) -> list[LegalReference]:
         return []
     matches: list[tuple[int, LegalReference]] = []
     for pattern, parser in (
-        (_CANONICAL_RE, lambda m: _parse_canonical(m.group("document_id"))),
+        (_CANONICAL_RE, lambda m: _parse_canonical(m.group(0))),
         (
             _REFERENCE_RE,
             lambda m: LegalReference(
@@ -153,10 +153,14 @@ def _parse_canonical(value: str) -> LegalReference | None:
         return None
     fields = {"document_id": document_id, "article": article_part.split("-", 1)[1]}
     for part in rest:
-        key, _, value = part.partition("-")
-        if key not in {"khoan", "diem"} or not value or (key == "khoan" and not value.isdigit()):
+        key, _, point_value = part.partition("-")
+        if (
+            key not in {"khoan", "diem"}
+            or not point_value
+            or (key == "khoan" and not point_value.isdigit())
+        ):
             return None
-        fields["clause" if key == "khoan" else "point"] = value
+        fields["clause" if key == "khoan" else "point"] = point_value
     return LegalReference(**fields)
 
 

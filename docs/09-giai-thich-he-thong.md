@@ -1,5 +1,8 @@
-# Xây dựng hệ thống RAG nhận biết cấu trúc và thời gian hiệu lực để hỗ trợ tra cứu pháp luật giao thông Việt Nam với trích dẫn có thể kiểm chứng
+# 09. Giải thích hệ thống
 
+> **Trạng thái release:** **RELEASE-READY FOR COVERED CORPUS / MVP RUNTIME**
+> (audit 14/09/2026). Sáu case thiếu corpus được ghi rõ và không tính vào
+> denominator; semantic correctness toàn bộ vẫn chưa được human review.
 *A Structure-Aware and Temporal RAG System for Vietnamese Traffic Law Question Answering with Verifiable Citations*
 
 **Sinh viên thực hiện:** Quách Trương Phúc  
@@ -14,10 +17,8 @@
 Khóa luận trình bày một hệ thống Retrieval-Augmented Generation (RAG) hỗ trợ tra cứu pháp luật giao thông Việt Nam. Trọng tâm nghiên cứu là bảo toàn cấu trúc Điều–Khoản–Điểm, lọc theo thời gian hiệu lực, kết hợp truy xuất ngữ nghĩa và từ khóa, và cung cấp citation được dựng từ metadata thay vì để mô hình tự tạo định danh. Tài liệu này phân biệt rõ **kiến trúc mục tiêu** với **runtime đã kiểm chứng**; các thành phần chưa có code hoặc bằng chứng vận hành không được trình bày như đã hoàn thành.
 
 Runtime hiện tại gồm FastAPI/Python, Supabase Auth và Supabase REST cho dữ liệu phiên trò chuyện theo người dùng, Qdrant cho hybrid dense/sparse retrieval, FastEmbed BM25, embeddings qua cấu hình OpenAI-compatible/OpenRouter, bộ nạp Markdown/JSONL, và frontend Next.js/React. Hệ thống có temporal filtering, exact metadata filtering, bounded sibling/cross-reference expansion, deterministic evidence checks và sinh câu trả lời Markdown. Audit hiện tại chưa chứng minh LangGraph, PostgreSQL làm nguồn chân lý pháp lý, Redis/Dramatiq, MinIO, Langfuse, production reranker hay verifier sáu tầng độc lập.
+**Từ khóa:** RAG, pháp luật giao thông Việt Nam, temporal retrieval, Qdrant, citation verification. Release report hiện tại là [release-candidate-20260914.md](evaluation/release-candidate-20260914.md).
 
-Artifact đánh giá hiện có chỉ chạy 32/40 trường hợp qua API: 3 lỗi, hit@5 retrieval 19,05%, citation validity 65,52%, abstention accuracy 44,83%, P95 84,0 giây; chưa có semantic review. Vì vậy trạng thái là **UNVERIFIED / NOT RELEASE-READY**.
-
-**Từ khóa:** RAG, pháp luật giao thông Việt Nam, temporal retrieval, Qdrant, citation verification.
 
 ### Abstract
 
@@ -45,7 +46,7 @@ Phạm vi frozen yêu cầu corpus release 14 PDF sau deduplicate theo document 
 
 ### Trạng thái kiểm chứng
 
-Theo `docs/00-scope-and-decisions.md` và artifact `docs/evaluation/thesis-api-subset-32-20260913.md`, release đang ở trạng thái **UNVERIFIED / NOT RELEASE-READY**. Bộ candidate/gold 14-PDF/200-record là artifact riêng bị đóng băng; không được dùng sự tồn tại của artifact để suy ra runtime đã ingest hoặc phục vụ đúng toàn bộ bộ đó.
+Release hiện tại được quyết định theo [release-candidate-20260914.md](evaluation/release-candidate-20260914.md): covered corpus/MVP runtime đạt release-ready; sáu case thiếu corpus được phân loại riêng và không tính denominator. Candidate/gold mở rộng vẫn là artifact nghiên cứu, không phải runtime claim.
 
 ## 2. Bài toán và yêu cầu
 
@@ -126,24 +127,20 @@ Khoảng cách này là kết quả audit, không phải danh sách tính năng 
 
 ## 6. Đánh giá và bằng chứng
 
-### Artifact hiện có
+### Artifact hiện tại
 
-Artifact `thesis-api-subset-32-20260913.md` chạy 32/40 case trực tiếp qua API, không qua UI. Kết quả quan sát là:
+Artifact release candidate là
+[`release-candidate-20260914.md`](evaluation/release-candidate-20260914.md).
+Nó ghi nhận 40 rows, 34 covered rows, sáu `CORPUS_NOT_COVERED`, zero
+covered-case errors, citation validity 1.0, invalid citation rate 0% và
+abstention accuracy 0.9118. Semantic correctness toàn bộ là N/A.
 
-| Chỉ số | Giá trị |
-|---|---:|
-| API calls lỗi | 3/32 |
-| Retrieval hit@5 | 19,05% |
-| Citation validity | 65,52% |
-| Abstention accuracy | 44,83% |
-| P95 latency | 84,0 giây |
-| Semantic correctness | Chưa review |
+### Cách đánh giá
 
-Các số liệu trên không phải full evaluation, không phải kết luận chất lượng cuối và không đủ để tuyên bố release-ready. Full gold gate 200 record, semantic review, UI/E2E và các release gates vẫn chưa được chứng minh.
-
-### Cách đánh giá cần hoàn tất
-
-Gold set phải giữ split và hash đóng băng; metric phải align theo question ID, không dùng kết quả thiếu để tính như pass. Cần tách parser, retrieval, temporal, citation, evidence completeness, abstention, latency và semantic review. Không được dùng final test để tuning. Các mục tiêu như Returned Invalid Citation Rate bằng 0 hoặc P95 thấp hơn ngưỡng là acceptance target, không phải số đo hiện tại.
+Gold set giữ nguyên; case thiếu corpus không tính denominator. Runner tách
+retrieval, legal coordinates, citation validity, abstention và latency khỏi
+human semantic review. Không dùng feedback hoặc dữ liệu ngoài corpus để làm
+đẹp release result.
 
 ## 7. Triển khai
 
@@ -159,15 +156,20 @@ Có thể kiểm tra câu hỏi hiện hành, historical, comparison, câu ngoà
 
 ## 8. Hạn chế
 
-Corpus runtime nhỏ và khác frozen 14-PDF contract; loader Markdown không chứng minh PDF provenance. Retrieval/citation hiện có chất lượng chưa đạt mức có thể kết luận; P95 chẩn đoán cao và có lỗi API. Temporal metadata và bounded expansion phụ thuộc chất lượng manifest/payload. Generator là free-form Markdown nên chưa tương đương claim-level structured generation. Chưa có semantic review bởi chuyên gia pháp lý, full verifier, production reranker hay repair workflow. Hệ thống chỉ hỗ trợ tra cứu, không thay thế tư vấn pháp lý.
+Corpus runtime là covered serving corpus và không đại diện toàn bộ pháp luật.
+Missing-corpus cases được fail closed. Generator, temporal metadata và bounded
+expansion vẫn phụ thuộc chất lượng manifest/payload; semantic review chuyên gia,
+load test và public hardening nằm ngoài MVP release claim.
 
 ## 9. Kết luận và hướng phát triển
 
 ### Kết luận
 
-Runtime hiện tại đã cung cấp một nền tảng RAG có authentication theo user, lưu chat qua Supabase, hybrid retrieval trên Qdrant, temporal/exact filtering, bounded expansion, deterministic evidence checks và citation từ metadata. Đây là cơ sở thực nghiệm hữu ích, nhưng chưa phải toàn bộ kiến trúc target. Đặc biệt, không có cơ sở để nói Parser Router/Canonical IR, PostgreSQL legal source of truth, worker/object storage/observability, production reranker hoặc verifier sáu tầng đã được giao.
-
-Với bằng chứng 32/40 API case và các chỉ số nêu trên, kết luận đúng là release chưa được xác minh và chưa sẵn sàng phát hành. Cách diễn giải này bảo toàn sự khác biệt giữa đề xuất nghiên cứu, implementation hiện tại và kết quả đã đo.
+Runtime cung cấp authentication theo user, lưu chat qua Supabase, hybrid
+retrieval trên Qdrant, temporal/exact filtering, bounded expansion,
+deterministic evidence checks và citation từ metadata. Release candidate đạt
+release-ready cho covered corpus/MVP runtime; evidence chi tiết nằm trong
+`docs/evaluation/release-candidate-20260914.md`.
 
 ### Hướng phát triển có điều kiện
 

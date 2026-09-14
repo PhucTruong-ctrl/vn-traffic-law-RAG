@@ -5,7 +5,8 @@ from typing import Any
 
 from langchain_core.documents import Document
 
-from app.rag.retrieval import Retriever
+from app.rag.references import parse_reference
+from app.rag.retrieval import Retriever, _exact_qdrant_documents
 
 
 class FakeStore:
@@ -36,6 +37,23 @@ class FakePoint:
             "page_content": document.page_content,
             "metadata": dict(document.metadata),
         }
+
+
+def test_exact_lookup_accepts_short_number_with_metadata_suffix() -> None:
+    reference = parse_reference("Điều 10 Nghị định 119/2024")
+    assert reference is not None
+    document = Document(
+        "Điều 10",
+        metadata={
+            "document_id": "nd-119-2024",
+            "document_number": "119/2024/NĐ-CP",
+            "article": "10",
+            "chunk_id": "nd-119-2024:0077",
+        },
+    )
+    store = FakeStore([document])
+    result = _exact_qdrant_documents(store, reference, 5)
+    assert [item.metadata["chunk_id"] for item in result] == ["nd-119-2024:0077"]
 
 
 def test_retrieve_expands_explicit_reference_through_exact_lookup_with_total_cap() -> None:
@@ -273,3 +291,36 @@ def test_action_metadata_lookup_requires_exact_or_context_specific_action() -> N
         "railway",
         "exact",
     ]
+
+
+def test_canonical_references_resolve_article_clause_and_point_coordinates() -> None:
+    documents = [
+        Document(
+            "Điều 14 khoản 2 điểm b",
+            metadata={
+                "chunk_id": "p",
+                "document_id": "nd-119-2024",
+                "article": "14",
+                "clause": "2",
+                "point": "b",
+            },
+        ),
+        Document(
+            "Điều 14 khoản 4",
+            metadata={
+                "chunk_id": "c",
+                "document_id": "nd-119-2024",
+                "article": "14",
+                "clause": "4",
+            },
+        ),
+    ]
+    retriever = Retriever(top_k=10)
+    retriever._store = FakeStore(documents)
+
+    result = retriever.retrieve(
+        "nd-119-2024__dieu-14__khoan-2__diem-b và nd-119-2024__dieu-14__khoan-4",
+        top_k=10,
+    )
+
+    assert [document.metadata["chunk_id"] for document in result] == ["p", "c"]

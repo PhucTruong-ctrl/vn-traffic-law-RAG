@@ -232,7 +232,7 @@ def load_markdown(
         metadata = {
             **common,
             **location,
-            "provision_family": f"{doc_id}:{location.get('provision_family', 'document')}",
+            "provision_family": location.get("provision_family", "document"),
             "chunk_id": f"{doc_id}:{number:04d}",
             "content_sha256": digest,
         }

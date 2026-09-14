@@ -127,16 +127,28 @@ def _exact_qdrant_documents(store: Any, reference: LegalReference, limit: int) -
                 match=MatchValue(value=reference.document_id),
             )
         )
+    elif reference.number:
+        number_match = re.fullmatch(r"(?P<number>\d+)/(?P<year>\d{4})", reference.number)
+        if number_match:
+            structural.append(
+                FieldCondition(
+                    key="metadata.document_id",
+                    match=MatchValue(
+                        value=f"nd-{number_match.group('number')}-{number_match.group('year')}"
+                    ),
+                )
+            )
     structural.extend(
         FieldCondition(
             key=f"metadata.{key}",
-            match=MatchValue(value=reference_data[key]),
+            match=MatchValue(value=value),
         )
-        for key in ("article", "clause", "point")
-        if reference_data.get(key)
+        for key, value in reference_data.items()
+        if key in {"article", "clause", "point"} and value
     )
     number = reference_data.get("number")
-    if number:
+    number_match = re.fullmatch(r"(?P<number>\d+)/(?P<year>\d{4})", number) if number else None
+    if number and not number_match:
         number_values = [number]
         alternate = number.replace("d", "đ") if "d" in number else number.replace("đ", "d")
         if alternate not in number_values:
@@ -456,10 +468,11 @@ class Retriever:
         references = extract_references(question)
         if references:
             canonical_references = [reference for reference in references if reference.document_id]
-            if canonical_references and len(canonical_references) > limit:
+            if len(canonical_references) > limit:
                 raise RetrievalProviderError("top_k is too small for all explicit references")
             exact: list[Document] = []
             seen: set[tuple[str, str]] = set()
+            missing = False
             for reference in references:
                 matches = self.resolve_reference(reference, limit=limit)
                 if effective_date:
@@ -468,15 +481,16 @@ class Retriever:
                         for document in matches
                         if _temporal_match(document, effective_date)
                     ]
-                if not matches:
+                representative = next(
+                    (document for document in matches if _identity(document) not in seen),
+                    None,
+                )
+                if representative is None:
+                    missing = True
                     continue
-                for document in matches:
-                    identity = _identity(document)
-                    if identity not in seen:
-                        exact.append(document)
-                        seen.add(identity)
-                        break
-            if canonical_references and len(exact) < len(canonical_references):
+                exact.append(representative)
+                seen.add(_identity(representative))
+            if missing:
                 return []
             if exact:
                 if len(exact) < limit:

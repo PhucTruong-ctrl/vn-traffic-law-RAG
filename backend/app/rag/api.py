@@ -103,18 +103,17 @@ def chat(
             {"content": request.question, "role": "user", "status": "pending"},
             token,
         )
-        outcomes["persistence"] = "ok"
-
+        logger.info("chat_stage persistence_done")
         stage_started = perf_counter()
         raw_result = rag_service.answer(
             query,
             top_k=request.top_k,
             effective_date=request.effective_date,
+            deadline=started + 25.0,
         )
         service_timing = raw_result.pop("_timing", None)
         result = _frontend_response(raw_result)
-        stages["rag_ms"] = round((perf_counter() - stage_started) * 1000, 2)
-        outcomes["rag"] = str(result.get("status", "ok"))
+        logger.info("chat_stage rag_done")
         if isinstance(service_timing, dict):
             for key, value in service_timing.get("stages_ms", {}).items():
                 if isinstance(value, (int, float)) and 0 <= value <= 30000:
@@ -142,6 +141,7 @@ def chat(
         touch_session(client, user_id, session_id, token)
         outcomes["request"] = "ok"
         log_timing()
+        logger.info("chat_stage response_done")
         return {
             **result,
             "session_id": session_id,

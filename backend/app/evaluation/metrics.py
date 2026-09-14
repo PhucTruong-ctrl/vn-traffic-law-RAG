@@ -73,6 +73,24 @@ def _accuracy(expected: list[Coordinate], actual: list[Coordinate], level: int) 
     return numerator / denominator if denominator else None
 
 
+def recall_at_k(expected: list[Coordinate], actual: list[Coordinate], k: int) -> float | None:
+    """Return exact stable-coordinate recall for the first ``k`` retrieved items."""
+    if k < 1:
+        raise ValueError("k must be positive")
+    if not expected:
+        return None
+    wanted = {normalize_coordinate(item) for item in expected}
+    found = {normalize_coordinate(item) for item in actual[:k]}
+    return sum(item in found for item in wanted) / len(wanted)
+
+
+def coordinate_accuracy(
+    expected: list[Coordinate], actual: list[Coordinate], level: int
+) -> float | None:
+    """Return hierarchical accuracy at document/article/clause/point level."""
+    return _accuracy(expected, actual, level)
+
+
 def score_case(case: ExpectedCase, prediction: Prediction) -> CaseResult:
     expected = case.expected_coordinates
     retrieved = prediction.retrieved_coordinates
@@ -157,6 +175,8 @@ def aggregate_metrics(
 __all__ = [
     "aggregate_metrics",
     "canonical_coordinate_string",
-    "score_case",
+    "coordinate_accuracy",
     "normalize_coordinate",
+    "recall_at_k",
+    "score_case",
 ]

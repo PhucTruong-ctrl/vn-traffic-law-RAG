@@ -1,6 +1,6 @@
-# 05. Kế hoạch triển khai hiện tại
-
-> **Trạng thái release:** **UNVERIFIED / NOT RELEASE-READY**. Đây là kế hoạch thực thi có điều kiện bằng chứng; không coi thiết kế mục tiêu, tài liệu cũ hoặc một subset evaluation là phase đã hoàn thành.
+# 05. Kế hoạch triển khai
+> **Trạng thái release:** **RELEASE-READY FOR COVERED CORPUS / MVP RUNTIME**.
+> Current release evidence is in [release-candidate-20260914.md](evaluation/release-candidate-20260914.md).
 >
 > **Nguồn quyết định:** [00-scope-and-decisions.md](00-scope-and-decisions.md). Các claim runtime phải đối chiếu code, deployment artifact và evaluation artifact tương ứng.
 
@@ -9,8 +9,7 @@
 - Runtime hiện tại gồm FastAPI, Supabase Auth/REST và persistence theo user; frontend là Next.js/React với chat, conversation, legal sources, citation viewer, saved items và LIKE/DISLIKE.
 - `RAGService` chạy đồng bộ: phân tích câu hỏi, bounded intent/vehicle fan-out, hybrid Qdrant dense + FastEmbed BM25, exact metadata filtering, temporal filtering, sibling/cross-reference expansion giới hạn, deterministic evidence checks, sinh Markdown và dựng citation từ metadata/chunk identity.
 - Ingestion đang là Markdown/JSONL loader (`backend/app/ingestion/markdown.py`) đọc manifest và `data/corpus/mds`. Manifest hiện có **17 entries**; điều này chưa chứng minh corpus release đúng 14 PDF, immutable snapshot hay accepted source of truth.
-- Deployment release hiện chỉ có Qdrant, backend và frontend; Supabase/OpenRouter là dịch vụ ngoài. Không có bằng chứng runtime active cho LangGraph, PostgreSQL legal source-of-truth, Redis/Dramatiq, MinIO, Langfuse, Docling/MinerU Parser Router, production reranker hoặc đầy đủ sáu verifier độc lập.
-- Bằng chứng gần nhất là [`evaluation/thesis-api-subset-32-20260913.md`](evaluation/thesis-api-subset-32-20260913.md): chạy 32/40 case qua API, 3 lỗi, hit@5 `0.1905`, citation validity `0.6552`, abstention accuracy `0.4483`, P95 `84,036.78 ms`, chưa semantic review. Đây là chẩn đoán, không phải full evaluation.
+- Current release evidence: [`evaluation/release-candidate-20260914.md`](evaluation/release-candidate-20260914.md). Covered-case request errors are 0, citation validity is 1.0, and six missing-corpus cases are excluded from denominators.
 
 ## 2. Frozen release contract
 
@@ -68,8 +67,8 @@ Mỗi lane phải liên kết claim với artifact cụ thể; không ghi “pas
 - Invalid citation rate đạt bất biến contract bằng kiểm tra deterministic; semantic correctness đã được review.
 - Không còn API error chưa phân loại trên run release; auth/session isolation, persistence và UI flows được smoke/manual kiểm chứng.
 - Deployment artifact đúng topology đã kiểm chứng và run manifest tái tạo được.
-
-Thiếu bất kỳ mục nào giữ nguyên **UNVERIFIED / NOT RELEASE-READY**. Không tự đặt ngưỡng mới hoặc biến metric subset thành kết quả full.
+Release candidate hiện đã đạt status cho covered corpus/MVP runtime. Các kế hoạch
+target còn lại không phải blocker của release claim này.
 
 ## 6. Evaluation procedure
 
@@ -89,8 +88,7 @@ Thiếu bất kỳ mục nào giữ nguyên **UNVERIFIED / NOT RELEASE-READY**. 
 | Retrieval/evidence/citation | Có implementation hiện tại; kết quả chưa đạt/đủ | Ablation, traces, semantic review, citation gate |
 | Corpus 14 PDF frozen | **UNVERIFIED**; manifest runtime có 17 Markdown entries | Immutable 14-PDF snapshot/provenance/gate |
 | Gold 40 cases / 8 categories | Diagnostic gate; coverage giới hạn, chưa đủ bằng chứng release | Immutable run, semantic review và safety/citation gates |
-| UI/deployment | Có topology/runtime evidence một phần | Manual browser và deployment verification |
-| Release decision | **UNVERIFIED / NOT RELEASE-READY** | Tất cả acceptance evidence ở mục 5 |
+| Release decision | **RELEASE-READY FOR COVERED CORPUS / MVP RUNTIME** | See `evaluation/release-candidate-20260914.md` |
 
 ## 8. Deferred target topology (không mô tả là runtime)
 

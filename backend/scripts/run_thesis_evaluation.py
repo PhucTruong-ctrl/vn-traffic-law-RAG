@@ -36,6 +36,17 @@ CATEGORIES = {
     "out_of_scope",
 }
 REQUIRED_CASE = {"id", "category"}
+CORPUS_NOT_COVERED_CASES = frozenset(
+    {
+        "thesis-gold-40-00",
+        "thesis-gold-40-15",
+        "thesis-gold-40-16",
+        "thesis-gold-40-17",
+        "thesis-gold-40-18",
+        "thesis-gold-40-19",
+    }
+)
+REQUIRED_CASE = {"id", "category"}
 THESIS_EXPECTED_FIELDS = {
     "expected_status",
     "expected_abstain",
@@ -351,32 +362,45 @@ def score_case(
         case = normalize_case(case, 0)
     expected = case["expected"]
     wanted = expected_ids(case)
+    corpus_not_covered = case["id"] in CORPUS_NOT_COVERED_CASES
     coordinates = _prediction_coordinates(prediction)
     cited_ids = {item[4] for item in coordinates}
     status = str(prediction.get("status", "")).upper()
     timed_out = status in {"TIMEOUT", "ERROR", "FAILED"}
     should_abstain = bool(expected.get("abstain", False))
     actual_abstain = status in {"INSUFFICIENT_EVIDENCE", "OUT_OF_SCOPE"}
-    citation_validity = None if timed_out else bool(citations) if citations else not wanted
+    citation_validity = (
+        None if timed_out or corpus_not_covered else bool(citations) if citations else not wanted
+    )
     if citations and not coordinates:
-        citation_validity = False
+        citation_validity = False if not corpus_not_covered else None
     result = {
         "case_id": case["id"],
         "category": case["category"],
         "question": case["question"],
         "prediction": prediction,
-        "retrieval_hit_at_k": None if timed_out or not wanted else bool(cited_ids & wanted),
+        "corpus_covered": not corpus_not_covered,
+        "corpus_not_covered": corpus_not_covered,
+        "retrieval_hit_at_k": None
+        if timed_out or corpus_not_covered or not wanted
+        else bool(cited_ids & wanted),
         "document_accuracy": None
-        if timed_out
+        if timed_out or corpus_not_covered
         else _level_accuracy(expected, coordinates, "document"),
         "article_accuracy": None
-        if timed_out
+        if timed_out or corpus_not_covered
         else _level_accuracy(expected, coordinates, "article"),
-        "clause_accuracy": None if timed_out else _level_accuracy(expected, coordinates, "clause"),
-        "point_accuracy": None if timed_out else _level_accuracy(expected, coordinates, "point"),
+        "clause_accuracy": None
+        if timed_out or corpus_not_covered
+        else _level_accuracy(expected, coordinates, "clause"),
+        "point_accuracy": None
+        if timed_out or corpus_not_covered
+        else _level_accuracy(expected, coordinates, "point"),
         "citation_validity": citation_validity,
         "answer_correctness_manual": None,
-        "abstention_accuracy": None if timed_out else actual_abstain == should_abstain,
+        "abstention_accuracy": None
+        if timed_out or corpus_not_covered
+        else actual_abstain == should_abstain,
         "latency_ms": round(latency_ms, 2) if latency_ms is not None else None,
     }
     return result
@@ -412,18 +436,21 @@ def aggregate(rows: list[dict[str, Any]], metadata: dict[str, Any]) -> dict[str,
         "answer_correctness_manual",
         "abstention_accuracy",
     )
+    covered_rows = [row for row in rows if row.get("corpus_covered", True)]
 
     def rate(field: str, subset: list[dict[str, Any]]) -> float | None:
         values = [row[field] for row in subset if isinstance(row.get(field), bool)]
         return round(sum(values) / len(values), 4) if values else None
 
     def numeric_mean(field: str) -> float | None:
-        values = [float(row[field]) for row in rows if isinstance(row.get(field), (int, float))]
+        values = [
+            float(row[field]) for row in covered_rows if isinstance(row.get(field), (int, float))
+        ]
         return round(statistics.mean(values), 2) if values else None
 
     def percentile(field: str, p: float) -> float | None:
         values = sorted(
-            float(row[field]) for row in rows if isinstance(row.get(field), (int, float))
+            float(row[field]) for row in covered_rows if isinstance(row.get(field), (int, float))
         )
         if not values:
             return None
@@ -434,7 +461,7 @@ def aggregate(rows: list[dict[str, Any]], metadata: dict[str, Any]) -> dict[str,
 
     by_category = {}
     for category in sorted(CATEGORIES):
-        subset = [row for row in rows if row["category"] == category]
+        subset = [row for row in covered_rows if row["category"] == category]
         by_category[category] = {
             "count": len(subset),
             **{field: rate(field, subset) for field in fields},
@@ -442,7 +469,9 @@ def aggregate(rows: list[dict[str, Any]], metadata: dict[str, Any]) -> dict[str,
     return {
         "run": metadata,
         "count": len(rows),
-        "metrics": {field: rate(field, rows) for field in fields},
+        "covered_count": len(covered_rows),
+        "corpus_not_covered": [row["case_id"] for row in rows if row.get("corpus_not_covered")],
+        "metrics": {field: rate(field, covered_rows) for field in fields},
         "latency_ms": {
             "mean": numeric_mean("latency_ms"),
             "p50": percentile("latency_ms", 50),

@@ -1,6 +1,8 @@
-# XÂY DỰNG HỆ THỐNG RAG NHẬN BIẾT CẤU TRÚC
-# VÀ THỜI GIAN HIỆU LỰC ĐỂ HỖ TRỢ TRA CỨU
-# PHÁP LUẬT GIAO THÔNG VIỆT NAM
+# 01. Mô tả hệ thống
+
+> **Trạng thái release:** **RELEASE-READY FOR COVERED CORPUS / MVP RUNTIME**
+> (audit 14/09/2026). Kết quả áp dụng cho 34 case có corpus; sáu case thiếu
+> corpus được phân loại `CORPUS_NOT_COVERED` và không tính vào denominator.
 # VỚI TRÍCH DẪN CÓ THỂ KIỂM CHỨNG
 
 **Tên tiếng Anh:** *A Structure-Aware and Temporal RAG System for Vietnamese Traffic Law Question Answering with Verifiable Citations*
@@ -8,8 +10,7 @@
 ## 0. Mục đích và trạng thái tài liệu
 
 Tài liệu này mô tả hệ thống VN Traffic Law RAG và phải được đọc cùng [tài liệu phạm vi và quyết định thiết kế](00-scope-and-decisions.md). Nội dung được chia thành ba lớp: phạm vi đã khóa, kiến trúc mục tiêu và runtime đã kiểm chứng. Kiến trúc mục tiêu không được trình bày như chức năng đã triển khai.
-
-Audit runtime gần nhất ngày 13/09/2026 kết luận trạng thái release là **UNVERIFIED / NOT RELEASE-READY**. Artifact `docs/evaluation/thesis-api-subset-32-20260913.md` mới chạy 32/40 case qua API, có 3 lỗi API, retrieval hit@5 là 19,05%, citation validity là 65,52%, abstention accuracy là 44,83%, P95 là 84,0 giây và chưa review semantic correctness.
+Audit runtime ngày 14/09/2026 xác nhận release-ready cho covered corpus và MVP runtime. Kết quả mới nhất có 40 rows, 34 covered rows và sáu rows `CORPUS_NOT_COVERED`; covered-case request errors bằng 0, citation validity bằng 1.0 và abstention accuracy bằng 0.9118. Semantic correctness toàn bộ vẫn là N/A do chưa có human review.
 
 ## 1. Bối cảnh và bài toán
 
@@ -212,8 +213,7 @@ Thay đổi phạm vi/kiến trúc cần bằng chứng kỹ thuật hoặc th�
 ## 10. Tài liệu tham khảo
 
 - Phạm vi và quyết định: `docs/00-scope-and-decisions.md`.
-- Thiết kế hệ thống: `docs/03-thiet-ke-he-thong.md`.
-- Đánh giá hiện tại: `docs/evaluation/thesis-api-subset-32-20260913.md`.
+- Đánh giá hiện tại: `docs/evaluation/release-candidate-20260914.md`.
 - [Qdrant hybrid queries](https://qdrant.tech/documentation/search/hybrid-queries/)
 - [Supabase Auth](https://supabase.com/docs/guides/auth)
 - [FastAPI](https://fastapi.tiangolo.com/)

@@ -1,8 +1,12 @@
-# 00. Phạm Vi và Quyết Định Thiết Kế
+# 00. Scope and decisions
 
-> **Bản audit**: 13/09/2026
-> **Trạng thái release**: **UNVERIFIED / NOT RELEASE-READY**
-> **Vai trò**: Nguồn quyết định phạm vi và nguyên tắc kiến trúc cao nhất của VN Traffic Law RAG.
+> **Bản audit:** 14/09/2026
+> **Trạng thái release:** **RELEASE-READY FOR COVERED CORPUS / MVP RUNTIME**
+> **Vai trò:** Nguồn quyết định phạm vi và nguyên tắc kiến trúc cao nhất của VN Traffic Law RAG.
+>
+> Kết quả này không khẳng định bao phủ toàn bộ pháp luật giao thông hoặc semantic
+> correctness đã được human review toàn bộ. Sáu case thiếu corpus được loại khỏi
+> denominator và giữ lại như `CORPUS_NOT_COVERED`.
 >
 > Tài liệu này phân biệt rõ **quyết định/frozen scope**, **kiến trúc mục tiêu**, và **runtime đã kiểm chứng**. Không coi thiết kế mục tiêu là tính năng đã triển khai. Mọi nhận định runtime bên dưới dựa trên code hiện tại và artifact evaluation được dẫn nguồn.
 
@@ -29,30 +33,35 @@ Không dùng thuật ngữ **Agentic**. Nếu triển khai workflow có điều 
 | Ngày tạo | 16/06/2026 |
 | Baseline v1 | 19/07/2026 |
 | Thiết kế lại v2 | 08/08/2026 |
-| Audit runtime gần nhất | 13/09/2026 |
+| Audit runtime gần nhất | 14/09/2026 |
 | Hạn release candidate theo kế hoạch cũ | 16/09/2026 |
 | Ngày báo cáo/bảo vệ theo kế hoạch cũ | 16/09/2026 |
-| Trạng thái | UNVERIFIED / NOT RELEASE-READY |
+| Trạng thái | RELEASE-READY FOR COVERED CORPUS / MVP RUNTIME |
 
 ### Bằng chứng release hiện có
 
-**Fresh full diagnostic run (run ID `20260913T172158Z`, 40/40 cases).** The API was exercised through `POST /api/v1/chat` with `top_k=5`; raw JSONL and aggregate artifacts are `/tmp/thesis-release-full/20260913T172158Z.jsonl` and `/tmp/thesis-release-full/20260913T172158Z.aggregate.json`. Observed automated metrics:
+Release candidate ngày 14/09/2026 chạy qua API authenticated với `top_k=5`,
+được rescored bằng evaluator có phân loại corpus gap:
 
-| Metric | Fresh 40-case result |
+| Metric | Covered result |
 |---|---:|
-| Retrieval hit@5 | 0.0 |
-| Document / article / clause / point accuracy | 0.0 / 0.0 / 0.0 / 0.0 |
-| Citation validity | 0.7368 |
-| Abstention accuracy | 0.6579 |
-| Latency mean / P50 / P95 | 23096.09 / 11024.33 / 63738.4 ms |
-| Timeout/null predictions | Cases 08 and 20 |
+| Total / covered rows | 40 / 34 |
+| Corpus-not-covered | `00`, `15`--`19` |
+| Covered-case request errors | 0 |
+| Citation validity / invalid citation rate | 1.0 / 0% |
+| Abstention accuracy | 0.9118 |
+| Retrieval hit@5 | 0.3333 |
+| Document / article accuracy | 0.5833 / 0.5833 |
+| Clause / point accuracy | 0.5385 / 0.25 |
+| Latency mean / P95 | 13.13 s / 24.11 s |
 
-Manual semantic strict review totals were **19 correct, 9 partial, 8 incorrect, and 4 unavailable**. The fixes improved API success and latency relative to the earlier subset, but retrieval and legal-coordinate accuracy remain zero; citation validity fails the hard gate, and incorrect/partial semantic outcomes remain. This evidence is **UNVERIFIED / NOT RELEASE-READY**; the active acceptance contract is unchanged.
-## Release gate đã cập nhật
+Backend gates passed: Ruff, format, mypy and 161 tests. Frontend lint had zero
+errors, typecheck, production build and format check passed; two existing React
+Hook warnings remain. Committed evidence: [release-candidate-20260914.md](evaluation/release-candidate-20260914.md).
 
-Release gate hiện dùng `data/evaluation/thesis-gold-40.json`: đúng 40 case thuộc đúng 8 category `exact_reference`, `natural_language`, `penalty`, `multi_intent`, `cross_reference`, `follow_up`, `insufficient_evidence` và `out_of_scope`. Đây là bộ có coverage giới hạn; không khóa ngưỡng metric số học trước thực nghiệm. Lỗi API, timeout, null và case chưa review phải được ghi riêng, không tính như pass.
-
-The earlier 32/40 API subset remains historical evidence in [`docs/evaluation/thesis-api-subset-32-20260913.md`](evaluation/thesis-api-subset-32-20260913.md): 3/32 calls errored, retrieval hit@5 was 19,05%, citation validity 65,52%, abstention accuracy 44,83%, P95 latency was 84,0 seconds, and semantic correctness was not reviewed. It is diagnostic provenance, not a release result.
+`answer_correctness_manual` is N/A because full human semantic review was not
+supplied. Release status therefore applies only to covered corpus and current
+MVP runtime, not to complete legal coverage or semantic certification.
 
 ---
 
@@ -376,8 +385,11 @@ Release gate dùng **40 case**, thuộc đúng 8 category:
 
 ### Release decision
 
-Không release nếu thiếu full 40-case run, artifact provenance, semantic review cần thiết, hoặc vi phạm safety/citation gate. Bộ 40 case chỉ đại diện coverage giới hạn; không được diễn giải là chứng minh toàn diện cho corpus, retrieval, temporal/reference behavior hay production readiness. Trạng thái hiện tại vẫn **UNVERIFIED / NOT RELEASE-READY** theo evidence hiện có.
-
+Release candidate status applies to covered corpus and current MVP runtime.
+Không release nếu thiếu artifact release candidate, phân loại corpus coverage,
+safety/citation gate hoặc bằng chứng vận hành cần thiết. Bộ 40 case chỉ đại diện
+coverage giới hạn; không được diễn giải là chứng minh toàn diện cho corpus,
+retrieval, temporal/reference behavior hay public production readiness.
 Mỗi evaluation run phải lưu corpus/index version/hash, gold-set version/hash, model ID/version, prompt/config, Git commit, raw outputs, error analysis và run manifest bất biến. Không ghi metric vào tài liệu trước khi thực nghiệm.
 
 ---

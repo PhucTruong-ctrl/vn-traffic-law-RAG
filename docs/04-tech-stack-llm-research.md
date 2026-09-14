@@ -1,7 +1,7 @@
 # 04. Tech stack và chính sách nghiên cứu LLM
-
-> **Audit runtime:** 13/09/2026  
-> **Trạng thái release:** UNVERIFIED / NOT RELEASE-READY  
+# 04. Tech-stack and LLM research
+> **Audit runtime:** 14/09/2026
+> **Trạng thái release:** RELEASE-READY FOR COVERED CORPUS / MVP RUNTIME
 > **Nguồn phạm vi cao nhất:** [00-scope-and-decisions.md](00-scope-and-decisions.md)
 
 Tài liệu này chỉ ghi nhận những gì có bằng chứng trong dependency manifest, cấu hình, mã nguồn hoặc deployment hiện tại. Kiến trúc mục tiêu và nghiên cứu lịch sử được tách nhãn rõ ràng; không dùng chúng để mô tả runtime đã triển khai.

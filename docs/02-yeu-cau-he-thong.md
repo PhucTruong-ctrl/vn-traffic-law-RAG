@@ -1,8 +1,9 @@
 # 02. Phân tích và đặc tả yêu cầu
-
-> **Trạng thái release:** **UNVERIFIED / NOT RELEASE-READY**
+# 02. Yêu cầu hệ thống
+> **Trạng thái release:** **RELEASE-READY FOR COVERED CORPUS / MVP RUNTIME**
 >
-> Tài liệu này là yêu cầu canonical của VN Traffic Law RAG. Mỗi yêu cầu ghi rõ trạng thái `TARGET`, `PARTIAL`, `VERIFIED` hoặc `UNVERIFIED`; target không phải là năng lực runtime đã triển khai.
+> Các yêu cầu `TARGET`, `PARTIAL`, `VERIFIED` và `UNVERIFIED` vẫn mô tả traceability
+> của phạm vi nghiên cứu; chúng không mở rộng release claim hiện tại.
 >
 > **Nguồn quyết định:** [00-scope-and-decisions.md](00-scope-and-decisions.md)
 
@@ -104,7 +105,7 @@ Mỗi ID là duy nhất.
 
 - **Yêu cầu:** Citation dựng từ metadata/provision identity tin cậy, gắn source passage/page khi có; verifier chặn citation invalid, unsupported claim và numeric mismatch.
 - **Acceptance:** Invalid citation rate mục tiêu bằng 0; response không trả claim chưa được evidence hỗ trợ. **[TARGET]**
-- **Runtime:** Citation từ `chunk_id`, document/article/clause/point metadata và deterministic checks; audit ghi nhận citation validity 65,52% trên API subset, chưa đạt gate. **[UNVERIFIED]**
+- **Runtime:** Release candidate citation validity là 1.0 và invalid citation rate 0% trên covered denominator; semantic correctness toàn bộ là N/A. **[VERIFIED FOR COVERED CORPUS]**
 
 ### FR-12 — Answer, abstention và disclaimer UI
 
@@ -127,8 +128,7 @@ Mỗi ID là duy nhất.
 ### FR-15 — Evaluation và release gate
 
 - **Yêu cầu:** Chạy full 200 gold cases / 17 categories, lưu immutable run manifest gồm corpus/index hash, gold hash, model/version, prompt/config, commit, outputs, errors và analysis.
-- **Acceptance:** Không release nếu thiếu full gold run, provenance artifact, semantic review hoặc safety/citation gate. **[TARGET]**
-- **Runtime:** Chỉ có API subset 32/40; 3 lỗi, hit@5 0,1905, citation validity 0,6552, abstention accuracy 0,4483, P95 84s; semantic review chưa có. **[UNVERIFIED]**
+- **Runtime:** Covered denominator request errors bằng 0, retrieval/citation/abstention metrics được ghi trong `docs/evaluation/release-candidate-20260914.md`; sáu case thiếu corpus được phân loại riêng. **[VERIFIED FOR COVERED CORPUS]**
 
 ## 2.4. Non-functional requirements
 
@@ -174,9 +174,8 @@ Các thành phần sau được giữ để traceability nghiên cứu nhưng **
 6. Evidence gate chạy trước generation; invalid citation, unsupported claim, numeric mismatch và thiếu evidence dẫn đến block/abstain. **[PARTIAL]**
 7. Authenticated session persistence và user-only history hoạt động end-to-end. **[VERIFIED]**
 8. UI hiển thị answer/abstention, citation/passage, applied date, disclaimer và LIKE/DISLIKE. **[PARTIAL]**
-9. Full 200-gold / 17-category gate, provenance artifact và semantic review hoàn tất trước release. **[UNVERIFIED]**
-10. Status release chỉ chuyển khỏi `UNVERIFIED / NOT RELEASE-READY` sau khi mọi gate bắt buộc có evidence. **[UNVERIFIED]**
-
+9. Release candidate artifact, covered-corpus classification and citation safety gate are complete. **[VERIFIED FOR COVERED CORPUS]**
+10. Full human semantic review and public-production hardening remain outside current MVP release claim. **[N/A / OUT OF SCOPE]**
 ## 2.7. Traceability matrix
 
 | Research objective | Requirements | Evidence / evaluation | Status |

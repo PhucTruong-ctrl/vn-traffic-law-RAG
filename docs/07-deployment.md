@@ -1,6 +1,8 @@
 # 07. Deployment and runbook
 
-> **Status:** UNVERIFIED / NOT RELEASE-READY. This runbook describes the compose files and scripts that exist in the repository; it does not turn the current candidate into a released system.
+> **Status:** RELEASE-READY FOR COVERED CORPUS / MVP RUNTIME (14 September 2026).
+> Public deployment still requires TLS, firewall, rate limiting, secret rotation,
+> backup/restore, and monitoring outside this local MVP compose boundary.
 >
 > The runtime boundary is localhost or a deliberately private network. The active application is FastAPI + Next.js + Qdrant. Supabase and OpenRouter are external services. The target architecture described in the scope document is not presented here as deployed functionality.
 
@@ -9,7 +11,7 @@ Related decisions and evidence:
 - [Scope and decisions](00-scope-and-decisions.md)
 - [System design](03-thiet-ke-he-thong.md)
 - [Tech stack research](04-tech-stack-llm-research.md)
-- [Evaluation evidence](evaluation/thesis-api-subset-32-20260913.md)
+- [Evaluation evidence](evaluation/release-candidate-20260914.md)
 
 ## 1. Active topology
 
@@ -163,15 +165,24 @@ The repository provides no backup script or restore script. The only executable 
 
 For a release stack whose Qdrant volume is lost, restore the corpus artifacts, start the three services, point the index script at the reachable Qdrant endpoint, and rerun ingestion/indexing. There is no repository command for Qdrant snapshot export, PostgreSQL dump, MinIO mirror, alias rollback, or clean-room restore; do not document those as executable recovery procedures.
 
-## 8. Explicit release blockers
+## 8. Release status and explicit blockers
 
-The current repository is not release-ready. The documented evidence remains partial (diagnostic 40-case evidence, API errors, low retrieval/citation/abstention results, high P95 latency, and incomplete semantic review). Before claiming a release, operators still need, at minimum:
+The 2026-09-14 release candidate is **release-ready for the covered corpus and
+current MVP runtime**. Verification evidence:
 
-- a completed and reviewed 40-case release evaluation covering all eight categories, with limited coverage disclosed and no fixed numeric threshold assumed;
-- confirmation that the served corpus/index satisfies the frozen corpus contract rather than only the current 17-entry Markdown manifest;
-- verified citation and evidence-gated abstention behavior on the release candidate;
-- a deliberately operated private-network boundary, since public hardening is not in the compose files;
-- a tested backup/recovery procedure appropriate to the chosen deployment environment.
+- Backend Ruff, format, mypy, and 161 tests passed.
+- Frontend lint (0 errors), typecheck, production build, and format check passed.
+- Authenticated API smoke returned HTTP 200 with citations.
+- Final 40-row evaluation contained 34 covered rows and 6 explicitly
+  `CORPUS_NOT_COVERED` rows (`00`, `15`–`19`).
+- Covered-case request errors: 0; citation validity: 1.0; invalid citation
+  rate: 0%; abstention accuracy: 0.9118.
+
+This status does not claim complete traffic-law coverage or full semantic
+certification. `answer_correctness_manual` remains N/A because full human
+semantic review was not supplied. Public deployment remains blocked until TLS,
+firewall, rate limiting, secret rotation, backup/restore, and operational
+monitoring are deliberately provided outside this local MVP compose boundary.
 
 ### Deferred target architecture (not active)
 

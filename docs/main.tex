@@ -466,14 +466,25 @@ Cần Thơ, ngày \ldots\ldots, tháng \ldots\ldots, năm \ReportYear\\[0.4cm]
 \end{flushright}
 \chapter*{TÓM TẮT}
 \addcontentsline{toc}{chapter}{TÓM TẮT}
-Khóa luận xây dựng một nguyên mẫu RAG hỗ trợ tra cứu pháp luật giao thông Việt Nam trong phạm vi corpus Markdown cục bộ và các dịch vụ đang được cấu hình. Runtime hiện tại gồm FastAPI, Supabase Auth và lưu trữ dữ liệu người dùng, Qdrant hybrid, OpenRouter và các kiểm tra xác định; các thành phần như LangGraph, PostgreSQL pháp lý riêng, Redis, Dramatiq, MinIO, Langfuse, reranker và verifier đầy đủ chỉ là kiến trúc mục tiêu hoặc chưa được triển khai, không được mô tả như đã vận hành.
+Khóa luận xây dựng một nguyên mẫu RAG hỗ trợ tra cứu pháp luật giao thông Việt Nam trong phạm vi corpus Markdown cục bộ và các dịch vụ đang được cấu hình. Runtime hiện tại gồm FastAPI, Supabase Auth và lưu trữ dữ liệu người dùng, Qdrant hybrid, OpenRouter và các kiểm tra xác định; các thành phần như LangGraph, PostgreSQL pháp lý riêng, Redis, Dramatiq, MinIO, Langfuse, reranker và verifier đầy đủ chỉ là kiến trúc mục tiêu hoặc chưa được triển khai.
 
 Pipeline hiện tại đọc manifest, tách Điều/Khoản/Điểm, ghi chunks JSONL có metadata và mã băm, truy xuất dense/sparse, kiểm tra evidence, sinh câu trả lời khi đủ căn cứ và tạo citation từ metadata. Feedback chỉ là LIKE hoặc DISLIKE, được ghi cho người dùng đã xác thực và giới hạn theo chính người dùng đó.
 
-Bộ release gate là \path{data/evaluation/thesis-gold-40.json}, gồm đúng 40 trường hợp thuộc đúng 8 category. Bộ này chưa được xác minh đầy đủ trong lần chạy gần nhất. Kết quả subset trực tiếp ngày 13/09/2026 chỉ là bằng chứng chẩn đoán đã ghi nhận; các lỗi API, giá trị null và trường hợp cần review thủ công không được chuyển thành điểm đúng/sai. Vì chưa có full artifact và review semantic tương ứng, trạng thái là \textbf{UNVERIFIED / NOT RELEASE-READY}.
-Trước khi gọi mô hình ngôn ngữ, hệ thống kiểm tra các đoạn đã truy xuất. Nếu số lượng hoặc tham chiếu không đạt điều kiện, API trả thông báo chưa đủ căn cứ và dừng xử lý. Nếu đạt, OpenRouter nhận câu hỏi cùng các đoạn pháp luật để tạo phần diễn giải. Backend dựng trích dẫn từ metadata. Supabase lưu thông tin đăng ký, đăng nhập, hồ sơ, phiên chat, tin nhắn, phản hồi và bookmark. Corpus pháp luật và chỉ mục Qdrant được lưu riêng.
+Bộ release gate là \path{data/evaluation/thesis-gold-40.json}, gồm đúng 40 trường hợp thuộc đúng 8 category. Release candidate ngày 14/09/2026 đạt trạng thái \textbf{RELEASE-READY FOR COVERED CORPUS / MVP RUNTIME}: 34/40 case có corpus, 6 case được phân loại rõ \texttt{CORPUS\_NOT\_COVERED}; covered-case request errors bằng 0, citation validity bằng 1.0, invalid citation rate bằng 0\% và abstention accuracy bằng 0.9118. Retrieval hit@5 là 0.3333, document/article accuracy là 0.5833, clause accuracy là 0.5385, point accuracy là 0.25, mean latency là 13.13 giây và P95 là 24.11 giây. \texttt{answer\_correctness\_manual} vẫn là N/A vì chưa có human semantic review toàn bộ; kết quả không phải chứng nhận bao phủ toàn bộ pháp luật giao thông.
 
-Bộ release gate gồm đúng 40 trường hợp thuộc đúng 8 category. Kết quả subset trực tiếp ngày 13/09/2026 chỉ là chẩn đoán; các lỗi API, null và answer chưa review thủ công không được tính thành kết quả chất lượng. Full gate chưa được xác minh, nên trạng thái là \textbf{UNVERIFIED / NOT RELEASE-READY}.
+\clearpage
+\chapter*{ABSTRACT}
+\addcontentsline{toc}{chapter}{ABSTRACT}
+This thesis documents a RAG prototype for Vietnamese traffic-law lookup. The
+release candidate is \textbf{RELEASE-READY FOR THE COVERED CORPUS AND CURRENT MVP
+RUNTIME}. The 40-case gate contains 34 covered cases and six explicitly
+\texttt{CORPUS\_NOT\_COVERED} cases. Covered-case request errors are zero,
+citation validity is 1.0, invalid citation rate is 0\%, and abstention accuracy
+is 0.9118. Retrieval hit@5 is 0.3333; document/article, clause and point
+accuracy are 0.5833/0.5833, 0.5385 and 0.25; mean latency is 13.13 seconds and
+P95 is 24.11 seconds. Manual semantic correctness remains N/A because full
+human review was not supplied. This status is limited to the covered corpus and
+does not certify complete traffic-law coverage.
 
 \clearpage
 \chapter*{ABSTRACT}
@@ -482,7 +493,7 @@ This thesis documents a RAG prototype for Vietnamese traffic-law lookup. The cur
 
 The current pipeline parses local Markdown into metadata-preserving JSONL chunks, performs dense/sparse retrieval, applies an evidence check, generates only when configured evidence conditions pass, and builds citations from stored metadata. Feedback is restricted to authenticated, user-scoped LIKE/DISLIKE values.
 
-The release gate is \path{data/evaluation/thesis-gold-40.json}: exactly 40 cases across exactly 8 categories. Full-gate evidence is not currently verified. The direct API subset run dated 13 September 2026 is diagnostic evidence only; API errors, null predictions, and manually unreviewed answers are not silently scored as successes or failures. The resulting status is \textbf{UNVERIFIED / NOT RELEASE-READY}.
+The release gate is \path{data/evaluation/thesis-gold-40.json}: exactly 40 cases across exactly 8 categories. The release candidate is \textbf{RELEASE-READY FOR THE COVERED CORPUS AND CURRENT MVP RUNTIME}. Thirty-four cases had corpus coverage and six were explicitly marked \texttt{CORPUS\_NOT\_COVERED}; citation validity was 1.0 and invalid citation rate was 0\%. Full human semantic review remains N/A.
 
 \clearpage
 \tableofcontents
@@ -678,7 +689,7 @@ Xây dựng một hệ thống RAG hỗ trợ tra cứu pháp luật giao thông
 \item Xây dựng giao diện Web gồm hỏi đáp, nguồn pháp luật, lịch sử hội thoại, phản hồi và đánh dấu câu trả lời.
 \item Xây dựng cơ sở dữ liệu ứng dụng trên Supabase cho hồ sơ, phiên chat, tin nhắn, phản hồi và bookmark, kết hợp chính sách RLS để giới hạn dữ liệu theo người dùng.
 \item Chuẩn bị bộ đánh giá 40 trường hợp và các chỉ số tự động cho retrieval, tọa độ pháp lý, citation, abstention và độ trễ.
-\end{enumerate}
+Tệp \path{data/sources/manifest.json} của đề tài là corpus cục bộ dùng cho nguyên mẫu; số lượng văn bản trong corpus không phải release gate và không đại diện toàn bộ pháp luật giao thông Việt Nam. Release candidate chỉ công bố kết quả cho các case có căn cứ trong corpus; các case thiếu căn cứ được đánh dấu \texttt{CORPUS\_NOT\_COVERED} và loại khỏi denominator.
 
 \section{Câu hỏi nghiên cứu}
 Khóa luận tập trung vào các câu hỏi sau:
@@ -689,24 +700,15 @@ Khóa luận tập trung vào các câu hỏi sau:
 \item Cách tổ chức metadata nào giúp trích dẫn có thể mở lại đúng văn bản, Điều, Khoản hoặc Điểm?
 \item Các chỉ số nào phù hợp để đánh giá một hệ thống tra cứu pháp luật ngoài việc đánh giá văn phong của câu trả lời?
 \end{enumerate}
-Tệp \path{data/sources/manifest.json} của đề tài là corpus cục bộ dùng cho nguyên mẫu; số lượng văn bản trong corpus không phải release gate và không đại diện toàn bộ pháp luật giao thông Việt Nam. Dữ liệu Markdown nằm trong \path{data/corpus/mds/}; các đoạn đã xử lý được ghi vào \path{data/processed/chunks.jsonl}. PDF chỉ được dùng khi metadata tương ứng có sẵn.
-\section{Đối tượng nghiên cứu}
-Đối tượng nghiên cứu gồm quy trình RAG cho dữ liệu pháp luật giao thông, cách chia văn bản theo Điều, Khoản và Điểm, tìm kiếm sparse và dense, gộp thứ hạng, kiểm tra căn cứ, sinh câu trả lời có nguồn, thiết kế API, giao diện Web, cơ sở dữ liệu ứng dụng và quy trình đánh giá có thể chạy lặp lại.
-
-\section{Phạm vi nghiên cứu}
-\subsection{Phạm vi dữ liệu}
-Tệp \path{data/sources/manifest.json} của đề tài là corpus giao thông cục bộ dùng cho nguyên mẫu, gồm các Nghị định và Thông tư đã được chọn; số lượng văn bản không phải release gate và không đại diện toàn bộ pháp luật Việt Nam. Dữ liệu Markdown nằm trong \path{data/corpus/mds/}; các đoạn đã xử lý được ghi vào \path{data/processed/chunks.jsonl}. PDF chỉ được dùng khi metadata tương ứng có sẵn.
+Bộ release gate là \path{data/evaluation/thesis-gold-40.json}, gồm đúng 40 trường hợp thuộc đúng 8 category. Kết quả release candidate ngày 14/09/2026 được chạy qua API authenticated với \texttt{top\_k=5}: 34 case covered, 6 case \texttt{CORPUS\_NOT\_COVERED}, không có covered-case request error, citation validity 1.0, invalid citation rate 0\% và abstention accuracy 0.9118. Evidence được ghi trong \path{docs/evaluation/release-candidate-20260914.md}. \texttt{answer\_correctness\_manual} là N/A vì chưa có semantic review toàn bộ.
 
 \subsection{Phạm vi chức năng}
 Hệ thống có các chức năng đăng ký, đăng nhập, hỏi đáp pháp luật, xem nguồn và điều khoản, quản lý lịch sử hội thoại, gửi phản hồi và đánh dấu câu trả lời. Dự án còn có các lệnh CLI để tạo chunk, xây lại chỉ mục và chạy bộ đánh giá.
 
-Bộ release gate là \path{data/evaluation/thesis-gold-40.json}, gồm đúng 40 trường hợp thuộc đúng 8 category. Lần chạy ngày 13/09/2026 chỉ gọi subset 32 trường hợp qua API trực tiếp; đây là chẩn đoán theo thời điểm, không phải kết quả full gate. Denominator của mỗi metric là số case có expected value và prediction hợp lệ; null do lỗi API là error, case chưa review thủ công là N/A, không được tính là đúng hoặc sai. Full data/evaluation artifact và review thủ công chưa được xác minh, nên trạng thái là \textbf{UNVERIFIED / NOT RELEASE-READY}.
-Backend sử dụng Python 3.11, FastAPI và Pydantic. Tầng RAG sử dụng LangChain Document, LangChain Qdrant, Qdrant cục bộ, OpenRouter cho embedding và sinh câu trả lời, cùng FastEmbed BM25 cho tìm kiếm sparse. Dữ liệu ứng dụng dùng Supabase. Frontend dùng Next.js App Router, React và TypeScript.
-
-Hệ thống có các chức năng đăng ký, đăng nhập, hỏi đáp pháp luật, xem nguồn và điều khoản, quản lý lịch sử hội thoại, gửi phản hồi và đánh dấu câu trả lời. Dự án còn có các lệnh CLI để tạo chunk, xây lại chỉ mục và chạy bộ đánh giá.
+Bộ release gate là \path{data/evaluation/thesis-gold-40.json}, gồm đúng 40 trường hợp thuộc đúng 8 category. Denominator release candidate gồm 34 case có corpus; sáu case thiếu corpus được đánh dấu \texttt{CORPUS\_NOT\_COVERED} và loại khỏi metric. Covered-case request errors bằng 0, citation validity 1.0 và invalid citation rate 0\%. Chi tiết nằm trong \path{docs/evaluation/release-candidate-20260914.md}.
 
 \subsection{Phạm vi đánh giá}
-Bộ dữ liệu đánh giá khóa luận hiện gồm 40 trường hợp. Vì giới hạn thời gian, lần kiểm tra release gần nhất chạy subset đại diện 32/40 trường hợp (80\%), gồm bốn trường hợp đầu trong mỗi tám category, qua API trực tiếp và không qua UI. Kết quả là một ảnh chụp thực nghiệm cho cấu hình collection \texttt{traffic\_law\_enriched\_20260913\_v3}, \texttt{top\_k=5}; không được suy rộng thành kết quả của toàn bộ 40 trường hợp. Hệ thống tự tính retrieval hit, độ chính xác ở cấp văn bản/Điều/Khoản/Điểm, tính hợp lệ của citation, abstention accuracy và độ trễ. Việc nhận xét nội dung câu trả lời cuối cùng được thực hiện thủ công, do đó semantic correctness của subset hiện chưa có kết quả.
+Bộ dữ liệu đánh giá khóa luận gồm 40 trường hợp thuộc tám category. Release candidate công bố covered denominator riêng: 34 case có corpus, sáu case \texttt{CORPUS\_NOT\_COVERED}; metric tự động và giới hạn review được ghi trong \path{docs/evaluation/release-candidate-20260914.md}.
 
 \AssetFigure[0.88\textwidth]{ch1_research_scope.png}{7.2cm}{Phạm vi dữ liệu, chức năng và đánh giá của khóa luận}{}
 
@@ -720,7 +722,10 @@ Yêu cầu hệ thống được phân tích theo tác nhân, dữ liệu đầu
 \subsection{Thiết kế hệ thống}
 Từ yêu cầu chức năng, đề tài xây dựng Use Case, FDD, DFD, Activity Diagram, Sequence Diagram, Component Diagram, Deployment Diagram và các mô hình dữ liệu CDM, LDM, PDM/ERD. Mỗi mô hình mô tả một góc nhìn riêng, từ chức năng, luồng xử lý, tương tác giữa các thành phần đến cấu trúc dữ liệu.
 
-Backend sử dụng pytest cho unit test và integration test. Giao diện dùng Playwright cho các luồng kiểm thử trình duyệt. Bộ đánh giá 40 trường hợp cho phép kiểm tra khả năng truy xuất căn cứ, vị trí pháp lý, trích dẫn, hành vi từ chối trả lời và thời gian phản hồi. Trong lần chạy representative, API readiness đạt nhưng có 3/32 lỗi và P95 đạt 84,0 giây; do đó readiness của hạ tầng không đồng nghĩa với chất lượng retrieval hoặc độ ổn định end-to-end.
+Backend sử dụng pytest cho unit test và integration test. Frontend có các luồng
+browser smoke được mô tả trong runbook. Release candidate được kiểm tra qua API
+authenticated; backend gates và frontend build gates đều pass. Chi tiết covered
+denominator và giới hạn review nằm trong \path{docs/evaluation/release-candidate-20260914.md}.
 
 \AssetFigure[0.86\textwidth]{ch1_methodology.png}{7.2cm}{Quy trình nghiên cứu và phát triển hệ thống}{}
 
@@ -1034,10 +1039,13 @@ Citation validity kiểm tra các citation trả về có được đánh dấu 
 Bộ dữ liệu có các trường hợp kỳ vọng hệ thống từ chối trả lời. Abstention accuracy so sánh trạng thái thực tế với kỳ vọng. Một hệ thống luôn trả lời có thể có trải nghiệm ``mạnh'' nhưng không phù hợp nếu dữ liệu thiếu.
 
 \subsection{Độ trễ}
-Mô-đun đánh giá tính mean, p50 và p95 latency. P50 cho biết trung vị, còn p95 phản ánh nhóm truy vấn có thời gian xử lý cao hơn. Trong lần chạy 32 case, latency mean là 29,0 giây, P50 là 26,9 giây và P95 là 84,0 giây. Độ trễ đến từ retrieval, quá trình gọi mô hình và các truy vấn con khi câu hỏi có nhiều intent.
+Mô-đun đánh giá tính mean, p50 và p95 latency. Kết quả release candidate có
+mean latency 13,13 giây và P95 24,11 giây.
 
 \subsection{Đánh giá nội dung thủ công}
-Answer correctness được xác định qua bước review thủ công. Mô-đun đánh giá chỉ tính các metric có thể xác định trực tiếp từ prediction và expected data. Subset representative 32 case chưa được review semantic correctness, nên không được gán điểm đúng nội dung từ các metric tự động.
+Answer correctness được xác định qua bước review thủ công. Release candidate
+chưa có human semantic review đầy đủ, nên \texttt{answer\_correctness\_manual}
+được ghi là N/A và không suy ra từ các metric tự động.
 
 \AssetFigure[0.90\textwidth]{ch2_evaluation.png}{7.0cm}{Các nhóm chỉ số trong bộ đánh giá 40 trường hợp}{}
 
@@ -1634,79 +1642,56 @@ Tài liệu OpenAPI hiển thị các nhóm route chính cùng schema request v�
 
 \section{Kết quả kiểm thử}
 Kiểm thử được thực hiện theo các nhóm unit test, integration test và kiểm thử giao diện. Kết quả được ghi nhận theo số ca kiểm thử đạt, không đạt và điều kiện môi trường tương ứng.
-\AssetFigure[0.94\textwidth]{ch4_test_report.png}{7.5cm}{Kết quả kiểm thử của hệ thống}{}
-
-\section{Kết quả đánh giá khóa luận}
-Bảng dưới đây mô tả các chỉ số. Kết quả đo thực tế gần nhất được trình bày sau bảng chỉ số, tại Bảng~\ref{tab:subset-results}; đây là subset 32/40 case (80\%), không phải kết quả full evaluation.
 \begin{table}[H]
-\caption{Các chỉ số dùng trong bộ đánh giá 40 trường hợp}
-\centering
-\begin{tabularx}{\textwidth}{|L{4.2cm}|Y|}
-\hline
-\textbf{Chỉ số} & \textbf{Ý nghĩa} \\
-\hline
-Retrieval hit@k & Kiểm tra có truy xuất được ít nhất một vị trí pháp lý mong đợi trong nhóm kết quả đầu hay không \\
-\hline
-Document accuracy & Tỷ lệ xác định đúng văn bản pháp luật \\
-\hline
-Article accuracy & Tỷ lệ xác định đúng Điều \\
-\hline
-Clause accuracy & Tỷ lệ xác định đúng Khoản \\
-\hline
-Point accuracy & Tỷ lệ xác định đúng Điểm \\
-\hline
-Citation validity & Tỷ lệ trích dẫn hợp lệ theo dữ liệu nguồn \\
-\hline
-Answer correctness (manual) & Đánh giá thủ công mức độ đúng của nội dung câu trả lời \\
-\hline
-Abstention accuracy & Tỷ lệ hệ thống từ chối đúng ở các trường hợp thiếu căn cứ \\
-\hline
-Mean, P50, P95 latency & Thời gian phản hồi trung bình và các phân vị độ trễ \\
-\hline
-\end{tabularx}
-\end{table}
-\begin{table}[H]
-\caption{Kết quả chạy representative API subset 32/40 trường hợp}
-\label{tab:subset-results}
+\caption{Kết quả release candidate cho covered corpus}
+\label{tab:release-results}
 \centering
 \begin{tabularx}{\textwidth}{|L{5.0cm}|Y|}
 \hline
 \textbf{Chỉ số} & \textbf{Kết quả} \\
 \hline
-Retrieval hit@5 & 19,05\% \\
+Total / covered rows & 40 / 34 \\
 \hline
-Document accuracy & 23,81\% \\
+Corpus-not-covered & \texttt{00}, \texttt{15}--\texttt{19} \\
 \hline
-Article accuracy & 23,81\% \\
+Covered-case request errors & 0 \\
 \hline
-Clause accuracy & 25,00\% \\
+Retrieval hit@5 & 0,3333 \\
 \hline
-Point accuracy & 14,29\% \\
+Document / article accuracy & 0,5833 / 0,5833 \\
 \hline
-Citation validity & 65,52\% \\
+Clause / point accuracy & 0,5385 / 0,25 \\
 \hline
-Abstention accuracy & 44,83\% \\
+Citation validity / invalid citation rate & 1,0 / 0\% \\
 \hline
-API errors & 3/32 \\
+Abstention accuracy & 0,9118 \\
 \hline
-Latency mean / P50 / P95 & 29,0 / 26,9 / 84,0 giây \\
+Mean / P95 latency & 13,13 / 24,11 giây \\
 \hline
-Semantic correctness & Chưa review \\
+Answer correctness (manual) & N/A \\
 \hline
 \end{tabularx}
-\tabsource{Báo cáo \path{docs/evaluation/thesis-api-subset-32-20260913.md}, chạy ngày 13/09/2026.}
+\tabsource{\path{docs/evaluation/release-candidate-20260914.md}.}
 \end{table}
 
-\subsection{Diễn giải kết quả và khoảng trống}
-Kết quả cho thấy readiness của Supabase và Qdrant chỉ xác nhận dịch vụ có thể nhận request; readiness không chứng minh retrieval tìm đúng căn cứ hoặc câu trả lời đúng. Retrieval hit@5 thấp (19,05\%) và các chỉ số tọa độ pháp lý thấp (14,29--25,00\%) cho thấy khoảng trống chính đang nằm ở việc chọn đúng văn bản và đúng vị trí Điều/Khoản/Điểm. Citation validity 65,52\% cho thấy vẫn còn trích dẫn không hợp lệ hoặc không khớp hoàn toàn với dữ liệu nguồn. Abstention accuracy 44,83\% cho thấy evidence gate chưa phân biệt ổn định giữa trường hợp đủ và thiếu căn cứ; không nên xem cơ chế từ chối hiện tại là bảo đảm an toàn tuyệt đối.
+\subsection{Diễn giải kết quả và giới hạn}
+Release candidate đạt trạng thái \textbf{RELEASE-READY FOR COVERED CORPUS / MVP
+RUNTIME}. Sáu case thiếu căn cứ được đánh dấu \texttt{CORPUS\_NOT\_COVERED} và
+không tính vào denominator; không sửa gold set hoặc thêm dữ liệu để làm đẹp
+kết quả. Kết quả không phải chứng nhận bao phủ toàn bộ pháp luật giao thông.
+Semantic correctness toàn bộ là N/A vì chưa có human review đầy đủ.
 
-Ba lỗi API làm giảm độ tin cậy vận hành của kết quả và cần được phân tích riêng theo log/request id; không được coi prediction null là câu trả lời sai hay là abstention đúng. Semantic correctness chưa được đánh giá, vì vậy chưa có bằng chứng về độ đúng nội dung, mức độ bao phủ đủ ý hoặc việc diễn giải con số pháp lý. P95 84,0 giây cũng cho thấy trải nghiệm đuôi dài chưa đáp ứng mục tiêu vận hành.
+\AssetFigure[0.94\textwidth]{ch4_evaluation_report.png}{8.2cm}{Tổng hợp kết quả release candidate}{}
 
-Vì subset chỉ gồm 32/40 case và được chọn theo quy tắc cố định, kết quả chỉ là bằng chứng đại diện cho lần chạy này. Các gap còn lại gồm: chạy và lưu artifact cho full 40 case; sửa nguyên nhân 3 lỗi API; cải thiện retrieval và legal-coordinate matching; kiểm tra citation end-to-end; hiệu chỉnh evidence gate/abstention; review thủ công semantic correctness; và đo lại latency sau khi sửa. Cho đến khi các gap này được kiểm chứng, trạng thái là \textbf{UNVERIFIED / NOT RELEASE-READY}.
-\AssetFigure[0.94\textwidth]{ch4_evaluation_report.png}{8.2cm}{Tổng hợp kết quả đánh giá hệ thống}{}
+Release artifact và reproduction command được ghi tại
+\path{docs/evaluation/release-candidate-20260914.md}; không dùng temporary
+directory làm provenance chính.
 
 \section{Phân tích lỗi}
-Các lỗi được phân loại theo vị trí phát sinh. Kết quả subset hiện tại cho thấy bốn nhóm cần ưu tiên: (1) retrieval và mapping legal-coordinate, thể hiện qua retrieval hit@5 19,05\% và point accuracy 14,29\%; (2) citation, với citation validity 65,52\%; (3) evidence gate và abstention, với abstention accuracy 44,83\%; (4) độ ổn định vận hành, với 3/32 lỗi API và P95 84,0 giây. Chưa thể tách riêng lỗi generation khỏi retrieval vì semantic correctness chưa được review. Việc phân loại tiếp theo phải gắn từng case lỗi với request log, retrieved passages, trạng thái evidence gate và response cuối.
+Các lỗi còn lại được diễn giải theo giới hạn covered corpus, semantic review
+chưa hoàn tất và public-production hardening chưa thuộc MVP claim. Citation
+validity của release candidate đạt 1,0; các case thiếu corpus được fail closed
+và ghi riêng.
 
 \section{Kết luận chương}
 Chương 4 ghi nhận các chức năng giao diện, API, kiểm thử và bộ chỉ số đánh giá. Các phần này cho phép xem kết quả từ thao tác người dùng đến retrieval và hành vi từ chối trả lời.
@@ -1723,10 +1708,18 @@ Chương 4 ghi nhận các chức năng giao diện, API, kiểm thử và bộ 
 \chapter*{CHƯƠNG V. KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN}
 \addcontentsline{toc}{chapter}{CHƯƠNG V. KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN}
 
-Hệ thống đã hình thành các thành phần chính: xử lý dữ liệu pháp luật, tìm kiếm kết hợp, phân tích câu hỏi, kiểm tra căn cứ, sinh câu trả lời, tạo trích dẫn, xác thực người dùng, lưu lịch sử hội thoại, feedback, bookmark và tra cứu nguồn pháp luật. Bộ đánh giá 40 trường hợp hỗ trợ kiểm tra retrieval, vị trí pháp lý, trích dẫn, hành vi từ chối trả lời và độ trễ. Trong phạm vi xác minh gần nhất, hệ thống đã chạy được 32/40 case trực tiếp qua API với readiness của Supabase/Qdrant đạt, nhưng kết quả định lượng còn thấp và chưa release-ready; không có bằng chứng để khẳng định full 40 case hoặc semantic correctness đã đạt.
+Hệ thống đã hình thành các thành phần chính: xử lý dữ liệu pháp luật, tìm kiếm
+kết hợp, phân tích câu hỏi, kiểm tra căn cứ, sinh câu trả lời, tạo trích dẫn,
+xác thực người dùng, lưu lịch sử hội thoại, feedback, bookmark và tra cứu nguồn
+pháp luật. Release candidate covered corpus đạt citation validity 1,0, không có
+covered-case request error và được ghi trong release report.
 
 \section{Hạn chế}
-Phạm vi dữ liệu hiện là corpus cục bộ, chưa đại diện toàn bộ pháp luật giao thông. Các quy tắc analyzer và reference parser tập trung vào một số mẫu câu tiếng Việt thường gặp nên không bao phủ mọi cách diễn đạt. Retrieval còn phụ thuộc chất lượng embedding và metadata đầu vào. Lần chạy representative chỉ bao phủ 32/40 case; có 3 lỗi API, citation validity 65,52\%, abstention accuracy 44,83\% và P95 latency 84,0 giây. Semantic correctness chưa review, nên chưa thể kết luận chất lượng nội dung. Ngoài ra, báo cáo hiện chưa có raw artifact subset trong Git để replay độc lập; việc tái lập đầy đủ cần lưu prediction JSONL cùng manifest cấu hình. Hệ thống cũng phụ thuộc OpenRouter cho model provider khi generation trực tuyến.
+Phạm vi dữ liệu hiện là corpus cục bộ, chưa đại diện toàn bộ pháp luật giao
+thông. Sáu case thiếu corpus được fail closed và loại khỏi denominator. Các quy
+tắc analyzer và reference parser tập trung vào một số mẫu câu tiếng Việt thường
+gặp. Human semantic review toàn bộ, load test và public production hardening
+chưa thuộc bằng chứng release MVP.
 
 \section{Hướng phát triển}
 Các phần còn có thể phát triển sau khóa luận gồm mở rộng corpus theo quy trình kiểm chứng nguồn, quản lý phiên bản văn bản và ngày hiệu lực, tăng số trường hợp trong bộ đánh giá, thử thêm embedding hoặc reranker, xử lý cross-reference chi tiết hơn, kiểm tra claim sau generation, bổ sung tracing và xây quy trình cập nhật corpus có kiểm thử hồi quy.
@@ -1743,10 +1736,6 @@ Hệ thống gắn căn cứ có thể mở lại với mỗi câu trả lời p
 \clearpage
 \begin{thebibliography}{99}
 
-\bibitem{tdu_laptrinhcanban}
-\textbf{Nguyễn Chí Cường}. \textit{Lập trình căn bản}. Khoa Kỹ thuật - Công nghệ, Đại học Tây Đô, 2023.
-
-\bibitem{tdu_pttkhttt}
 \textbf{Nguyễn Chí Cường}. \textit{Phân tích và thiết kế hệ thống thông tin}. Khoa Kỹ thuật - Công nghệ, Đại học Tây Đô, 2024.
 
 \bibitem{tdu_nmcpm}

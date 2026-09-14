@@ -1,6 +1,8 @@
-# 08. Bảo trì runtime hiện tại
+# 08. Bảo trì
 
-> **Trạng thái release:** `UNVERIFIED / NOT RELEASE-READY` (audit 13/09/2026).
+> **Trạng thái release:** `RELEASE-READY FOR COVERED CORPUS / MVP RUNTIME`
+> (audit 14/09/2026). Public production hardening and complete semantic review
+> remain outside this local MVP release claim.
 > Đây là runbook cho những gì đang có trong repository, không phải cam kết rằng
 > toàn bộ kiến trúc mục tiêu đã được triển khai.
 
@@ -182,25 +184,17 @@ Git commit, corpus/manifest/chunk hashes, model/config versions và phạm vi ca
 Không sửa frozen gold set để làm đẹp kết quả, không dùng feedback hoặc final test
 để tuning rồi gọi đó là evaluation độc lập.
 
-Artifact hiện có [`docs/evaluation/thesis-api-subset-32-20260913.md`](evaluation/thesis-api-subset-32-20260913.md)
-chỉ là API subset diagnostic: 32/40 case, 3 lỗi, hit@5 19,05%, citation validity 65,52%,
-abstention accuracy 44,83%, P95 84 giây; semantic correctness chưa được review.
-Đây là bằng chứng chẩn đoán, không phải toàn bộ 40-case/8-category release gate.
+Artifact release candidate ngày 14/09/2026 được ghi nhận tại
+[evaluation/release-candidate-20260914.md](evaluation/release-candidate-20260914.md).
+Kết quả gồm 40 rows, trong đó 34 covered rows và 6 rows
+`CORPUS_NOT_COVERED` (`00`, `15`--`19`). Covered-case request errors bằng 0,
+citation validity bằng 1.0, invalid citation rate bằng 0% và abstention accuracy
+bằng 0.9118. Sáu case thiếu corpus không được tính vào denominator.
 
-Trước khi gọi release candidate phải có bằng chứng cho:
-
-- corpus/manifest/chunks nhất quán và provenance/hash truy vết được;
-- diagnostic run đủ 40 case thuộc đúng 8 category, công bố coverage giới hạn và denominator;
-- retrieval/evidence/temporal/citation/abstention và latency metrics, kèm semantic review cần thiết;
-- Supabase auth/persistence ownership checks;
-- OpenRouter success và fail-closed provider checks;
-- API contract, citation, temporal và evidence behavior;
-- frontend browser smoke trên release build;
-- diagnostic 40-case/8-category evaluation và semantic/manual review theo [06-test-evaluation.md](06-test-evaluation.md).
-
-Hiện trạng vẫn **NOT RELEASE-READY** cho tới khi các gate còn thiếu được chạy và
-review. Không áp đặt threshold metric số cố định và không suy diễn từ artifact
-14-PDF candidate rằng 14 PDF đang được runtime phục vụ hoặc đã được xác minh.
+Trạng thái kỹ thuật là **RELEASE-READY FOR COVERED CORPUS**. Đây không phải
+chứng nhận semantic đầy đủ: `answer_correctness_manual` vẫn là N/A vì chưa có
+human semantic review toàn bộ. Khi corpus hoặc model thay đổi, phải chạy lại
+đầy đủ quy trình và tạo artifact mới; không sửa frozen gold để làm đẹp kết quả.
 
 ## 7. Backup, hash và khôi phục local
 

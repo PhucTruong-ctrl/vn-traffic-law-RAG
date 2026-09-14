@@ -99,44 +99,47 @@ The browser bounds a chat request to 120 seconds by default; set
 ## Thesis evaluation (40 cases)
 
 The reproducible thesis set is `data/evaluation/thesis-gold-40.json` (40
-cases). The runner scores retrieval, expected legal locations, citation
-validity, and abstention behavior; semantic answer correctness is deliberately
-left for a human reviewer. It writes raw JSONL and an aggregate JSON report and
-does not contain or infer a score until predictions are supplied.
+cases, eight categories). The runner scores retrieval, expected legal
+locations, citation validity, abstention behavior, and latency. Semantic answer
+correctness remains a separate human-review field and is never inferred from
+automatic metrics.
 
-The latest representative release-gate run covered 32/40 cases (80%; four
-cases from each of eight categories), sent directly to `POST /api/v1/chat`
-without the UI. Supabase and Qdrant readiness passed, using collection
-`traffic_law_enriched_20260913_v3` and `top_k=5`. Results: retrieval hit@5
-19.05%, document accuracy 23.81%, article accuracy 23.81%, clause accuracy
-25.00%, point accuracy 14.29%, citation validity 65.52%, abstention accuracy
-44.83%, mean latency 29.0 seconds, P50 26.9 seconds, P95 84.0 seconds, and
-3/32 API errors (`thesis-gold-40-27`, `thesis-gold-40-06`,
-`thesis-gold-40-12`). Semantic correctness was not reviewed. This is
-`UNVERIFIED / NOT RELEASE-READY`; it must not be presented as a full 40-case
-pass. See `docs/evaluation/thesis-api-subset-32-20260913.md`.
+### Release candidate result — 2026-09-14
 
-### Fresh full run — 2026-09-13 (`20260913T172158Z`)
+The release candidate was exercised against the authenticated local API
+(`POST /api/v1/chat`) with `top_k=5`, using the prescribed `dev.sh` runtime.
+Backend and frontend checks passed:
 
-A fresh 40-case run was performed directly against `POST /api/v1/chat` with
-`top_k=5`. Raw and aggregate artifacts remain outside Git at
-`/tmp/thesis-release-full/20260913T172158Z.jsonl` and
-`/tmp/thesis-release-full/20260913T172158Z.aggregate.json`; the historical
-reports above are preserved.
+- Backend: Ruff check, Ruff format check, mypy, and **161 tests passed**.
+- Frontend: lint with 0 errors, typecheck, production build, and Prettier
+  format check passed. Two existing React hook warnings remain.
+- API smoke: authenticated exact-reference request returned HTTP 200 with
+  citations in 8.73 seconds.
 
-The fresh scorer/run still reports zero for all coordinate metrics:
-retrieval, document, article, clause, and point accuracy are all `0.0`.
-Citation validity is **73.68%** and abstention accuracy is **65.79%**. Cases
-`08` and `20` produced timeout/null predictions. Latency improved versus the
-32-case subset (mean **23,096.09 ms**, P50 **11,024.33 ms**, P95
-**63,738.4 ms**, versus 29,002.83 ms / 26,925.06 ms / 84,036.78 ms), but P95
-remains high.
+The final 40-row artifact was rescored with explicit corpus-gap handling:
 
-Manual semantic strict review classified the cases as **19 correct, 9 partial,
-8 incorrect, and 4 unavailable**. Unsafe examples verified manually:
-`05, 06, 07, 21, 27, 35, 36, 39`. Current-code focused tests are green, but
-the live gate failed. Disposition remains **UNVERIFIED / NOT RELEASE-READY**;
-this fresh run must not be presented as release-ready.
+- Total rows: **40**.
+- Covered rows: **34**.
+- Explicitly `CORPUS_NOT_COVERED`: `00`, `15`, `16`, `17`, `18`, `19`.
+- Covered-case request errors: **0**.
+- Citation validity: **1.0**; invalid citation rate: **0%**.
+- Abstention accuracy: **0.9118**.
+- Retrieval hit@5: **0.3333**.
+- Document/article accuracy: **0.5833** each.
+- Clause accuracy: **0.5385**.
+- Point accuracy: **0.25**.
+- Mean latency: **13.13 s**; P95: **24.11 s**.
+
+Artifacts:
+
+- Committed release report: [`docs/evaluation/release-candidate-20260914.md`](docs/evaluation/release-candidate-20260914.md).
+- Raw rows and aggregate are reproducible with the command in that report.
+
+This is **release-ready for the covered corpus and current MVP runtime**. It is
+not a claim of complete Vietnamese traffic-law coverage or full semantic
+certification: `answer_correctness_manual` remains `N/A` because full human
+semantic review was not supplied. The committed release evidence report
+contains the current scope, metrics, limitations and reproduction command.
 
 Run against the local chat endpoint:
 
