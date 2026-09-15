@@ -18,6 +18,8 @@
 \usepackage{array}
 \newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+\newcolumntype{Z}{>{\raggedleft\arraybackslash}X}
 \usepackage{longtable}
 \usepackage{tabularx}
 \usepackage{booktabs}
@@ -127,6 +129,10 @@
 \titlespacing*{\section}{0pt}{6pt}{0pt}
 \titleformat{\subsection}{\bfseries\fontsize{13pt}{15.6pt}\selectfont}{\thesubsection}{0.5em}{}
 \titlespacing*{\subsection}{0pt}{6pt}{0pt}
+\makeatletter
+\patchcmd{\@afterheading}{\if@afterindent \else}{\iftrue \else}{}{}
+\makeatother
+
 % Giữ tiêu đề cùng phần nội dung ngay sau nó để tránh tiêu đề nằm một mình cuối trang.
 % \Needspace dùng phép kiểm tra chính xác hơn \needspace.
 \AddToHook{cmd/section/before}{\Needspace{10\baselineskip}}
@@ -304,6 +310,8 @@ PHÁP LUẬT GIAO THÔNG VIỆT NAM
 
 
 % ============================================================
+\CoverFrame
+
 % TRANG BÌA TRONG
 % ============================================================
 
@@ -502,7 +510,7 @@ Bộ đánh giá gồm 40 trường hợp, chia đều cho tám nhóm câu hỏi
 \addcontentsline{toc}{chapter}{DANH MỤC TỪ VIẾT TẮT}
 {\fontsize{12pt}{12pt}\selectfont\setstretch{1.0}
   \Needspace{10\baselineskip}
-  \begin{longtable}{@{}L{2.8cm}L{11.0cm}@{}}
+  \begin{longtable}{@{}L{3.0cm}L{12.1cm}@{}}
     \textbf{AI}   & Artificial Intelligence - Trí tuệ nhân tạo                                     \\
     \textbf{API}  & Application Programming Interface - Giao diện để các phần mềm trao đổi dữ liệu \\
     \textbf{BM25} & Phương pháp xếp hạng kết quả tìm kiếm theo mức độ trùng khớp từ khóa           \\
@@ -712,10 +720,10 @@ Các chỉ số tính từ kết quả tìm kiếm và phản hồi của hệ t
 Cơ sở kỹ thuật của đề tài được xây dựng từ các khái niệm về lập trình, phân tích hệ thống, công nghệ phần mềm và phát triển web đã học trong chương trình Công nghệ thông tin của Trường Đại học Tây Đô \cite{tdu_laptrinhcanban,tdu_pttkhttt,tdu_nmcpm,tdu_web,tdu_cdnnlt}. Đặc điểm của FastAPI, Qdrant, Supabase, Next.js, React, TypeScript, Docker và OpenRouter lấy theo tài liệu chính thức của từng nền tảng.
 
 Hệ thống dùng FastAPI cho dịch vụ phía máy chủ, Supabase cho xác thực và lưu dữ liệu ứng dụng, Markdown và JSONL (JSON theo từng dòng) cho dữ liệu pháp luật đã chuẩn hóa, Qdrant cho tìm kiếm kết hợp và OpenRouter để kết nối mô hình ngôn ngữ. Mỗi công nghệ được mô tả theo chức năng thực tế mà nó đảm nhiệm trong đề tài.
-Đề tài phân tích yêu cầu hệ thống theo tác nhân, dữ liệu đầu vào, dữ liệu đầu ra, quy tắc xử lý và ràng buộc của từng chức năng. Các yêu cầu chức năng và phi chức năng sau đó là cơ sở cho ca sử dụng, luồng dữ liệu, thiết kế API, mô hình dữ liệu và kiểm thử.
+Đề tài phân tích yêu cầu hệ thống theo tác nhân, dữ liệu đầu vào, dữ liệu đầu ra, quy tắc xử lý và ràng buộc của từng chức năng. Các yêu cầu chức năng và phi chức năng sau đó là cơ sở cho Use Case, luồng dữ liệu, thiết kế API, mô hình dữ liệu và kiểm thử.
 
 \subsection{Thiết kế hệ thống}
-Từ yêu cầu chức năng, đề tài xây dựng sơ đồ chức năng, sơ đồ luồng dữ liệu, ca sử dụng tổng quát và các mô hình dữ liệu MCD (mô hình khái niệm), LDM (mô hình logic) và PDM (mô hình vật lý) để mô tả chức năng, luồng dữ liệu và cấu trúc cơ sở dữ liệu trước khi trình bày kết quả cài đặt.
+Từ yêu cầu chức năng, đề tài xây dựng sơ đồ chức năng, sơ đồ luồng dữ liệu, Use Case tổng quát và các mô hình dữ liệu MCD (mô hình khái niệm), LDM (mô hình logic) và PDM (mô hình vật lý) để mô tả chức năng, luồng dữ liệu và cấu trúc cơ sở dữ liệu trước khi trình bày kết quả cài đặt.
 
 Dịch vụ phía máy chủ dùng pytest cho kiểm thử đơn vị và kiểm thử tích hợp; phần giao diện được kiểm tra theo các luồng thao tác chính của người dùng. Kết quả đánh giá trình bày theo từng chỉ số, kèm phạm vi dữ liệu dùng để tính toán.
 
@@ -1033,49 +1041,49 @@ Hình~\ref{fig:ch2_evaluation} tóm tắt các chỉ số dùng để đánh gi�
 \AssetFigure[0.92\textwidth][fig:ch2_evaluation]{ch2_evaluation.png}{9.0cm}{Các chỉ số đánh giá hệ thống}{}
 \subsection{Chọn mô hình}
 Việc chọn mô hình được đo trực tiếp qua OpenRouter trên sáu ca bộ phân tích yêu cầu và năm lần lặp bộ sinh câu trả lời với cùng câu lệnh cho mô hình thật và 15 đoạn dữ liệu truy xuất.
-\begin{longtable}{|L{4.2cm}|L{10.6cm}|}
-  \caption{Đối sánh bộ phân tích yêu cầu qua OpenRouter}\label{tab:analyzer-benchmark}     \\
+\begin{longtable}{|L{4.0cm}|R{2.4cm}|R{2.5cm}|R{2.6cm}|R{2.5cm}|}
+  \caption{Đối sánh bộ phân tích yêu cầu qua OpenRouter}\label{tab:analyzer-benchmark} \\
   \hline
-  \textbf{Mô hình}            & \textbf{Kết quả}                                           \\
+  \textbf{Mô hình} & \textbf{JSON hợp lệ} & \textbf{Loại yêu cầu đúng} & \textbf{Loại phương tiện đúng} & \textbf{Độ trễ trung bình (s)} \\
   \hline
   \endfirsthead
   \hline
-  \textbf{Mô hình}            & \textbf{Kết quả}                                           \\
+  \textbf{Mô hình} & \textbf{JSON hợp lệ} & \textbf{Loại yêu cầu đúng} & \textbf{Loại phương tiện đúng} & \textbf{Độ trễ trung bình (s)} \\
   \hline
   \endhead
-  gemini-2.5-flash-lite       & JSON 6/6, loại yêu cầu 6/6, loại phương tiện 6/6, 1.3 s    \\
+  gemini-2.5-flash-lite       & 6/6 & 6/6    & 6/6    & 1,3  \\
   \hline
-  mistral-small-24b           & JSON 6/6, loại yêu cầu 6/6, loại phương tiện 6/6, 3.6 s    \\
+  mistral-small-24b           & 6/6 & 6/6    & 6/6    & 3,6  \\
   \hline
-  qwen3-30b-a3b-2507          & JSON 6/6, loại yêu cầu 6/6, loại phương tiện 6/6, 4.1 s    \\
+  qwen3-30b-a3b-2507          & 6/6 & 6/6    & 6/6    & 4,1  \\
   \hline
-  \texttt{openai/gpt-oss-20b} & JSON 5/6, 11.2 s; chưa đo loại yêu cầu và loại phương tiện \\
+  \texttt{openai/gpt-oss-20b} & 5/6 & chưa đo & chưa đo & 11,2 \\
   \hline
 \end{longtable}
 \tabsource{Đo trực tiếp qua OpenRouter API ngày 15/09/2026.}
-\begin{longtable}{|L{4.2cm}|L{10.6cm}|}
+\begin{longtable}{|L{4.0cm}|R{2.2cm}|R{2.1cm}|R{2.4cm}|R{3.2cm}|}
   \caption{Đối sánh bộ sinh câu trả lời qua OpenRouter}\label{tab:generator-benchmark} \\
   \hline
-  \textbf{Mô hình}            & \textbf{Kết quả}                                       \\
+  \textbf{Mô hình} & \textbf{Thành công} & \textbf{p50 (s)} & \textbf{Lớn nhất (s)} & \textbf{Độ dài (ký tự)} \\
   \hline
   \endfirsthead
   \hline
-  \textbf{Mô hình}            & \textbf{Kết quả}                                       \\
+  \textbf{Mô hình} & \textbf{Thành công} & \textbf{p50 (s)} & \textbf{Lớn nhất (s)} & \textbf{Độ dài (ký tự)} \\
   \hline
   \endhead
-  gemini-2.5-flash-lite       & 5/5, p50 1.2 s, max 2.2 s, 551 ký tự                   \\
+  gemini-2.5-flash-lite       & 5/5 & 1,2  & 2,2  & 551 \\
   \hline
-  mistral-small-24b           & 5/5, p50 4.8 s, max 11.2 s, 524 ký tự                  \\
+  mistral-small-24b           & 5/5 & 4,8  & 11,2 & 524 \\
   \hline
-  \texttt{openai/gpt-oss-20b} & 5/5, p50 6.3 s, max 6.6 s, 764 ký tự                   \\
+  \texttt{openai/gpt-oss-20b} & 5/5 & 6,3  & 6,6  & 764 \\
   \hline
-  deepseek-v4-flash-0731      & 5/5, p50 24.3 s, max 56.6 s, 279 ký tự                 \\
+  deepseek-v4-flash-0731      & 5/5 & 24,3 & 56,6 & 279 \\
   \hline
 \end{longtable}
 \tabsource{Đo trực tiếp qua OpenRouter API ngày 15/09/2026.}
-Ở cấp nhà cung cấp, gemini-2.5-flash-lite có 5 đơn vị cung cấp, Google AI Studio đạt thời gian hoạt động 99.998\% và giá \$0.05/\$0.20 mỗi 1M token. \texttt{openai/gpt-oss-20b} có 14 đơn vị cung cấp với giá \$0.02/\$0.10. qwen3-30b-a3b-2507 có 5 đơn vị cung cấp, trong đó có một đơn vị chất lượng suy giảm. mistral-small-24b chỉ có 1 đơn vị cung cấp là DeepInfra, trên toàn bộ quá trình chạy P90 27.8 s, P95 40.0 s, lỗi dữ liệu đầu ra có cấu trúc 2.35\% và từng gây \texttt{generation\_failed} do HTTP 429. deepseek-v4-flash-0731 có 27 đơn vị cung cấp nhưng chậm nhất ở bước sinh câu trả lời.
+Ở cấp nhà cung cấp, gemini-2.5-flash-lite có 5 đơn vị cung cấp, Google AI Studio đạt thời gian hoạt động 99,998\% và giá \$0,05/\$0,20 mỗi 1M token. \texttt{openai/gpt-oss-20b} có 14 đơn vị cung cấp với giá \$0,02/\$0,10. qwen3-30b-a3b-2507 có 5 đơn vị cung cấp, trong đó có một đơn vị chất lượng suy giảm. mistral-small-24b chỉ có 1 đơn vị cung cấp là DeepInfra, trên toàn bộ quá trình chạy P90 27,8 s, P95 40,0 s, lỗi dữ liệu đầu ra có cấu trúc 2,35\% và từng gây \texttt{generation\_failed} do HTTP 429. deepseek-v4-flash-0731 có 27 đơn vị cung cấp nhưng chậm nhất ở bước sinh câu trả lời.
 
-Chọn gemini-2.5-flash-lite cho cả bộ phân tích yêu cầu và bộ sinh câu trả lời vì đạt JSON 6/6, loại yêu cầu 6/6 và loại phương tiện 6/6 ở bộ phân tích, cùng 5/5 ở bộ sinh, có độ trễ thấp trong các lựa chọn đã đo, cùng nhiều nhà cung cấp và thời gian hoạt động Google AI Studio 99.998\%.
+Chọn gemini-2.5-flash-lite cho cả bộ phân tích yêu cầu và bộ sinh câu trả lời vì đạt JSON 6/6, loại yêu cầu 6/6 và loại phương tiện 6/6 ở bộ phân tích, cùng 5/5 ở bộ sinh, có độ trễ thấp trong các lựa chọn đã đo, cùng nhiều nhà cung cấp và thời gian hoạt động Google AI Studio 99,998\%.
 \subsection{Tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên}
 Tỉ lệ này cho biết trong $k$ kết quả đầu tiên có ít nhất một vị trí pháp lý đúng hay không. Tỷ lệ bằng số trường hợp đạt chia cho số trường hợp có dữ liệu phù hợp; mỗi trường hợp được ghi nhận đạt hoặc không đạt. Khóa luận dùng hai cách đối sánh trên cùng một lần chạy: đối sánh khớp chính xác yêu cầu tọa độ pháp lý trả về trùng đầy đủ với tọa độ kỳ vọng, còn đối sánh phân cấp chấp nhận một quy định con thuộc đúng Điều kỳ vọng, ví dụ một Khoản của Điều đó, là tìm thấy căn cứ. Hai cách cho hai giá trị khác nhau nên khi so sánh giữa các lần chạy phải dùng cùng một cách.
 
@@ -1091,36 +1099,14 @@ Tỷ lệ trích dẫn hợp lệ là số trích dẫn có thông tin nguồn �
 Mô-đun đánh giá tính độ trễ phản hồi (mili giây) theo trung bình, trung vị và phân vị 95 trên các lần chạy đánh giá. Các giá trị phụ thuộc vào kết nối mạng, dịch vụ mô hình và môi trường chạy nên cần được đọc cùng điều kiện đo.
 
 \subsection{Tổng hợp và quyết định chọn mô hình}
-Dựa trên hai bảng đối sánh ở trên, phần này tổng hợp lựa chọn mô hình theo cùng thiết kế đo: trên sáu ca bộ phân tích yêu cầu và năm lần lặp bộ sinh câu trả lời, dùng cùng câu lệnh cho mô hình và 15 đoạn dữ liệu truy xuất. Bảng \ref{tab:model-selection} ghi độ ổn định đầu ra, độ trễ và độ dài đầu ra của các lựa chọn đã đo.
-\begin{longtable}{|L{3.2cm}|L{3.9cm}|L{3.4cm}|L{3.6cm}|}
-  \caption{Đối sánh chọn mô hình qua OpenRouter}\label{tab:model-selection}                                                                                                  \\
-  \hline
-  \textbf{Mô hình}       & \textbf{Bộ phân tích (6 ca)}                            & \textbf{Bộ sinh (5 lần)}     & \textbf{Nhà cung cấp và ghi chú}                         \\
-  \hline
-  \endfirsthead
-  \hline
-  \textbf{Mô hình}       & \textbf{Bộ phân tích (6 ca)}                            & \textbf{Bộ sinh (5 lần)}     & \textbf{Nhà cung cấp và ghi chú}                         \\
-  \hline
-  \endhead
-  gemini-2.5-flash-lite  & JSON 6/6, loại yêu cầu 6/6, loại phương tiện 6/6, 1.3 s & 5/5, P50 1.2 s, 551 ký tự    & 5 nhà cung cấp mô hình; thời gian hoạt động 99.998\%     \\
-  \hline
-  mistral-small-24b      & JSON 6/6, loại yêu cầu 6/6, loại phương tiện 6/6, 3.6 s & 5/5, P50 4.8 s, 524 ký tự    & 1 nhà cung cấp mô hình; từng lỗi HTTP 429                \\
-  \hline
-  qwen3-30b-a3b-2507     & JSON 6/6, loại yêu cầu 6/6, loại phương tiện 6/6, 4.1 s & Không đo bộ sinh câu trả lời & 5 nhà cung cấp mô hình; có nhà cung cấp mô hình suy giảm \\
-  \hline
-  gpt-oss-20b            & JSON 5/6, 11.2 s                                        & 5/5, P50 6.3 s, 764 ký tự    & 14 nhà cung cấp mô hình; \$0.02/\$0.10 mỗi 1M token      \\
-  \hline
-  deepseek-v4-flash-0731 & Không đo bộ phân tích yêu cầu                           & 5/5, P50 24.3 s, 279 ký tự   & 27 nhà cung cấp mô hình; chậm nhất                       \\
-  \hline
-\end{longtable}
-\tabsource{Đo trực tiếp qua OpenRouter API ngày 15/09/2026.}
+Dựa trên hai bảng đối sánh ở trên, phần này tổng hợp lựa chọn mô hình theo cùng thiết kế đo: trên sáu ca bộ phân tích yêu cầu và năm lần lặp bộ sinh câu trả lời, dùng cùng câu lệnh cho mô hình và 15 đoạn dữ liệu truy xuất. Bảng~\ref{tab:analyzer-benchmark} và Bảng~\ref{tab:generator-benchmark} ghi độ ổn định đầu ra, độ trễ và độ dài đầu ra của các lựa chọn đã đo.
 
-Chọn gemini-2.5-flash-lite vì đạt 6/6 JSON, 6/6 loại yêu cầu, 6/6 loại phương tiện ở bộ phân tích yêu cầu, 5/5 ở bộ sinh câu trả lời, có độ trễ thấp nhất trong các lựa chọn đạt yêu cầu và có năm nhà cung cấp cùng thời gian hoạt động Google AI Studio 99.998\%. Tiêu chí chọn ở đây là độ trễ và độ ổn định đầu ra; các chỉ số chất lượng của hệ thống được đo riêng.
+Chọn gemini-2.5-flash-lite vì đạt 6/6 JSON, 6/6 loại yêu cầu, 6/6 loại phương tiện ở bộ phân tích yêu cầu, 5/5 ở bộ sinh câu trả lời, có độ trễ thấp nhất trong các lựa chọn đạt yêu cầu và có năm nhà cung cấp cùng thời gian hoạt động Google AI Studio 99,998\%. Tiêu chí chọn ở đây là độ trễ và độ ổn định đầu ra; các chỉ số chất lượng của hệ thống được đo riêng.
 
 \section{Tổng hợp công nghệ sử dụng}
 Bảng~\ref{tab:techstack-current} liệt kê công nghệ và vai trò của từng thành phần trong hệ thống.
 \Needspace{10\baselineskip}
-\begin{longtable}{|L{3.0cm}|L{4.0cm}|L{6.0cm}|}
+\begin{longtable}{|L{3.4cm}|L{4.4cm}|L{6.7cm}|}
   \caption{Các công nghệ chính trong hệ thống}\label{tab:techstack-current}                                                                      \\
   \hline
   \textbf{Nhóm}         & \textbf{Công nghệ}                 & \textbf{Vai trò trong đề tài}                                                     \\
@@ -1191,10 +1177,10 @@ Trong phạm vi giao diện người dùng, hệ thống có hai trạng thái t
 \end{table}
 
 \subsection{Yêu cầu chức năng}
-Các yêu cầu chức năng được đánh mã để tiện đối chiếu với ca sử dụng, API và giao diện ở Chương 4. Bảng~\ref{tab:functional-requirements} chỉ mô tả chức năng đã có trong phạm vi hệ thống, không đưa thêm vai trò quản trị hoặc nghiệp vụ không tồn tại trong sản phẩm.
+Các yêu cầu chức năng được đánh mã để tiện đối chiếu với Use Case, API và giao diện ở Chương 4. Bảng~\ref{tab:functional-requirements} chỉ mô tả chức năng đã có trong phạm vi hệ thống, không đưa thêm vai trò quản trị hoặc nghiệp vụ không tồn tại trong sản phẩm.
 
 \Needspace{10\baselineskip}
-\begin{longtable}{|L{1.3cm}|L{4.2cm}|L{8.0cm}|}
+\begin{longtable}{|L{1.4cm}|L{4.6cm}|L{8.5cm}|}
   \caption{Yêu cầu chức năng của hệ thống}\label{tab:functional-requirements}                                                                                                                                                                                   \\
   \hline
   \textbf{Mã} & \textbf{Chức năng}                     & \textbf{Mô tả}                                                                                                                                                                                         \\
@@ -1274,18 +1260,18 @@ Sơ đồ gồm các nhóm xác thực, hỏi đáp pháp luật, quản lý h�
 Ở mức 0, hệ thống được tách thành các tiến trình xác thực, quản lý hội thoại, xử lý câu hỏi, tra cứu nguồn và quản lý dữ liệu tìm kiếm. Sơ đồ thể hiện rõ nơi lưu dữ liệu ứng dụng, nơi lưu chỉ mục tìm kiếm và luồng kết quả trả về người dùng.
 \AssetFigure[0.98\textwidth]{ch3_dfd_level0.png}{10.0cm}{Sơ đồ luồng dữ liệu mức 0}{}
 
-\section{Sơ đồ ca sử dụng và đặc tả chức năng}
-\subsection{Sơ đồ ca sử dụng tổng quát}
-Sơ đồ tổng quát thể hiện những chức năng mà khách chưa đăng nhập và người dùng đã đăng nhập có thể thực hiện. Các xử lý nội bộ như BM25, tìm kiếm vector, gộp thứ hạng hoặc kiểm tra căn cứ không được biểu diễn thành ca sử dụng riêng vì người dùng không gọi trực tiếp các bước đó.
-\AssetFigure[0.94\textwidth]{ch3_usecase_overall.png}{8.5cm}{Sơ đồ ca sử dụng tổng quát của hệ thống}{}
+\section{Sơ đồ Use Case và đặc tả chức năng}
+\subsection{Sơ đồ Use Case tổng quát}
+Sơ đồ tổng quát thể hiện những chức năng mà khách chưa đăng nhập và người dùng đã đăng nhập có thể thực hiện. Các xử lý nội bộ như BM25, tìm kiếm vector, gộp thứ hạng hoặc kiểm tra căn cứ không được biểu diễn thành Use Case riêng vì người dùng không gọi trực tiếp các bước đó.
+\AssetFigure[0.94\textwidth]{ch3_usecase_overall.png}{8.5cm}{Sơ đồ Use Case tổng quát của hệ thống}{}
 
-\subsection{Ca sử dụng phân rã nhóm xác thực}
-Nhóm xác thực gồm hai nghiệp vụ người dùng trực tiếp thao tác là đăng ký và đăng nhập. Sơ đồ phân rã cần tập trung vào tương tác của người dùng với giao diện và dịch vụ xác thực, không đưa các chi tiết triển khai nội bộ thành ca sử dụng.
-\AssetFigure[0.94\textwidth]{ch3_usecase_auth.png}{7.5cm}{Sơ đồ ca sử dụng phân rã nhóm xác thực}{}
+\subsection{Use Case phân rã nhóm xác thực}
+Nhóm xác thực gồm hai nghiệp vụ người dùng trực tiếp thao tác là đăng ký và đăng nhập. Sơ đồ phân rã cần tập trung vào tương tác của người dùng với giao diện và dịch vụ xác thực, không đưa các chi tiết triển khai nội bộ thành Use Case.
+\AssetFigure[0.94\textwidth]{ch3_usecase_auth.png}{7.5cm}{Sơ đồ Use Case phân rã nhóm xác thực}{}
 \Needspace{12\baselineskip}
-{\fontsize{11pt}{12.5pt}\selectfont
-  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
-    \caption{Bảng đặc tả ca sử dụng Đăng ký tài khoản}\label{tab:uc-register}                                                                                 \\
+{
+  \begin{longtable}{|L{3.6cm}|L{11.2cm}|}
+    \caption{Bảng đặc tả Use Case Đăng ký tài khoản}\label{tab:uc-register}                                                                                 \\
     \hline
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                                          \\
     \hline
@@ -1294,9 +1280,9 @@ Nhóm xác thực gồm hai nghiệp vụ người dùng trực tiếp thao tác
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                                          \\
     \hline
     \endhead
-    Mã ca sử dụng       & UC\_AUTH\_01                                                                                                                        \\
+    Mã Use Case       & UC\_AUTH\_01                                                                                                                        \\
     \hline
-    Tên ca sử dụng      & Đăng ký tài khoản                                                                                                                   \\
+    Tên Use Case      & Đăng ký tài khoản                                                                                                                   \\
     \hline
     Tác nhân            & Khách chưa đăng nhập                                                                                                                \\
     \hline
@@ -1329,9 +1315,9 @@ Nhóm xác thực gồm hai nghiệp vụ người dùng trực tiếp thao tác
   \end{longtable}
 }
 \Needspace{12\baselineskip}
-{\fontsize{11pt}{12.5pt}\selectfont
-  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
-    \caption{Bảng đặc tả ca sử dụng Đăng nhập}\label{tab:uc-login}                                                                       \\
+{
+  \begin{longtable}{|L{3.6cm}|L{11.2cm}|}
+    \caption{Bảng đặc tả Use Case Đăng nhập}\label{tab:uc-login}                                                                       \\
     \hline
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                     \\
     \hline
@@ -1340,9 +1326,9 @@ Nhóm xác thực gồm hai nghiệp vụ người dùng trực tiếp thao tác
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                     \\
     \hline
     \endhead
-    Mã ca sử dụng       & UC\_AUTH\_02                                                                                                   \\
+    Mã Use Case       & UC\_AUTH\_02                                                                                                   \\
     \hline
-    Tên ca sử dụng      & Đăng nhập                                                                                                      \\
+    Tên Use Case      & Đăng nhập                                                                                                      \\
     \hline
     Tác nhân            & Người dùng                                                                                                     \\
     \hline
@@ -1373,13 +1359,13 @@ Nhóm xác thực gồm hai nghiệp vụ người dùng trực tiếp thao tác
   \end{longtable}
 }
 
-\subsection{Ca sử dụng phân rã chức năng hỏi đáp pháp luật}
-Người dùng gửi câu hỏi, nhận câu trả lời đầy đủ hoặc một phần, xem trạng thái từ chối trả lời khi thuộc trường hợp phù hợp, kiểm tra trích dẫn và có thể mở văn bản nguồn. Các bước phân tích, tìm kiếm, gộp thứ hạng, bổ sung ngữ cảnh, sinh và làm sạch trích dẫn nằm bên trong hệ thống; lưu đồ và sơ đồ tuần tự mô tả các bước này, còn ca sử dụng tập trung vào tương tác của người dùng.
-\AssetFigure[0.96\textwidth]{ch3_usecase_chat.png}{8.2cm}{Sơ đồ ca sử dụng phân rã chức năng hỏi đáp pháp luật}{}
+\subsection{Use Case phân rã chức năng hỏi đáp pháp luật}
+Người dùng gửi câu hỏi, nhận câu trả lời đầy đủ hoặc một phần, xem trạng thái từ chối trả lời khi thuộc trường hợp phù hợp, kiểm tra trích dẫn và có thể mở văn bản nguồn. Các bước phân tích, tìm kiếm, gộp thứ hạng, bổ sung ngữ cảnh, sinh và làm sạch trích dẫn nằm bên trong hệ thống; lưu đồ và sơ đồ tuần tự mô tả các bước này, còn Use Case tập trung vào tương tác của người dùng.
+\AssetFigure[0.96\textwidth]{ch3_usecase_chat.png}{8.2cm}{Sơ đồ Use Case phân rã chức năng hỏi đáp pháp luật}{}
 \Needspace{12\baselineskip}
-{\fontsize{11pt}{12.5pt}\selectfont
-  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
-    \caption{Bảng đặc tả ca sử dụng Đặt câu hỏi pháp luật}\label{tab:uc-chat-ask}                                                                                                                                                                     \\
+{
+  \begin{longtable}{|L{3.6cm}|L{11.2cm}|}
+    \caption{Bảng đặc tả Use Case Đặt câu hỏi pháp luật}\label{tab:uc-chat-ask}                                                                                                                                                                     \\
     \hline
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                                                                                                                                  \\
     \hline
@@ -1388,9 +1374,9 @@ Người dùng gửi câu hỏi, nhận câu trả lời đầy đủ hoặc m�
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                                                                                                                                  \\
     \hline
     \endhead
-    Mã ca sử dụng       & UC\_CHAT\_01                                                                                                                                                                                                                \\
+    Mã Use Case       & UC\_CHAT\_01                                                                                                                                                                                                                \\
     \hline
-    Tên ca sử dụng      & Đặt câu hỏi pháp luật                                                                                                                                                                                                       \\
+    Tên Use Case      & Đặt câu hỏi pháp luật                                                                                                                                                                                                       \\
     \hline
     Tác nhân            & Người dùng đã đăng nhập                                                                                                                                                                                                     \\
     \hline
@@ -1428,9 +1414,9 @@ Người dùng gửi câu hỏi, nhận câu trả lời đầy đủ hoặc m�
   \end{longtable}
 }
 \Needspace{12\baselineskip}
-{\fontsize{11pt}{12.5pt}\selectfont
-  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
-    \caption{Bảng đặc tả ca sử dụng Xem câu trả lời}\label{tab:uc-chat-answer}                                                         \\
+{
+  \begin{longtable}{|L{3.6cm}|L{11.2cm}|}
+    \caption{Bảng đặc tả Use Case Xem câu trả lời}\label{tab:uc-chat-answer}                                                         \\
     \hline
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                   \\
     \hline
@@ -1439,9 +1425,9 @@ Người dùng gửi câu hỏi, nhận câu trả lời đầy đủ hoặc m�
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                   \\
     \hline
     \endhead
-    Mã ca sử dụng       & UC\_CHAT\_02                                                                                                 \\
+    Mã Use Case       & UC\_CHAT\_02                                                                                                 \\
     \hline
-    Tên ca sử dụng      & Xem câu trả lời                                                                                              \\
+    Tên Use Case      & Xem câu trả lời                                                                                              \\
     \hline
     Tác nhân            & Người dùng đã đăng nhập                                                                                      \\
     \hline
@@ -1471,9 +1457,9 @@ Người dùng gửi câu hỏi, nhận câu trả lời đầy đủ hoặc m�
   \end{longtable}
 }
 \Needspace{12\baselineskip}
-{\fontsize{11pt}{12.5pt}\selectfont
-  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
-    \caption{Bảng đặc tả ca sử dụng Xem nguồn trích dẫn}\label{tab:uc-chat-citation}                                        \\
+{
+  \begin{longtable}{|L{3.6cm}|L{11.2cm}|}
+    \caption{Bảng đặc tả Use Case Xem nguồn trích dẫn}\label{tab:uc-chat-citation}                                        \\
     \hline
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                        \\
     \hline
@@ -1482,9 +1468,9 @@ Người dùng gửi câu hỏi, nhận câu trả lời đầy đủ hoặc m�
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                        \\
     \hline
     \endhead
-    Mã ca sử dụng       & UC\_CHAT\_03                                                                                      \\
+    Mã Use Case       & UC\_CHAT\_03                                                                                      \\
     \hline
-    Tên ca sử dụng      & Xem nguồn trích dẫn                                                                               \\
+    Tên Use Case      & Xem nguồn trích dẫn                                                                               \\
     \hline
     Tác nhân            & Người dùng đã đăng nhập                                                                           \\
     \hline
@@ -1513,13 +1499,13 @@ Người dùng gửi câu hỏi, nhận câu trả lời đầy đủ hoặc m�
   \end{longtable}
 }
 
-\subsection{Ca sử dụng phân rã quản lý hội thoại}
+\subsection{Use Case phân rã quản lý hội thoại}
 Nhóm quản lý hội thoại cho phép người dùng xem lại quá trình tra cứu. Dữ liệu phiên và tin nhắn chỉ được truy cập bởi tài khoản đã đăng nhập tương ứng.
-\AssetFigure[0.94\textwidth]{ch3_usecase_conversation.png}{7.8cm}{Sơ đồ ca sử dụng phân rã quản lý hội thoại}{}
+\AssetFigure[0.94\textwidth]{ch3_usecase_conversation.png}{7.8cm}{Sơ đồ Use Case phân rã quản lý hội thoại}{}
 \Needspace{12\baselineskip}
-{\fontsize{11pt}{12.5pt}\selectfont
-  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
-    \caption{Bảng đặc tả ca sử dụng Xem lịch sử hội thoại}\label{tab:uc-conv-list}                                  \\
+{
+  \begin{longtable}{|L{3.6cm}|L{11.2cm}|}
+    \caption{Bảng đặc tả Use Case Xem lịch sử hội thoại}\label{tab:uc-conv-list}                                  \\
     \hline
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                \\
     \hline
@@ -1528,9 +1514,9 @@ Nhóm quản lý hội thoại cho phép người dùng xem lại quá trình tr
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                \\
     \hline
     \endhead
-    Mã ca sử dụng       & UC\_CONV\_01                                                                              \\
+    Mã Use Case       & UC\_CONV\_01                                                                              \\
     \hline
-    Tên ca sử dụng      & Xem lịch sử hội thoại                                                                     \\
+    Tên Use Case      & Xem lịch sử hội thoại                                                                     \\
     \hline
     Tác nhân            & Người dùng đã đăng nhập                                                                   \\
     \hline
@@ -1561,9 +1547,9 @@ Nhóm quản lý hội thoại cho phép người dùng xem lại quá trình tr
   \end{longtable}
 }
 \Needspace{12\baselineskip}
-{\fontsize{11pt}{12.5pt}\selectfont
-  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
-    \caption{Bảng đặc tả ca sử dụng Mở lại phiên hội thoại}\label{tab:uc-conv-open}                                                                                      \\
+{
+  \begin{longtable}{|L{3.6cm}|L{11.2cm}|}
+    \caption{Bảng đặc tả Use Case Mở lại phiên hội thoại}\label{tab:uc-conv-open}                                                                                      \\
     \hline
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                                                     \\
     \hline
@@ -1572,9 +1558,9 @@ Nhóm quản lý hội thoại cho phép người dùng xem lại quá trình tr
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                                                     \\
     \hline
     \endhead
-    Mã ca sử dụng       & UC\_CONV\_02                                                                                                                                   \\
+    Mã Use Case       & UC\_CONV\_02                                                                                                                                   \\
     \hline
-    Tên ca sử dụng      & Mở lại phiên hội thoại                                                                                                                         \\
+    Tên Use Case      & Mở lại phiên hội thoại                                                                                                                         \\
     \hline
     Tác nhân            & Người dùng đã đăng nhập                                                                                                                        \\
     \hline
@@ -1605,9 +1591,9 @@ Nhóm quản lý hội thoại cho phép người dùng xem lại quá trình tr
   \end{longtable}
 }
 \Needspace{12\baselineskip}
-{\fontsize{11pt}{12.5pt}\selectfont
-  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
-    \caption{Bảng đặc tả ca sử dụng Xóa phiên hội thoại}\label{tab:uc-conv-delete}                                 \\
+{
+  \begin{longtable}{|L{3.6cm}|L{11.2cm}|}
+    \caption{Bảng đặc tả Use Case Xóa phiên hội thoại}\label{tab:uc-conv-delete}                                 \\
     \hline
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                               \\
     \hline
@@ -1616,9 +1602,9 @@ Nhóm quản lý hội thoại cho phép người dùng xem lại quá trình tr
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                               \\
     \hline
     \endhead
-    Mã ca sử dụng       & UC\_CONV\_03                                                                             \\
+    Mã Use Case       & UC\_CONV\_03                                                                             \\
     \hline
-    Tên ca sử dụng      & Xóa phiên hội thoại                                                                      \\
+    Tên Use Case      & Xóa phiên hội thoại                                                                      \\
     \hline
     Tác nhân            & Người dùng đã đăng nhập                                                                  \\
     \hline
@@ -1649,13 +1635,13 @@ Nhóm quản lý hội thoại cho phép người dùng xem lại quá trình tr
   \end{longtable}
 }
 
-\subsection{Ca sử dụng phân rã tra cứu nguồn pháp luật}
+\subsection{Use Case phân rã tra cứu nguồn pháp luật}
 Nhóm này hỗ trợ người dùng kiểm tra dữ liệu nguồn độc lập với luồng hỏi đáp. Người dùng có thể xem danh sách văn bản, tìm văn bản và đọc nội dung đã chuẩn hóa.
-\AssetFigure[0.94\textwidth]{ch3_usecase_legal_sources.png}{8.0cm}{Sơ đồ ca sử dụng phân rã tra cứu nguồn pháp luật}{}
+\AssetFigure[0.94\textwidth]{ch3_usecase_legal_sources.png}{8.0cm}{Sơ đồ Use Case phân rã tra cứu nguồn pháp luật}{}
 \Needspace{12\baselineskip}
-{\fontsize{11pt}{12.5pt}\selectfont
-  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
-    \caption{Bảng đặc tả ca sử dụng Xem danh sách văn bản pháp luật}\label{tab:uc-legal-list}                           \\
+{
+  \begin{longtable}{|L{3.6cm}|L{11.2cm}|}
+    \caption{Bảng đặc tả Use Case Xem danh sách văn bản pháp luật}\label{tab:uc-legal-list}                           \\
     \hline
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                    \\
     \hline
@@ -1664,9 +1650,9 @@ Nhóm này hỗ trợ người dùng kiểm tra dữ liệu nguồn độc lập
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                    \\
     \hline
     \endhead
-    Mã ca sử dụng       & UC\_LEGAL\_01                                                                                 \\
+    Mã Use Case       & UC\_LEGAL\_01                                                                                 \\
     \hline
-    Tên ca sử dụng      & Xem danh sách văn bản pháp luật                                                               \\
+    Tên Use Case      & Xem danh sách văn bản pháp luật                                                               \\
     \hline
     Tác nhân            & Người dùng                                                                                    \\
     \hline
@@ -1697,9 +1683,9 @@ Nhóm này hỗ trợ người dùng kiểm tra dữ liệu nguồn độc lập
   \end{longtable}
 }
 \Needspace{12\baselineskip}
-{\fontsize{11pt}{12.5pt}\selectfont
-  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
-    \caption{Bảng đặc tả ca sử dụng Tìm kiếm văn bản pháp luật}\label{tab:uc-legal-search}                          \\
+{
+  \begin{longtable}{|L{3.6cm}|L{11.2cm}|}
+    \caption{Bảng đặc tả Use Case Tìm kiếm văn bản pháp luật}\label{tab:uc-legal-search}                          \\
     \hline
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                \\
     \hline
@@ -1708,9 +1694,9 @@ Nhóm này hỗ trợ người dùng kiểm tra dữ liệu nguồn độc lập
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                \\
     \hline
     \endhead
-    Mã ca sử dụng       & UC\_LEGAL\_02                                                                             \\
+    Mã Use Case       & UC\_LEGAL\_02                                                                             \\
     \hline
-    Tên ca sử dụng      & Tìm kiếm văn bản pháp luật                                                                \\
+    Tên Use Case      & Tìm kiếm văn bản pháp luật                                                                \\
     \hline
     Tác nhân            & Người dùng                                                                                \\
     \hline
@@ -1741,9 +1727,9 @@ Nhóm này hỗ trợ người dùng kiểm tra dữ liệu nguồn độc lập
   \end{longtable}
 }
 \Needspace{12\baselineskip}
-{\fontsize{11pt}{12.5pt}\selectfont
-  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
-    \caption{Bảng đặc tả ca sử dụng Xem nội dung văn bản}\label{tab:uc-legal-view}                                           \\
+{
+  \begin{longtable}{|L{3.6cm}|L{11.2cm}|}
+    \caption{Bảng đặc tả Use Case Xem nội dung văn bản}\label{tab:uc-legal-view}                                           \\
     \hline
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                         \\
     \hline
@@ -1752,9 +1738,9 @@ Nhóm này hỗ trợ người dùng kiểm tra dữ liệu nguồn độc lập
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                         \\
     \hline
     \endhead
-    Mã ca sử dụng       & UC\_LEGAL\_03                                                                                      \\
+    Mã Use Case       & UC\_LEGAL\_03                                                                                      \\
     \hline
-    Tên ca sử dụng      & Xem nội dung văn bản                                                                               \\
+    Tên Use Case      & Xem nội dung văn bản                                                                               \\
     \hline
     Tác nhân            & Người dùng                                                                                         \\
     \hline
@@ -1785,13 +1771,13 @@ Nhóm này hỗ trợ người dùng kiểm tra dữ liệu nguồn độc lập
   \end{longtable}
 }
 
-\subsection{Ca sử dụng phân rã phản hồi và nội dung đã lưu}
+\subsection{Use Case phân rã phản hồi và nội dung đã lưu}
 Phản hồi ghi nhận mức độ hữu ích của câu trả lời. Chức năng lưu câu trả lời cho phép người dùng lập một danh sách riêng để xem lại những câu trả lời cần dùng lại mà không phải tìm trong danh sách phiên hội thoại.
-\AssetFigure[0.94\textwidth]{ch3_usecase_feedback.png}{8.0cm}{Sơ đồ ca sử dụng phân rã phản hồi và nội dung đã lưu}{}
+\AssetFigure[0.94\textwidth]{ch3_usecase_feedback.png}{8.0cm}{Sơ đồ Use Case phân rã phản hồi và nội dung đã lưu}{}
 \Needspace{12\baselineskip}
-{\fontsize{11pt}{12.5pt}\selectfont
-  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
-    \caption{Bảng đặc tả ca sử dụng Đánh giá câu trả lời}\label{tab:uc-feedback}                                          \\
+{
+  \begin{longtable}{|L{3.6cm}|L{11.2cm}|}
+    \caption{Bảng đặc tả Use Case Đánh giá câu trả lời}\label{tab:uc-feedback}                                          \\
     \hline
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                      \\
     \hline
@@ -1800,9 +1786,9 @@ Phản hồi ghi nhận mức độ hữu ích của câu trả lời. Chức n�
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                      \\
     \hline
     \endhead
-    Mã ca sử dụng       & UC\_FB\_01                                                                                      \\
+    Mã Use Case       & UC\_FB\_01                                                                                      \\
     \hline
-    Tên ca sử dụng      & Đánh giá câu trả lời                                                                            \\
+    Tên Use Case      & Đánh giá câu trả lời                                                                            \\
     \hline
     Tác nhân            & Người dùng đã đăng nhập                                                                         \\
     \hline
@@ -1834,9 +1820,9 @@ Phản hồi ghi nhận mức độ hữu ích của câu trả lời. Chức n�
   \end{longtable}
 }
 \Needspace{12\baselineskip}
-{\fontsize{11pt}{12.5pt}\selectfont
-  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
-    \caption{Bảng đặc tả ca sử dụng Lưu câu trả lời}\label{tab:uc-save}                                                                  \\
+{
+  \begin{longtable}{|L{3.6cm}|L{11.2cm}|}
+    \caption{Bảng đặc tả Use Case Lưu câu trả lời}\label{tab:uc-save}                                                                  \\
     \hline
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                     \\
     \hline
@@ -1845,9 +1831,9 @@ Phản hồi ghi nhận mức độ hữu ích của câu trả lời. Chức n�
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                     \\
     \hline
     \endhead
-    Mã ca sử dụng       & UC\_SAVE\_01                                                                                                   \\
+    Mã Use Case       & UC\_SAVE\_01                                                                                                   \\
     \hline
-    Tên ca sử dụng      & Lưu câu trả lời                                                                                                \\
+    Tên Use Case      & Lưu câu trả lời                                                                                                \\
     \hline
     Tác nhân            & Người dùng đã đăng nhập                                                                                        \\
     \hline
@@ -1878,9 +1864,9 @@ Phản hồi ghi nhận mức độ hữu ích của câu trả lời. Chức n�
   \end{longtable}
 }
 \Needspace{12\baselineskip}
-{\fontsize{11pt}{12.5pt}\selectfont
-  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
-    \caption{Bảng đặc tả ca sử dụng Xem nội dung đã lưu}\label{tab:uc-saved-list}                                       \\
+{
+  \begin{longtable}{|L{3.6cm}|L{11.2cm}|}
+    \caption{Bảng đặc tả Use Case Xem nội dung đã lưu}\label{tab:uc-saved-list}                                       \\
     \hline
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                    \\
     \hline
@@ -1889,9 +1875,9 @@ Phản hồi ghi nhận mức độ hữu ích của câu trả lời. Chức n�
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                    \\
     \hline
     \endhead
-    Mã ca sử dụng       & UC\_SAVE\_02                                                                                  \\
+    Mã Use Case       & UC\_SAVE\_02                                                                                  \\
     \hline
-    Tên ca sử dụng      & Xem nội dung đã lưu                                                                           \\
+    Tên Use Case      & Xem nội dung đã lưu                                                                           \\
     \hline
     Tác nhân            & Người dùng đã đăng nhập                                                                       \\
     \hline
@@ -1922,9 +1908,9 @@ Phản hồi ghi nhận mức độ hữu ích của câu trả lời. Chức n�
   \end{longtable}
 }
 \Needspace{12\baselineskip}
-{\fontsize{11pt}{12.5pt}\selectfont
-  \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
-    \caption{Bảng đặc tả ca sử dụng Bỏ lưu câu trả lời}\label{tab:uc-unsave}                                     \\
+{
+  \begin{longtable}{|L{3.6cm}|L{11.2cm}|}
+    \caption{Bảng đặc tả Use Case Bỏ lưu câu trả lời}\label{tab:uc-unsave}                                     \\
     \hline
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                             \\
     \hline
@@ -1933,9 +1919,9 @@ Phản hồi ghi nhận mức độ hữu ích của câu trả lời. Chức n�
     \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                             \\
     \hline
     \endhead
-    Mã ca sử dụng       & UC\_SAVE\_03                                                                           \\
+    Mã Use Case       & UC\_SAVE\_03                                                                           \\
     \hline
-    Tên ca sử dụng      & Bỏ lưu câu trả lời                                                                     \\
+    Tên Use Case      & Bỏ lưu câu trả lời                                                                     \\
     \hline
     Tác nhân            & Người dùng đã đăng nhập                                                                \\
     \hline
@@ -1967,7 +1953,7 @@ Phản hồi ghi nhận mức độ hữu ích của câu trả lời. Chức n�
 }
 
 \section{Sơ đồ hoạt động}
-Sơ đồ hoạt động mô tả trình tự thực hiện và các nhánh quyết định trong một nghiệp vụ; khác với ca sử dụng, nó tập trung vào luồng xử lý từ lúc bắt đầu đến lúc kết thúc. Các hình dưới đây chỉ vẽ các luồng chính, không lặp lại những chức năng nhỏ đã có trong bảng đặc tả.
+Sơ đồ hoạt động mô tả trình tự thực hiện và các nhánh quyết định trong một nghiệp vụ; khác với Use Case, nó tập trung vào luồng xử lý từ lúc bắt đầu đến lúc kết thúc. Các hình dưới đây chỉ vẽ các luồng chính, không lặp lại những chức năng nhỏ đã có trong bảng đặc tả.
 
 \subsection{Sơ đồ hoạt động đăng ký và đăng nhập}
 Luồng xác thực bắt đầu từ thao tác nhập thông tin trên giao diện. Hệ thống kiểm tra dữ liệu đầu vào, gửi yêu cầu đến dịch vụ xác thực và chuyển người dùng vào trạng thái đã đăng nhập khi thông tin hợp lệ; nhánh lỗi thể hiện trường hợp dữ liệu sai hoặc dịch vụ xác thực không hoàn tất yêu cầu.
@@ -2038,9 +2024,9 @@ Sơ đồ tập trung vào năm bảng dữ liệu ứng dụng và các quan h�
 
 \subsection{Bảng profiles}
 \texttt{profiles} mở rộng thông tin của \texttt{auth.users}; cột ID vừa là khóa chính vừa là khóa ngoại tham chiếu đến người dùng trong Supabase Auth.
-  {\fontsize{11pt}{12pt}\selectfont
+  {
     \Needspace{10\baselineskip}
-    \begin{longtable}{|L{0.9cm}|L{2.9cm}|L{2.4cm}|L{3.0cm}|L{4.2cm}|}
+    \begin{longtable}{|R{0.9cm}|L{3.0cm}|L{2.6cm}|L{3.1cm}|L{4.3cm}|}
       \caption{Thiết kế bảng profiles}\label{tab:db-profiles}                         \\
       \hline
       STT & Thuộc tính    & Khóa/ràng buộc    & Kiểu dữ liệu & Diễn giải              \\
@@ -2060,9 +2046,9 @@ Sơ đồ tập trung vào năm bảng dữ liệu ứng dụng và các quan h�
 
 \subsection{Bảng chat\_sessions}
 Mỗi bản ghi là một phiên hội thoại, gắn với người dùng sở hữu qua \texttt{user\_id}.
-{\fontsize{11pt}{12pt}\selectfont
+{
 \Needspace{10\baselineskip}
-\begin{longtable}{|L{0.9cm}|L{2.8cm}|L{2.9cm}|L{3.0cm}|L{3.8cm}|}
+\begin{longtable}{|R{0.9cm}|L{3.0cm}|L{3.0cm}|L{3.2cm}|L{3.9cm}|}
   \caption{Thiết kế bảng chat\_sessions}\label{tab:db-sessions}                                          \\
   \hline
   STT & Thuộc tính  & Khóa/ràng buộc                              & Kiểu dữ liệu & Diễn giải             \\
@@ -2085,9 +2071,9 @@ Bảng có ràng buộc unique theo cặp \texttt{(id,user\_id)} để tin nhắ
 
 \subsection{Bảng messages}
 Mỗi bản ghi là một tin nhắn, gồm nội dung trao đổi giữa người dùng và trợ lý, trạng thái xử lý, kết quả trả về và trích dẫn.
-{\fontsize{11pt}{12pt}\selectfont
+{
 \Needspace{10\baselineskip}
-\begin{longtable}{|L{0.9cm}|L{2.8cm}|L{2.9cm}|L{3.0cm}|L{3.8cm}|}
+\begin{longtable}{|R{0.9cm}|L{3.0cm}|L{3.0cm}|L{3.2cm}|L{3.9cm}|}
   \caption{Thiết kế bảng messages}\label{tab:db-messages}                                                                        \\
   \hline
   STT & Thuộc tính  & Khóa/ràng buộc                                     & Kiểu dữ liệu & Diễn giải                              \\
@@ -2117,9 +2103,9 @@ Mỗi bản ghi là một tin nhắn, gồm nội dung trao đổi giữa ngư�
 }
 \subsection{Bảng feedback}
 Mỗi bản ghi là một đánh giá cho một tin nhắn. Trường \texttt{rating} dùng số nguyên, trong đó 1 biểu thị đánh giá tích cực và 0 biểu thị đánh giá không tích cực. Người dùng có thể gửi thêm nội dung nhận xét ở trường \texttt{comment}.
-{\fontsize{11pt}{12pt}\selectfont
+{
 \Needspace{10\baselineskip}
-\begin{longtable}{|L{0.9cm}|L{2.8cm}|L{2.9cm}|L{3.0cm}|L{3.8cm}|}
+\begin{longtable}{|R{0.9cm}|L{3.0cm}|L{3.0cm}|L{3.2cm}|L{3.9cm}|}
   \caption{Thiết kế bảng feedback}\label{tab:db-feedback}                              \\
   \hline
   STT & Thuộc tính  & Khóa/ràng buộc           & Kiểu dữ liệu & Diễn giải              \\
@@ -2144,9 +2130,9 @@ Mỗi người dùng chỉ có một phản hồi cho một tin nhắn do ràng 
 
 \subsection{Bảng bookmarks}
 Mỗi bản ghi giữ một cặp câu hỏi và câu trả lời mà người dùng muốn xem lại; nội dung chính vẫn còn ngay cả khi phiên hội thoại hoặc tin nhắn nguồn đã bị xóa.
-{\fontsize{11pt}{12pt}\selectfont
+{
 \Needspace{10\baselineskip}
-\begin{longtable}{|L{0.9cm}|L{3.0cm}|L{2.6cm}|L{3.0cm}|L{3.9cm}|}
+\begin{longtable}{|R{0.9cm}|L{3.1cm}|L{2.8cm}|L{3.1cm}|L{4.0cm}|}
   \caption{Thiết kế bảng bookmarks}\label{tab:db-bookmarks}                                                              \\
   \hline
   STT & Thuộc tính                  & Khóa/ràng buộc             & Kiểu dữ liệu & Diễn giải                              \\
@@ -2187,7 +2173,7 @@ Tất cả năm bảng ứng dụng bật RLS. Policy dùng \texttt{auth.uid()} 
 Qdrant lưu chỉ mục tìm kiếm của hệ thống. Mỗi điểm dữ liệu gồm vector ngữ nghĩa, vector từ khóa và thông tin mô tả của đoạn pháp luật. Khi câu hỏi chứa tham chiếu rõ ràng, bộ phận tìm kiếm tạo bộ lọc theo các trường Điều, Khoản và Điểm.
 
 \Needspace{10\baselineskip}
-\begin{longtable}{|L{3.1cm}|L{3.0cm}|L{7.2cm}|}
+\begin{longtable}{|L{3.4cm}|L{3.3cm}|L{7.8cm}|}
   \caption{Các trường thông tin mô tả chính trong đoạn dữ liệu/Qdrant payload}\label{tab:qdrant-payload} \\
   \hline
   \textbf{Trường}      & \textbf{Dạng dữ liệu} & \textbf{Ý nghĩa}                                        \\
@@ -2225,9 +2211,9 @@ Mỗi dòng JSONL (JSON Lines) gồm nội dung đoạn và thông tin mô tả;
 
 \section{Thiết kế API}
 Các điểm cuối dịch vụ được chia theo nhóm hỏi đáp, xác thực, phiên chat và nguồn pháp luật. Bảng~\ref{tab:api-endpoints} ghi các điểm cuối dịch vụ chính dùng trong bản triển khai.
-  {\fontsize{11pt}{12pt}\selectfont
+  {
     \Needspace{10\baselineskip}
-    \begin{longtable}{|L{2.2cm}|L{6.2cm}|L{5.0cm}|}
+    \begin{longtable}{|L{2.4cm}|L{6.7cm}|L{5.4cm}|}
       \caption{Các điểm cuối dịch vụ chính của hệ thống}\label{tab:api-endpoints}                                                             \\
       \hline
       \textbf{Phương thức} & \textbf{Điểm cuối dịch vụ}                                       & \textbf{Mục đích}                             \\
@@ -2382,52 +2368,52 @@ Số liệu trong mục này lấy từ lần chạy mã 20260915T155418Z qua AP
   \caption{Chỉ số đánh giá của lần chạy cuối}
   \label{tab:evaluation-status}
   \centering
-  \begin{tabularx}{\textwidth}{|L{6.0cm}|Y|}
+  \begin{tabularx}{\textwidth}{|L{6.0cm}|Z|}
     \hline
     \textbf{Chỉ số}                                                         & \textbf{Giá trị} \\
     \hline
-    Tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên, đối sánh phân cấp & 0.8182 (n = 22)  \\
+    Tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên, đối sánh phân cấp & 0,8182 (n = 22)  \\
     \hline
-    Tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên, khớp chính xác    & 0.4091 (n = 22)  \\
+    Tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên, khớp chính xác    & 0,4091 (n = 22)  \\
     \hline
-    Độ chính xác ở mức văn bản                                              & 0.9091 (n = 22)  \\
+    Độ chính xác ở mức văn bản                                              & 0,9091 (n = 22)  \\
     \hline
-    Độ chính xác ở mức Điều                                                 & 0.8182 (n = 22)  \\
+    Độ chính xác ở mức Điều                                                 & 0,8182 (n = 22)  \\
     \hline
-    Độ chính xác ở mức Khoản                                                & 0.7500 (n = 12)  \\
+    Độ chính xác ở mức Khoản                                                & 0,7500 (n = 12)  \\
     \hline
-    Độ chính xác ở mức Điểm                                                 & 0.0000 (n = 3)   \\
+    Độ chính xác ở mức Điểm                                                 & 0,0000 (n = 3)   \\
     \hline
-    Tỉ lệ trích dẫn hợp lệ                                                  & 1.0000 (n = 32)  \\
+    Tỉ lệ trích dẫn hợp lệ                                                  & 1,0000 (n = 32)  \\
     \hline
-    Quyết định từ chối trả lời, recall theo nhãn vàng                       & 1.0000 (n = 32)  \\
+    Quyết định từ chối trả lời, recall theo nhãn vàng                       & 1,0000 (n = 32)  \\
     \hline
-    Quyết định từ chối trả lời, F1 theo nhãn vàng                           & 0.7692 (n = 32)  \\
+    Quyết định từ chối trả lời, F1 theo nhãn vàng                           & 0,7692 (n = 32)  \\
     \hline
-    Quyết định từ chối trả lời, F1 theo nhãn hiệu dụng                      & 0.9412 (n = 32)  \\
+    Quyết định từ chối trả lời, F1 theo nhãn hiệu dụng                      & 0,9412 (n = 32)  \\
     \hline
   \end{tabularx}
 \end{table}
-Trong tám trường hợp nằm ngoài kho dữ liệu, nhãn vàng vẫn yêu cầu câu trả lời nên sáu trường hợp hệ thống từ chối bị tính là dương tính giả: precision 0.6250, recall 1.0000 và F1 0.7692. Xét theo nhãn hiệu dụng, điều khoản kỳ vọng không có trong kho dữ liệu thì từ chối là đúng, nên precision bằng 1.0000, recall 0.8889 và F1 0.9412; hai trường hợp bị bỏ sót là câu hỏi nằm ngoài kho dữ liệu nhưng hệ thống vẫn trả lời từ các quy định liên quan. Trên năm câu hỏi thiếu căn cứ, baseline trả lời cả năm câu, còn bản hiện tại từ chối đủ cả năm.
+Trong tám trường hợp nằm ngoài kho dữ liệu, nhãn vàng vẫn yêu cầu câu trả lời nên sáu trường hợp hệ thống từ chối bị tính là dương tính giả: precision 0,6250, recall 1,0000 và F1 0,7692. Xét theo nhãn hiệu dụng, điều khoản kỳ vọng không có trong kho dữ liệu thì từ chối là đúng, nên precision bằng 1,0000, recall 0,8889 và F1 0,9412; hai trường hợp bị bỏ sót là câu hỏi nằm ngoài kho dữ liệu nhưng hệ thống vẫn trả lời từ các quy định liên quan. Trên năm câu hỏi thiếu căn cứ, baseline trả lời cả năm câu, còn bản hiện tại từ chối đủ cả năm.
 
 \begin{table}[H]
   \caption{Độ trễ của lần chạy cuối}
   \label{tab:evaluation-latency}
   \centering
-  \begin{tabularx}{\textwidth}{|L{6.0cm}|Y|}
+  \begin{tabularx}{\textwidth}{|L{6.0cm}|Z|}
     \hline
     \textbf{Thống kê} & \textbf{Giá trị (ms)}    \\
     \hline
-    Trung bình        & 8698.61 ms (8.70 giây)   \\
+    Trung bình        & 8.698,61   \\
     \hline
-    Trung vị          & 8289.94 ms (8.29 giây)   \\
+    Trung vị          & 8.289,94   \\
     \hline
-    Phân vị 95        & 13613.86 ms (13.61 giây) \\
+    Phân vị 95        & 13.613,86  \\
     \hline
   \end{tabularx}
 \end{table}
 
-Lần chạy này đạt tỉ lệ tìm thấy căn cứ đúng 0.8182 theo đối sánh phân cấp và 0.4091 theo khớp chính xác, trên 22 trường hợp có căn cứ kỳ vọng. Khóa luận chỉ báo cáo số liệu của lần chạy này: các lần đo trước dùng evaluator và cách xác định mẫu tính khác, nên không được đặt cạnh nhau như một phép so sánh tương đương. Bộ đánh giá đầy đủ và các lần chạy lặp lại nằm trong kho mã của đề tài.
+Lần chạy này đạt tỉ lệ tìm thấy căn cứ đúng 0,8182 theo đối sánh phân cấp và 0,4091 theo khớp chính xác, trên 22 trường hợp có căn cứ kỳ vọng. Khóa luận chỉ báo cáo số liệu của lần chạy này: các lần đo trước dùng evaluator và cách xác định mẫu tính khác, nên không được đặt cạnh nhau như một phép so sánh tương đương. Bộ đánh giá đầy đủ và các lần chạy lặp lại nằm trong kho mã của đề tài.
 Hình~\ref{fig:ch4_evaluation} tóm tắt bốn nhóm chỉ số cùng độ trễ của lần chạy; phần ghi chú trong hình nêu số trường hợp dùng cho từng nhóm.
 \AssetFigure[\textwidth][fig:ch4_evaluation]{ch4_evaluation_report.png}{20cm}{Chỉ số và độ trễ của lần chạy đánh giá}{}
 
@@ -2441,14 +2427,14 @@ Hình~\ref{fig:ch4_evaluation} tóm tắt bốn nhóm chỉ số cùng độ tr�
 
 Luồng xử lý hỏi đáp gồm các bước: phân tích yêu cầu bằng mô hình ngôn ngữ để tạo truy vấn độc lập và các truy vấn mở rộng; truy xuất nhiều truy vấn; gộp thứ hạng bằng RRF; bổ sung ngữ cảnh; làm sạch trích dẫn theo thông tin mô tả đã truy xuất. Câu hỏi chỉ được hỗ trợ một phần thì phần trả lời có căn cứ vẫn được giữ lại.
 
-Trên 40 trường hợp, độ trễ trung bình là 8698.61 ms và phân vị 95 là 13613.86 ms.
+Trên 40 trường hợp, độ trễ trung bình là 8,70 giây và phân vị 95 là 13,61 giây.
 
 \section*{Hạn chế}
 \phantomsection
 \addcontentsline{toc}{section}{Hạn chế}
 Độ chính xác ở mức Điểm chỉ tính trên ba trường hợp: hai câu hỏi chỉ nêu tọa độ trần mà không nêu văn bản, một điều khoản kỳ vọng không có trong kho dữ liệu. Bước tách văn bản giữ đúng cấu trúc Điểm, nên giới hạn này nằm ở tập kiểm tra.
 
-Độ trễ trung bình 8.70 giây vẫn ở mức cao so với một hệ tìm kiếm thông thường; phân vị 95 là 13.61 giây, đã nằm dưới mục tiêu 15 giây đặt ra.
+Độ trễ trung bình 8,70 giây vẫn ở mức cao so với một hệ tìm kiếm thông thường; phân vị 95 là 13,61 giây, đã nằm dưới mục tiêu 15 giây đặt ra.
 
 Tám trường hợp ngoài kho dữ liệu không dùng để đánh giá khả năng tìm căn cứ. Hai lần chạy cùng cấu hình cho kết quả khác nhau, nên chỉ số truy xuất còn dao động.
 
@@ -2458,25 +2444,25 @@ Tám trường hợp ngoài kho dữ liệu không dùng để đánh giá khả
 \begin{table}[H]
   \centering
   \caption{Mục tiêu định lượng cho vòng cải thiện tiếp theo}
-  \begin{tabularx}{\textwidth}{|L{8.0cm}|Y|}
+  \begin{tabularx}{\textwidth}{|L{8.0cm}|Z|}
     \hline
     \textbf{Chỉ số}                                       & \textbf{Mục tiêu} \\
     \hline
-    Tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên  & $\geq 0.80$       \\
+    Tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên  & $\geq 0,80$       \\
     \hline
-    Độ chính xác ở mức văn bản                            & $\geq 0.85$       \\
+    Độ chính xác ở mức văn bản                            & $\geq 0,85$       \\
     \hline
-    Độ chính xác ở mức Điểm                               & $\geq 0.75$       \\
+    Độ chính xác ở mức Điểm                               & $\geq 0,75$       \\
     \hline
-    Tỉ lệ trích dẫn hợp lệ                                & $\geq 0.95$       \\
+    Tỉ lệ trích dẫn hợp lệ                                & $\geq 0,95$       \\
     \hline
-    Tỉ lệ từ chối trả lời đúng                            & $\geq 0.90$       \\
+    Tỉ lệ từ chối trả lời đúng                            & $\geq 0,90$       \\
     \hline
     Độ trễ phân vị 95                                     & $<15$ giây        \\
     \hline
-    Tỉ lệ trung thực với nguồn (faithfulness), theo RAGAS & $\geq 0.85$       \\
+    Tỉ lệ trung thực với nguồn (faithfulness), theo RAGAS & $\geq 0,85$       \\
     \hline
-    Tỉ lệ bao phủ ngữ cảnh (ngữ cảnh recall), theo RAGAS  & $\geq 0.85$       \\
+    Tỉ lệ bao phủ ngữ cảnh (ngữ cảnh recall), theo RAGAS  & $\geq 0,85$       \\
     \hline
   \end{tabularx}
 \end{table}
@@ -2488,7 +2474,7 @@ Tám trường hợp ngoài kho dữ liệu không dùng để đánh giá khả
   \item Bước tách văn bản đã giữ đúng cấu trúc Điểm; giới hạn còn lại ở mức Điểm nằm ở thiết kế tập kiểm tra với các tọa độ trần.
   \item Mở rộng tập đánh giá câu hỏi nối tiếp và tăng số hội thoại nhiều lượt để đánh giá ổn định hơn khả năng giải nghĩa tham chiếu theo lịch sử.
   \item Chạy so sánh A/B (hai biến thể kiến trúc) trên cùng tập dữ liệu và cùng mô hình, tách ảnh hưởng của kiến trúc khỏi ảnh hưởng của việc chọn mô hình.
-  \item Thêm bộ xếp hạng lại và bộ lọc theo Điều, Khoản để nâng tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên, hiện là 0.8182 theo đối sánh phân cấp và 0.4091 theo khớp chính xác.
+  \item Thêm bộ xếp hạng lại và bộ lọc theo Điều, Khoản để nâng tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên, hiện là 0,8182 theo đối sánh phân cấp và 0,4091 theo khớp chính xác.
   \item Giữ độ trễ phân vị 95 dưới 15 giây khi mở rộng kho dữ liệu bằng cách lưu đệm vector và giảm số truy vấn mở rộng.
   \item Bổ sung tác tử nhiều bước theo kiểu RAG tác tử, gồm bước tự kiểm tra và bước truy xuất sửa sai \cite{agentic_rag_survey}.
   \item Tách hệ thống thành các tác tử: điều phối phân công nhiệm vụ, truy xuất tìm tài liệu, kiểm chứng trích dẫn và phản biện kiểm tra câu trả lời \cite{agentic_rag_survey,agentic_legal_challenge}.
@@ -2503,44 +2489,28 @@ Tám trường hợp ngoài kho dữ liệu không dùng để đánh giá khả
 % ============================================================
 \clearpage
 \begin{thebibliography}{99}
-  \bibitem{tdu_laptrinhcanban}
-  \textbf{Nguyễn Chí Cường}. \textit{Lập trình căn bản}. Khoa Kỹ thuật - Công nghệ, Đại học Tây Đô, 2023.
+  \bibitem{agentic_rag_survey}
+  \textbf{Aditi Singh, Abul Ehtesham, Saket Kumar, Tala Talaei Khoei, Athanasios V. Vasilakos}. \textit{Agentic Retrieval-Augmented Generation: A Survey on Agentic RAG}. arXiv:2501.09136, 2025. \url{https://arxiv.org/abs/2501.09136}.
 
-  \bibitem{tdu_pttkhttt}
-  \textbf{Nguyễn Chí Cường}. \textit{Phân tích và thiết kế hệ thống thông tin}. Khoa Kỹ thuật - Công nghệ, Đại học Tây Đô, 2024.
+  \bibitem{agentic_legal_challenge}
+  \textbf{Agentic Legal RAG Challenge}. \textit{Agentic Legal RAG Challenge 2026}. 2026. \url{https://agentic-challenge.ai/}.
 
-  \bibitem{tdu_nmcpm}
-  \textbf{Ngô Thị Lan}. \textit{Nhập môn Công nghệ Phần mềm}. Khoa Kỹ thuật - Công nghệ, Đại học Tây Đô, 2024.
+  \bibitem{graphrag_edge_2024}
+  \textbf{Darren Edge, Ha Trinh, Newman Cheng, Joshua Bradley, Alex Chao, Apurva Mody, Steven Truitt và cộng sự}. \textit{From Local to Global: A Graph RAG Approach to Query-Focused Summarization}. arXiv:2404.16130, 2024. \url{https://arxiv.org/abs/2404.16130}.
+  \bibitem{docker_compose_docs}
+  \textbf{Docker}. \textit{Docker Compose Documentation}. Tài liệu chính thức. \url{https://docs.docker.com/compose/}.
+
+  \bibitem{fastapi_docs}
+  \textbf{FastAPI}. \textit{Features}. Tài liệu chính thức. \url{https://fastapi.tiangolo.com/features/}.
+
+  \bibitem{rrf_cormack_2009}
+  \textbf{G. V. Cormack, C. L. A. Clarke, S. Büttcher}. \textit{Reciprocal Rank Fusion outperforms Condorcet and individual Rank Learning Methods}. SIGIR 2009, tr. 758-759. \url{https://doi.org/10.1145/1571941.1572114}.
 
   \bibitem{tdu_web}
   \textbf{Lâm Tấn Phương}. \textit{Giáo trình Lý thuyết Thiết kế và lập trình Web}. Khoa Kỹ thuật - Công nghệ, Đại học Tây Đô, 2024.
 
   \bibitem{tdu_cdnnlt}
   \textbf{Lâm Tấn Phương}. \textit{Chuyên đề ngôn ngữ lập trình}. Khoa Kỹ thuật - Công nghệ, Đại học Tây Đô, 2024.
-
-  \bibitem{qdrant_hybrid_docs}
-  \textbf{Qdrant}. \textit{Combining Semantic and Lexical Search using Hybrid Search}. Tài liệu chính thức. \url{https://qdrant.tech/documentation/search/text-search/hybrid-search/}.
-
-  \bibitem{qdrant_bm25_docs}
-  \textbf{Qdrant}. \textit{Full-Text Search and BM25}. Tài liệu chính thức. \url{https://qdrant.tech/documentation/search/text-search/full-text-search/}.
-
-  \bibitem{qdrant_vectors_docs}
-  \textbf{Qdrant}. \textit{Vectors: biểu diễn ngữ nghĩa và Sparse Vectors}. Tài liệu chính thức. \url{https://qdrant.tech/documentation/manage-data/vectors/}.
-
-  \bibitem{fastapi_docs}
-  \textbf{FastAPI}. \textit{Features}. Tài liệu chính thức. \url{https://fastapi.tiangolo.com/features/}.
-
-  \bibitem{supabase_auth_docs}
-  \textbf{Supabase}. \textit{Auth Documentation}. Tài liệu chính thức. \url{https://supabase.com/docs/guides/auth}.
-
-  \bibitem{supabase_rls_docs}
-  \textbf{Supabase}. \textit{Row Level Security}. Tài liệu chính thức. \url{https://supabase.com/docs/guides/database/postgres/row-level-security}.
-
-  \bibitem{nextjs_app_router_docs}
-  \textbf{Vercel}. \textit{Next.js Documentation}. Tài liệu chính thức. \url{https://nextjs.org/docs}.
-
-  \bibitem{python311_docs}
-  \textbf{Python Software Foundation}. \textit{Python 3.11 Documentation}. Tài liệu chính thức. \url{https://docs.python.org/3.11/}.
 
   \bibitem{react_docs}
   \textbf{Meta Open Source}. \textit{React Documentation}. Tài liệu chính thức. \url{https://react.dev/learn}.
@@ -2551,8 +2521,14 @@ Tám trường hợp ngoài kho dữ liệu không dùng để đánh giá khả
   \bibitem{typescript_docs}
   \textbf{Microsoft}. \textit{The TypeScript Handbook}. Tài liệu chính thức. \url{https://www.typescriptlang.org/docs/handbook/intro.html}.
 
-  \bibitem{docker_compose_docs}
-  \textbf{Docker}. \textit{Docker Compose Documentation}. Tài liệu chính thức. \url{https://docs.docker.com/compose/}.
+  \bibitem{tdu_nmcpm}
+  \textbf{Ngô Thị Lan}. \textit{Nhập môn Công nghệ Phần mềm}. Khoa Kỹ thuật - Công nghệ, Đại học Tây Đô, 2024.
+
+\bibitem{tdu_laptrinhcanban}
+  \textbf{Nguyễn Chí Cường}. \textit{Lập trình căn bản}. Khoa Kỹ thuật - Công nghệ, Đại học Tây Đô, 2023.
+
+  \bibitem{tdu_pttkhttt}
+  \textbf{Nguyễn Chí Cường}. \textit{Phân tích và thiết kế hệ thống thông tin}. Khoa Kỹ thuật - Công nghệ, Đại học Tây Đô, 2024.
 
   \bibitem{openrouter_embeddings_docs}
   \textbf{OpenRouter}. \textit{Embeddings and RAG Documentation}. Tài liệu chính thức. \url{https://openrouter.ai/docs/cookbook/evaluate-and-optimize/rag}.
@@ -2562,23 +2538,32 @@ Tám trường hợp ngoài kho dữ liệu không dùng để đánh giá khả
   \bibitem{rag_lewis_2020}
   \textbf{P. Lewis, E. Perez, A. Piktus và cộng sự}. \textit{Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks}. Advances in Neural Information Processing Systems 33 (NeurIPS), 2020. \url{https://papers.nips.cc/paper/2020/hash/6b493230205f780e1bc26945df7481e5-Abstract.html}.
 
-  \bibitem{bm25_robertson_2009}
-  \textbf{S. Robertson, H. Zaragoza}. \textit{The Probabilistic Relevance Framework: BM25 and Beyond}. Foundations and Trends in Information Retrieval, 3(4), tr. 333-389, 2009. \url{https://doi.org/10.1561/1500000019}.
+  \bibitem{python311_docs}
+  \textbf{Python Software Foundation}. \textit{Python 3.11 Documentation}. Tài liệu chính thức. \url{https://docs.python.org/3.11/}.
 
-  \bibitem{rrf_cormack_2009}
-  \textbf{G. V. Cormack, C. L. A. Clarke, S. Büttcher}. \textit{Reciprocal Rank Fusion outperforms Condorcet and individual Rank Learning Methods}. SIGIR 2009, tr. 758-759. \url{https://doi.org/10.1145/1571941.1572114}.
+  \bibitem{qdrant_hybrid_docs}
+  \textbf{Qdrant}. \textit{Combining Semantic and Lexical Search using Hybrid Search}. Tài liệu chính thức. \url{https://qdrant.tech/documentation/search/text-search/hybrid-search/}.
 
-  \bibitem{agentic_rag_survey}
-  \textbf{Aditi Singh, Abul Ehtesham, Saket Kumar, Tala Talaei Khoei, Athanasios V. Vasilakos}. \textit{Agentic Retrieval-Augmented Generation: A Survey on Agentic RAG}. arXiv:2501.09136, 2025. \url{https://arxiv.org/abs/2501.09136}.
+  \bibitem{qdrant_bm25_docs}
+  \textbf{Qdrant}. \textit{Full-Text Search and BM25}. Tài liệu chính thức. \url{https://qdrant.tech/documentation/search/text-search/full-text-search/}.
+
+  \bibitem{qdrant_vectors_docs}
+  \textbf{Qdrant}. \textit{Vectors: biểu diễn ngữ nghĩa và Sparse Vectors}. Tài liệu chính thức. \url{https://qdrant.tech/documentation/manage-data/vectors/}.
 
   \bibitem{ragas_metrics}
   \textbf{Ragas}. \textit{Ragas Metrics Documentation}. Tài liệu chính thức, 2024. \url{https://docs.ragas.io/en/latest/concepts/metrics/available_metrics/}.
 
-  \bibitem{agentic_legal_challenge}
-  \textbf{Agentic Legal RAG Challenge}. \textit{Agentic Legal RAG Challenge 2026}. 2026. \url{https://agentic-challenge.ai/}.
+  \bibitem{bm25_robertson_2009}
+  \textbf{S. Robertson, H. Zaragoza}. \textit{The Probabilistic Relevance Framework: BM25 and Beyond}. Foundations and Trends in Information Retrieval, 3(4), tr. 333-389, 2009. \url{https://doi.org/10.1561/1500000019}.
 
-  \bibitem{graphrag_edge_2024}
-  \textbf{Darren Edge, Ha Trinh, Newman Cheng, Joshua Bradley, Alex Chao, Apurva Mody, Steven Truitt và cộng sự}. \textit{From Local to Global: A Graph RAG Approach to Query-Focused Summarization}. arXiv:2404.16130, 2024. \url{https://arxiv.org/abs/2404.16130}.
+  \bibitem{supabase_auth_docs}
+  \textbf{Supabase}. \textit{Auth Documentation}. Tài liệu chính thức. \url{https://supabase.com/docs/guides/auth}.
+
+  \bibitem{supabase_rls_docs}
+  \textbf{Supabase}. \textit{Row Level Security}. Tài liệu chính thức. \url{https://supabase.com/docs/guides/database/postgres/row-level-security}.
+
+  \bibitem{nextjs_app_router_docs}
+  \textbf{Vercel}. \textit{Next.js Documentation}. Tài liệu chính thức. \url{https://nextjs.org/docs}.
 
 \end{thebibliography}
 
