@@ -589,25 +589,19 @@ class RAGService:
             # wording and is therefore absent from the action-filtered `direct`
             # set. Complete families over everything that is cited, not `direct`.
             completed: set[tuple[str, str, str]] = set()
-            added = 0
             for document in filtered[:6]:
                 family = _provision_family(document)
                 if not family or family in completed:
                     continue
                 completed.add(family)
                 try:
+                    # Header first: the chunk that carries the fine amount.
                     siblings = complete_family(document, limit=3, effective_date=effective_date)
                 except Exception:
                     continue
                 for sibling in siblings:
-                    if sibling in filtered:
-                        continue
-                    filtered.append(sibling)
-                    added += 1
-                    if added >= 6:
-                        break
-                if added >= 6:
-                    break
+                    if sibling not in filtered:
+                        filtered.append(sibling)
         filtered.extend(
             d
             for d in documents

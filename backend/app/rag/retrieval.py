@@ -412,7 +412,7 @@ def _sibling_completion_documents(
         points, _ = client.scroll(
             collection_name=collection,
             scroll_filter=Filter(must=must),
-            limit=min(max(limit * 4, limit), 64),
+            limit=min(max(limit * 8, 32), 128),
             with_payload=True,
         )
     except Exception:
