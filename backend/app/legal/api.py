@@ -121,20 +121,79 @@ def list_provisions(
     return [_provision(item) for item in rows]
 
 
+@router.get("/legal-search/documents", response_model=list[LegalDocumentSummary])
+def search_documents(
+    q: str | None = Query(default=None, min_length=1),
+    document_id: str | None = None,
+    document_number: str | None = None,
+    article: str | None = None,
+    clause: str | None = None,
+    point: str | None = None,
+) -> list[LegalDocumentSummary]:
+    """Return the documents that hold at least one provision matching the filters."""
+    if not any(
+        value and value.strip()
+        for value in (q, document_id, document_number, article, clause, point)
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="Cần ít nhất một từ khóa hoặc một điều kiện lọc để tra cứu.",
+        )
+    matched = search_chunks(
+        chunks(),
+        (q or "").strip(),
+        document_id=document_id,
+        document_number=document_number,
+        article=article,
+        clause=clause,
+        point=point,
+    )
+    grouped: dict[str, list] = {}
+    for item, _score in matched:
+        grouped.setdefault(str(item.metadata.get("document_id", "")), []).append(item)
+    return [
+        LegalDocumentSummary(
+            document_id=doc_id,
+            document_name=str(rows[0].metadata.get("document_name", doc_id)),
+            document_number=rows[0].metadata.get("document_number") or None,
+            source=_source(rows[0].metadata),
+            provision_count=len(rows),
+        )
+        for doc_id, rows in sorted(grouped.items())
+        if doc_id
+    ]
+
+
 @router.get("/legal-search", response_model=LegalSearchResponse)
 def legal_search(
-    q: str = Query(min_length=1),
+    q: str | None = Query(default=None, min_length=1),
     document_id: str | None = None,
+    document_number: str | None = None,
     article: str | None = None,
     clause: str | None = None,
     point: str | None = None,
     limit: int = Query(20, ge=1, le=100),
 ) -> LegalSearchResponse:
+    if not any(
+        value and value.strip()
+        for value in (q, document_id, document_number, article, clause, point)
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="Cần ít nhất một từ khóa hoặc một điều kiện lọc để tra cứu.",
+        )
+    text = (q or "").strip()
     found = search_chunks(
-        chunks(), q.strip(), document_id=document_id, article=article, clause=clause, point=point
+        chunks(),
+        text,
+        document_id=document_id,
+        document_number=document_number,
+        article=article,
+        clause=clause,
+        point=point,
     )[:limit]
     return LegalSearchResponse(
-        query=q.strip(),
+        query=text,
         results=[
             LegalSearchResult(**_provision(item).model_dump(), score=score) for item, score in found
         ],

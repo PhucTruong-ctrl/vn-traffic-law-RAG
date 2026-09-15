@@ -50,7 +50,7 @@ class LegalSearchResult(LegalProvision):
 class LegalSearchResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    query: str = Field(min_length=1)
+    query: str = ""
     results: list[LegalSearchResult]
 
 

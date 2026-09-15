@@ -260,3 +260,110 @@ def test_legal_documents_expose_document_number(monkeypatch) -> None:
 
     provisions = client.get("/api/v1/legal-documents/nd-100-2019/provisions").json()
     assert provisions[0]["document_number"] == "100/2019/NĐ-CP"
+
+
+def test_legal_search_accepts_filter_only_queries(monkeypatch) -> None:
+    monkeypatch.setattr(
+        legal_api,
+        "chunks",
+        lambda: [
+            corpus.Chunk(
+                "Điều 6. Nội dung.",
+                {
+                    "chunk_id": "c-6",
+                    "document_id": "nd-100-2019",
+                    "document_number": "100/2019/NĐ-CP",
+                    "article": "6",
+                },
+            ),
+            corpus.Chunk(
+                "Điều 6. Nội dung khác.",
+                {
+                    "chunk_id": "c-6b",
+                    "document_id": "nd-168-2024",
+                    "document_number": "168/2024/NĐ-CP",
+                    "article": "6",
+                },
+            ),
+            corpus.Chunk(
+                "Điều 7. Nội dung.",
+                {
+                    "chunk_id": "c-7",
+                    "document_id": "nd-100-2019",
+                    "document_number": "100/2019/NĐ-CP",
+                    "article": "7",
+                },
+            ),
+        ],
+    )
+    client = TestClient(app)
+
+    by_article = client.get("/api/v1/legal-search", params={"article": "6"})
+    assert by_article.status_code == 200
+    assert {row["chunk_id"] for row in by_article.json()["results"]} == {"c-6", "c-6b"}
+
+    by_number = client.get(
+        "/api/v1/legal-search", params={"document_number": "100/2019", "article": "6"}
+    )
+    assert by_number.status_code == 200
+    assert [row["chunk_id"] for row in by_number.json()["results"]] == ["c-6"]
+
+    empty = client.get("/api/v1/legal-search")
+    assert empty.status_code == 422
+
+
+def test_legal_search_documents_groups_matches_by_document(monkeypatch) -> None:
+    monkeypatch.setattr(
+        legal_api,
+        "chunks",
+        lambda: [
+            corpus.Chunk(
+                "Điều 6 khoản 9 điểm k.",
+                {
+                    "chunk_id": "c-1",
+                    "document_id": "nd-100-2019",
+                    "document_name": "Nghị định 100/2019/NĐ-CP",
+                    "document_number": "100/2019/NĐ-CP",
+                    "article": "6",
+                    "clause": "9",
+                    "point": "k",
+                },
+            ),
+            corpus.Chunk(
+                "Điều 6 khoản 7 điểm a.",
+                {
+                    "chunk_id": "c-2",
+                    "document_id": "nd-100-2019",
+                    "document_name": "Nghị định 100/2019/NĐ-CP",
+                    "document_number": "100/2019/NĐ-CP",
+                    "article": "6",
+                    "clause": "7",
+                    "point": "a",
+                },
+            ),
+            corpus.Chunk(
+                "Điều 7 khoản 3.",
+                {
+                    "chunk_id": "c-3",
+                    "document_id": "nd-168-2024",
+                    "document_name": "Nghị định 168/2024/NĐ-CP",
+                    "document_number": "168/2024/NĐ-CP",
+                    "article": "7",
+                    "clause": "3",
+                },
+            ),
+        ],
+    )
+    client = TestClient(app)
+
+    grouped = client.get("/api/v1/legal-search/documents", params={"article": "6"})
+    assert grouped.status_code == 200
+    rows = grouped.json()
+    assert [row["document_id"] for row in rows] == ["nd-100-2019"]
+    assert rows[0]["provision_count"] == 2
+    assert rows[0]["document_number"] == "100/2019/NĐ-CP"
+
+    narrow = client.get("/api/v1/legal-search/documents", params={"article": "7", "clause": "3"})
+    assert [row["document_id"] for row in narrow.json()] == ["nd-168-2024"]
+
+    assert client.get("/api/v1/legal-search/documents").status_code == 422

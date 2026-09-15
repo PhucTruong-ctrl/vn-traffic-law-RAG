@@ -136,16 +136,26 @@ def chunks(
     return [Chunk(text=d.page_content, metadata=dict(d.metadata)) for d in docs]
 
 
+def _number_key(value: object) -> str:
+    """Compare document numbers the way people type them, ignoring punctuation and case."""
+    return re.sub(r"[^0-9a-z]+", "", str(value or "").casefold())
+
+
 def filter_chunks(
     items: list[Chunk],
     *,
     document_id: str | None = None,
+    document_number: str | None = None,
     article: str | None = None,
     clause: str | None = None,
     point: str | None = None,
 ) -> list[Chunk]:
+    number_key = _number_key(document_number) if document_number else ""
+
     def matches(item: Chunk) -> bool:
         md = item.metadata
+        if number_key and number_key not in _number_key(md.get("document_number")):
+            return False
         return all(
             value is None or (md.get(key) is not None and str(md[key]) == value)
             for key, value in (
@@ -167,6 +177,12 @@ def search_chunks(items: list[Chunk], query: str, **filters: str | None) -> list
     terms = _tokens(query)
     query_phrase = " ".join(terms)
     filtered = filter_chunks(items, **filters)
+    if not terms:
+        # A filter-only request lists every matching provision instead of scoring text.
+        return [
+            (item, 0)
+            for item in sorted(filtered, key=lambda row: str(row.metadata.get("chunk_id", "")))
+        ]
     scored = []
     for item in filtered:
         tokens = _tokens(item.text)

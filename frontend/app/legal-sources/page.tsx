@@ -27,6 +27,9 @@ type LegalDocument = {
   title?: string;
   document_title?: string;
   document_number?: string;
+  article?: string;
+  clause?: string;
+  point?: string;
   provision_count?: number;
   source?: {
     source_kind?: "markdown" | "pdf";
@@ -229,16 +232,29 @@ function LegalSourcesExplorer() {
           if (article.trim()) params.set("article", article.trim());
           if (clause.trim()) params.set("clause", clause.trim());
           if (point.trim()) params.set("point", point.trim());
-          const endpoint =
-            query.trim() || article.trim() || clause.trim() || point.trim()
-              ? apiUrl(`legal-search?${params.toString()}`)
+          const filtered = Boolean(
+            number.trim() || article.trim() || clause.trim() || point.trim(),
+          );
+          const endpoint = query.trim()
+            ? apiUrl(`legal-search?${params.toString()}`)
+            : filtered
+              ? apiUrl(`legal-search/documents?${params.toString()}`)
               : apiUrl("legal-documents");
           const response = await fetch(endpoint, { signal: controller.signal });
           if (!response.ok) await responseError(response, "Không thể tải nguồn pháp luật.");
+          const rows = normalize(await response.json()).filter((document) =>
+            documentMatchesNumber(document, number),
+          );
+          const seen = new Set<string>();
           setDocuments(
-            normalize(await response.json()).filter((document) =>
-              documentMatchesNumber(document, number),
-            ),
+            rows.filter((document) => {
+              const key = documentId(document) || document.document_name || "";
+              if (!key || !seen.has(key)) {
+                if (key) seen.add(key);
+                return true;
+              }
+              return false;
+            }),
           );
         } catch (cause) {
           if (!controller.signal.aborted)
@@ -406,6 +422,17 @@ function LegalSourcesExplorer() {
                   </span>
                   <strong>{title}</strong>
                   {doc.document_number && <span>{doc.document_number}</span>}
+                  {doc.article && (
+                    <span>
+                      {[
+                        `Điều ${doc.article}`,
+                        doc.clause && `Khoản ${doc.clause}`,
+                        doc.point && `Điểm ${doc.point}`,
+                      ]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </span>
+                  )}
                   {typeof doc.provision_count === "number" && (
                     <span>{doc.provision_count} điều khoản</span>
                   )}
