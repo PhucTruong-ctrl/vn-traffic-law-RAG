@@ -234,42 +234,47 @@ Bảng 3 , số nhà cung cấp mô hình và tỉ lệ hoạt động (OpenRout
 
 ## Evaluation 40 cases
 
-Run mới nhất `20260915T122334Z` (`top_k=5`, endpoint `http://127.0.0.1:8000/api/v1/chat`) có 34/40 case được corpus bao phủ; 6 case bị runner loại qua danh sách `CORPUS_NOT_COVERED_CASES`: `thesis-gold-40-00`, `thesis-gold-40-15`..`thesis-gold-40-19` (khoản/điểm kỳ vọng của nhóm `multi_intent` không có trong corpus). `answer_correctness_manual` luôn `null`: runner không tự suy diễn đúng/sai ngữ nghĩa, nên `null` không phải là đạt hay không đạt.
+Lần chạy cuối `20260915T142333Z` dùng `google/gemini-2.5-flash-lite` cho analyzer và generator, `qwen/qwen3-embedding-8b` cho embedding, API `top_k=5` (mỗi truy vấn mở rộng lấy top 8 rồi gộp). Coverage: 40 tổng / 32 được tính / 8 ngoài kho dữ liệu / 0 thiếu cấu trúc; 8 trường hợp ngoài kho dữ liệu vẫn được tính trong phân tích từ chối trả lời. Lần chạy tái lập cùng cấu hình là `20260915T140810Z`. Kiểm tra thủ công mẫu n = 10, do trợ lý thực hiện, chưa có người chấm độc lập: `manual_correctness = 0.65 (n=10)`; 30/40 trường hợp chưa được chấm. Artifact review: `data/evaluation/thesis-run/20260915T142333Z.reviews.jsonl`; lệnh review bên dưới.
 
-| Chỉ số | Run4 `20260915T075654Z` | Run `20260915T122334Z` |
-| ------ | ----------------------: | ---------------------: |
-| `retrieval_hit_at_k` | 0.2500 | 0.2917 |
-| `document_accuracy` | 0.5000 | 0.7083 |
-| `article_accuracy` | 0.4167 | 0.5000 |
-| `clause_accuracy` | 0.3846 | 0.5385 |
-| `point_accuracy` | 0.0000 | 0.0000 |
-| `citation_validity` | 0.8824 | 0.9118 |
-| `abstention_accuracy` | 0.7059 | 0.7353 |
-| độ trễ trung bình | 8.3s | 12.2s (p50 11.9s, p95 19.7s) |
+| Chỉ số | Lần chạy cuối | Baseline |
+| ------ | -------------: | -------: |
+| Hit@5 phân cấp | 0.7273 (n=22) | 0.25 |
+| Hit@5 khớp chuỗi chính xác | 0.5000 (n=22) | -- |
+| document | 0.7727 (n=22) | 0.50 |
+| Điều | 0.7273 (n=22) | 0.4167 |
+| Khoản | 0.7500 (n=12) | 0.3846 |
+| Điểm | 0.0000 (n=3) | 0.00 |
+| citation_present | 0.9545 (n=22) | -- |
+| citation_validity | 1.0000 (n=32) | 0.8824 |
+| abstention_accuracy | 1.0000 (n=32) | 0.7059 |
 
-Theo nhóm ở run mới: `penalty` document 1.00 / citation 1.00 / abstention 1.00; `cross_reference` hit 0.20, document 0.80, abstention 1.00; `exact_reference` hit 0.75; `follow_up` document 0.40; `natural_language` document 0.60; `out_of_scope` abstention 0.60; `insufficient_evidence` abstention 0.00.
+Quy tắc phân cấp tính cả provision con được trích dẫn (ví dụ `Điều 14 Khoản 1` cho gold `Điều 14`), còn quy tắc khớp chính xác thì không. Các metric truy xuất dùng n = 22.
 
-Ba hạn chế đã đo được, không phải suy đoán:
+Provenance của index: các chỉ số trên được đo khi backend phục vụ collection `traffic_law` dựng từ snapshot 10.311 chunk. Sau khi sửa parser, repo đã rebuild lại chính collection đó thành 10.529 chunk (`backend/scripts/index.py --chunks data/processed/chunks.jsonl --collection traffic_law --force-recreate`, batch hoá bằng `INDEX_BATCH_SIZE`). Coverage gold không đổi giữa hai snapshot: `parser_gaps = 0` và mọi toạ độ gold đều có trong cả hai. Muốn số liệu khớp đúng snapshot mới thì phải chạy lại evaluation trên index đã rebuild.
 
-- `follow_up` hit 0.00 vì runner gửi từng câu độc lập (`{question, top_k, effective_date}`), trong khi dataset có `conversation_history` và `ChatRequest` không có trường history. Đây là giới hạn của phép đo, không kết luận được về chất lượng app.
-- `insufficient_evidence` 5/5 vẫn trả lời: cả 5 case là cùng câu `Tôi bị phạt hôm qua, phải làm gì và mức phạt chính xác bao nhiêu?` (không nêu hành vi vi phạm) nhưng trả `VERIFIED` kèm citation không liên quan.
-- `out_of_scope` 3/5 từ chối đúng; hai case bị trả lời là `Tính thuế thu nhập cá nhân cho người lái xe` và `Xin phân tích luật hình sự ngoài các văn bản giao thông trong corpus`.
+| Từ chối trả lời | Theo nhãn gold | Theo hiệu dụng |
+| --------------- | --------------: | -------------: |
+| TP | 10 | 18 |
+| FP | 8 | 0 |
+| TN | 22 | 22 |
+| FN | 0 | 0 |
+| precision | 0.5556 | 1.0000 |
+| recall | 1.0000 | 1.0000 |
+| F1 | 0.7143 | 1.0000 |
 
-`citation_validity` 0.9118 không phải citation sai: cả 3 case tính là fail đều do **thiếu** citation khi gold có kỳ vọng (`thesis-gold-40-01` `INSUFFICIENT_EVIDENCE`, `thesis-gold-40-08` `OUT_OF_SCOPE`, `thesis-gold-40-24` `VERIFIED` không citation), không có citation trỏ sai được trả ra.
+Theo nhãn gold, 8 trường hợp ngoài kho dữ liệu vẫn giữ nhãn gốc nên tạo FP; theo hiệu dụng, provision không có trong corpus cũng được xem là nên từ chối. Recall của lớp an toàn quan trọng là chỉ số cần ưu tiên: baseline trả lời cả 5 trường hợp thiếu căn cứ, còn lần chạy cuối từ chối chúng với `clarification_required`.
 
-Tài liệu chỉ ghi kết quả của lần chạy mới nhất; artifact: `data/evaluation/thesis-run/20260915T122334Z.jsonl` và `.aggregate.json` (thư mục `data/evaluation/` được gitignore).
+Độ trễ lần chạy cuối: mean 11061.57 ms, min 5681.92 ms, max 19484.88 ms, p50 10908.84 ms, p95 17264.5 ms, n=40. Trung bình theo giai đoạn: retrieval 2275.8 ms, generation 863.46 ms, in-service total 4215.65 ms; phần còn lại là công việc tầng API.
+
+Theo nhóm (lần chạy cuối, `retrieval_hit_at_k_hierarchical` / document / abstention): `penalty` 1.00 / 1.00 / 1.00; `exact_reference` 1.00 / 1.00 / 1.00; `cross_reference` 0.80 / 0.80 / 1.00; `follow_up` 0.75 / 0.75 / 1.00; `natural_language` 0.00 / 0.25 / 1.00; `insufficient_evidence` và `out_of_scope` abstention 1.00; `multi_intent` không có trường hợp nào được tính vì provision kỳ vọng không có trong corpus.
+
+Residuals: point có mẫu nhỏ (n=3), trong đó hai gold query chỉ nêu tọa độ trần và `diem-c` không có trong corpus; p95 17.26 giây vượt mục tiêu <15 giây; đánh giá thủ công đầy đủ chưa hoàn thành (mẫu n = 10 do trợ lý thực hiện, chưa có người chấm độc lập; 0.65 không đại diện vì mẫu cố ý gồm `natural_language` và `follow_up`, trong đó case 06 và 26 đạt 0); có 8 trường hợp ngoài kho dữ liệu. Hit@5 phân cấp biến thiên giữa hai lần chạy cùng cấu hình: 0.7273 (`20260915T142333Z`) và 0.8571 (`20260915T140810Z`), do analyzer LLM và embedding provider từ xa.
 
 ## Các gap hiện tại
 
-### 1. Parser mất cấu trúc pháp lý
+### 1. Parser và tập kiểm tra Điểm
 
-`nd-119-2024.md` có marker OCR/HTML bị tách dòng, ví dụ `1` rồi `.`, hoặc `a` rồi `)`. Parser hiện nhận marker inline như `1. Nội dung` và `a) Nội dung`, nên một số khoản và điểm không đi vào metadata.
-
-Hậu quả đã đo được:
-
-- 8 expected point coordinates bị thiếu trong đoạn dữ liệus.
-- Point độ chính xác bằng `0` ở cả ba run.
-- Case exact reference Điều 11 Khoản 4 và Điều 13 Khoản 2 Điểm b không tìm thấy evidence.
+Parser đã sửa lỗi giữ cấu trúc Điểm; parser gap bằng 0 và Markdown/index thống nhất đến mức Điều/Khoản/Điểm. Điểm 0.0000 (n=3) còn hạn chế do thiết kế tập kiểm tra: hai gold query chỉ nêu tọa độ trần và `diem-c` không tồn tại trong corpus.
 
 ### 2. Corpus mở rộng làm thay đổi evaluation
 

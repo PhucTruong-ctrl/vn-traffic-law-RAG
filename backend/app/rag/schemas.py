@@ -16,6 +16,7 @@ class ChatRequest(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     top_k: int = Field(default=5, ge=1, le=50)
     effective_date: date | None = None
+    history: list[dict[str, str]] | None = None
 
     @field_validator("question", "title")
     @classmethod

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -38,6 +39,9 @@ def _embedding_kwargs(settings: object) -> dict[str, object]:
         "base_url": _setting(
             settings, "openrouter_base_url", _DEFAULT_EMBEDDING.openrouter_base_url
         ),
+        # A bulk index build must not inherit the short serving-side embedding budget.
+        "timeout": _setting(settings, "timeout_seconds", None),
+        "max_retries": _setting(settings, "max_retries", None),
     }
 
 
@@ -97,7 +101,12 @@ def main(argv: list[str] | None = None) -> int:
             client_options=client_options,
             force_recreate=args.force_recreate,
         )
-        store.add_documents(documents)
+        # One request for 10k+ chunks exceeds any sane provider deadline; embed and
+        # upsert in bounded batches so a transient failure costs one batch, not the build.
+        batch_size = max(int(os.getenv("INDEX_BATCH_SIZE", "128")), 1)
+        for start in range(0, len(documents), batch_size):
+            store.add_documents(documents[start : start + batch_size])
+            print(f"indexed {min(start + batch_size, len(documents))}/{len(documents)}", flush=True)
         info = store.client.get_collection(collection)
         if info.points_count != len(documents):
             raise RuntimeError(

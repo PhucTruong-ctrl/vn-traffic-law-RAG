@@ -21,7 +21,11 @@ from .analyzer import (
     detect_vehicle_types,
     normalize_vehicle_metadata,
 )
-from .evidence import ABSTENTION_MESSAGE, RETRIEVAL_FAILURE_MESSAGE
+from .evidence import (
+    ABSTENTION_MESSAGE,
+    CLARIFICATION_REQUIRED_MESSAGE,
+    RETRIEVAL_FAILURE_MESSAGE,
+)
 from .generator import generate_answer
 from .query_rules import expand_query, load_query_rules, requested_context
 from .references import extract_references, metadata_matches
@@ -66,13 +70,69 @@ _QUESTION_STOPWORDS = frozenset(
         "thông",
         "tiện",
         "tư",
-        "và",
-        "với",
-        "xe",
     }
 )
 _RAILWAY_TERMS = frozenset(("đường sắt", "đường ngang", "rào chắn", "tàu hỏa", "cầu chung"))
+# Question-frame words (pronouns, time deixis, modals, interrogatives) name no conduct.
+# A penalty question built only from these describes no violation, so it cannot be
+# answered from the corpus and must be clarified instead of guessed.
+_QUESTION_FRAME_TOKENS = frozenset(
+    {
+        "anh",
+        "bao",
+        "bây",
+        "bắt",
+        "buộc",
+        "chị",
+        "cho",
+        "chúng",
+        "chính",
+        "cần",
+        "cụ",
+        "cũng",
+        "đây",
+        "đó",
+        "giúp",
+        "gì",
+        "hôm",
+        "hỏi",
+        "kính",
+        "làm",
+        "mai",
+        "mình",
+        "mong",
+        "muốn",
+        "nay",
+        "ngày",
+        "như",
+        "phải",
+        "qua",
+        "rồi",
+        "sao",
+        "tôi",
+        "trường",
+        "và",
+        "vấn",
+        "vậy",
+        "xin",
+        "xác",
+        "ạ",
+    }
+)
 _PENALTY_TERMS = frozenset(("phạt", "xử phạt", "mức phạt", "tước", "trừ điểm"))
+_OUT_OF_SCOPE_TERMS = (
+    ("thuế", "thu nhập cá nhân"),
+    ("luật hình sự", "tội phạm", "truy tố", "hình phạt hình sự"),
+    ("hợp đồng", "tranh chấp dân sự", "bồi thường dân sự", "khởi kiện", "đơn kiện"),
+    ("hàng không", "aviation", "máy bay", "chuyến bay"),
+)
+
+
+def _is_clear_out_of_scope(question: str) -> bool:
+    lowered = _normalized_query(question)
+    if _is_railway_question(question):
+        return False
+    return any(any(term in lowered for term in domain) for domain in _OUT_OF_SCOPE_TERMS)
 
 
 def _normalized_query(question: str) -> str:
@@ -85,6 +145,11 @@ def _question_tokens(question: str) -> set[str]:
         for t in re.findall(r"[^\W\d_]+", _normalized_query(question), flags=re.UNICODE)
         if t not in _QUESTION_STOPWORDS and len(t) > 1
     }
+
+
+def _conduct_tokens(question: str) -> set[str]:
+    """Question tokens that could name a violation or its subject matter."""
+    return _question_tokens(question) - _QUESTION_FRAME_TOKENS
 
 
 def _is_railway_question(question: str) -> bool:
@@ -108,6 +173,30 @@ def _meaningful_tokens(text: str) -> set[str]:
         for t in re.findall(r"[^\W\d_]+", text.casefold(), flags=re.UNICODE)
         if len(t) > 2 and t not in _QUESTION_STOPWORDS
     }
+
+
+def _canonical_coordinates(documents: Iterable[Document]) -> list[str]:
+    """Deduped `{document}__dieu-N[__khoan-M[__diem-X]]` ids, first-seen order."""
+    coordinates: list[str] = []
+    seen: set[str] = set()
+    for document in documents:
+        metadata = normalize_vehicle_metadata(document.metadata or {})
+        document_id = metadata.get("document_id")
+        article = str(metadata.get("article", "")).removeprefix("Điều ").strip()
+        if not document_id or not article:
+            continue
+        coordinate = f"{document_id}__dieu-{article}"
+        for key, prefix in (("clause", "khoan"), ("point", "diem")):
+            if metadata.get(key) is None:
+                break
+            value = str(metadata.get(key, "")).removeprefix("Khoản ").removeprefix("Điểm ").strip()
+            if not value:
+                break
+            coordinate += f"__{prefix}-{value}"
+        if coordinate not in seen:
+            seen.add(coordinate)
+            coordinates.append(coordinate)
+    return coordinates
 
 
 def _provision_family(document: Document) -> tuple[str, str, str]:
@@ -491,13 +580,18 @@ class RAGService:
         effective_date: date | None = None,
         deadline: float | None = None,
     ) -> dict[str, Any]:
-
         end = deadline if deadline is not None else self.clock() + 30.0
+        started = self.clock()
+        retrieval_ms = 0.0
+        generation_ms = 0.0
+        documents: list[Document] = []
 
         def abstain(reason: str) -> dict[str, Any]:
             message = (
                 RETRIEVAL_FAILURE_MESSAGE
                 if reason in {"retrieval_timeout", "retrieval_unavailable"}
+                else CLARIFICATION_REQUIRED_MESSAGE
+                if reason == "clarification_required"
                 else ABSTENTION_MESSAGE
             )
             return {
@@ -506,23 +600,57 @@ class RAGService:
                 "claims": [],
                 "status": "insufficient_evidence",
                 "reason_code": reason,
+                "debug": {
+                    "stage_ms": {
+                        "retrieval": retrieval_ms,
+                        "generation": 0.0,
+                        "total": max((self.clock() - started) * 1000.0, 0.0),
+                    },
+                    "retrieved_provision_ids": _canonical_coordinates(documents),
+                    "retrieved_chunk_ids": [],
+                    "cited_provision_ids": [],
+                },
             }
 
         request = analyze_request(
             question, history, deadline=min(end, self.clock() + 12.0), clock=self.clock
         )
         if request.category == "chitchat":
-            return {**CHITCHAT_RESPONSE, "claims": []}
-        if request.category == "out_of_scope":
+            return {
+                **CHITCHAT_RESPONSE,
+                "claims": [],
+                "debug": {
+                    "stage_ms": {"retrieval": 0.0, "generation": 0.0, "total": 0.0},
+                    "retrieved_provision_ids": [],
+                    "cited_provision_ids": [],
+                },
+            }
+        if request.category == "out_of_scope" or _is_clear_out_of_scope(question):
             return {
                 "answer": "Tôi chỉ có thể hỗ trợ các câu hỏi về pháp luật giao thông.",
                 "citations": [],
                 "claims": [],
                 "status": "insufficient_evidence",
                 "reason_code": "out_of_scope",
+                "debug": {
+                    "stage_ms": {"retrieval": 0.0, "generation": 0.0, "total": 0.0},
+                    "retrieved_provision_ids": [],
+                    "cited_provision_ids": [],
+                },
             }
         analysis, standalone = request.frames, request.standalone_query
         references, route = extract_references(question), classify_intent(standalone)
+        # A penalty question that names no conduct and no provision cannot be grounded,
+        # so refusing here also avoids paying for a retrieval that cannot help. The
+        # decision reads the user's own words: an analyzer rewrite must never be able to
+        # turn an underspecified question into an answerable one.
+        if (
+            _is_penalty_or_permission_question(question)
+            and not references
+            and not _action_terms_for_question(question)
+            and not _conduct_tokens(question)
+        ):
+            return abstain("clarification_required")
         try:
             documents = (
                 list(chunks)
@@ -541,9 +669,32 @@ class RAGService:
             logger.warning("retrieval timed out for question=%r", standalone)
             return abstain("retrieval_timeout")
         if not documents:
+            if (
+                _is_penalty_or_permission_question(standalone)
+                and not references
+                and not _action_terms_for_question(standalone)
+            ):
+                return abstain("clarification_required")
             return abstain("insufficient_evidence")
         for reference in references:
             structural = [d for d in documents if metadata_matches(d.metadata or {}, reference)]
+            if not structural:
+                try:
+                    fetched = self.retriever.fetch_provisions(
+                        reference,
+                        question=standalone,
+                        limit=12,
+                        effective_date=effective_date,
+                    )
+                except RetrievalProviderError:
+                    fetched = []
+                if fetched:
+                    by_key = {_document_key(d): d for d in fetched}
+                    by_key.update({_document_key(d): d for d in documents})
+                    documents = list(by_key.values())
+                    structural = [
+                        d for d in documents if metadata_matches(d.metadata or {}, reference)
+                    ]
             if not structural:
                 return abstain("reference_not_found")
             if effective_date and not any(
@@ -633,6 +784,8 @@ class RAGService:
         ]
         groups, _ = _intent_groups(standalone, filtered, analysis=analysis)
         groups = {label: docs for label, docs in groups.items() if docs}
+        retrieval_ms = max((self.clock() - started) * 1000.0, 0.0)
+        generation_started = self.clock()
         try:
             answer_text = generate_answer(
                 standalone,
@@ -645,6 +798,7 @@ class RAGService:
             return abstain("request_timeout")
         except Exception:
             return abstain("generation_failed")
+        generation_ms = max((self.clock() - generation_started) * 1000.0, 0.0)
         sanitized = sanitize_response(
             standalone,
             route,
@@ -663,4 +817,18 @@ class RAGService:
             "citations": list(sanitized.citations),
             "claims": list(sanitized.claims),
             "status": "verified",
+            "debug": {
+                "stage_ms": {
+                    "retrieval": retrieval_ms,
+                    "generation": generation_ms,
+                    "total": max((self.clock() - started) * 1000.0, 0.0),
+                },
+                "retrieved_provision_ids": _canonical_coordinates(documents),
+                "retrieved_chunk_ids": [
+                    str(normalize_vehicle_metadata(d.metadata or {}).get("chunk_id"))
+                    for d in documents
+                    if normalize_vehicle_metadata(d.metadata or {}).get("chunk_id")
+                ],
+                "cited_provision_ids": _canonical_coordinates(cited),
+            },
         }

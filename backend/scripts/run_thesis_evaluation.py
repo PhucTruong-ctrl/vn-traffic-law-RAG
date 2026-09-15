@@ -8,9 +8,11 @@ answer correctness: that field is supplied later by the manual reviewer.
 from __future__ import annotations
 
 import argparse
+import csv
+import hashlib
 import json
 import os
-import statistics
+import subprocess
 import sys
 import time
 from datetime import UTC, datetime
@@ -44,6 +46,20 @@ CORPUS_NOT_COVERED_CASES = frozenset(
         "thesis-gold-40-17",
         "thesis-gold-40-18",
         "thesis-gold-40-19",
+    }
+)
+# Every gold category is reported, including ones a run never reached, so a missing
+# category can never be mistaken for a passing one.
+_CATEGORY_ORDER = frozenset(
+    {
+        "exact_reference",
+        "natural_language",
+        "penalty",
+        "multi_intent",
+        "cross_reference",
+        "follow_up",
+        "insufficient_evidence",
+        "out_of_scope",
     }
 )
 REQUIRED_CASE = {"id", "category"}
@@ -335,6 +351,44 @@ def _prediction_coordinates(
     return coordinates
 
 
+def _citation_coordinates(
+    citations: list[Any],
+    index: dict[str, set[tuple[str, str | None, str | None, str | None]]],
+) -> tuple[bool, list[str]]:
+    invalid: list[str] = []
+    for citation in citations:
+        coordinate = _coordinate_from_metadata(citation)
+        identifier = citation.get("source_id") if isinstance(citation, dict) else None
+        identifier = (
+            str(identifier or citation.get("provision_id", ""))
+            if isinstance(citation, dict)
+            else ""
+        )
+        if coordinate is None or coordinate[:4] not in index.get(coordinate[0], set()):
+            invalid.append(identifier or coordinate[4] if coordinate else identifier or "<unknown>")
+    return not invalid, invalid
+
+
+def load_coordinate_index(
+    path: Path,
+) -> dict[str, set[tuple[str, str | None, str | None, str | None]]]:
+    index: dict[str, set[tuple[str, str | None, str | None, str | None]]] = {}
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        fail(f"cannot read chunks {path}: {exc}")
+    for line in lines:
+        try:
+            item = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        metadata = item.get("metadata", item) if isinstance(item, dict) else {}
+        coordinate = _coordinate_from_metadata(metadata)
+        if coordinate:
+            index.setdefault(coordinate[0], set()).add(coordinate[:4])
+    return index
+
+
 def _level_accuracy(
     expected: dict[str, Any],
     coordinates: list[tuple[str, str | None, str | None, str | None, str]],
@@ -352,8 +406,22 @@ def _level_accuracy(
     return wanted <= actual
 
 
+def _ancestor_hit(actual: set[str], expected: set[str]) -> bool:
+    return any(
+        candidate == wanted
+        or candidate.startswith(wanted + "__")
+        or wanted.startswith(candidate + "__")
+        for candidate in actual
+        for wanted in expected
+    )
+
+
 def score_case(
-    case: dict[str, Any], prediction: dict[str, Any], latency_ms: float | None = None
+    case: dict[str, Any],
+    prediction: dict[str, Any],
+    latency_ms: float | None = None,
+    coverage: dict[str, Any] | None = None,
+    coordinate_index: dict[str, set[tuple[str, str | None, str | None, str | None]]] | None = None,
 ) -> dict[str, Any]:
     citations = prediction.get("citations", [])
     if not isinstance(citations, list):
@@ -362,48 +430,97 @@ def score_case(
         case = normalize_case(case, 0)
     expected = case["expected"]
     wanted = expected_ids(case)
-    corpus_not_covered = case["id"] in CORPUS_NOT_COVERED_CASES
     coordinates = _prediction_coordinates(prediction)
     cited_ids = {item[4] for item in coordinates}
+    retrieved_ids = _retrieved_ids(prediction)
     status = str(prediction.get("status", "")).upper()
     timed_out = status in {"TIMEOUT", "ERROR", "FAILED"}
-    should_abstain = bool(expected.get("abstain", False))
+    coverage = coverage or {"status": "scored", "basis": "fallback", "missing_coordinates": []}
     actual_abstain = status in {"INSUFFICIENT_EVIDENCE", "OUT_OF_SCOPE"}
-    citation_validity = (
-        None if timed_out or corpus_not_covered else bool(citations) if citations else not wanted
-    )
-    if citations and not coordinates:
-        citation_validity = False if not corpus_not_covered else None
+    should_abstain = bool(expected.get("abstain", False))
+    scored = coverage["status"] in {"scored", "parser_gap"}
+    citation_present = bool(citations)
+    citation_validity, invalid_citations = _citation_coordinates(citations, coordinate_index or {})
     result = {
         "case_id": case["id"],
         "category": case["category"],
         "question": case["question"],
         "prediction": prediction,
-        "corpus_covered": not corpus_not_covered,
-        "corpus_not_covered": corpus_not_covered,
+        "coverage": coverage,
+        "corpus_covered": scored,
+        "corpus_not_covered": not scored,
+        "retrieved_provision_ids": sorted(retrieved_ids or set()),
+        "cited_provision_ids": sorted(cited_ids),
+        "expected_provision_ids": sorted(wanted),
         "retrieval_hit_at_k": None
-        if timed_out or corpus_not_covered or not wanted
+        if timed_out or not scored or not wanted
         else bool(cited_ids & wanted),
+        "retrieval_hit_at_k_hierarchical": None
+        if timed_out or not scored or not wanted
+        else _ancestor_hit(cited_ids, wanted),
+        "retrieval_candidate_hit_at_k": None
+        if timed_out or not scored or not wanted or retrieved_ids is None
+        else _ancestor_hit(retrieved_ids, wanted),
         "document_accuracy": None
-        if timed_out or corpus_not_covered
+        if timed_out or not scored
         else _level_accuracy(expected, coordinates, "document"),
         "article_accuracy": None
-        if timed_out or corpus_not_covered
+        if timed_out or not scored
         else _level_accuracy(expected, coordinates, "article"),
         "clause_accuracy": None
-        if timed_out or corpus_not_covered
+        if timed_out or not scored
         else _level_accuracy(expected, coordinates, "clause"),
         "point_accuracy": None
-        if timed_out or corpus_not_covered
+        if timed_out or not scored
         else _level_accuracy(expected, coordinates, "point"),
-        "citation_validity": citation_validity,
+        # A refusal is meant to cite nothing, so presence is only defined for cases
+        # that must be answered from evidence.
+        "citation_present": None if timed_out or not scored or should_abstain else citation_present,
+        "citation_validity": None if timed_out or not scored else citation_validity,
+        "invalid_citations": invalid_citations,
+        "citation_support": None,
         "answer_correctness_manual": None,
-        "abstention_accuracy": None
-        if timed_out or corpus_not_covered
-        else actual_abstain == should_abstain,
+        "abstention_accuracy": None if timed_out else actual_abstain == should_abstain,
+        "abstained": actual_abstain,
+        "answer_text": prediction.get("answer") or prediction.get("answer_text"),
         "latency_ms": round(latency_ms, 2) if latency_ms is not None else None,
+        "history_used": bool(case.get("conversation_history")),
     }
+    result["error_classification"] = classify_error(result)
     return result
+
+
+def _retrieved_ids(prediction: dict[str, Any]) -> set[str] | None:
+    debug = prediction.get("debug")
+    if not isinstance(debug, dict) or not isinstance(debug.get("retrieved_provision_ids"), list):
+        return None
+    return {
+        parsed[4]
+        for value in debug["retrieved_provision_ids"]
+        if (parsed := parse_coordinate(value))
+    }
+
+
+def classify_error(row: dict[str, Any]) -> str:
+    if row.get("coverage", {}).get("status") == "out_of_corpus":
+        return "no_corpus_evidence"
+    if row.get("retrieval_hit_at_k") is False:
+        return "retrieval_miss"
+    for level in ("document", "article", "clause", "point"):
+        if row.get(f"{level}_accuracy") is False:
+            return f"wrong_{level}"
+    if row.get("abstention_accuracy") is False:
+        return (
+            "refusal_error_false_negative"
+            if row.get("expected_abstain")
+            else "refusal_error_false_positive"
+        )
+    if row.get("citation_validity") is False:
+        return "citation_missing"
+    prediction = row.get("prediction") or {}
+    if str(prediction.get("status", "")).upper() in {"TIMEOUT", "ERROR", "FAILED"}:
+        return "timeout"
+    return "none"
 
 
 def post_json(
@@ -425,59 +542,245 @@ def post_json(
     return value, (time.perf_counter() - started) * 1000
 
 
+def _percentile(values: list[float], fraction: float) -> float | None:
+    """Linear-interpolation percentile; `fraction` in [0, 1] (documented in the report)."""
+    if not values:
+        return None
+    ordered = sorted(values)
+    if len(ordered) == 1:
+        return ordered[0]
+    position = (len(ordered) - 1) * fraction
+    lower = int(position)
+    upper = min(lower + 1, len(ordered) - 1)
+    return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
+
+
+def _latency_block(values: list[float]) -> dict[str, Any]:
+    if not values:
+        return {"mean": None, "min": None, "max": None, "p50": None, "p95": None, "count": 0}
+    return {
+        "mean": round(sum(values) / len(values), 2),
+        "min": round(min(values), 2),
+        "max": round(max(values), 2),
+        "p50": round(_percentile(values, 0.5) or 0.0, 2),
+        "p95": round(_percentile(values, 0.95) or 0.0, 2),
+        "count": len(values),
+    }
+
+
+def _coverage_status(row: dict[str, Any]) -> str:
+    """Rows saved before coverage tracking, or by external tools, count as scored."""
+    coverage = row.get("coverage")
+    if not isinstance(coverage, dict):
+        return "scored"
+    return str(coverage.get("status") or "scored")
+
+
+def _refusal_block(
+    rows: list[dict[str, Any]], *, treat_uncovered_as_abstain: bool
+) -> dict[str, Any]:
+    """Refusal confusion matrix; positive class = the case should have been refused."""
+    tp = fp = tn = fn = 0
+    excluded = 0
+    false_negatives: list[dict[str, Any]] = []
+    for row in rows:
+        if row.get("error") or row.get("prediction") is None:
+            # A transport/timeout failure is not a decision the system made, so it
+            # must not be scored as a refusal error.
+            excluded += 1
+            continue
+        expected = bool(row.get("expected_abstain"))
+        if treat_uncovered_as_abstain and _coverage_status(row) != "scored":
+            # No gold evidence exists in the corpus, so an answer cannot be grounded.
+            expected = True
+        actual = bool(row.get("abstained"))
+        if expected and actual:
+            tp += 1
+        elif expected:
+            fn += 1
+            prediction = row.get("prediction") or {}
+            citations = prediction.get("citations")
+            false_negatives.append(
+                {
+                    "case_id": row.get("case_id"),
+                    "category": row.get("category"),
+                    "question": row.get("question"),
+                    "status": prediction.get("status"),
+                    "reason_code": prediction.get("reason_code"),
+                    "coverage_status": _coverage_status(row),
+                    "cited": sorted(
+                        str(citation.get("source_id"))
+                        for citation in (citations if isinstance(citations, list) else [])
+                        if isinstance(citation, dict)
+                    )[:6],
+                }
+            )
+        elif actual:
+            fp += 1
+        else:
+            tn += 1
+    precision = tp / (tp + fp) if (tp + fp) else 0.0
+    recall = tp / (tp + fn) if (tp + fn) else 0.0
+    f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) else 0.0
+    return {
+        "confusion_matrix": {"tp": tp, "fp": fp, "tn": tn, "fn": fn},
+        "precision_refusal": round(precision, 4),
+        "recall_refusal": round(recall, 4),
+        "f1_refusal": round(f1, 4),
+        "denominators": {
+            "should_refuse": tp + fn,
+            "should_answer": fp + tn,
+            "cases": tp + fp + tn + fn,
+            "excluded_transport_errors": excluded,
+        },
+        "false_negatives": false_negatives,
+    }
+
+
 def aggregate(rows: list[dict[str, Any]], metadata: dict[str, Any]) -> dict[str, Any]:
     fields = (
         "retrieval_hit_at_k",
+        "retrieval_hit_at_k_hierarchical",
+        "retrieval_candidate_hit_at_k",
         "document_accuracy",
         "article_accuracy",
         "clause_accuracy",
         "point_accuracy",
+        "citation_present",
         "citation_validity",
+        "citation_support",
         "answer_correctness_manual",
+        "faithfulness",
+        "completeness",
         "abstention_accuracy",
     )
-    covered_rows = [row for row in rows if row.get("corpus_covered", True)]
 
-    def rate(field: str, subset: list[dict[str, Any]]) -> float | None:
-        values = [row[field] for row in subset if isinstance(row.get(field), bool)]
-        return round(sum(values) / len(values), 4) if values else None
-
-    def numeric_mean(field: str) -> float | None:
+    def metric(field: str, subset: list[dict[str, Any]]) -> dict[str, Any]:
         values = [
-            float(row[field]) for row in covered_rows if isinstance(row.get(field), (int, float))
+            row.get(field) for row in subset if isinstance(row.get(field), (bool, int, float))
         ]
-        return round(statistics.mean(values), 2) if values else None
+        return {"value": round(sum(values) / len(values), 4) if values else None, "n": len(values)}
 
-    def percentile(field: str, p: float) -> float | None:
-        values = sorted(
-            float(row[field]) for row in covered_rows if isinstance(row.get(field), (int, float))
-        )
-        if not values:
-            return None
-        rank = (len(values) - 1) * p / 100
-        low = int(rank)
-        high = min(low + 1, len(values) - 1)
-        return round(values[low] + (values[high] - values[low]) * (rank - low), 2)
-
-    by_category = {}
-    for category in sorted(CATEGORIES):
-        subset = [row for row in covered_rows if row["category"] == category]
-        by_category[category] = {
-            "count": len(subset),
-            **{field: rate(field, subset) for field in fields},
-        }
+    # Only cases whose gold evidence exists in the index can be scored for retrieval;
+    # `parser_gap` stays scored on purpose so a real parser defect remains visible.
+    scored = [row for row in rows if _coverage_status(row) in {"scored", "parser_gap"}]
+    with_evidence = [row for row in rows if expected_ids(row) and _coverage_status(row) == "scored"]
+    # Every gold category is reported, including the ones a run never reached, so a
+    # missing category can never be mistaken for a passing one.
+    categories = sorted(
+        _CATEGORY_ORDER | {str(row.get("category")) for row in rows if row.get("category")}
+    )
+    stage_values: dict[str, list[float]] = {}
+    stage_reports = 0
+    for row in rows:
+        debug = (row.get("prediction") or {}).get("debug")
+        stages = debug.get("stage_ms") if isinstance(debug, dict) else None
+        if not isinstance(stages, dict) or not stages:
+            continue
+        stage_reports += 1
+        for key, value in stages.items():
+            if isinstance(value, (int, float)):
+                stage_values.setdefault(str(key), []).append(float(value))
+    latencies = [
+        float(row["latency_ms"]) for row in rows if isinstance(row.get("latency_ms"), (int, float))
+    ]
+    manual = metric("answer_correctness_manual", rows)
     return {
         "run": metadata,
         "count": len(rows),
-        "covered_count": len(covered_rows),
-        "corpus_not_covered": [row["case_id"] for row in rows if row.get("corpus_not_covered")],
-        "metrics": {field: rate(field, covered_rows) for field in fields},
-        "latency_ms": {
-            "mean": numeric_mean("latency_ms"),
-            "p50": percentile("latency_ms", 50),
-            "p95": percentile("latency_ms", 95),
+        "covered_count": len(scored),
+        "out_of_corpus_count": sum(_coverage_status(row) == "out_of_corpus" for row in rows),
+        "parser_gap_count": sum(_coverage_status(row) == "parser_gap" for row in rows),
+        "retrieval_case_count": len(with_evidence),
+        "metrics": {field: metric(field, scored) for field in fields},
+        "by_category": {
+            category: {
+                "count": sum(row.get("category") == category for row in rows),
+                "scored_count": sum(row.get("category") == category for row in scored),
+                **{
+                    field: metric(field, [row for row in scored if row.get("category") == category])
+                    for field in fields
+                },
+            }
+            for category in categories
         },
-        "by_category": by_category,
+        "refusal": _refusal_block(rows, treat_uncovered_as_abstain=False),
+        "refusal_effective": _refusal_block(rows, treat_uncovered_as_abstain=True),
+        "manual_correctness": manual["value"],
+        "manual_scored_count": manual["n"],
+        "manual_missing_count": len(rows) - manual["n"],
+        "latency_ms": _latency_block(latencies),
+        "percentile_method": "linear interpolation between closest ranks",
+        "stage_latency_ms": {
+            key: _latency_block(values) for key, values in sorted(stage_values.items())
+        },
+        "stage_coverage": round(stage_reports / len(rows), 4) if rows else None,
+        "case_accounting": {
+            status: sorted(
+                str(row.get("case_id")) for row in rows if _coverage_status(row) == status
+            )
+            for status in ("scored", "out_of_corpus", "parser_gap")
+        },
+        "error_classification": {
+            name: sum(row.get("error_classification") == name for row in rows)
+            for name in sorted({str(row.get("error_classification")) for row in rows})
+        },
+    }
+
+
+def _sha256(path: Path) -> str:
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return ""
+
+
+def coverage_for_case(case: dict[str, Any], chunks: Path, manifest: Path | None) -> dict[str, Any]:
+    available: set[str] = set()
+    try:
+        for line in chunks.read_text(encoding="utf-8").splitlines():
+            item = json.loads(line)
+            metadata = item.get("metadata", item) if isinstance(item, dict) else {}
+            coordinate = _coordinate_from_metadata(metadata)
+            if coordinate:
+                parts = coordinate[4].split("__")
+                available.update("__".join(parts[:index]) for index in range(1, len(parts) + 1))
+    except (OSError, json.JSONDecodeError):
+        pass
+    missing = sorted(expected_ids(case) - available)
+    if not missing:
+        return {
+            "status": "scored",
+            "basis": "chunks+manifest" if manifest and manifest.exists() else "chunks_only",
+            "missing_coordinates": [],
+        }
+    markers: set[str] = set()
+    if manifest and manifest.exists():
+        try:
+            raw = json.loads(manifest.read_text(encoding="utf-8"))
+            for entry in raw.get("parser_gaps", []):
+                if isinstance(entry, str):
+                    markers.add(entry)
+            for document, values in raw.get("markdown_markers", {}).items():
+                for key in ("articles", "clauses", "points"):
+                    for value in values.get(key, []):
+                        markers.add(
+                            str(value)
+                            if str(value).startswith(document)
+                            else f"{document}__{value.replace('/', '__')}"
+                        )
+        except (OSError, json.JSONDecodeError, AttributeError):
+            pass
+    parser_gap = [
+        value
+        for value in missing
+        if value in markers
+        or any(marker.startswith(value) or value.startswith(marker) for marker in markers)
+    ]
+    return {
+        "status": "parser_gap" if parser_gap else "out_of_corpus",
+        "basis": "chunks+manifest" if manifest and manifest.exists() else "chunks_only",
+        "missing_coordinates": missing,
     }
 
 
@@ -490,80 +793,154 @@ def main() -> int:
     parser.add_argument("--model-label", default="unspecified")
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--timeout", type=float, default=300)
+    parser.add_argument("--chunks", type=Path, default=ROOT / "data/processed/chunks.jsonl")
+    parser.add_argument(
+        "--coverage", type=Path, default=ROOT / "data/evaluation/corpus-coverage.json"
+    )
+    parser.add_argument("--reviews", type=Path)
     parser.add_argument("--output-dir", type=Path, default=Path("thesis-evaluation"))
     args = parser.parse_args()
     if args.predictions is None and not args.bearer_token:
         args.bearer_token = obtain_access_token()
     cases = load_dataset(args.dataset)
     saved = load_predictions(args.predictions) if args.predictions else {}
+    coordinate_index = load_coordinate_index(args.chunks)
+    reviews: dict[str, dict[str, Any]] = {}
+    if args.reviews and args.reviews.exists():
+        for line in args.reviews.read_text(encoding="utf-8").splitlines():
+            try:
+                value = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(value, dict) and isinstance(value.get("case_id"), str):
+                reviews[value["case_id"]] = value
     rows: list[dict[str, Any]] = []
     for case in cases:
+        coverage = coverage_for_case(case, args.chunks, args.coverage)
         if case["id"] in saved:
-            saved_prediction = saved[case["id"]]
-            rows.append(score_case(case, saved_prediction, saved_prediction.get("latency_ms")))
-            continue
-        if args.predictions:
-            rows.append(
-                score_case(
-                    case,
-                    {"status": "ERROR", "error": f"missing prediction for {case['id']}"},
-                    None,
-                )
+            prediction = saved[case["id"]]
+            row = score_case(
+                case, prediction, prediction.get("latency_ms"), coverage, coordinate_index
             )
-            rows[-1]["error"] = f"missing prediction for {case['id']}"
-            continue
-        try:
-            prediction, latency = post_json(
-                args.endpoint,
-                {
+        elif args.predictions:
+            row = score_case(
+                case,
+                {"status": "ERROR", "error": f"missing prediction for {case['id']}"},
+                None,
+                coverage,
+                coordinate_index,
+            )
+        else:
+            try:
+                payload = {
                     "question": case["question"],
                     "top_k": args.top_k,
                     "effective_date": case.get("query_date"),
-                },
-                args.timeout,
-                args.bearer_token,
-            )
-            rows.append(score_case(case, prediction, latency))
-        except RuntimeError as exc:
-            rows.append(
-                {
-                    "case_id": case["id"],
-                    "category": case["category"],
-                    "question": case["question"],
-                    "prediction": None,
-                    "error": str(exc),
-                    "latency_ms": None,
-                    "retrieval_hit_at_k": None,
-                    "document_accuracy": None,
-                    "article_accuracy": None,
-                    "clause_accuracy": None,
-                    "point_accuracy": None,
-                    "citation_validity": None,
-                    "answer_correctness_manual": None,
-                    "abstention_accuracy": None,
                 }
-            )
+                if case.get("conversation_history"):
+                    payload["history"] = case["conversation_history"]
+                prediction, latency = post_json(
+                    args.endpoint, payload, args.timeout, args.bearer_token
+                )
+                row = score_case(case, prediction, latency, coverage, coordinate_index)
+            except RuntimeError as exc:
+                row = score_case(
+                    case, {"status": "ERROR", "error": str(exc)}, None, coverage, coordinate_index
+                )
+        row["expected_abstain"] = bool(case.get("expected", {}).get("abstain", False))
+        row.update(
+            {key: value for key, value in reviews.get(case["id"], {}).items() if key != "case_id"}
+        )
+        rows.append(row)
     if len(rows) != len(cases):
         fail("incomplete evaluation")
     args.output_dir.mkdir(parents=True, exist_ok=True)
     run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    try:
+        git_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    except (OSError, subprocess.CalledProcessError):
+        git_commit = ""
     metadata = {
         "run_id": run_id,
         "created_at": datetime.now(UTC).isoformat(),
-        "model_label": args.model_label,
+        "git_commit": git_commit,
         "dataset": str(args.dataset),
+        "dataset_sha256": _sha256(args.dataset),
+        "chunks_sha256": _sha256(args.chunks),
         "endpoint": None if args.predictions else args.endpoint,
         "top_k": args.top_k,
+        "timeout_seconds": args.timeout,
+        "model_label": args.model_label,
+        **{
+            key: os.getenv(key.upper(), "")
+            for key in (
+                "generation_model",
+                "analyzer_model",
+                "embedding_model",
+                "embedding_dimensions",
+            )
+        },
     }
     raw_path = args.output_dir / f"{run_id}.jsonl"
     aggregate_path = args.output_dir / f"{run_id}.aggregate.json"
+    csv_path = args.output_dir / f"{run_id}.cases.csv"
     raw_path.write_text(
         "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8"
     )
     aggregate_path.write_text(
         json.dumps(aggregate(rows, metadata), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
-    print(json.dumps({"raw": str(raw_path), "aggregate": str(aggregate_path), "count": len(rows)}))
+    columns = [
+        "case_id",
+        "category",
+        "question",
+        "coverage_status",
+        "coverage_basis",
+        "retrieved_provision_ids",
+        "cited_provision_ids",
+        "expected_provision_ids",
+        "invalid_citations",
+        "retrieval_hit_at_k",
+        "retrieval_candidate_hit_at_k",
+        "document_accuracy",
+        "article_accuracy",
+        "clause_accuracy",
+        "point_accuracy",
+        "citation_present",
+        "citation_validity",
+        "citation_support",
+        "answer_correctness_manual",
+        "abstained",
+        "latency_ms",
+        "error_classification",
+    ]
+    with csv_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=columns)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(
+                {
+                    column: json.dumps(row.get(column), ensure_ascii=False)
+                    if isinstance(row.get(column), (list, dict))
+                    else row.get(column)
+                    for column in columns
+                    if column not in {"coverage_status", "coverage_basis"}
+                }
+                | {
+                    "coverage_status": row["coverage"]["status"],
+                    "coverage_basis": row["coverage"]["basis"],
+                }
+            )
+    print(
+        json.dumps(
+            {
+                "raw": str(raw_path),
+                "aggregate": str(aggregate_path),
+                "cases": str(csv_path),
+                "count": len(rows),
+            }
+        )
+    )
     return 0
 
 
