@@ -194,6 +194,29 @@ def _eligible(doc: Any, effective_date: date | None) -> bool:
     return True
 
 
+def _dump_guard_failure(answer: str, docs: list[Any]) -> None:
+    import json
+    import os
+
+    path = os.environ.get("VNLRAG_GUARD_DUMP")
+    if not path:
+        return
+    payload = {
+        "answer": answer,
+        "unsupported": sorted(unsupported_amounts(answer, docs)),
+        "docs": [
+            {
+                "chunk_id": (getattr(doc, "metadata", {}) or {}).get("chunk_id"),
+                "amounts": sorted(_money_values(str(getattr(doc, "page_content", "")))),
+                "text": str(getattr(doc, "page_content", "")),
+            }
+            for doc in docs
+        ],
+    }
+    with open(path, "a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
+
+
 def sanitize_response(
     question: str,
     route: str,
@@ -216,6 +239,7 @@ def sanitize_response(
     if not docs:
         return SanitizedResponse(answer, (), (), False, "insufficient_evidence")
     if unsupported_amounts(answer, docs):
+        _dump_guard_failure(answer, docs)
         return SanitizedResponse(answer, (), (), False, "unsupported_figures")
     raw_citations = [dict(citation) for citation in citations]
     by_source = {_norm((getattr(doc, "metadata", {}) or {}).get("chunk_id")): doc for doc in docs}

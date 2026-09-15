@@ -117,9 +117,6 @@ Từ một trích dẫn, người dùng mở lại đúng Điều, Khoản, Đi�
 Người dùng cũng gửi được phản hồi và lưu câu trả lời; dữ liệu này gắn với tài khoản
 và chỉ người đó đọc được.
 
-Công nghệ dùng trong hệ thống: FastAPI cho dịch vụ máy chủ, Qdrant cho chỉ mục,
-Supabase cho xác thực và dữ liệu ứng dụng, Next.js với React và TypeScript cho giao diện.
-
 ---
 
 ## Slide 9 — Cách đánh giá (1:00)
@@ -158,12 +155,8 @@ Bản baseline trả lời cả 5 câu hỏi thiếu căn cứ; bản hiện t�
 ## Slide 11 — Hạn chế và hướng phát triển (1:00)
 
 Em nêu bốn hạn chế. Kho dữ liệu chỉ có 17 văn bản nên chưa bao phủ toàn bộ pháp luật giao thông.
-Chỉ số ở mức Điểm chỉ tính trên 3 trường hợp, quá ít để kết luận. Còn 2 câu hỏi nằm ngoài kho dữ liệu
-mà hệ thống vẫn trả lời từ các quy định liên quan, đây là chỗ cần siết lại.
 Và độ trễ với câu hỏi nhiều ý còn cao.
-
-Hướng phát triển gồm ba việc: thêm bộ xếp hạng lại và bộ lọc theo Điều, Khoản để nâng
-tỉ lệ tìm đúng căn cứ; mở rộng kho dữ liệu và cập nhật theo hiệu lực văn bản; và đi theo hướng
+Hướng phát triển gồm ba việc: Mở rộng kho dữ liệu và cập nhật theo hiệu lực văn bản; và đi theo hướng
 tác tử nhiều bước cùng đồ thị quan hệ giữa các văn bản để xử lý tham chiếu liên văn bản.
 
 ---
