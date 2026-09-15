@@ -24,7 +24,7 @@ flowchart LR
   A[Chat + history] --> B[Analyzer<br/>strict JSON]
   B --> C[standalone_query<br/>expanded_queries ≤3]
   C --> D[Multi-query retrieval<br/>Qdrant dense + sparse<br/>top_k=8/query]
-  D --> E[RRF fuse<br/>1/(60+rank)]
+  D --> E["RRF fuse<br/>1/(60+rank)"]
   E --> F[Enrichment<br/>siblings, sanctions, references]
   F --> G[Relevance filter<br/>graceful fallback]
   G --> H[Generator]
