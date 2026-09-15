@@ -114,6 +114,8 @@ trap cleanup INT TERM EXIT
     GENERATION_MAX_RETRIES="${GENERATION_MAX_RETRIES:-3}" \
     EMBEDDING_MODEL="${EMBEDDING_MODEL:-openai/text-embedding-3-small}" \
     EMBEDDING_DIMENSIONS="${EMBEDDING_DIMENSIONS:-768}" \
+    EMBEDDING_TIMEOUT_SECONDS="${EMBEDDING_TIMEOUT_SECONDS:-8}" \
+    EMBEDDING_MAX_RETRIES="${EMBEDDING_MAX_RETRIES:-1}" \
     TEST_USER_EMAIL="${TEST_USER_EMAIL:-}" TEST_USER_PASSWORD="${TEST_USER_PASSWORD:-}" \
     TEST_USER_B_EMAIL="${TEST_USER_B_EMAIL:-}" TEST_USER_B_PASSWORD="${TEST_USER_B_PASSWORD:-}" \
     uv run --env-file /dev/null --directory "$ROOT/backend" python -m uvicorn app.main:app --reload --reload-dir "$ROOT/backend/app" --app-dir "$ROOT/backend" --host 127.0.0.1 --port 8000
