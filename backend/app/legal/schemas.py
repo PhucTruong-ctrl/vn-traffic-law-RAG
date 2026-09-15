@@ -23,6 +23,7 @@ class LegalDocumentSummary(BaseModel):
 
     document_id: str = Field(min_length=1)
     document_name: str = Field(min_length=1)
+    document_number: str | None = None
     source: LegalSource
     provision_count: int = Field(ge=0)
     content: str | None = None
@@ -34,6 +35,7 @@ class LegalProvision(BaseModel):
     chunk_id: str = Field(min_length=1)
     document_id: str = Field(min_length=1)
     document_name: str = Field(min_length=1)
+    document_number: str | None = None
     article: str | None = None
     clause: str | None = None
     point: str | None = None

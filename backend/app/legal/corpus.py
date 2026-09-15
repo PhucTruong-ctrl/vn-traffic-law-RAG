@@ -54,6 +54,7 @@ _KNOWN = {
     "document_id",
     "doc_id",
     "document_name",
+    "document_number",
     "source_file",
     "source_url",
     "pdf_url",

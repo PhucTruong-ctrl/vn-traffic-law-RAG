@@ -219,3 +219,44 @@ def test_pdf_document_detail_exposes_source_contract_without_file_read(monkeypat
     response = TestClient(app).get("/api/v1/health/live")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_legal_documents_expose_document_number(monkeypatch) -> None:
+    monkeypatch.setattr(
+        legal_api,
+        "chunks",
+        lambda: [
+            corpus.Chunk(
+                "Điều 1. Nội dung quy định.",
+                {
+                    "chunk_id": "c-1",
+                    "document_id": "nd-100-2019",
+                    "document_name": "Nghị định 100/2019/NĐ-CP",
+                    "document_number": "100/2019/NĐ-CP",
+                    "source_file": "/missing/100.md",
+                    "source_kind": "markdown",
+                },
+            ),
+            corpus.Chunk(
+                "Điều 1. Quy định khác.",
+                {
+                    "chunk_id": "c-2",
+                    "document_id": "nd-khong-so",
+                    "document_name": "Văn bản chưa ghi số hiệu",
+                    "source_file": "/missing/khac.md",
+                    "source_kind": "markdown",
+                },
+            ),
+        ],
+    )
+    client = TestClient(app)
+
+    listed = {row["document_id"]: row for row in client.get("/api/v1/legal-documents").json()}
+    assert listed["nd-100-2019"]["document_number"] == "100/2019/NĐ-CP"
+    assert listed["nd-khong-so"]["document_number"] is None
+
+    detail = client.get("/api/v1/legal-documents/nd-100-2019").json()
+    assert detail["document_number"] == "100/2019/NĐ-CP"
+
+    provisions = client.get("/api/v1/legal-documents/nd-100-2019/provisions").json()
+    assert provisions[0]["document_number"] == "100/2019/NĐ-CP"

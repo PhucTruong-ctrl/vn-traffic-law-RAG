@@ -39,6 +39,7 @@ def _provision(item) -> LegalProvision:
         chunk_id=str(md.get("chunk_id", "")),
         document_id=str(md.get("document_id", "")),
         document_name=str(md.get("document_name", md.get("document_id", ""))),
+        document_number=md.get("document_number") or None,
         article=md.get("article"),
         clause=md.get("clause"),
         point=md.get("point"),
@@ -57,6 +58,7 @@ def list_documents() -> list[LegalDocumentSummary]:
         LegalDocumentSummary(
             document_id=doc_id,
             document_name=str(rows[0].metadata.get("document_name", doc_id)),
+            document_number=rows[0].metadata.get("document_number") or None,
             source=_source(rows[0].metadata),
             provision_count=len(rows),
         )
@@ -93,6 +95,7 @@ def get_document(document_id: str) -> LegalDocumentSummary:
     summary = LegalDocumentSummary(
         document_id=document_id,
         document_name=str(rows[0].metadata.get("document_name", document_id)),
+        document_number=rows[0].metadata.get("document_number") or None,
         source=_source(rows[0].metadata),
         provision_count=len(rows),
         content=_markdown_content(document_id, rows),

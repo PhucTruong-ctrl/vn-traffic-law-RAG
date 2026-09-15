@@ -79,7 +79,13 @@ function normalizeDocumentNumber(value: unknown) {
 function documentMatchesNumber(document: LegalDocument, filter: string) {
   const normalizedFilter = normalizeDocumentNumber(filter);
   if (!normalizedFilter) return true;
-  return normalizeDocumentNumber(document.document_number).includes(normalizedFilter);
+  const candidates = [
+    document.document_number,
+    document.document_name,
+    document.document_title,
+    document.title,
+  ];
+  return candidates.some((value) => normalizeDocumentNumber(value).includes(normalizedFilter));
 }
 function citationSearch(article: string, clause: string, point: string, excerpt: string) {
   return (
