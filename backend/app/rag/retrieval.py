@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import Mapping
 from datetime import date, datetime
@@ -12,13 +13,21 @@ from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from openai import OpenAI
 from qdrant_client import QdrantClient
-from qdrant_client.models import Condition, FieldCondition, Filter, MatchValue
+from qdrant_client.models import (
+    Condition,
+    FieldCondition,
+    Filter,
+    MatchValue,
+    SparseVector,
+)
 
 from app.config import get_embedding_settings, get_qdrant_settings
 
 from .cross_refs import expand_cross_references, expand_sibling_completions
 from .query_rules import load_query_rules, requested_context
 from .references import LegalReference, metadata_matches, parse_reference
+
+logger = logging.getLogger(__name__)
 
 _SANCTION_COMPLETION_RE = re.compile(
     r"(?:phạt\s+tiền|trừ\s+điểm|tước\s+quyền|tịch\s+thu|tạm\s+giữ)",
@@ -27,10 +36,26 @@ _SANCTION_COMPLETION_RE = re.compile(
 
 
 class OpenRouterEmbeddings(Embeddings):
-    def __init__(self, *, model: str, dimensions: int, api_key: str, base_url: str) -> None:
+    def __init__(
+        self,
+        *,
+        model: str,
+        dimensions: int,
+        api_key: str,
+        base_url: str,
+        timeout: float | None = None,
+        max_retries: int | None = None,
+    ) -> None:
         self.model = model
         self.dimensions = dimensions
-        self.client = OpenAI(api_key=api_key, base_url=base_url)
+        # A throttled provider must fail fast: retrieval falls back to the local
+        # sparse index instead of blocking until the request deadline expires.
+        self.client = OpenAI(
+            api_key=api_key,
+            base_url=base_url,
+            timeout=timeout if timeout is not None else _EMBEDDING_TIMEOUT_SECONDS,
+            max_retries=1 if max_retries is None else max_retries,
+        )
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         segments: list[str] = []
@@ -83,6 +108,9 @@ def _temporal_match(document: Document, effective_date: date | None) -> bool:
 
 class RetrievalProviderError(RuntimeError):
     """Raised when the configured retrieval provider cannot be used."""
+
+
+_EMBEDDING_TIMEOUT_SECONDS = 8.0
 
 
 def extract_reference(question: str) -> dict[str, str]:
@@ -451,6 +479,10 @@ class Retriever:
             raise ValueError("top_k must be positive")
         self.top_k = min(top_k, 50)
         self._store: Any = None
+        self._client: Any = None
+        self._sparse_embeddings: Any = None
+        self._collection_name: str = "traffic_law"
+        self._sparse_vector_name: str = "sparse"
         self._store_lock = Lock()
 
     def _store_for_query(self) -> Any:
@@ -462,7 +494,7 @@ class Retriever:
             self._store = self._create_store()
             return self._store
 
-    def _create_store(self) -> Any:
+    def _create_store(self, mode: Any | None = None) -> Any:
         try:
             qdrant = get_qdrant_settings()
             embedding = get_embedding_settings()
@@ -473,6 +505,8 @@ class Retriever:
                 dimensions=getattr(embedding, "dimensions", 768),
                 api_key=embedding.openrouter_api_key,
                 base_url=embedding.openrouter_base_url,
+                timeout=getattr(embedding, "timeout_seconds", None),
+                max_retries=getattr(embedding, "max_retries", None),
             )
             from langchain_qdrant import FastEmbedSparse, QdrantVectorStore, RetrievalMode
 
@@ -482,19 +516,56 @@ class Retriever:
                 if qdrant.url
                 else QdrantClient(path=str(qdrant.path), timeout=qdrant.timeout)
             )
-            return QdrantVectorStore(
+            store = QdrantVectorStore(
                 client=client,
                 collection_name=qdrant.collection,
                 embedding=dense,
                 sparse_embedding=sparse,
-                retrieval_mode=RetrievalMode.HYBRID,
+                retrieval_mode=RetrievalMode.HYBRID if mode is None else mode,
                 vector_name="dense",
                 sparse_vector_name="sparse",
             )
+            self._client = client
+            self._sparse_embeddings = sparse
+            self._collection_name = qdrant.collection
+            return store
         except RetrievalProviderError:
             raise
         except Exception as exc:
             raise RetrievalProviderError("Qdrant or embedding provider is unavailable") from exc
+
+    def _sparse_search(self, question: str, limit: int) -> list[Document]:
+        """Query the same collection through its sparse BM25 vectors, no provider call."""
+        self._store_for_query()
+        if self._sparse_embeddings is None or self._client is None:
+            return []
+        vector = self._sparse_embeddings.embed_query(question)
+        points = self._client.query_points(
+            collection_name=self._collection_name,
+            query=SparseVector(indices=list(vector.indices), values=list(vector.values)),
+            using=self._sparse_vector_name,
+            limit=max(limit * 3, limit),
+            with_payload=True,
+        ).points
+        documents: list[Document] = []
+        for point in points:
+            payload = getattr(point, "payload", None)
+            if isinstance(payload, Mapping) and (document := _payload_document(payload)):
+                documents.append(document)
+        return documents
+
+    def _similarity_search(self, question: str, limit: int) -> list[Document]:
+        """Search the hybrid index, degrading to the local sparse index when the provider fails."""
+        store = self._store_for_query()
+        try:
+            return list(store.similarity_search(question, k=max(limit * 3, limit)))
+        except Exception:
+            logger.warning("dense retrieval failed, using the local sparse index", exc_info=True)
+        try:
+            return self._sparse_search(question, limit)
+        except Exception:
+            logger.warning("sparse retrieval failed as well", exc_info=True)
+            return []
 
     def resolve_reference(
         self,
@@ -578,7 +649,7 @@ class Retriever:
                 return exact[:limit]
 
         store = self._store_for_query()
-        documents = store.similarity_search(question, k=max(limit * 3, limit))
+        documents = self._similarity_search(question, limit)
         action_terms = _action_terms(question)
         if action_terms:
             action_documents: list[Document] = []
@@ -598,6 +669,8 @@ class Retriever:
                 *action_documents,
                 *[doc for doc in documents if _identity(doc) not in existing],
             ]
+        if not documents and action_terms:
+            raise RetrievalProviderError("retrieval provider returned no documents")
         context = requested_context(question)
         canonical_actions = tuple(_normalized_action(term) for term in action_terms if term)
         ranked = sorted(

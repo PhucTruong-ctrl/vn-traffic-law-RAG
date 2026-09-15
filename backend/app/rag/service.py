@@ -5,7 +5,8 @@ from __future__ import annotations
 import logging
 import re
 from collections.abc import Iterable
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import TimeoutError as FuturesTimeout
 from datetime import date
 from typing import Any
 
@@ -20,7 +21,7 @@ from .analyzer import (
     detect_vehicle_types,
     normalize_vehicle_metadata,
 )
-from .evidence import ABSTENTION_MESSAGE
+from .evidence import ABSTENTION_MESSAGE, RETRIEVAL_FAILURE_MESSAGE
 from .generator import generate_answer
 from .query_rules import expand_query, load_query_rules, requested_context
 from .references import extract_references, metadata_matches
@@ -337,36 +338,44 @@ class RAGService:
         effective_date: date | None,
         deadline: float | None,
     ) -> list[Document]:
-        def retrieve_one(item: tuple[int, tuple[str, str]]) -> tuple[int, list[Document]]:
+        def retrieve_one(item: tuple[int, tuple[str, str]]) -> tuple[int, list[Document], bool]:
             index, (query, label) = item
             if deadline is not None and self.clock() >= deadline:
-                return index, []
+                return index, [], True
             try:
                 docs = self.retriever.retrieve(
                     expand_query(query), top_k=8, effective_date=effective_date
                 )
             except RetrievalProviderError:
-                return index, []
-            return index, [
-                Document(d.page_content, metadata={**(d.metadata or {}), "intent": label})
-                for d in docs
-            ]
+                return index, [], True
+            return (
+                index,
+                [
+                    Document(d.page_content, metadata={**(d.metadata or {}), "intent": label})
+                    for d in docs
+                ],
+                False,
+            )
 
         ranked_lists: list[list[Document]] = [[] for _ in queries]
-        with ThreadPoolExecutor(max_workers=min(8, max(1, len(queries)))) as executor:
-            futures = [executor.submit(retrieve_one, item) for item in enumerate(queries)]
-            for future in futures:
-                if deadline is not None and (remaining := deadline - self.clock()) <= 0:
-                    for pending in futures:
-                        pending.cancel()
-                    break
-                try:
-                    index, docs = future.result(timeout=remaining if deadline is not None else None)
-                except TimeoutError:
-                    for pending in futures:
-                        pending.cancel()
-                    break
-                ranked_lists[index] = docs
+        provider_failures = 0
+        harvested = False
+        executor = ThreadPoolExecutor(max_workers=min(8, max(1, len(queries))))
+        try:
+            futures = {executor.submit(retrieve_one, item): item[0] for item in enumerate(queries)}
+            wait_for = None if deadline is None else max(0.0, deadline - self.clock())
+            try:
+                for future in as_completed(futures, timeout=wait_for):
+                    index, docs, failed = future.result()
+                    ranked_lists[index] = docs
+                    provider_failures += int(failed)
+                    harvested = harvested or bool(docs)
+            except FuturesTimeout:
+                pass
+        finally:
+            # A bounded request never waits on a throttled provider: whatever
+            # arrived in time is used, the rest is abandoned in the background.
+            executor.shutdown(wait=deadline is None, cancel_futures=deadline is not None)
         scores: dict[tuple[str, ...], float] = {}
         first_seen: dict[tuple[str, ...], tuple[int, int]] = {}
         representatives: dict[tuple[str, ...], Document] = {}
@@ -399,6 +408,10 @@ class RAGService:
             )
             if len(selected) >= fusion_k:
                 break
+        if not selected and provider_failures == len(queries):
+            raise RetrievalProviderError("every retrieval query failed")
+        if not selected and not harvested and deadline is not None and self.clock() >= deadline:
+            raise TimeoutError("retrieval deadline expired before any query returned")
         return selected
 
     def retrieve(
@@ -482,8 +495,13 @@ class RAGService:
         end = deadline if deadline is not None else self.clock() + 30.0
 
         def abstain(reason: str) -> dict[str, Any]:
+            message = (
+                RETRIEVAL_FAILURE_MESSAGE
+                if reason in {"retrieval_timeout", "retrieval_unavailable"}
+                else ABSTENTION_MESSAGE
+            )
             return {
-                "answer": ABSTENTION_MESSAGE,
+                "answer": message,
                 "citations": [],
                 "claims": [],
                 "status": "insufficient_evidence",
@@ -505,16 +523,23 @@ class RAGService:
             }
         analysis, standalone = request.frames, request.standalone_query
         references, route = extract_references(question), classify_intent(standalone)
-        documents = (
-            list(chunks)
-            if chunks is not None
-            else self.retrieve_for_request(
-                request,
-                top_k=top_k,
-                effective_date=effective_date,
-                deadline=min(end, self.clock() + 25.0),
+        try:
+            documents = (
+                list(chunks)
+                if chunks is not None
+                else self.retrieve_for_request(
+                    request,
+                    top_k=top_k,
+                    effective_date=effective_date,
+                    deadline=min(end, self.clock() + 25.0),
+                )
             )
-        )
+        except RetrievalProviderError:
+            logger.warning("retrieval provider unavailable for question=%r", standalone)
+            return abstain("retrieval_unavailable")
+        except TimeoutError:
+            logger.warning("retrieval timed out for question=%r", standalone)
+            return abstain("retrieval_timeout")
         if not documents:
             return abstain("insufficient_evidence")
         for reference in references:
