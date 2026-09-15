@@ -507,18 +507,18 @@ Bộ đánh giá gồm 40 trường hợp, chia đều cho tám nhóm câu hỏi
     \textbf{API}  & Application Programming Interface - Giao diện để các phần mềm trao đổi dữ liệu \\
     \textbf{BM25} & Phương pháp xếp hạng kết quả tìm kiếm theo mức độ trùng khớp từ khóa           \\
     \textbf{CLI}  & Command-Line Interface - Giao diện dòng lệnh                                   \\
-    \textbf{DFD}  & Data Flow Diagram - Sơ đồ luồng dữ liệu                                        \\
-    \textbf{ERD}  & Entity Relationship Diagram - Sơ đồ thực thể liên kết                          \\
-    \textbf{LDM}  & Logical Data Model - Mô hình dữ liệu logic                                     \\
+    \textbf{DFD}  & Data Flow Diagram - Sơ đồ luồng dữ liệu                                     \\
+    \textbf{ERD}  & Entity Relationship Diagram - Sơ đồ thực thể liên kết                     \\
+    \textbf{LDM}  & Logical Data Model - Mô hình dữ liệu logic                                \\
     \textbf{LLM}  & Large Language Model - Mô hình ngôn ngữ lớn                                    \\
-    \textbf{MCD}  & Modèle Conceptuel de Données - Mô hình dữ liệu khái niệm                       \\
+    \textbf{MCD}  & Modèle Conceptuel de Données - Mô hình dữ liệu khái niệm                   \\
     \textbf{NLP}  & Natural Language Processing - Xử lý ngôn ngữ tự nhiên                          \\
     \textbf{OCR}  & Optical Character Recognition - Nhận dạng chữ từ hình ảnh hoặc PDF quét        \\
     \textbf{PDF}  & Portable Document Format - Định dạng tài liệu PDF                              \\
-    \textbf{PDM}  & Physical Data Model - Mô hình dữ liệu vật lý                                   \\
+    \textbf{PDM}  & Physical Data Model - Mô hình dữ liệu vật lý                              \\
     \textbf{RAG}  & Retrieval-Augmented Generation - Kết hợp tìm kiếm tài liệu với tạo câu trả lời \\
-    \textbf{RLS}  & Row Level Security - Bảo mật dữ liệu theo từng dòng                            \\
-    \textbf{RRF}  & Reciprocal Rank Fusion - Phương pháp gộp thứ hạng từ nhiều danh sách kết quả   \\
+    \textbf{RLS}  & Row Level Security - Bảo mật dữ liệu theo từng dòng                      \\
+    \textbf{RRF}  & Reciprocal Rank Fusion - Phương pháp gộp thứ hạng từ nhiều danh sách kết quả \\
     \textbf{SQL}  & Structured Query Language - Ngôn ngữ truy vấn cơ sở dữ liệu                    \\
     \textbf{UI}   & User Interface - Giao diện người dùng                                          \\
   \end{longtable}}
@@ -664,11 +664,13 @@ Hình~\ref{fig:ch1_problem} tóm tắt bối cảnh bài toán: câu hỏi của
 \AssetFigure[0.88\textwidth][fig:ch1_problem]{ch1_problem_context.png}{7.0cm}{Bối cảnh của bài toán hỏi đáp pháp luật giao thông có kiểm chứng}{}
 
 \section{Lý do chọn đề tài}
-Người dùng thường biết hành vi cần hỏi nhưng không biết chính xác văn bản chứa quy định đó. Kết quả tìm kiếm trên web có thể lẫn bài giải thích, bản sao và nguồn chính thức. Hệ thống trong đề tài chỉ trả lời dựa trên tập văn bản pháp luật đã chuẩn bị và luôn cho phép người dùng mở lại căn cứ được sử dụng.
+Người dùng thường biết hành vi cần hỏi nhưng không biết văn bản nào chứa quy định đó. Kết quả tìm kiếm trên web lẫn bài giải thích, bản sao và văn bản gốc, nên người đọc phải tự xác định đâu là nguồn chính thức và bản nào còn hiệu lực.
 
 Câu hỏi pháp luật cũng có nhiều dạng: có câu nêu thẳng ``Điều 7 Nghị định 168/2024/NĐ-CP'', có câu chỉ mô tả hành vi, có câu hỏi cùng lúc mức phạt và số điểm bị trừ. Tìm kiếm theo ngữ nghĩa hỗ trợ các cách diễn đạt gần nghĩa; BM25 phù hợp với truy vấn chứa từ khóa, số hiệu hoặc ký hiệu xuất hiện trực tiếp trong văn bản. Qdrant cho phép kết hợp hai kiểu tìm kiếm này \cite{qdrant_hybrid_docs}.
 
 Khóa luận yêu cầu câu trả lời phải đi kèm thông tin đủ để kiểm tra lại: trích dẫn nguồn lưu tên văn bản, Điều, Khoản, Điểm và thông tin trang hoặc tệp nguồn khi có. Bộ đánh giá dùng chính các trường này để so sánh kết quả trả về với vị trí pháp lý mong đợi.
+
+Vì sao không dùng thẳng một trợ lý hội thoại phổ biến như ChatGPT là câu hỏi đặt ra khi chọn đề tài. Các trợ lý này trả lời từ dữ liệu đã huấn luyện nên có mốc kiến thức và không bảo đảm theo kịp văn bản mới; khi bật tìm kiếm web, kết quả trả về cũng không cho biết đoạn nào là văn bản đang có hiệu lực. Cách dán văn bản luật vào từng lần hỏi không thuận tiện vì phải lặp lại thao tác cho mỗi câu hỏi và vướng giới hạn số tệp đính kèm cùng độ dài ngữ cảnh của nền tảng. Đề tài vì thế giữ sẵn một kho văn bản pháp luật đã chuẩn hóa, chỉ trả lời từ kho đó và cho phép người dùng mở lại căn cứ được dùng. Kho văn bản cập nhật được mà không phải huấn luyện lại mô hình.
 
 \section{Mục tiêu nghiên cứu}
 \subsection{Mục tiêu tổng quát}
@@ -694,7 +696,7 @@ Tập dữ liệu hiện tại gồm 17 văn bản khai báo trong danh mục ng
 Khóa luận tập trung vào các câu hỏi sau:
 \begin{enumerate}
   \item Làm thế nào để kết hợp tìm kiếm theo từ khóa, theo ý nghĩa và theo định danh pháp lý trong cùng một hệ thống RAG?
-  \item Khi căn cứ không đầy đủ, việc giữ lại phần câu trả lời có căn cứ và chỉ loại phần trích dẫn hoặc khẳng định không khớp có giúp giữ được phần đúng không? Đánh đổi giữa khả năng giữ phần đúng và nguy cơ còn sót nội dung thiếu căn cứ được đo ở Chương IV.
+\item Khi căn cứ không đầy đủ, việc giữ lại phần câu trả lời có căn cứ và chỉ loại phần trích dẫn hoặc khẳng định không khớp có giúp giữ được phần đúng không? Đánh đổi giữa khả năng giữ phần đúng và nguy cơ còn sót nội dung thiếu căn cứ được đo ở Chương IV.
   \item Cần tổ chức thông tin mô tả thế nào để mở lại đúng văn bản, Điều, Khoản hoặc Điểm từ một trích dẫn?
   \item Các chỉ số nào phù hợp để đánh giá một hệ thống tra cứu pháp luật ngoài việc đánh giá văn phong của câu trả lời?
 \end{enumerate}
@@ -734,23 +736,23 @@ Khi người dùng gửi câu hỏi, bộ phân tích dùng mô hình ngôn ng�
   \centering
   \begin{tabularx}{\textwidth}{|L{2.0cm}|Y|Y|}
     \hline
-    \textbf{Giai đoạn} & \textbf{Nội dung}                                                     & \textbf{Đầu ra}                     \\
+    \textbf{Giai đoạn} & \textbf{Nội dung}                                                     & \textbf{Đầu ra}                                                                \\
     \hline
-    1                  & Khảo sát tài liệu, xác định câu hỏi nghiên cứu và phạm vi             & Đề cương, danh sách nguồn tham khảo \\
+    1                  & Khảo sát tài liệu, xác định câu hỏi nghiên cứu và phạm vi             & Đề cương, danh sách nguồn tham khảo                                            \\
     \hline
-    2                  & Chuẩn bị tập văn bản pháp luật và quy tắc tách Điều/Khoản/Điểm        & Dữ liệu JSONL có thông tin mô tả    \\
+    2                  & Chuẩn bị tập văn bản pháp luật và quy tắc tách Điều/Khoản/Điểm        & Dữ liệu JSONL có thông tin mô tả \\
     \hline
-    3                  & Xây dựng tìm kiếm kết hợp trong Qdrant và đối chiếu vị trí pháp lý    & Chỉ mục và bộ phận tìm kiếm         \\
+    3                  & Xây dựng tìm kiếm kết hợp trong Qdrant và đối chiếu vị trí pháp lý    & Chỉ mục và bộ phận tìm kiếm                                                    \\
     \hline
-    4                  & Xây dựng phân tích câu hỏi, gộp thứ hạng RRF và kiểm tra căn cứ       & Luồng xử lý hỏi đáp                 \\
+    4                  & Xây dựng phân tích câu hỏi, gộp thứ hạng RRF và kiểm tra căn cứ       & Luồng xử lý hỏi đáp                                                            \\
     \hline
-    5                  & Tích hợp OpenRouter và tạo trích dẫn nguồn                            & API hỏi đáp có căn cứ               \\
+    5                  & Tích hợp OpenRouter và tạo trích dẫn nguồn                            & API hỏi đáp có căn cứ                                                          \\
     \hline
-    6                  & Xây dựng xác thực người dùng, lịch sử hội thoại, phản hồi và đánh dấu & Dữ liệu ứng dụng và API             \\
+    6                  & Xây dựng xác thực người dùng, lịch sử hội thoại, phản hồi và đánh dấu & Dữ liệu ứng dụng và API                                                        \\
     \hline
-    7                  & Xây dựng giao diện web và trang nguồn pháp luật                       & Giao diện người dùng                \\
+    7                  & Xây dựng giao diện web và trang nguồn pháp luật        & Giao diện người dùng                                                           \\
     \hline
-    8                  & Kiểm thử, chạy bộ 40 trường hợp và hoàn thiện demo                    & Kết quả đánh giá và bản demo        \\
+    8                  & Kiểm thử, chạy bộ 40 trường hợp và hoàn thiện demo                    & Kết quả đánh giá và bản demo                                                   \\
     \hline
   \end{tabularx}
 \end{table}
@@ -775,7 +777,9 @@ Khóa luận gồm bốn chương: Chương 1 trình bày tổng quan đề tài
 \section{Tổng quan về Retrieval-Augmented Generation}
 Retrieval-Augmented Generation (RAG) trong đề tài gồm hai bước chính: hệ thống tìm các đoạn dữ liệu liên quan rồi gửi câu hỏi cùng các đoạn đó cho mô hình ngôn ngữ. Dữ liệu pháp luật nằm ngoài mô hình nên có thể mở lại và kiểm tra. Phần cài đặt đi từ dữ liệu nguồn, tạo đoạn dữ liệu và lập chỉ mục Qdrant đến truy xuất, kiểm tra căn cứ và sinh câu trả lời.
 
-Hệ thống cập nhật tập văn bản và xây lại chỉ mục mà không cần huấn luyện lại mô hình ngôn ngữ; mỗi câu trả lời vẫn gắn được với đoạn nguồn đã tìm ra. Chất lượng câu trả lời phụ thuộc vào chất lượng tìm kiếm và phần diễn giải của mô hình, nên đề tài kiểm tra căn cứ trước khi tạo câu trả lời và trả trạng thái từ chối khi dữ liệu chưa đủ.
+RAG được chọn vì bốn lý do. Mô hình chỉ diễn giải nội dung đã truy xuất, nên phần không có trong kho văn bản không bị đoán thay. Câu trả lời bám theo bản văn bản đang dùng, kể cả khi mô hình đã qua mốc kiến thức. Kho văn bản có thể là dữ liệu nội bộ hoặc dữ liệu riêng của một lĩnh vực mà không cần đưa vào quá trình huấn luyện. Khi kho văn bản thay đổi, hệ thống xây lại chỉ mục thay vì huấn luyện lại mô hình.
+
+Mỗi câu trả lời gắn với đoạn nguồn đã tìm ra. Chất lượng câu trả lời phụ thuộc vào chất lượng tìm kiếm và phần diễn giải của mô hình, nên đề tài kiểm tra căn cứ trước khi tạo câu trả lời và trả trạng thái từ chối khi dữ liệu chưa đủ.
 
 \AssetFigure[\textwidth]{ch2_rag_overview.png}{20cm}{Mô hình RAG tổng quát: câu hỏi, truy xuất, căn cứ và sinh câu trả lời}{}
 
@@ -907,7 +911,7 @@ Dịch vụ phía máy chủ sử dụng một số thành phần của thư vi�
   \item \texttt{hashlib} tạo SHA-256 cho nội dung nguồn,
   \item \texttt{pathlib.Path} quản lý đường dẫn tệp theo cách độc lập hơn với hệ điều hành,
   \item \texttt{dataclasses} biểu diễn các kết quả phân tích nhỏ, bất biến khi phù hợp,
-  \item \texttt{concurrent.futures.ThreadPoolExecutor} thực hiện một số truy vấn con song song khi câu hỏi có nhiều ý.
+\item \texttt{concurrent.futures.ThreadPoolExecutor} thực hiện một số truy vấn con song song khi câu hỏi có nhiều ý.
 \end{itemize}
 
 Một số truy vấn tìm kiếm độc lập được thực hiện song song để giảm thời gian chờ, với số tác vụ đồng thời được giới hạn để không làm tăng tải quá mức cho hệ thống.
@@ -1410,7 +1414,7 @@ Người dùng gửi câu hỏi, nhận câu trả lời đầy đủ hoặc m�
                             \item Bộ sinh câu trả lời tạo câu trả lời từ ngữ cảnh đã chọn.
                             \item Hệ thống làm sạch các trích dẫn và khẳng định không khớp với thông tin mô tả đã truy xuất.
                             \item Kết quả được trả về giao diện và lưu vào phiên hội thoại.
-                          \end{enumerate}                                                                            \\
+                          \end{enumerate}                                                                        \\
     \hline
     Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
                             \item Câu hỏi rỗng hoặc không hợp lệ thì hệ thống từ chối xử lý.
@@ -1423,7 +1427,7 @@ Người dùng gửi câu hỏi, nhận câu trả lời đầy đủ hoặc m�
                             \item Bộ phân tích yêu cầu phải trả JSON đúng schema và không tạo quá 3 truy vấn mở rộng.
                             \item Câu trả lời phải dựa trên ngữ cảnh đã truy xuất.
                             \item Trích dẫn và khẳng định không khớp với thông tin mô tả đã truy xuất phải bị loại trước khi trả kết quả.
-                          \end{enumerate}                                                                                            \\
+                          \end{enumerate}                                                                                                    \\
     \hline
     Hậu điều kiện       & Câu hỏi và kết quả xử lý được lưu trong phiên hội thoại khi quá trình hoàn tất.                                                                                                                         \\
     \hline
@@ -1503,7 +1507,7 @@ Người dùng gửi câu hỏi, nhận câu trả lời đầy đủ hoặc m�
     \hline
     Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
                             \item Nguồn không tồn tại trong dữ liệu hiện tại thì giao diện thông báo không thể mở nguồn.
-                          \end{enumerate}       \\
+                                                      \end{enumerate}       \\
     \hline
     Quy tắc kiểm tra    & \begin{enumerate}[leftmargin=*,nosep]
                             \item Thông tin văn bản và vị trí pháp lý phải lấy từ dữ liệu trích dẫn.
@@ -1546,7 +1550,7 @@ Nhóm quản lý hội thoại cho phép người dùng xem lại quá trình tr
                             \item Hệ thống truy vấn các phiên chưa bị xóa mềm.
                             \item Hệ thống trả về danh sách các phiên chưa bị xóa mềm cùng thông tin của từng phiên.
                             \item Người dùng chọn một phiên để xem nội dung.
-                          \end{enumerate}   \\
+                          \end{enumerate}                    \\
     \hline
     Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
                             \item Tài khoản chưa có phiên hội thoại thì giao diện hiển thị trạng thái danh sách trống.
@@ -1565,24 +1569,24 @@ Nhóm quản lý hội thoại cho phép người dùng xem lại quá trình tr
 \Needspace{12\baselineskip}
 {\fontsize{11pt}{12.5pt}\selectfont
   \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
-    \caption{Bảng đặc tả ca sử dụng Mở lại phiên hội thoại}\label{tab:uc-conv-open}                                                                                      \\
+    \caption{Bảng đặc tả ca sử dụng Mở lại phiên hội thoại}\label{tab:uc-conv-open}                                              \\
     \hline
-    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                                                     \\
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                             \\
     \hline
     \endfirsthead
     \hline
-    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                                                                     \\
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                             \\
     \hline
     \endhead
-    Mã ca sử dụng       & UC\_CONV\_02                                                                                                                                   \\
+    Mã ca sử dụng       & UC\_CONV\_02                                                                                           \\
     \hline
-    Tên ca sử dụng      & Mở lại phiên hội thoại                                                                                                                         \\
+    Tên ca sử dụng      & Mở lại phiên hội thoại                                                                                 \\
     \hline
-    Tác nhân            & Người dùng đã đăng nhập                                                                                                                        \\
+    Tác nhân            & Người dùng đã đăng nhập                                                                                \\
     \hline
     Mô tả               & Tải lại các tin nhắn (gồm câu hỏi, câu trả lời và trích dẫn) của một phiên hội thoại đã lưu để người dùng xem lại nội dung và nguồn trích dẫn. \\
     \hline
-    Tiền điều kiện      & Phiên hội thoại tồn tại và thuộc tài khoản hiện tại.                                                                                           \\
+    Tiền điều kiện      & Phiên hội thoại tồn tại và thuộc tài khoản hiện tại.                                                   \\
     \hline
     Luồng xử lý chính   & \begin{enumerate}[leftmargin=*,nosep]
                             \item Người dùng chọn một phiên trong danh sách lịch sử.
@@ -1590,19 +1594,19 @@ Nhóm quản lý hội thoại cho phép người dùng xem lại quá trình tr
                             \item Hệ thống kiểm tra quyền sở hữu phiên.
                             \item Các tin nhắn của phiên được truy vấn theo thứ tự thời gian.
                             \item Giao diện hiển thị lại câu hỏi, câu trả lời và trích dẫn tương ứng.
-                          \end{enumerate}                                                                       \\
+                          \end{enumerate}                               \\
     \hline
     Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
                             \item Phiên không tồn tại hoặc không thuộc tài khoản thì hệ thống từ chối truy cập.
                             \item Phiên đã bị xóa mềm thì hệ thống không trả nội dung trong luồng sử dụng thông thường.
-                          \end{enumerate}                                                     \\
+                          \end{enumerate}             \\
     \hline
     Quy tắc kiểm tra    & \begin{enumerate}[leftmargin=*,nosep]
                             \item Mọi truy vấn phải được giới hạn theo người dùng hiện tại.
                             \item Trình tự tin nhắn phải được giữ đúng theo dữ liệu đã lưu.
-                          \end{enumerate}                                                                                 \\
+                          \end{enumerate}                                         \\
     \hline
-    Hậu điều kiện       & Nội dung phiên hội thoại được hiển thị lại cho đúng người sở hữu.                                                                              \\
+    Hậu điều kiện       & Nội dung phiên hội thoại được hiển thị lại cho đúng người sở hữu.                                      \\
     \hline
   \end{longtable}
 }
@@ -1701,24 +1705,24 @@ Nhóm này hỗ trợ người dùng kiểm tra dữ liệu nguồn độc lập
 \Needspace{12\baselineskip}
 {\fontsize{11pt}{12.5pt}\selectfont
   \begin{longtable}{|L{3.0cm}|L{10.0cm}|}
-    \caption{Bảng đặc tả ca sử dụng Tìm kiếm văn bản pháp luật}\label{tab:uc-legal-search}                          \\
+    \caption{Bảng đặc tả ca sử dụng Tìm kiếm văn bản pháp luật}\label{tab:uc-legal-search}                         \\
     \hline
-    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                \\
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                               \\
     \hline
     \endfirsthead
     \hline
-    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                                \\
+    \textbf{Thành phần} & \textbf{Nội dung chi tiết}                                                               \\
     \hline
     \endhead
-    Mã ca sử dụng       & UC\_LEGAL\_02                                                                             \\
+    Mã ca sử dụng       & UC\_LEGAL\_02                                                                            \\
     \hline
-    Tên ca sử dụng      & Tìm kiếm văn bản pháp luật                                                                \\
+    Tên ca sử dụng      & Tìm kiếm văn bản pháp luật                                                               \\
     \hline
-    Tác nhân            & Người dùng                                                                                \\
+    Tác nhân            & Người dùng                                                                               \\
     \hline
-    Mô tả               & Cho phép tìm văn bản hoặc điều khoản theo nội dung, số hiệu văn bản hoặc thông tin Điều.  \\
+    Mô tả               & Cho phép tìm văn bản hoặc điều khoản theo nội dung, số hiệu văn bản hoặc thông tin Điều. \\
     \hline
-    Tiền điều kiện      & Trang nguồn pháp luật có thể truy cập và dữ liệu đã được chuẩn bị.                        \\
+    Tiền điều kiện      & Trang nguồn pháp luật có thể truy cập và dữ liệu đã được chuẩn bị.                       \\
     \hline
     Luồng xử lý chính   & \begin{enumerate}[leftmargin=*,nosep]
                             \item Người dùng nhập từ khóa hoặc thông tin định danh cần tìm.
@@ -1726,19 +1730,19 @@ Nhóm này hỗ trợ người dùng kiểm tra dữ liệu nguồn độc lập
                             \item Hệ thống đối chiếu yêu cầu với dữ liệu văn bản và điều khoản.
                             \item Các kết quả phù hợp được trả về.
                             \item Người dùng chọn một kết quả để xem nội dung.
-                          \end{enumerate}                        \\
+                          \end{enumerate}                       \\
     \hline
     Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
                             \item Không có kết quả phù hợp thì giao diện thông báo chưa tìm thấy.
                             \item Từ khóa rỗng được xử lý theo quy tắc của giao diện và API nguồn pháp luật hiện hành.
-                          \end{enumerate} \\
+                          \end{enumerate}                \\
     \hline
     Quy tắc kiểm tra    & \begin{enumerate}[leftmargin=*,nosep]
                             \item Kết quả phải dựa trên dữ liệu nguồn đã chuẩn hóa.
                             \item Không tạo thêm văn bản hoặc điều khoản không tồn tại trong dữ liệu.
-                          \end{enumerate}                  \\
+                          \end{enumerate}                 \\
     \hline
-    Hậu điều kiện       & Danh sách kết quả phù hợp được hiển thị hoặc người dùng nhận thông báo không có kết quả.  \\
+    Hậu điều kiện       & Danh sách kết quả phù hợp được hiển thị hoặc người dùng nhận thông báo không có kết quả. \\
     \hline
   \end{longtable}
 }
@@ -1824,7 +1828,7 @@ Phản hồi ghi nhận mức độ hữu ích của câu trả lời. Chức n�
     Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
                             \item Câu trả lời không tồn tại hoặc không thuộc tài khoản thì hệ thống từ chối lưu phản hồi.
                             \item Lưu dữ liệu thất bại thì giao diện thông báo thao tác chưa hoàn tất.
-                          \end{enumerate}    \\
+                          \end{enumerate}       \\
     \hline
     Quy tắc kiểm tra    & \begin{enumerate}[leftmargin=*,nosep]
                             \item Giá trị đánh giá phải theo phạm vi dữ liệu mà hệ thống quy định.
@@ -1951,7 +1955,7 @@ Phản hồi ghi nhận mức độ hữu ích của câu trả lời. Chức n�
                             \item Hệ thống xác định bản ghi bookmark tương ứng của người dùng.
                             \item Bản ghi được xóa.
                             \item Giao diện cập nhật trạng thái và danh sách đã lưu.
-                          \end{enumerate}     \\
+                          \end{enumerate}                      \\
     \hline
     Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
                             \item Không tìm thấy bản ghi tương ứng thì hệ thống trả trạng thái phù hợp.
@@ -2090,31 +2094,31 @@ Mỗi bản ghi là một tin nhắn, gồm nội dung trao đổi giữa ngư�
 {\fontsize{11pt}{12pt}\selectfont
 \Needspace{10\baselineskip}
 \begin{longtable}{|L{0.9cm}|L{2.9cm}|L{2.6cm}|L{3.0cm}|L{4.0cm}|}
-  \caption{Thiết kế bảng messages}\label{tab:db-messages}                                                                        \\
+\caption{Thiết kế bảng messages}\label{tab:db-messages}                                                         \\
   \hline
-  STT & Thuộc tính  & Khóa/ràng buộc                                     & Kiểu dữ liệu & Diễn giải                              \\
+  STT & Thuộc tính      & Khóa/ràng buộc                          & Kiểu dữ liệu & Diễn giải                        \\
   \hline
-  1   & id          & PK, DEFAULT                                        & UUID         & Mã tin nhắn                            \\
+  1   & id              & PK, DEFAULT                             & UUID         & Mã tin nhắn                      \\
   \hline
-  2   & session\_id & FK ghép tới chat\_sessions(id, user\_id), NOT NULL & UUID         & Phiên chat chứa tin nhắn               \\
+  2   & session\_id     & FK ghép tới chat\_sessions(id, user\_id), NOT NULL          & UUID         & Phiên chat chứa tin nhắn         \\
   \hline
-  3   & user\_id    & FK auth.users, NOT NULL                            & UUID         & Chủ sở hữu dữ liệu                     \\
+  3   & user\_id        & FK auth.users, NOT NULL                 & UUID         & Chủ sở hữu dữ liệu               \\
   \hline
-  4   & role        & NOT NULL, DEFAULT, CHECK user/assistant            & TEXT         & Vai trò tin nhắn                       \\
+  4   & role            & NOT NULL, DEFAULT, CHECK user/assistant & TEXT         & Vai trò tin nhắn                 \\
   \hline
-  5   & content     & NOT NULL, CHECK không rỗng                         & TEXT         & Nội dung hiển thị                      \\
+  5   & content         & NOT NULL, CHECK không rỗng              & TEXT         & Nội dung hiển thị                \\
   \hline
-  6   & status      & NOT NULL, DEFAULT 'complete', CHECK 1-30 ký tự     & TEXT         & Trạng thái xử lý                       \\
+  6   & status          & NOT NULL, DEFAULT 'complete', CHECK 1-30 ký tự         & TEXT         & Trạng thái xử lý                 \\
   \hline
-  7   & response    &                                                    & JSONB        & Dữ liệu trả về có cấu trúc nếu cần lưu \\
+  7   & response        &                                         & JSONB        & Dữ liệu trả về có cấu trúc nếu cần lưu \\
   \hline
-  8   & citations   & NOT NULL, DEFAULT []                               & JSONB        & Danh sách trích dẫn nguồn              \\
+  8   & citations       & NOT NULL, DEFAULT []                    & JSONB        & Danh sách trích dẫn nguồn        \\
   \hline
-  9   & metadata    & NOT NULL, DEFAULT \{\}                             & JSONB        & Thông tin mô tả bổ sung                \\
+  9   & metadata        & NOT NULL, DEFAULT \{\}                  & JSONB        & Thông tin mô tả bổ sung          \\
   \hline
-  10  & created\_at & NOT NULL, DEFAULT                                  & TIMESTAMPTZ  & Thời điểm tạo                          \\
+  10  & created\_at     & NOT NULL, DEFAULT                       & TIMESTAMPTZ  & Thời điểm tạo                    \\
   \hline
-  11  & updated\_at & NOT NULL, DEFAULT                                  & TIMESTAMPTZ  & Thời điểm cập nhật                     \\
+  11  & updated\_at     & NOT NULL, DEFAULT                       & TIMESTAMPTZ  & Thời điểm cập nhật               \\
 \end{longtable}
 }
 \subsection{Bảng feedback}
@@ -2124,21 +2128,21 @@ Mỗi bản ghi là một đánh giá cho một tin nhắn. Trường \texttt{ra
 \begin{longtable}{|L{0.9cm}|L{2.9cm}|L{2.6cm}|L{3.0cm}|L{4.0cm}|}
   \caption{Thiết kế bảng feedback}\label{tab:db-feedback}                              \\
   \hline
-  STT & Thuộc tính  & Khóa/ràng buộc           & Kiểu dữ liệu & Diễn giải              \\
+  STT & Thuộc tính & Khóa/ràng buộc & Kiểu dữ liệu & Diễn giải \\
   \hline
-  1   & id          & PK, DEFAULT              & UUID         & Mã phản hồi            \\
+  1 & id             & PK, DEFAULT              & UUID        & Mã phản hồi            \\
   \hline
-  2   & message\_id & FK messages, NOT NULL    & UUID         & Tin nhắn được đánh giá \\
+  2 & message\_id    & FK messages, NOT NULL    & UUID        & Tin nhắn được đánh giá \\
   \hline
-  3   & user\_id    & FK auth.users, NOT NULL  & UUID         & Người gửi phản hồi     \\
+  3 & user\_id       & FK auth.users, NOT NULL  & UUID        & Người gửi phản hồi     \\
   \hline
-  4   & rating      & NOT NULL, CHECK 0 hoặc 1 & INTEGER      & Giá trị đánh giá       \\
+  4 & rating         & NOT NULL, CHECK 0 hoặc 1 & INTEGER     & Giá trị đánh giá       \\
   \hline
-  5   & comment     & Tùy chọn                 & TEXT         & Nội dung nhận xét      \\
+  5 & comment        & Tùy chọn                 & TEXT        & Nội dung nhận xét      \\
   \hline
-  6   & created\_at & NOT NULL, DEFAULT        & TIMESTAMPTZ  & Thời điểm tạo          \\
+  6 & created\_at    & NOT NULL, DEFAULT        & TIMESTAMPTZ & Thời điểm tạo          \\
   \hline
-  7   & updated\_at & NOT NULL, DEFAULT        & TIMESTAMPTZ  & Thời điểm cập nhật     \\
+  7 & updated\_at    & NOT NULL, DEFAULT        & TIMESTAMPTZ & Thời điểm cập nhật     \\
   \hline
 \end{longtable}
 }
@@ -2167,7 +2171,7 @@ Mỗi bản ghi giữ một cặp câu hỏi và câu trả lời mà người d
   \hline
   7   & answer                      & NOT NULL, CHECK không rỗng & TEXT         & Câu trả lời được lưu                   \\
   \hline
-  8   & citations                   & NOT NULL, DEFAULT []       & JSONB        & Danh sách trích dẫn đi kèm             \\
+  8   & citations                   & NOT NULL, DEFAULT []       & JSONB        & Danh sách trích dẫn đi kèm            \\
   \hline
   9   & response                    & Tùy chọn                   & JSONB        & Dữ liệu trả về có cấu trúc nếu cần lưu \\
   \hline
@@ -2212,7 +2216,7 @@ Qdrant lưu chỉ mục tìm kiếm của hệ thống. Mỗi điểm dữ liệ
   \hline
   đường dẫn nguồn      & Chuỗi                 & URL nguồn nếu có                                        \\
   \hline
-  loại nguồn           & Chuỗi                 & markdown theo bộ kết nối nguồn                          \\
+  loại nguồn           & Chuỗi                 & markdown theo bộ kết nối nguồn                 \\
   \hline
   mã kiểm tra nội dung & Chuỗi                 & SHA-256 của nội dung tệp Markdown nguồn                 \\
   \hline
@@ -2230,45 +2234,45 @@ Các điểm cuối dịch vụ được chia theo nhóm hỏi đáp, xác thự
   {\fontsize{11pt}{12pt}\selectfont
     \Needspace{10\baselineskip}
     \begin{longtable}{|L{2.2cm}|L{6.2cm}|L{5.0cm}|}
-      \caption{Các điểm cuối dịch vụ chính của hệ thống}\label{tab:api-endpoints}                                                             \\
+      \caption{Các điểm cuối dịch vụ chính của hệ thống}\label{tab:api-endpoints}                                                                  \\
       \hline
-      \textbf{Phương thức} & \textbf{Điểm cuối dịch vụ}                                       & \textbf{Mục đích}                             \\
+      \textbf{Phương thức} & \textbf{Điểm cuối dịch vụ}                                            & \textbf{Mục đích}                             \\
       \hline
-      POST                 & \path{/api/v1/chat}                                              & Gửi câu hỏi pháp luật                         \\
+      POST                 & \path{/api/v1/chat}                                                   & Gửi câu hỏi pháp luật                         \\
       \hline
-      POST                 & \path{/api/v1/auth/register}                                     & Đăng ký                                       \\
+      POST                 & \path{/api/v1/auth/register}                                          & Đăng ký                                       \\
       \hline
-      POST                 & \path{/api/v1/auth/login}                                        & Đăng nhập                                     \\
+      POST                 & \path{/api/v1/auth/login}                                             & Đăng nhập                                     \\
       \hline
-      GET                  & \path{/api/v1/auth/me}                                           & Lấy người dùng hiện tại                       \\
+      GET                  & \path{/api/v1/auth/me}                                                & Lấy người dùng hiện tại                       \\
       \hline
-      GET, POST            & \path{/api/v1/chats}                                             & Lấy danh sách hoặc tạo phiên chat             \\
+      GET, POST            & \path{/api/v1/chats}                                                  & Lấy danh sách hoặc tạo phiên chat             \\
       \hline
-      GET, PATCH, DELETE   & \path{/api/v1/chats/{session_id}}                                & Xem, sửa hoặc xóa phiên chat                  \\
+      GET, PATCH, DELETE   & \path{/api/v1/chats/{session_id}}                                     & Xem, sửa hoặc xóa phiên chat                  \\
       \hline
-      POST                 & \path{/api/v1/chats/{session_id}/messages}                       & Lưu tin nhắn                                  \\
+      POST                 & \path{/api/v1/chats/{session_id}/messages}                            & Lưu tin nhắn                                  \\
       \hline
-      POST                 & \path{/api/v1/chats/{session_id}/messages/{message_id}/feedback} & Lưu phản hồi                                  \\
+      POST                 & \path{/api/v1/chats/{session_id}/messages/{message_id}/feedback}      & Lưu phản hồi                                  \\
       \hline
-      GET                  & \path{/api/v1/bookmarks}                                         & Lấy danh sách nội dung đã lưu                 \\
+      GET                  & \path{/api/v1/bookmarks}                                              & Lấy danh sách nội dung đã lưu                 \\
       \hline
-      GET                  & \path{/api/v1/bookmarks/{assistant_message_id}/status}           & Kiểm tra một câu trả lời đã được lưu hay chưa \\
+      GET                  & \path{/api/v1/bookmarks/{assistant_message_id}/status}                & Kiểm tra một câu trả lời đã được lưu hay chưa \\
       \hline
-      POST                 & \path{/api/v1/bookmarks/{session_id}}                            & Lưu câu hỏi và câu trả lời                    \\
+      POST                 & \path{/api/v1/bookmarks/{session_id}}                                 & Lưu câu hỏi và câu trả lời                    \\
       \hline
-      DELETE               & \path{/api/v1/bookmarks/{assistant_message_id}}                  & Xóa nội dung đã lưu                           \\
+      DELETE               & \path{/api/v1/bookmarks/{assistant_message_id}}                       & Xóa nội dung đã lưu                           \\
       \hline
-      GET                  & \path{/api/v1/legal-documents}                                   & Danh sách văn bản                             \\
+      GET                  & \path{/api/v1/legal-documents}                                        & Danh sách văn bản                             \\
       \hline
-      GET                  & \path{/api/v1/legal-documents/{document_id}}                     & Chi tiết văn bản                              \\
+      GET                  & \path{/api/v1/legal-documents/{document_id}}                          & Chi tiết văn bản                              \\
       \hline
-      GET                  & \path{/api/v1/legal-documents/{document_id}/provisions}          & Danh sách điều khoản                          \\
+      GET                  & \path{/api/v1/legal-documents/{document_id}/provisions}               & Danh sách điều khoản                          \\
       \hline
-      GET                  & \path{/api/v1/legal-search}                                      & Tìm nguồn pháp luật                           \\
+      GET                  & \path{/api/v1/legal-search}                                           & Tìm nguồn pháp luật                           \\
       \hline
-      GET                  & \path{/api/v1/health/live}                                       & Kiểm tra tiến trình API đang sống             \\
+      GET                  & \path{/api/v1/health/live}                                            & Kiểm tra tiến trình API đang sống             \\
       \hline
-      GET                  & \path{/api/v1/health/ready}                                      & Kiểm tra sẵn sàng gồm Supabase và Qdrant      \\
+      GET                  & \path{/api/v1/health/ready}                                           & Kiểm tra sẵn sàng gồm Supabase và Qdrant      \\
       \hline
     \end{longtable}
   }
@@ -2386,23 +2390,23 @@ Trong lần chạy 4, bộ phân tích yêu cầu và bộ sinh câu trả lời
   \centering
   \begin{tabularx}{\textwidth}{|L{6.0cm}|Y|}
     \hline
-    \textbf{Chỉ số}                                                           & \textbf{Giá trị} \\
+    \textbf{Chỉ số}                                      & \textbf{Giá trị} \\
     \hline
     Tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên (trên 34 trường hợp) & 0.25             \\
     \hline
-    Độ chính xác ở mức văn bản                                                & 0.50             \\
+    Độ chính xác ở mức văn bản                           & 0.50             \\
     \hline
-    Độ chính xác ở mức Điều                                                   & 0.4167           \\
+    Độ chính xác ở mức Điều                              & 0.4167           \\
     \hline
-    Độ chính xác ở mức Khoản                                                  & 0.3846           \\
+    Độ chính xác ở mức Khoản                             & 0.3846           \\
     \hline
-    Độ chính xác ở mức Điểm (trên 34 trường hợp)                              & 0.0              \\
+    Độ chính xác ở mức Điểm (trên 34 trường hợp) & 0.0              \\
     \hline
-    Tỉ lệ trích dẫn hợp lệ                                                    & 0.8824           \\
+    Tỉ lệ trích dẫn hợp lệ                               & 0.8824           \\
     \hline
-    Tỉ lệ từ chối trả lời đúng                                                & 0.7059           \\
+    Tỉ lệ từ chối trả lời đúng                           & 0.7059           \\
     \hline
-    Nội dung trả lời chấm thủ công                                            & Chưa chấm        \\
+    Nội dung trả lời chấm thủ công                       & Chưa chấm        \\
     \hline
   \end{tabularx}
 \end{table}
@@ -2413,11 +2417,11 @@ Trong lần chạy 4, bộ phân tích yêu cầu và bộ sinh câu trả lời
   \centering
   \begin{tabularx}{\textwidth}{|L{6.0cm}|Y|}
     \hline
-    \textbf{Thống kê} & \textbf{Giá trị (ms)}   \\
+    \textbf{Thống kê} & \textbf{Giá trị (ms)} \\
     \hline
-    Trung bình        & 8304.6 ms (8.3 giây)    \\
+    Trung bình        & 8304.6 ms (8.3 giây)  \\
     \hline
-    Trung vị          & 8359.09 ms (8.4 giây)   \\
+    Trung vị          & 8359.09 ms (8.4 giây) \\
     \hline
     Phân vị 95        & 11577.15 ms (11.6 giây) \\
     \hline
