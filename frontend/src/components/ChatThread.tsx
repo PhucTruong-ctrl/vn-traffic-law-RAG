@@ -311,14 +311,6 @@ export default function ChatThread({
                 sessionId={sessionId}
               />
             )}
-            {!turn.response && turn.status === "pending" && (
-              <div className="assistant-message loading-state" role="status" aria-live="polite">
-                <div className="loading-content">
-                  <span className="streaming-badge">Đang xử lý</span>
-                  <p>Đang xử lý câu hỏi này…</p>
-                </div>
-              </div>
-            )}
             {!turn.response && turn.status === "failed" && (
               <p className="turn-status turn-status--failed" role="status">
                 Không nhận được câu trả lời. Câu hỏi đã được đưa lại vào ô nhập để bạn thử lại.
