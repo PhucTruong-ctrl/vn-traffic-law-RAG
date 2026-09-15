@@ -51,9 +51,28 @@ def _citation_is_action_relevant(
     when at least one distinctive token appears in its excerpt/action fields.
     """
     generic_tokens = {
-        "quy", "định", "người", "được", "trên", "theo", "trường", "hợp",
-        "phạt", "tiền", "mức", "điều", "khoản", "điểm", "loại", "phương",
-        "tiện", "giao", "thông", "khi", "câu", "hỏi",
+        "quy",
+        "định",
+        "người",
+        "được",
+        "trên",
+        "theo",
+        "trường",
+        "hợp",
+        "phạt",
+        "tiền",
+        "mức",
+        "điều",
+        "khoản",
+        "điểm",
+        "loại",
+        "phương",
+        "tiện",
+        "giao",
+        "thông",
+        "khi",
+        "câu",
+        "hỏi",
     }
     tokens = {
         token
@@ -73,7 +92,10 @@ def _citation_is_action_relevant(
     if not tokens:
         return bool(citation_text.strip())
     citation_tokens = set(re.findall(r"[^\W\d_]+", citation_text, flags=re.UNICODE))
-    return bool(tokens & citation_tokens) or (required_action and not tokens and bool(citation_tokens))
+    return bool(tokens & citation_tokens) or (
+        required_action and not tokens and bool(citation_tokens)
+    )
+
 
 def require_chat_contract(
     result: Any,
@@ -135,9 +157,12 @@ def require_chat_contract(
         raise RuntimeError(
             f"{label}: no citation matches required reference {required_reference!r}"
         )
-    if required_action:
-        if not any(_citation_is_action_relevant(citation, required_action, question) for citation in citations):
-            raise RuntimeError(f"{label}: no citation is action-relevant")
+    if required_action and not any(
+        _citation_is_action_relevant(citation, required_action, question) for citation in citations
+    ):
+        raise RuntimeError(f"{label}: no citation is action-relevant")
+
+
 def _action_aliases() -> dict[str, str]:
     with (ROOT / "data" / "rag" / "query_rules.json").open(encoding="utf-8") as handle:
         return {
