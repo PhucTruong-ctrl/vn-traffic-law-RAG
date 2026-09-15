@@ -29,9 +29,14 @@ class GenerationSettings(_Env):
     model: str = Field(
         default="deepseek/deepseek-v4-flash-0731", validation_alias="GENERATION_MODEL"
     )
+    analyzer_model: str = Field(default="", validation_alias="ANALYZER_MODEL")
+    analyzer_timeout_seconds: float = Field(
+        default=15.0, validation_alias="ANALYZER_TIMEOUT_SECONDS", gt=0
+    )
     timeout_seconds: float = Field(
         default=18.0, validation_alias="GENERATION_TIMEOUT_SECONDS", le=18.0, gt=0
     )
+    max_retries: int = Field(default=3, validation_alias="GENERATION_MAX_RETRIES", ge=0, le=5)
 
 
 class SupabaseSettings(_Env):
@@ -41,6 +46,20 @@ class SupabaseSettings(_Env):
 
     def model_post_init(self, __context: object) -> None:
         self.url = self.url.rstrip("/")
+
+
+class ChatSettings(_Env):
+    deadline_seconds: float = Field(
+        default=75.0,
+        gt=0,
+        le=300,
+        validation_alias="CHAT_DEADLINE_SECONDS",
+    )
+
+
+@lru_cache(maxsize=1)
+def get_chat_settings() -> ChatSettings:
+    return ChatSettings()
 
 
 @lru_cache(maxsize=1)
@@ -89,4 +108,6 @@ __all__ = [
     "get_generation_settings",
     "get_qdrant_settings",
     "get_supabase_settings",
+    "ChatSettings",
+    "get_chat_settings",
 ]

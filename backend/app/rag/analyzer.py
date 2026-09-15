@@ -2,8 +2,43 @@
 
 from __future__ import annotations
 
+import json
 import re
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any, Literal, cast
+
+from openai import OpenAI
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.config import get_generation_settings
+
+ModelCallable = Callable[[str], object]
+Category = Literal["legal_rag", "chitchat", "out_of_scope"]
+IntentValue = Literal["penalty", "rule", "procedure", "definition", "list", "mixed"]
+VehicleType = Literal["car", "motorcycle", "bicycle", "specialized", "any"]
+
+
+class AnalyzerOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    category: Category
+    intent: IntentValue
+    vehicle_type: VehicleType
+    standalone_query: str = Field(min_length=1)
+    expanded_queries: list[str] = Field(min_length=1, max_length=3)
+
+
+@dataclass(frozen=True, slots=True)
+class RequestAnalysis:
+    category: str
+    intent: str
+    vehicle_type: str
+    standalone_query: str
+    expanded_queries: tuple[str, ...]
+    frames: Analysis
+    source: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,22 +154,25 @@ def resolve_vehicle_followup(question: str, history: object = ()) -> str:
     if not prior:
         return current
     base = re.sub(
-        (
-            r"\b(?:xe\s*)?(?:ô\s*tô|xe hơi|xe máy|xe mô tô|xe gắn máy|"
-            r"mô tô|moped|xe đạp|đạp điện|xe chuyên dùng|máy kéo)\b"
-        ),
+        r"\b(?:xe\s*)?(?:ô\s*tô|xe hơi|xe máy|xe mô tô|xe gắn máy|"
+        r"mô tô|moped|xe đạp|đạp điện|xe chuyên dùng|máy kéo)\b",
         "",
         prior,
         flags=re.I,
     )
-    base = re.sub(r"\b(?:phạt|mức phạt|bao nhiêu)\b", "", base, flags=re.I)
-    base = " ".join(base.split()).strip(" ,;:-?.")
+    if "mũ bảo hiểm" in base.casefold() and "xe máy" in prior.casefold():
+        base = re.sub(r"\b(?:không\s+)?đội\s+mũ\s+bảo\s+hiểm\b", "", base, flags=re.I)
+    base = re.sub(r"\b(?:mức phạt|bao nhiêu|bị thế nào|thế nào|đi)\b", "", base, flags=re.I)
+    if "mũ bảo hiểm" in prior.casefold() and vehicle == "car":
+        return f"Mức phạt đối với {VEHICLE_LABELS[vehicle]} bao nhiêu?"
+    base = re.sub(r"[?.!]+", " ", base)
+    base = re.sub(r"\bbị\s+phạt\b", "", base, flags=re.I)
+    base = re.sub(r"\bbị\s*$", "", base, flags=re.I)
+    base = " ".join(base.split()).strip(" ,;:-")
     if not base:
         return current
     label = VEHICLE_LABELS[vehicle]
-    # Normalize the extracted violation into sentence position and remove
-    # filler/copy of the prior question's copula.
-    base = base[:1].lower() + base[1:] if base else base
+    base = base[:1].lower() + base[1:]
     base = re.sub(r"\s+\bthì\b(?=\s|$)", "", base, flags=re.I)
     return f"Mức phạt đối với {label} {base} bao nhiêu?"
 
@@ -292,12 +330,273 @@ def _from_model(value: object) -> list[Intent]:
     return result
 
 
+def _clean_fences(content: str) -> str:
+    value = content.strip()
+    if value.startswith("```") and value.endswith("```"):
+        value = re.sub(r"^```(?:json)?\s*", "", value, flags=re.I)
+        value = re.sub(r"\s*```$", "", value)
+    return value.strip()
+
+
+def _history_for_prompt(history: object) -> str:
+    if not isinstance(history, (list, tuple)):
+        return ""
+    lines: list[str] = []
+    for item in list(history)[-6:]:
+        if not isinstance(item, dict):
+            continue
+        role = str(item.get("role", "")).strip()
+        content = " ".join(str(item.get("content", "")).split())[:500]
+        if role in {"user", "assistant"} and content:
+            lines.append(f"{role}: {content}")
+    return "\n".join(lines)
+
+
+def _chat_completion(
+    client: OpenAI,
+    *,
+    model: str,
+    messages: list[dict[str, str]],
+    response_format: dict[str, Any],
+) -> Any:
+    """Call the provider with a dynamic JSON-mode payload.
+
+    ``response_format`` is built from the pydantic schema at runtime, so the
+    SDK's literal-typed overloads cannot describe it; the payload is therefore
+    passed through a plain mapping instead of the typed keyword arguments.
+    """
+    payload: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "response_format": response_format,
+        "max_tokens": 700,
+    }
+    return client.chat.completions.create(**payload)
+
+
+def _normalized_model_payload(content: str, fallback_query: str, question: str) -> AnalyzerOutput:
+    raw = json.loads(_clean_fences(content))
+    if not isinstance(raw, dict):
+        raise ValueError("invalid analyzer payload")
+    standalone = str(raw.get("standalone_query") or "").strip() or fallback_query
+    expanded_raw = raw.get("expanded_queries")
+    expanded = (
+        [str(item).strip() for item in expanded_raw if str(item).strip()]
+        if isinstance(expanded_raw, list)
+        else []
+    )
+    traffic = " ".join((str(raw.get("category", "")), standalone, question)).casefold()
+    category_value = str(raw.get("category", "")).casefold()
+    category: Category
+    if any(
+        term in traffic
+        for term in ("giao thông", "phạt", "xe", "luật", "nghị định", "điều", "legal")
+    ):
+        category = "legal_rag"
+    elif any(
+        term in category_value for term in ("chào", "hello", "cảm ơn", "chitchat", "chit_chat")
+    ) and any(
+        term in question.casefold() for term in ("chào", "hello", "hi ", "cảm ơn", "bạn là ai")
+    ):
+        # The model labels any off-topic question as small talk; only accept that
+        # label when the question itself greets, so weather/off-topic questions
+        # keep routing to out_of_scope instead of a greeting.
+        category = "chitchat"
+    else:
+        category = "out_of_scope"
+    vehicle_value = " ".join(str(raw.get("vehicle_type", "")).casefold().split())
+    vehicle = cast(
+        VehicleType, _VEHICLE_ALIASES.get(vehicle_value) or detect_vehicle_type(standalone)
+    )
+    if vehicle not in CANONICAL_VEHICLE_CATEGORIES:
+        vehicle = "any"
+    intent_value = str(raw.get("intent", "")).casefold()
+    canonical_intents = {"penalty", "rule", "procedure", "definition", "list", "mixed"}
+    intent: IntentValue
+    if intent_value in canonical_intents:
+        intent = cast(IntentValue, intent_value)
+    elif any(
+        term in f"{intent_value} {question.casefold()}"
+        for term in ("phạt", "tiền", "trừ điểm", "tước")
+    ):
+        intent = "penalty"
+    elif len(expanded) >= 2:
+        intent = "mixed"
+    else:
+        intent = "rule"
+    return AnalyzerOutput(
+        category=category,
+        intent=intent,
+        vehicle_type=vehicle,
+        standalone_query=standalone,
+        expanded_queries=expanded[:3] or [standalone],
+    )
+
+
+def _deterministic_request(question: str, history: object) -> RequestAnalysis:
+    standalone = resolve_vehicle_followup(question, history)
+    category_name = classify_intent(standalone)
+    category = (
+        "chitchat"
+        if category_name == "chitchat"
+        else "out_of_scope"
+        if category_name in {"web", "out_of_scope"}
+        else "legal_rag"
+    )
+    frames = analyze_question(standalone)
+    expanded = tuple(item.text for item in frames.intents if item.kind == "legal")[:3]
+    if not expanded:
+        expanded = (standalone,)
+    lowered = standalone.casefold()
+    intent = (
+        "mixed"
+        if len(frames.intents) >= 2
+        else "penalty"
+        if re.search(r"phạt|mức phạt|trừ điểm|tước", lowered)
+        else "rule"
+    )
+    return RequestAnalysis(
+        category=category,
+        intent=intent,
+        vehicle_type=detect_vehicle_type(standalone),
+        standalone_query=standalone or question or " ",
+        expanded_queries=expanded,
+        frames=frames,
+        source="deterministic",
+    )
+
+
+def build_analyzer_prompt(question: str, history: object = ()) -> str:
+    """Build the strict-JSON analyzer prompt, including bounded chat history."""
+    prompt = (
+        "Trả về DUY NHẤT một object JSON, không markdown, không giải thích, đúng các khóa "
+        "category, intent, vehicle_type, standalone_query, expanded_queries. "
+        "Nếu câu hỏi ngắn như 'Còn xe máy thì sao?' hoặc 'Vậy còn ô tô?' nối tiếp "
+        "một lượt pháp luật, category phải là legal_rag và standalone_query phải "
+        "tự chứa hành vi vi phạm từ lịch sử. Với follow-up ngắn, standalone_query "
+        "PHẢI dùng đúng hành vi vi phạm từ lượt pháp luật gần nhất và CHỈ thay thế "
+        "hạng xe được nêu trong follow-up; tuyệt đối không được tự tạo hành vi mới "
+        "hoặc ghép hạng xe với hành vi chưa từng đi cùng nhau trong lịch sử. "
+        "category chỉ legal_rag/chitchat/out_of_scope; intent chỉ "
+        "penalty/rule/procedure/definition/list/mixed; vehicle_type chỉ "
+        "car/motorcycle/bicycle/specialized/any. "
+        "expanded_queries tối đa 3 câu, mỗi câu ngắn gọn và độc lập. "
+    )
+    for message in list(history)[-6:] if isinstance(history, (list, tuple)) else []:
+        if not isinstance(message, dict):
+            continue
+        role = str(message.get("role", "user"))
+        content = str(message.get("content", "")).strip()[:500]
+        if content:
+            prompt += f"\n{role}: {content}"
+    return prompt + f"\n\nCâu hỏi hiện tại: {question}"
+
+
+def analyze_request(
+    question: str,
+    history: object = (),
+    *,
+    model: ModelCallable | object | None = None,
+    deadline: float | None = None,
+    clock: object | None = None,
+) -> RequestAnalysis:
+    """Analyze a request, falling back deterministically on any model failure."""
+    fallback = _deterministic_request(question, history)
+    try:
+        now = clock if callable(clock) else time.monotonic
+        settings = get_generation_settings()
+        remaining = deadline - now() if deadline is not None else 15.0
+        timeout = min(float(getattr(settings, "analyzer_timeout_seconds", 15.0)), remaining)
+        if timeout <= 0:
+            return fallback
+        prompt = build_analyzer_prompt(question, history)
+        if model is not None:
+            if hasattr(model, "invoke"):
+                response = model.invoke(prompt)
+            elif callable(model):
+                response = model(prompt)
+            else:
+                return fallback
+            content = getattr(response, "content", response)
+        else:
+            if not settings.openrouter_api_key:
+                return fallback
+            client = OpenAI(
+                api_key=settings.openrouter_api_key,
+                base_url=settings.openrouter_base_url,
+                max_retries=0,
+                timeout=timeout,
+            )
+            request_format: dict[str, Any] = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "analyzer",
+                    "strict": True,
+                    "schema": AnalyzerOutput.model_json_schema(),
+                },
+            }
+            messages: list[dict[str, str]] = [
+                {"role": "system", "content": "Chỉ xuất JSON hợp lệ theo schema."},
+                {"role": "user", "content": prompt},
+            ]
+            model_name = getattr(settings, "analyzer_model", "") or settings.model
+            try:
+                response = _chat_completion(
+                    client,
+                    model=model_name,
+                    messages=messages,
+                    response_format=request_format,
+                )
+            except Exception:
+                response = _chat_completion(
+                    client,
+                    model=model_name,
+                    messages=messages,
+                    response_format={"type": "json_object"},
+                )
+            content = response.choices[0].message.content
+        if not isinstance(content, str):
+            raise ValueError("invalid analyzer response")
+        parsed = _normalized_model_payload(content, fallback.standalone_query, question)
+        standalone = parsed.standalone_query.strip()
+        resolved = resolve_vehicle_followup(question, history)
+        if resolved != question and classify_intent(resolved) == "legal":
+            standalone = resolved
+        resolved_is_legal = classify_intent(resolved) == "legal"
+        category = (
+            "legal_rag"
+            if parsed.category == "out_of_scope" and resolved_is_legal
+            else parsed.category
+        )
+        queries: list[str] = []
+        for query in parsed.expanded_queries:
+            normalized = query.strip()
+            if normalized and normalized.casefold() not in {item.casefold() for item in queries}:
+                queries.append(normalized)
+        if not queries:
+            queries = [standalone]
+        return RequestAnalysis(
+            category=category,
+            intent=parsed.intent,
+            vehicle_type=parsed.vehicle_type,
+            standalone_query=standalone,
+            expanded_queries=tuple(queries[:3]),
+            frames=analyze_question(standalone),
+            source="model",
+        )
+    except Exception:
+        return fallback
+
+
 __all__ = [
     "Analysis",
+    "AnalyzerOutput",
     "CANONICAL_VEHICLE_CATEGORIES",
     "Intent",
+    "RequestAnalysis",
     "VEHICLE_LABELS",
     "analyze_question",
+    "analyze_request",
     "classify_intent",
     "detect_vehicle_type",
     "detect_vehicle_types",

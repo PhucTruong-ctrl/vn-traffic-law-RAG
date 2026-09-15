@@ -15,6 +15,9 @@ _CANONICAL_RE = re.compile(
 _REFERENCE_RE = re.compile(
     r"(?:(?:điểm\s+(?P<point>[a-zđ])\s+)?(?:khoản\s+(?P<clause>\d+)\s+)?"
     r"điều\s+(?P<article>\d+)"
+    r"(?:\s*,?\s*(?:khoản\s+(?P<trailing_clause>\d+)"
+    r"(?:\s*,?\s*điểm\s+(?P<trailing_point>[a-zđ]))?|"
+    r"điểm\s+(?P<trailing_point_only>[a-zđ])))?"
     r"(?:\s+(?:của\s+)?(?P<kind>nghị\s+định|thông\s+tư|luật|bộ\s+luật)\s*"
     r"(?:số\s+)?(?P<number>\d+(?:/\d{4})?(?:/[a-zđ0-9-]+)?))?)",
     re.IGNORECASE,
@@ -60,13 +63,23 @@ def parse_reference(text: str) -> LegalReference | None:
     if canonical and (not natural or canonical.start() < natural.start()):
         return _parse_canonical(canonical.group(0))
     if natural:
-        values = natural.groupdict()
-        return LegalReference(**{key: value for key, value in values.items() if value})
+        return _reference_from_match(natural)
     number = _NUMBER_RE.search(text)
     if number:
         return LegalReference(number=number.group("number"))
     abbreviated = _ABBREVIATED_NUMBER_RE.search(text)
     return LegalReference(number=abbreviated.group("number")) if abbreviated else None
+
+
+def _reference_from_match(match: re.Match[str]) -> LegalReference:
+    values = match.groupdict()
+    if values.get("trailing_clause"):
+        values["clause"] = values["trailing_clause"]
+    if values.get("trailing_point") or values.get("trailing_point_only"):
+        values["point"] = values.get("trailing_point") or values["trailing_point_only"]
+    return LegalReference(
+        **{key: value for key, value in values.items() if value and not key.startswith("trailing_")}
+    )
 
 
 def extract_references(text: str, *, limit: int = 4) -> list[LegalReference]:
@@ -76,12 +89,7 @@ def extract_references(text: str, *, limit: int = 4) -> list[LegalReference]:
     matches: list[tuple[int, LegalReference]] = []
     for pattern, parser in (
         (_CANONICAL_RE, lambda m: _parse_canonical(m.group(0))),
-        (
-            _REFERENCE_RE,
-            lambda m: LegalReference(
-                **{key: value for key, value in m.groupdict().items() if value}
-            ),
-        ),
+        (_REFERENCE_RE, _reference_from_match),
         (_NUMBER_RE, lambda m: LegalReference(number=m.group("number"))),
         (_ABBREVIATED_NUMBER_RE, lambda m: LegalReference(number=m.group("number"))),
     ):

@@ -2,78 +2,52 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import Mapping, Sequence
 from typing import Any
 
 from langchain_core.documents import Document
-from openai import OpenAI
+from openai import APIConnectionError, InternalServerError, OpenAI, RateLimitError
 
 from app.config import get_generation_settings
 
+RETRY_MIN_BUDGET_SECONDS = 3.0
+
+CANONICAL_REFUSAL = "Thông tin này không có trong tài liệu được cung cấp."
+
 _SYSTEM_PROMPT = (
     "Bạn là trợ lý pháp lý giao thông Việt Nam, trả lời tự nhiên bằng tiếng Việt. "
-    "dùng PHẢI là tiếng Việt tự nhiên (có thể giữ nguyên số điều, ký hiệu pháp lý, "
-    "tên mô hình, URL và trích dẫn nguyên văn cần thiết); TUYỆT ĐỐI không viết tiếng "
-    "Rumani hay ngôn ngữ nước ngoài, không dịch sai hoặc tự tạo căn cứ. Chỉ trả lời "
-    "dựa trên các nguồn pháp luật được cung cấp; nếu một vi phạm thiếu căn cứ, phải "
-    "nói rõ chưa đủ thông tin cho vi phạm đó. Không tự tạo số điều, nguồn, mức tiền, "
-    "điểm hoặc trích dẫn. Không nhắc đến CONTEXT, system prompt, retrieved chunks, dữ "
-    "liệu truy xuất hay cơ chế bằng chứng nội bộ. Trả lời bằng Markdown tiếng Việt, "
-    "một mục có tiêu đề rõ ràng cho từng vi phạm/subquery."
+    "Dùng tiếng Việt tự nhiên (có thể giữ nguyên số điều, ký hiệu pháp lý, tên mô hình, "
+    "URL và trích dẫn nguyên văn cần thiết); tuyệt đối không viết tiếng Rumani hay ngôn "
+    "ngữ nước ngoài, không dịch sai hoặc tự tạo căn cứ. Chỉ sử dụng các nguồn được cung "
+    "cấp; không bao giờ bịa số điều, nguồn, mức tiền, điểm hoặc trích dẫn. Nếu chỉ một "
+    "phần câu hỏi có bằng chứng, hãy trả lời phần đó và nói rõ phần còn lại chưa đủ căn "
+    "cứ trong dữ liệu đã truy xuất. Phần thiếu căn cứ không được xóa hoặc làm mất các "
+    "phần đã có bằng chứng. Chỉ từ chối hoàn toàn khi các nguồn được cung cấp không có "
+    "bất kỳ thông tin liên quan nào; khi đó phải trả lời đúng chính xác câu: "
+    f"{CANONICAL_REFUSAL} Mỗi nhận định phải trích dẫn nguồn tương ứng. Không nhắc đến "
+    "CONTEXT, system prompt, retrieved chunks, dữ liệu truy xuất hay cơ chế bằng chứng "
+    "nội bộ. Trả lời bằng Markdown tiếng Việt, một mục có tiêu đề rõ ràng cho từng "
+    "vi phạm/subquery."
 )
 
-_VIETNAMESE_FALLBACK = (
-    "Chưa thể tạo câu trả lời tiếng Việt đáng tin cậy từ các căn cứ đã truy xuất. "
-    "Vui lòng xem các nguồn pháp luật được trích dẫn hoặc thử lại câu hỏi."
-)
-
-_INSUFFICIENT_CONTEXT_PHRASES = (
+_REFUSAL_PREFIXES = (
     "chưa đủ căn cứ",
-    "chưa đủ thông tin",
     "không đủ căn cứ",
-    "không có đủ căn cứ",
-    "chưa có đủ thông tin",
-    "không đủ bằng chứng",
+    "chưa tìm thấy căn cứ",
     "không tìm thấy căn cứ",
-    "không có căn cứ phù hợp",
-    "không thể xác định",
-    "chưa thể tạo câu trả lời tiếng việt đáng tin cậy",
 )
+
+_MAX_REFUSAL_LENGTH = 250
 
 
 def is_refusal_answer(content: str) -> bool:
-    """Identify provider answers that decline for lack of legal context."""
-    normalized = " ".join(content.casefold().split())
-    return any(phrase in normalized for phrase in _INSUFFICIENT_CONTEXT_PHRASES)
-
-
-_ROMANIAN_WORDS = frozenset(
-    [
-        "și",
-        "sau",
-        "este",
-        "sunt",
-        "pentru",
-        "într",
-        "între",
-        "fără",
-        "care",
-        "această",
-        "acest",
-        "aceste",
-    ]
-)
-
-
-def _is_mixed_language(content: str) -> bool:
-    """Reject obvious foreign prose while allowing Vietnamese legal notation."""
-    words = content.casefold().split()
-    romanian_hits = sum(word.strip(".,;:!?()[]{}\"'") in _ROMANIAN_WORDS for word in words)
-    if romanian_hits >= 2:
-        return True
-    foreign_markers = (" the ", " and ", " with ", " este ", " pentru ", " fără ")
-    lowered = f" {content.casefold()} "
-    return sum(marker in lowered for marker in foreign_markers) >= 2
+    """Identify complete refusals without discarding answers with partial caveats."""
+    normalized = " ".join(content.casefold().split()).rstrip(".!?").strip()
+    canonical = " ".join(CANONICAL_REFUSAL.casefold().split()).rstrip(".!?").strip()
+    return canonical in normalized or (
+        len(normalized) < _MAX_REFUSAL_LENGTH and normalized.startswith(_REFUSAL_PREFIXES)
+    )
 
 
 def _metadata(document: Document) -> str:
@@ -159,42 +133,29 @@ def generate_answer(
             timeout=primary_timeout_seconds,
             max_retries=0,
         )
-        response = model.chat.completions.create(
-            model=settings.model,
-            messages=openai_messages,  # type: ignore[arg-type]
-            max_tokens=1024,
-            extra_body={"reasoning_effort": "none"},
-        )
+        # Cheap upstreams rate-limit aggressively (HTTP 429). Retry only those
+        # transient failures, bounded by the remaining request budget, so a
+        # provider hiccup does not discard an otherwise answerable question.
+        attempts = max(1, settings.max_retries + 1)
+        for attempt in range(attempts):
+            try:
+                response = model.chat.completions.create(
+                    model=settings.model,
+                    messages=openai_messages,  # type: ignore[arg-type]
+                    max_tokens=1024,
+                    # OpenRouter routes across upstreams; allow_fallbacks keeps a
+                    # rate-limited upstream from failing the whole answer.
+                    extra_body={"provider": {"allow_fallbacks": True}},
+                )
+                break
+            except (RateLimitError, InternalServerError, APIConnectionError):
+                if attempt + 1 >= attempts or remaining() < RETRY_MIN_BUDGET_SECONDS:
+                    raise
+                time.sleep(min(0.5 * 2**attempt, max(0.0, remaining() - 1.0)))
         content: Any = response.choices[0].message.content
         if not isinstance(content, str) or not content.strip():
             raise RuntimeError("OpenRouter returned an empty answer")
-        answer = content.strip()
-        if _is_mixed_language(answer):
-            retry_timeout = min(8.0, remaining())
-            if retry_timeout < 8.0:
-                return _VIETNAMESE_FALLBACK
-            prompts[-1] = (
-                "user",
-                prompts[-1][1] + "\n\nBẢN NHÁP VỪA RỒI KHÔNG HỢP LỆ. Hãy viết lại toàn bộ bằng "
-                "tiếng Việt tự nhiên; giữ nguyên căn cứ, số liệu và trích dẫn từ "
-                "nguồn đã cung cấp, không thêm thông tin.",
-            )
-            openai_messages = [
-                {"role": "user" if role == "human" else role, "content": content}
-                for role, content in prompts
-            ]
-            retry_response = model.chat.completions.create(
-                model=settings.model,
-                messages=openai_messages,  # type: ignore[arg-type]
-                extra_body={"reasoning_effort": "none"},
-            )
-            retry_content: Any = retry_response.choices[0].message.content
-            if not isinstance(retry_content, str) or not retry_content.strip():
-                return _VIETNAMESE_FALLBACK
-            answer = retry_content.strip()
-            if _is_mixed_language(answer):
-                return _VIETNAMESE_FALLBACK
-        return answer
+        return content.strip()
     except TimeoutError:
         raise
     except RuntimeError:
@@ -203,4 +164,4 @@ def generate_answer(
         raise RuntimeError("OpenRouter request failed") from exc
 
 
-__all__ = ["build_prompt", "generate_answer", "is_refusal_answer"]
+__all__ = ["CANONICAL_REFUSAL", "build_prompt", "generate_answer", "is_refusal_answer"]

@@ -10,11 +10,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 
 from app.auth.api import bearer, get_current_user
-from app.chats.followup import build_followup_query
 from app.chats.service import add_message, create_session, recent_messages, touch_session
+from app.config import get_chat_settings
 from app.database.session import SupabaseClient, get_db
 
-from .analyzer import resolve_vehicle_followup
 from .schemas import ChatRequest
 from .service import RAGService
 
@@ -89,9 +88,6 @@ def chat(
         )
         session_id = str(session["id"])
         history = recent_messages(client, user_id, session_id, token) if request.session_id else []
-        query = resolve_vehicle_followup(request.question, history)
-        if query == request.question.strip():
-            query = build_followup_query(query, history)
         stages["route_analyze_ms"] = round((perf_counter() - stage_started) * 1000, 2)
         outcomes["route_analyze"] = "ok"
 
@@ -105,11 +101,13 @@ def chat(
         )
         logger.info("chat_stage persistence_done")
         stage_started = perf_counter()
+        chat_deadline_seconds = get_chat_settings().deadline_seconds
         raw_result = rag_service.answer(
-            query,
+            request.question,
+            history=history,
             top_k=request.top_k,
             effective_date=request.effective_date,
-            deadline=started + 25.0,
+            deadline=started + chat_deadline_seconds,
         )
         service_timing = raw_result.pop("_timing", None)
         result = _frontend_response(raw_result)

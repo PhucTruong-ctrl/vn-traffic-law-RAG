@@ -406,6 +406,94 @@ def test_authenticated_chat_forwards_verified_claims_unchanged(
     assert response.json()["claims"] == rag_result["claims"]
 
 
+def test_standalone_question_is_not_rewritten_with_chat_history(
+    client, supabase_client, monkeypatch
+) -> None:
+    supabase_client.auth_response = {"id": "user-1"}
+    history = [
+        {"role": "user", "content": "Đi xe máy không đội mũ bảo hiểm bị phạt thế nào?"},
+        {
+            "role": "assistant",
+            "content": (
+                "Chưa đủ căn cứ trong dữ liệu pháp luật được truy xuất để trả lời chắc chắn."
+            ),
+        },
+    ]
+    monkeypatch.setattr("app.rag.api.recent_messages", lambda *_args, **_kwargs: history)
+    monkeypatch.setattr("app.rag.api.touch_session", lambda *_args, **_kwargs: {"id": "session-1"})
+    monkeypatch.setattr("app.rag.api.add_message", lambda *_args, **_kwargs: {"id": "message-1"})
+    rag_result = {
+        "answer": "Chưa đủ căn cứ trong dữ liệu pháp luật được truy xuất để trả lời chắc chắn.",
+        "citations": [],
+        "claims": [],
+        "status": "insufficient_evidence",
+        "reason_code": "insufficient_evidence",
+    }
+    seen: list[tuple[str, dict[str, object]]] = []
+    monkeypatch.setattr(
+        "app.rag.api.rag_service.answer",
+        lambda question, **kwargs: (seen.append((question, kwargs)), rag_result)[1],
+    )
+
+    request_question = "Ô tô vượt đèn đỏ bị phạt bao nhiêu?"
+    response = client.post(
+        "/api/v1/chat",
+        json={"question": request_question, "session_id": "session-1"},
+        headers={"Authorization": "Bearer user-token"},
+    )
+
+    assert response.status_code == 200
+    assert len(seen) == 1
+    question, kwargs = seen[0]
+    assert question == request_question
+    assert question.encode() == request_question.encode()
+    assert kwargs["history"] == history
+    assert kwargs["top_k"] == 5
+    assert kwargs["effective_date"] is None
+    assert isinstance(kwargs["deadline"], float)
+
+
+def test_authenticated_chat_uses_configured_deadline(client, supabase_client, monkeypatch) -> None:
+    import time
+
+    supabase_client.auth_response = {"id": "user-1"}
+    rag_result = {
+        "answer": "Theo quy định.",
+        "citations": [],
+        "claims": [],
+        "status": "insufficient_evidence",
+        "reason_code": "insufficient_evidence",
+    }
+    seen: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        "app.rag.api.get_chat_settings",
+        lambda: type("Settings", (), {"deadline_seconds": 12.5})(),
+    )
+    monkeypatch.setattr(
+        "app.rag.api.rag_service.answer",
+        lambda question, **kwargs: (seen.append(kwargs), rag_result)[1],
+    )
+    supabase_client.responses.extend(
+        [
+            [{"id": "user-1"}],
+            [{"id": "session-1", "user_id": "user-1"}],
+            [{"id": "user-message"}],
+            [{"id": "assistant-message"}],
+            [{"id": "session-1", "user_id": "user-1", "deleted": False}],
+        ]
+    )
+    start = time.perf_counter()
+    response = client.post(
+        "/api/v1/chat",
+        json={"question": "Tốc độ tối đa là bao nhiêu?"},
+        headers={"Authorization": "Bearer user-token"},
+    )
+    end = time.perf_counter()
+    assert response.status_code == 200
+    assert len(seen) == 1
+    assert start + 12.5 <= seen[0]["deadline"] <= end + 12.5
+
+
 def test_cross_owner_session_is_not_visible(client, supabase_client) -> None:
     supabase_client.auth_response = {"id": "user-2"}
     supabase_client.responses.extend([[{"id": "user-2"}], []])

@@ -6,6 +6,7 @@ from datetime import date
 
 from langchain_core.documents import Document
 
+from app.rag.generator import CANONICAL_REFUSAL
 from app.rag.service import RAGService
 
 
@@ -42,14 +43,27 @@ def test_every_explicit_reference_is_required() -> None:
     assert result["reason_code"] == "reference_not_found"
 
 
-def test_railway_evidence_is_excluded_without_railway_context() -> None:
+def test_railway_evidence_is_excluded_without_railway_context(monkeypatch) -> None:
+    called = False
+
+    def generate(*_args, **_kwargs):
+        nonlocal called
+        called = True
+        return "Đáp án"
+
+    monkeypatch.setattr("app.rag.service.generate_answer", generate)
     railway = _doc("rail", "Đường sắt: vượt rào chắn bị phạt.", article="6")
     result = RAGService().answer("Vượt đèn đỏ bị phạt thế nào?", chunks=[railway])
     assert result["status"] == "insufficient_evidence"
-    assert result["reason_code"] == "insufficient_evidence"
+    assert result["reason_code"] == "no_relevant_provision"
+    assert called is False
 
 
-def test_invalid_citation_identity_abstains() -> None:
+def test_identityless_evidence_still_verifies_without_citations(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.rag.service.generate_answer",
+        lambda *_args, **_kwargs: "Căn cứ quy định hiện hành, hành vi này bị xử phạt.",
+    )
     result = RAGService().answer(
         "Vượt đèn đỏ bị phạt thế nào?",
         chunks=[
@@ -59,12 +73,15 @@ def test_invalid_citation_identity_abstains() -> None:
             )
         ],
     )
-    assert result["status"] == "insufficient_evidence"
-    assert result["reason_code"] == "insufficient_evidence"
+    assert result["status"] == "verified"
+    assert result["citations"] == []
 
 
-def test_incomplete_legal_identity_never_verifies(monkeypatch) -> None:
-    monkeypatch.setattr("app.rag.service.generate_answer", lambda *_args, **_kwargs: "unsafe")
+def test_incomplete_legal_identity_still_verifies_without_citations(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.rag.service.generate_answer",
+        lambda *_args, **_kwargs: "Căn cứ quy định hiện hành, hành vi này bị xử phạt.",
+    )
     result = RAGService().answer(
         "Vượt đèn đỏ bị phạt thế nào?",
         chunks=[
@@ -75,11 +92,11 @@ def test_incomplete_legal_identity_never_verifies(monkeypatch) -> None:
             )
         ],
     )
-    assert result["status"] == "insufficient_evidence"
-    assert not result["citations"]
+    assert result["status"] == "verified"
+    assert result["citations"] == []
 
 
-def test_multi_intent_missing_evidence_abstains(monkeypatch) -> None:
+def test_multi_intent_partial_evidence_verifies(monkeypatch) -> None:
     monkeypatch.setattr("app.rag.service.generate_answer", lambda *_args, **_kwargs: "partial")
     result = RAGService().answer(
         "Vượt đèn đỏ và dùng điện thoại khi lái xe bị phạt thế nào?",
@@ -93,7 +110,8 @@ def test_multi_intent_missing_evidence_abstains(monkeypatch) -> None:
             )
         ],
     )
-    assert result["status"] == "insufficient_evidence"
+    assert result["status"] == "verified"
+    assert result["citations"][0]["source_id"] == "chunk-one"
 
 
 def test_effective_date_filters_future_evidence() -> None:
@@ -169,6 +187,74 @@ def test_current_query_drops_ceased_and_superseded_candidates(monkeypatch) -> No
 
     assert result["status"] == "verified"
     assert [citation["source_id"] for citation in result["citations"]] == ["current"]
+
+
+def _penalty_evidence() -> Document:
+    return _doc(
+        "chunk-1",
+        "Không chấp hành hiệu lệnh của đèn tín hiệu giao thông.",
+        article="6",
+        document_number="168/2024/NĐ-CP",
+        normalized_action="không chấp hành hiệu lệnh của đèn tín hiệu giao thông",
+        vehicle_categories=["car"],
+        context_scope=["road_traffic"],
+        status="EFFECTIVE",
+    )
+
+
+def test_cited_answer_with_partial_caveat_still_verifies(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.rag.service.generate_answer",
+        lambda *_args, **_kwargs: (
+            "Có. Hành vi vượt đèn đỏ bị xử phạt theo Nghị định 168/2024/NĐ-CP, Điều 6, "
+            "khoản 9, điểm b. Tài liệu trích dẫn không nêu mức tiền cụ thể nên chưa đủ thông "
+            "tin để xác định chính xác số tiền phạt."
+        ),
+    )
+
+    result = RAGService().answer("Ô tô vượt đèn đỏ bị phạt thế nào?", chunks=[_penalty_evidence()])
+
+    assert result["status"] == "verified"
+    assert result["citations"][0]["source_id"] == "chunk-1"
+
+
+def test_short_outright_refusal_abstains(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.rag.service.generate_answer",
+        lambda *_args, **_kwargs: (
+            "Chưa đủ căn cứ trong dữ liệu pháp luật được truy xuất để trả lời chắc chắn."
+        ),
+    )
+
+    result = RAGService().answer("Ô tô vượt đèn đỏ bị phạt thế nào?", chunks=[_penalty_evidence()])
+
+    assert result["status"] == "insufficient_evidence"
+    assert result["reason_code"] == "generation_insufficient_evidence"
+    assert not result["citations"]
+
+
+def test_grounded_answer_with_valid_chunk_never_post_generation_abstains(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.rag.service.generate_answer",
+        lambda *_args, **_kwargs: "Căn cứ quy định hiện hành, hành vi này bị xử phạt.",
+    )
+    result = RAGService().answer(
+        "Vượt đèn đỏ bị phạt thế nào?",
+        chunks=[_doc("chunk-grounded", "Vượt đèn đỏ bị phạt.", article="6")],
+    )
+    assert result["status"] == "verified"
+
+
+def test_canonical_refusal_abstains(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.rag.service.generate_answer", lambda *_args, **_kwargs: CANONICAL_REFUSAL
+    )
+    result = RAGService().answer(
+        "Vượt đèn đỏ bị phạt thế nào?",
+        chunks=[_doc("chunk-refusal", "Vượt đèn đỏ bị phạt.", article="6")],
+    )
+    assert result["status"] == "insufficient_evidence"
+    assert result["reason_code"] == "generation_insufficient_evidence"
 
 
 def test_out_of_scope_and_missing_context_abstain_with_distinct_reasons() -> None:

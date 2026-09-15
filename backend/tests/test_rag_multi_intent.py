@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from langchain_core.documents import Document
 
-from app.rag.analyzer import VEHICLE_LABELS, analyze_question, resolve_vehicle_followup
+from app.rag.analyzer import (
+    VEHICLE_LABELS,
+    analyze_question,
+    analyze_request,
+    resolve_vehicle_followup,
+)
 from app.rag.generator import build_prompt
 from app.rag.references import extract_references
 from app.rag.service import RAGService
@@ -99,7 +104,7 @@ def _fake_openai(monkeypatch, responses: list[str]):
     return completions
 
 
-def test_generator_mixed_output_retries_once(monkeypatch) -> None:
+def test_generator_returns_provider_answer_without_extra_calls(monkeypatch) -> None:
     import app.rag.generator as generator
 
     monkeypatch.setattr(
@@ -108,30 +113,12 @@ def test_generator_mixed_output_retries_once(monkeypatch) -> None:
         lambda: type(
             "S",
             (),
-            {"openrouter_api_key": "x", "model": "m", "openrouter_base_url": "https://provider"},
-        )(),
-    )
-    client = _fake_openai(
-        monkeypatch,
-        ["Aceasta este o sancțiune și este pentru test.", "Mức phạt là 2 triệu đồng."],
-    )
-    assert (
-        generator.generate_answer("Vượt đèn đỏ?", [Document("Điều 6")])
-        == "Mức phạt là 2 triệu đồng."
-    )
-    assert client.calls == 2
-
-
-def test_generator_clean_vietnamese_does_not_retry(monkeypatch) -> None:
-    import app.rag.generator as generator
-
-    monkeypatch.setattr(
-        generator,
-        "get_generation_settings",
-        lambda: type(
-            "S",
-            (),
-            {"openrouter_api_key": "x", "model": "m", "openrouter_base_url": "https://provider"},
+            {
+                "openrouter_api_key": "x",
+                "model": "m",
+                "openrouter_base_url": "https://provider",
+                "max_retries": 3,
+            },
         )(),
     )
     client = _fake_openai(monkeypatch, ["Người điều khiển phải chấp hành tín hiệu đèn."])
@@ -139,7 +126,7 @@ def test_generator_clean_vietnamese_does_not_retry(monkeypatch) -> None:
     assert client.calls == 1
 
 
-def test_generator_two_mixed_outputs_return_vietnamese_fallback(monkeypatch) -> None:
+def test_vietnamese_answer_containing_repeated_sau_is_returned_unchanged(monkeypatch) -> None:
     import app.rag.generator as generator
 
     monkeypatch.setattr(
@@ -148,20 +135,39 @@ def test_generator_two_mixed_outputs_return_vietnamese_fallback(monkeypatch) -> 
         lambda: type(
             "S",
             (),
-            {"openrouter_api_key": "x", "model": "m", "openrouter_base_url": "https://provider"},
+            {
+                "openrouter_api_key": "x",
+                "model": "m",
+                "openrouter_base_url": "https://provider",
+                "max_retries": 3,
+            },
         )(),
     )
-    _fake_openai(
-        monkeypatch,
-        [
-            "Aceasta este o sancțiune și este pentru test.",
-            "Aceasta este o sancțiune și este pentru test.",
-        ],
+    answer = "Ban đêm bắt buộc bật đèn chiếu sáng từ 18 giờ ngày hôm trước đến 06 giờ ngày hôm sau."
+    client = _fake_openai(monkeypatch, [answer])
+    assert generator.generate_answer("Ban đêm có phải bật đèn?", [Document("Điều 7")]) == answer
+    assert client.calls == 1
+
+
+def test_cited_answer_with_trailing_caveat_is_not_treated_as_refusal() -> None:
+    from app.rag.generator import is_refusal_answer
+
+    answer = (
+        "### Bấm còi trong khu đông dân cư\n\nCó. Hành vi bấm còi liên tục trong khu đông dân cư "
+        "bị xử phạt theo Nghị định 168/2024/NĐ-CP, Điều 7, khoản 9, điểm k. "
+        "Tài liệu trích dẫn không nêu mức phạt cụ thể nên chưa đủ thông tin để nêu chính xác "
+        "số tiền phạt cho từng loại phương tiện."
     )
-    result = generator.generate_answer(
-        "Vượt đèn đỏ?", [Document("Điều 6")], deadline=20.0, clock=lambda: 10.0
+
+    assert not is_refusal_answer(answer)
+
+
+def test_outright_short_refusal_is_still_detected() -> None:
+    from app.rag.generator import is_refusal_answer
+
+    assert is_refusal_answer(
+        "Chưa đủ căn cứ trong dữ liệu pháp luật được truy xuất để trả lời chắc chắn."
     )
-    assert result.startswith("Chưa thể tạo câu trả lời tiếng Việt")
 
 
 class FakeRetriever:
@@ -233,14 +239,14 @@ def test_answer_analyzes_question_once(monkeypatch) -> None:
     import app.rag.service as service
 
     calls = 0
-    original = service.analyze_question
+    original = service.analyze_request
 
-    def counting_analysis(question: str):
+    def counting_analysis(question: str, *args, **kwargs):
         nonlocal calls
         calls += 1
-        return original(question)
+        return original(question, *args, **kwargs)
 
-    monkeypatch.setattr(service, "analyze_question", counting_analysis)
+    monkeypatch.setattr(service, "analyze_request", counting_analysis)
     monkeypatch.setattr(service, "generate_answer", lambda *args, **kwargs: "Có căn cứ")
     evidence = Document(
         "Điều khoản",
@@ -249,7 +255,8 @@ def test_answer_analyzes_question_once(monkeypatch) -> None:
 
     result = RAGService(FakeRetriever()).answer("Xe máy vượt đèn đỏ?", chunks=[evidence])
 
-    assert result["status"] == "insufficient_evidence"
+    assert result["status"] == "verified"
+    assert result["citations"] == []
     assert calls == 1
 
 
@@ -312,6 +319,90 @@ def test_motorcycle_followup_is_standalone_without_history_prefix_or_duplicate_c
     assert "user:" not in resolved
     assert "Current question" not in resolved
     assert "là là" not in resolved
+
+
+def test_analyze_request_uses_valid_model_json() -> None:
+    class FakeModel:
+        def invoke(self, prompt: str) -> str:
+            return (
+                '{"category":"legal_rag","intent":"penalty","vehicle_type":"motorcycle",'
+                '"standalone_query":"Xe máy vượt đèn đỏ bị phạt thế nào?",'
+                '"expanded_queries":["xe máy vượt đèn đỏ mức phạt","xe máy vượt đèn đỏ trừ điểm"]}'
+            )
+
+    result = analyze_request("Xe máy vượt đèn đỏ?", model=FakeModel())
+
+    assert result.source == "model"
+    assert result.expanded_queries == (
+        "xe máy vượt đèn đỏ mức phạt",
+        "xe máy vượt đèn đỏ trừ điểm",
+    )
+
+
+def test_analyze_request_model_failure_falls_back() -> None:
+    class BrokenModel:
+        def invoke(self, prompt: str) -> str:
+            raise RuntimeError("provider unavailable")
+
+    result = analyze_request("Xe máy vượt đèn đỏ bị phạt thế nào?", model=BrokenModel())
+
+    assert result.source == "deterministic"
+    assert result.standalone_query
+    assert result.expanded_queries
+
+
+def test_analyze_request_resolves_legal_vehicle_followup() -> None:
+    history = [{"role": "user", "content": "Ô tô vượt đèn đỏ bị phạt bao nhiêu?"}]
+    result = analyze_request("Còn xe máy thì sao?", history)
+    assert result.category == "legal_rag"
+    assert "xe mô tô" in result.standalone_query
+
+
+def test_analyze_request_car_followup_does_not_inherit_motorcycle_helmet_violation() -> None:
+    history = [
+        {"role": "user", "content": "Đi xe máy không đội mũ bảo hiểm bị phạt thế nào?"},
+        {"role": "assistant", "content": "Theo quy định hiện hành..."},
+    ]
+
+    result = analyze_request("Vậy còn ô tô?", history)
+
+    assert "ô tô" in result.standalone_query
+    assert "mũ bảo hiểm" not in result.standalone_query
+
+
+def test_analyze_request_normal_vehicle_question_is_unchanged() -> None:
+    result = analyze_request("Ô tô vượt đèn đỏ bị phạt bao nhiêu?")
+
+    assert result.standalone_query == "Ô tô vượt đèn đỏ bị phạt bao nhiêu?"
+
+
+def test_vehicle_followup_resolver_preserves_or_drops_vehicle_specific_violation() -> None:
+    assert (
+        resolve_vehicle_followup(
+            "Còn xe máy thì sao?",
+            [{"role": "user", "content": "Ô tô vượt đèn đỏ bị phạt bao nhiêu?"}],
+        )
+        == "Mức phạt đối với xe mô tô, xe gắn máy vượt đèn đỏ bao nhiêu?"
+    )
+    assert (
+        resolve_vehicle_followup(
+            "Còn ô tô?",
+            [{"role": "user", "content": "Xe máy vượt đèn đỏ bị phạt bao nhiêu?"}],
+        )
+        == "Mức phạt đối với ô tô vượt đèn đỏ bao nhiêu?"
+    )
+    assert (
+        resolve_vehicle_followup(
+            "Vậy còn ô tô?",
+            [{"role": "user", "content": "Đi xe máy không đội mũ bảo hiểm bị phạt thế nào?"}],
+        )
+        == "Mức phạt đối với ô tô bao nhiêu?"
+    )
+
+
+def test_analyze_request_fresh_out_of_scope_remains_out_of_scope() -> None:
+    result = analyze_request("Thời tiết Hà Nội ngày mai thế nào?")
+    assert result.category == "out_of_scope"
 
 
 def test_vehicle_followup_uses_at_most_six_history_messages() -> None:
@@ -497,13 +588,14 @@ def test_answer_generates_with_partial_evidence_and_abstains_when_empty(
 
 
 def test_structural_gold_queries_route_as_legal_without_live_providers(monkeypatch) -> None:
-    from app.rag.analyzer import classify_intent
+    from app.rag.analyzer import analyze_request
 
     for _, question, expected_count, _ in STRUCTURAL_GOLD:
         monkeypatch.setattr("app.rag.service.generate_answer", lambda *args, **kwargs: "Có căn cứ")
         references = extract_references(question)
         assert len(references) == expected_count
-        assert classify_intent(question) == "legal"
+        analysis = analyze_request(question)
+        assert analysis.category == "legal_rag"
         result = RAGService(FakeRetriever()).answer(
             question,
             chunks=[
@@ -520,4 +612,4 @@ def test_structural_gold_queries_route_as_legal_without_live_providers(monkeypat
                 for reference in references
             ],
         )
-        assert result["reason_code"] != "out_of_scope"
+        assert result["status"] == "verified"

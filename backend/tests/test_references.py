@@ -77,6 +77,44 @@ def test_malformed_canonical_id_does_not_parse() -> None:
     assert parse_reference("nd-119-2024__dieu-x") is None
 
 
+def test_extracts_trailing_clause_and_point_orders() -> None:
+    cases = {
+        "Điều 7 Khoản 3 Nghị định 168/2024": {
+            "article": "7",
+            "clause": "3",
+            "kind": "Nghị định",
+            "number": "168/2024",
+        },
+        "Điều 7, khoản 3 nghị định 168/2024": {
+            "article": "7",
+            "clause": "3",
+            "kind": "nghị định",
+            "number": "168/2024",
+        },
+        "Điều 7 khoản 3 điểm b nghị định 168/2024": {
+            "article": "7",
+            "clause": "3",
+            "point": "b",
+            "kind": "nghị định",
+            "number": "168/2024",
+        },
+        "Điều 7 điểm b nghị định 168/2024": {
+            "article": "7",
+            "point": "b",
+            "kind": "nghị định",
+            "number": "168/2024",
+        },
+    }
+    for text, expected in cases.items():
+        assert extract_references(text)[0].as_dict() == expected
+
+
+def test_trailing_clause_does_not_merge_two_references() -> None:
+    references = extract_references("Điều 10 Nghị định 119/2024; Điều 6 Nghị định 168/2024")
+    assert len(references) == 2
+    assert [reference.article for reference in references] == ["10", "6"]
+
+
 STRUCTURAL_GOLD = [
     ("00", "nd-119-2024__dieu-10", 1, ["nd-119-2024"]),
     ("01", "Điều 6 Nghị định 168/2024", 1, ["168/2024"]),

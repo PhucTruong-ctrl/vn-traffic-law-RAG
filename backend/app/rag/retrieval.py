@@ -560,8 +560,11 @@ class Retriever:
                     continue
                 exact.append(representative)
                 seen.add(_identity(representative))
-            if missing:
-                return []
+            if missing and not exact:
+                # An explicit reference that cannot be resolved exactly must
+                # degrade to hybrid search instead of killing retrieval: the
+                # caller still enforces its own reference coverage check.
+                exact = []
             if exact:
                 if len(exact) < limit:
                     for sibling in self.complete_family(

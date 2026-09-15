@@ -8,17 +8,29 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
-from .references import LegalReference, metadata_matches
+from .generator import is_refusal_answer
+from .references import LegalReference
 
 
-@dataclass(frozen=True)
-class VerificationDecision:
+@dataclass(frozen=True, slots=True)
+class SanitizedResponse:
+    answer: str
+    citations: tuple[dict[str, Any], ...]
+    claims: tuple[dict[str, Any], ...]
     allowed: bool
-    reason: str = "verified"
+    reason: str
 
 
 def _norm(value: Any) -> str:
     return " ".join(str(value or "").casefold().split())
+
+
+def _citation_norm(value: Any) -> str:
+    normalized = re.sub(r"[—–-]", " ", str(value or "").casefold())
+    normalized = re.sub(r"\b(?:nghị định|thông tư|luật)\b", " ", normalized)
+    normalized = re.sub(r"[^a-z0-9à-ỹ]+", " ", normalized, flags=re.UNICODE)
+    normalized = re.sub(r"\b(?:nd|tt|nđ|cp)\b", " ", normalized)
+    return "".join(normalized.split())
 
 
 def _action_norm(value: Any) -> str:
@@ -150,7 +162,7 @@ def _eligible(doc: Any, effective_date: date | None) -> bool:
     return True
 
 
-def verify_response(
+def sanitize_response(
     question: str,
     route: str,
     analysis: Any,
@@ -160,59 +172,115 @@ def verify_response(
     answer: str,
     citations: Iterable[dict[str, Any]],
     claims: Iterable[dict[str, Any]],
-) -> VerificationDecision:
-    """Return a fail-closed decision for generated grounded output."""
+) -> SanitizedResponse:
+    """Drop unsupported generated evidence while preserving usable output."""
     if route not in {"legal", "law", "traffic"}:
-        return VerificationDecision(False, "out_of_scope")
-    normalized_answer = _norm(answer)
-    if not normalized_answer or not re.search(r"[\wÀ-ỹ]", answer):
-        return VerificationDecision(False, "output_integrity")
-    if len(re.findall(r"[A-Za-zÀ-ÿ]", answer)) == 0:
-        return VerificationDecision(False, "output_integrity")
-    if any(
-        phrase in normalized_answer
-        for phrase in (
-            "chưa đủ căn cứ",
-            "chưa đủ thông tin",
-            "không đủ căn cứ",
-            "chưa có đủ thông tin",
-            "không có đủ căn cứ",
-            "không đủ bằng chứng",
-        )
-    ):
-        return VerificationDecision(False, "generation_insufficient_evidence")
+        return SanitizedResponse(answer, (), (), False, "out_of_scope")
+    if not _norm(answer) or not re.search(r"[A-Za-zÀ-ỹ]", answer):
+        return SanitizedResponse(answer, (), (), False, "output_integrity")
+    if is_refusal_answer(answer):
+        return SanitizedResponse(answer, (), (), False, "generation_insufficient_evidence")
     docs = list(filtered_documents)
-    citation_list = [dict(c) for c in citations]
-    claim_list = [dict(c) for c in claims]
-    if not citation_list or not all(_identity_complete(c) for c in citation_list):
-        return VerificationDecision(False, "citation_identity_incomplete")
-    by_source = {_norm((getattr(d, "metadata", {}) or {}).get("chunk_id")): d for d in docs}
-    for citation in citation_list:
-        source = _norm(citation.get("source_id"))
-        doc = by_source.get(source)
-        if doc is None:
-            return VerificationDecision(False, "citation_not_retrieved")
-        metadata = getattr(doc, "metadata", {}) or {}
-        if _norm(citation.get("document_id")) != _norm(metadata.get("document_id")):
-            return VerificationDecision(False, "citation_identity_mismatch")
-        text = _norm(getattr(doc, "page_content", ""))
-        excerpt = _norm(citation.get("excerpt"))
-        if not excerpt or excerpt not in text:
-            return VerificationDecision(False, "citation_excerpt_mismatch")
-        if not _eligible(doc, effective_date):
-            return VerificationDecision(False, "temporal_mismatch")
-        if not _supports_request(question, analysis, doc):
-            return VerificationDecision(False, "citation_context_mismatch")
-    refs = list(references)
-    for ref in refs:
-        if not any(metadata_matches((getattr(d, "metadata", {}) or {}), ref) for d in docs):
-            return VerificationDecision(False, "reference_not_covered")
-    citation_ids = {_norm(c.get("source_id")) for c in citation_list}
-    for claim in claim_list:
-        ids = {_norm(i) for i in claim.get("provision_ids", [])}
-        if not ids or not ids <= citation_ids:
-            return VerificationDecision(False, "claim_citation_mismatch")
-    return VerificationDecision(True)
+    if not docs:
+        return SanitizedResponse(answer, (), (), False, "insufficient_evidence")
+    raw_citations = [dict(citation) for citation in citations]
+    by_source = {_norm((getattr(doc, "metadata", {}) or {}).get("chunk_id")): doc for doc in docs}
+    valid: list[dict[str, Any]] = []
+    first_drop_reason: str | None = None
+    for citation in raw_citations:
+        source = by_source.get(_norm(citation.get("source_id")))
+        reason = None
+        if not _identity_complete(citation):
+            reason = "citation_identity_incomplete"
+        elif source is None:
+            reason = "citation_not_retrieved"
+        elif _citation_norm(citation.get("document_id")) != _citation_norm(
+            (getattr(source, "metadata", {}) or {}).get("document_id")
+        ):
+            reason = "citation_identity_mismatch"
+        elif _norm(citation.get("excerpt")) not in _norm(getattr(source, "page_content", "")):
+            reason = "citation_excerpt_mismatch"
+        elif not _eligible(source, effective_date):
+            reason = "temporal_mismatch"
+        elif not _supports_request(question, analysis, source):
+            reason = "citation_context_mismatch"
+        if reason:
+            first_drop_reason = first_drop_reason or reason
+        elif _norm(citation.get("source_id")) not in {
+            _norm(item.get("source_id")) for item in valid
+        }:
+            valid.append(citation)
+    extracted = extract_cited_citations(answer, docs, raw_citations)
+    surviving = extracted or valid
+    surviving_ids = {_norm(citation.get("source_id")) for citation in surviving}
+    surviving_claims: list[dict[str, Any]] = []
+    for raw in claims:
+        claim = dict(raw)
+        ids = {_norm(item) for item in claim.get("provision_ids", [])}
+        if ids and ids <= surviving_ids:
+            surviving_claims.append(claim)
+    reason = "verified" if extracted else (first_drop_reason or "citation_not_retrieved")
+    return SanitizedResponse(answer, tuple(surviving), tuple(surviving_claims), True, reason)
+
+
+def extract_cited_citations(
+    answer: str,
+    documents: Iterable[Any],
+    citations: Iterable[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Extract answer citation markers and return first matching citations."""
+    docs = {
+        _norm((getattr(document, "metadata", {}) or {}).get("chunk_id")): document
+        for document in documents
+    }
+    results: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    markers = re.findall(
+        r"\[([^\]]+)\]|\b(Điều\s+\S+(?:\s+Khoản\s+\S+)?(?:\s+Điểm\s+\S+)?(?:\s+[^\[\].,;]+)?)",
+        answer,
+        re.I,
+    )
+    for bracketed, plain in markers:
+        marker = bracketed or plain
+        fields = {
+            "article": re.search(r"Điều\s+([\w.-]+)", marker, re.I),
+            "clause": re.search(r"Khoản\s+([\w.-]+)", marker, re.I),
+            "point": re.search(r"Điểm\s+([\w.-]+)", marker, re.I),
+        }
+        source_match = re.search(
+            r"\b(?:doc[-\s_]?\w+|(?:nghị định|thông tư|luật)\s+[^,\]—]+)", marker, re.I
+        )
+        source_text = source_match.group(0) if source_match else marker
+        for citation in citations:
+            source_id = _norm(citation.get("source_id"))
+            if source_id in seen or source_id not in docs:
+                continue
+            metadata = getattr(docs[source_id], "metadata", {}) or {}
+            if any(
+                match and _norm(citation.get(key)) != _norm(match.group(1))
+                for key, match in ((key, fields[key]) for key in ("article", "clause", "point"))
+            ):
+                continue
+            document_values = [
+                citation.get("document_id"),
+                citation.get("document_number"),
+                citation.get("document_name"),
+                citation.get("document_title"),
+                metadata.get("document_id"),
+                metadata.get("document_number"),
+                metadata.get("document_name"),
+            ]
+            if not any(
+                _citation_norm(source_text) in _citation_norm(value)
+                or _citation_norm(value) in _citation_norm(source_text)
+                for value in document_values
+                if value
+            ):
+                continue
+            results.append(dict(citation))
+            seen.add(source_id)
+            break
+    return results
 
 
 def _supports_request(question: str, analysis: Any, document: Any) -> bool:
@@ -241,4 +309,4 @@ def _meaningful_tokens(text: str) -> set[str]:
     }
 
 
-__all__ = ["VerificationDecision", "verify_response"]
+__all__ = ["SanitizedResponse", "extract_cited_citations", "sanitize_response"]

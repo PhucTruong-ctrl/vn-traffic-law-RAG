@@ -14,6 +14,7 @@ def _settings():
             "model": "test-model",
             "openrouter_base_url": "http://provider",
             "timeout_seconds": 18.0,
+            "max_retries": 0,
         },
     )()
 
@@ -74,73 +75,18 @@ def test_expired_deadline_fails_before_provider_construction(monkeypatch) -> Non
     assert constructed == 0
 
 
-def test_language_cleanup_retry_is_single_conditional_retry(monkeypatch) -> None:
+def test_long_cited_answer_with_partial_caveat_is_not_refusal() -> None:
     import app.rag.generator as generator
 
-    class Completions:
-        calls = 0
-
-        def create(self, **_kwargs):
-            self.calls += 1
-            text = (
-                "Aceasta este o sancțiune și este pentru test."
-                if self.calls == 1
-                else "Mức phạt là 2 triệu đồng."
-            )
-            return type(
-                "Response",
-                (),
-                {
-                    "choices": [
-                        type("Choice", (), {"message": type("Message", (), {"content": text})()})()
-                    ]
-                },
-            )()
-
-    completions = Completions()
-
-    class Provider:
-        def __init__(self, **kwargs):
-            self.chat = type("Chat", (), {"completions": completions})()
-
-    monkeypatch.setattr(generator, "get_generation_settings", _settings)
-    monkeypatch.setattr(generator, "OpenAI", Provider)
-    result = generator.generate_answer(
-        "Vượt đèn đỏ bị phạt thế nào?",
-        [Document("Điều 6")],
-        deadline=20.0,
-        clock=lambda: 10.0,
+    answer = (
+        "Theo Điều 6, người điều khiển phương tiện bị phạt theo mức nêu trong nguồn "
+        "[doc-1]. " * 20 + "Chưa đủ thông tin cho phần còn lại."
     )
-    assert result == "Mức phạt là 2 triệu đồng."
-    assert completions.calls == 2
+    assert len(answer) >= 250
+    assert not generator.is_refusal_answer(answer)
 
 
-def test_second_mixed_language_response_fails_closed_without_third_call(monkeypatch) -> None:
+def test_canonical_refusal_is_detected() -> None:
     import app.rag.generator as generator
 
-    class Completions:
-        calls = 0
-
-        def create(self, **_kwargs):
-            self.calls += 1
-            message = type(
-                "Message", (), {"content": "Aceasta este o sancțiune și este pentru test."}
-            )()
-            return type("Response", (), {"choices": [type("Choice", (), {"message": message})()]})()
-
-    completions = Completions()
-
-    class Provider:
-        def __init__(self, **_kwargs):
-            self.chat = type("Chat", (), {"completions": completions})()
-
-    monkeypatch.setattr(generator, "get_generation_settings", _settings)
-    monkeypatch.setattr(generator, "OpenAI", Provider)
-    result = generator.generate_answer(
-        "Vượt đèn đỏ bị phạt thế nào?",
-        [Document("Điều 6")],
-        deadline=20.0,
-        clock=lambda: 10.0,
-    )
-    assert result.startswith("Chưa thể tạo câu trả lời tiếng Việt")
-    assert completions.calls == 2
+    assert generator.is_refusal_answer(generator.CANONICAL_REFUSAL)
