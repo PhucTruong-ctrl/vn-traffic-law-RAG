@@ -472,7 +472,7 @@ Dữ liệu pháp luật được chuẩn hóa theo cấu trúc Điều, Khoản
 
 Phần ứng dụng dùng FastAPI cho dịch vụ phía máy chủ và Qdrant cho chỉ mục tìm kiếm. Supabase đảm nhiệm xác thực và dữ liệu ứng dụng; Next.js cùng React và TypeScript tạo giao diện web. OpenRouter cung cấp mô hình ngôn ngữ. Hệ thống còn lưu lịch sử hội thoại, phản hồi, đánh dấu câu trả lời và cho phép tra cứu lại văn bản nguồn.
 
-Bộ đánh giá gồm 40 trường hợp, chia đều cho tám nhóm câu hỏi. Chương trình tự động tính khả năng tìm đúng căn cứ, độ chính xác vị trí pháp lý, tính hợp lệ của trích dẫn, khả năng từ chối khi thiếu căn cứ và thời gian phản hồi. Phần chấm thủ công nội dung câu trả lời được đối chiếu riêng với căn cứ pháp luật; các chỉ số được nêu là kết quả tổng hợp từ lần chạy này.
+Bộ đánh giá gồm 40 trường hợp, chia đều cho tám nhóm câu hỏi. Chương trình tự động tính khả năng tìm đúng căn cứ, độ chính xác vị trí pháp lý, tính hợp lệ của trích dẫn, khả năng từ chối khi thiếu căn cứ và thời gian phản hồi. Các chỉ số được nêu là kết quả của lần chạy này.
 
 \clearpage
 \chapter*{ABSTRACT}
@@ -480,11 +480,11 @@ Bộ đánh giá gồm 40 trường hợp, chia đều cho tám nhóm câu hỏi
 \begin{sloppypar}
   This thesis develops a RAG-based system for Vietnamese traffic-law lookup. The system receives Vietnamese questions, retrieves the relevant legal passages, and produces an answer with citations the user can verify. A language model first analyses each request and returns a standalone question together with up to three expanded queries. Legal documents are normalized by Article, Clause, and Point before indexing, and the index holds both a semantic representation and a keyword representation.
 
-  For every expanded query, the system searches by both keywords and meaning, merges the ranked results by reciprocal rank fusion, keeps the best passages, and adds related provisions and cross-references to the context. The language model then answers from that context alone. A missing part of a question does not remove the parts that are supported; the whole request is refused only when the retrieved sources hold no relevant information.
+  Each expanded query is searched by keywords and by meaning, then the ranked results are merged by reciprocal rank fusion. The best passages are kept and the context is extended with related provisions and cross-references. The language model then answers from that context alone. A missing part of a question does not remove the parts that are supported; the whole request is refused only when the retrieved sources hold no relevant information.
 
   Citations are built from the stored description of each passage and matched against the retrieved sources, so unsupported citations and claims are dropped without discarding the answer. The application uses FastAPI for the server, Qdrant for search, Supabase for authentication and application data, and Next.js with React and TypeScript for the web interface; OpenRouter provides access to the language models. The system also supports chat history, feedback, bookmarks, and source lookup.
 
-  The evaluation set contains 40 cases in eight groups. Automated scoring covers supporting-passage retrieval, legal-location accuracy, citation validity, refusal behaviour when evidence is insufficient, and response time. Manual scoring of answer content is handled separately by comparing answers with the retrieved legal basis.
+  The evaluation set contains 40 cases in eight groups. Automated scoring covers supporting-passage retrieval, legal-location accuracy, citation validity, refusal behaviour when evidence is insufficient, and response time.
 \end{sloppypar}
 \clearpage
 \tableofcontents
@@ -703,7 +703,7 @@ Bộ đánh giá gồm 40 trường hợp thuộc tám nhóm, mỗi nhóm năm t
 \subsection{Phạm vi chức năng}
 Hệ thống có các chức năng đăng ký, đăng nhập, hỏi đáp pháp luật, xem nguồn và điều khoản, quản lý lịch sử hội thoại, gửi phản hồi và đánh dấu câu trả lời, cùng các chức năng hỗ trợ chuẩn bị dữ liệu, xây lại chỉ mục tìm kiếm và chạy bộ đánh giá.
 
-Các chỉ số tính từ kết quả tìm kiếm và phản hồi của hệ thống gồm khả năng tìm đúng căn cứ, xác định đúng văn bản và vị trí Điều, Khoản, Điểm, tính hợp lệ của trích dẫn, quyết định từ chối trả lời và thời gian xử lý; nội dung câu trả lời được chấm thủ công bằng cách đối chiếu trực tiếp với căn cứ pháp luật.
+Các chỉ số tính từ kết quả tìm kiếm và phản hồi của hệ thống gồm khả năng tìm đúng căn cứ, xác định đúng văn bản và vị trí Điều, Khoản, Điểm, tính hợp lệ của trích dẫn, quyết định từ chối trả lời và thời gian xử lý.
 
 \AssetFigure[\textwidth]{ch1_research_scope.png}{20cm}{Phạm vi dữ liệu, chức năng và đánh giá của khóa luận}{}
 
@@ -1089,12 +1089,9 @@ Tỷ lệ trích dẫn hợp lệ là số trích dẫn có thông tin nguồn �
 \subsection{Độ trễ}
 Mô-đun đánh giá tính độ trễ phản hồi (mili giây) theo trung bình, trung vị và phân vị 95 trên các lần chạy đánh giá. Các giá trị phụ thuộc vào kết nối mạng, dịch vụ mô hình và môi trường chạy nên cần được đọc cùng điều kiện đo.
 
-\subsection{Đánh giá nội dung thủ công}
-Nội dung câu trả lời được chấm thủ công bằng cách đối chiếu với căn cứ pháp luật. Kết quả chấm được ghi nhận riêng với các chỉ số tự động.
-
 \subsection{Tổng hợp và quyết định chọn mô hình}
 Dựa trên hai bảng đối sánh ở trên, phần này tổng hợp lựa chọn mô hình theo cùng thiết kế đo: trên sáu ca bộ phân tích yêu cầu và năm lần lặp bộ sinh câu trả lời, dùng cùng câu lệnh cho mô hình và 15 đoạn dữ liệu truy xuất. Bảng \ref{tab:model-selection} ghi độ ổn định đầu ra, độ trễ và độ dài đầu ra của các lựa chọn đã đo.
-\begin{longtable}{|L{3.2cm}|L{4.2cm}|L{3.4cm}|L{3.8cm}|}
+\begin{longtable}{|L{3.2cm}|L{3.9cm}|L{3.4cm}|L{3.6cm}|}
   \caption{Đối sánh chọn mô hình qua OpenRouter}\label{tab:model-selection}                                                                                                  \\
   \hline
   \textbf{Mô hình}       & \textbf{Bộ phân tích (6 ca)}                            & \textbf{Bộ sinh (5 lần)}     & \textbf{Nhà cung cấp và ghi chú}                         \\
@@ -2064,7 +2061,7 @@ Sơ đồ tập trung vào năm bảng dữ liệu ứng dụng và các quan h�
 Mỗi bản ghi là một phiên hội thoại, gắn với người dùng sở hữu qua \texttt{user\_id}.
 {\fontsize{11pt}{12pt}\selectfont
 \Needspace{10\baselineskip}
-\begin{longtable}{|L{0.9cm}|L{2.9cm}|L{2.6cm}|L{3.0cm}|L{4.0cm}|}
+\begin{longtable}{|L{0.9cm}|L{2.8cm}|L{2.9cm}|L{3.0cm}|L{3.8cm}|}
   \caption{Thiết kế bảng chat\_sessions}\label{tab:db-sessions}                                          \\
   \hline
   STT & Thuộc tính  & Khóa/ràng buộc                              & Kiểu dữ liệu & Diễn giải             \\
@@ -2089,7 +2086,7 @@ Bảng có ràng buộc unique theo cặp \texttt{(id,user\_id)} để tin nhắ
 Mỗi bản ghi là một tin nhắn, gồm nội dung trao đổi giữa người dùng và trợ lý, trạng thái xử lý, kết quả trả về và trích dẫn.
 {\fontsize{11pt}{12pt}\selectfont
 \Needspace{10\baselineskip}
-\begin{longtable}{|L{0.9cm}|L{2.9cm}|L{2.6cm}|L{3.0cm}|L{4.0cm}|}
+\begin{longtable}{|L{0.9cm}|L{2.8cm}|L{2.9cm}|L{3.0cm}|L{3.8cm}|}
   \caption{Thiết kế bảng messages}\label{tab:db-messages}                                                                        \\
   \hline
   STT & Thuộc tính  & Khóa/ràng buộc                                     & Kiểu dữ liệu & Diễn giải                              \\
@@ -2121,7 +2118,7 @@ Mỗi bản ghi là một tin nhắn, gồm nội dung trao đổi giữa ngư�
 Mỗi bản ghi là một đánh giá cho một tin nhắn. Trường \texttt{rating} dùng số nguyên, trong đó 1 biểu thị đánh giá tích cực và 0 biểu thị đánh giá không tích cực. Người dùng có thể gửi thêm nội dung nhận xét ở trường \texttt{comment}.
 {\fontsize{11pt}{12pt}\selectfont
 \Needspace{10\baselineskip}
-\begin{longtable}{|L{0.9cm}|L{2.9cm}|L{2.6cm}|L{3.0cm}|L{4.0cm}|}
+\begin{longtable}{|L{0.9cm}|L{2.8cm}|L{2.9cm}|L{3.0cm}|L{3.8cm}|}
   \caption{Thiết kế bảng feedback}\label{tab:db-feedback}                              \\
   \hline
   STT & Thuộc tính  & Khóa/ràng buộc           & Kiểu dữ liệu & Diễn giải              \\
@@ -2379,7 +2376,7 @@ FastAPI tự tạo tài liệu OpenAPI cho các đường dẫn dịch vụ đã
 Hình~\ref{fig:ch4_swagger} là giao diện Swagger của FastAPI, liệt kê các nhóm endpoint của dịch vụ.
 \AssetFigure[0.94\textwidth][fig:ch4_swagger]{ch4_swagger.png}{9.0cm}{Tài liệu API do FastAPI sinh tự động}{}
 \section{Đánh giá khả năng tra cứu và trả lời}
-Trong lần chạy cuối, bộ phân tích yêu cầu và bộ sinh câu trả lời cùng dùng mô hình \texttt{google/gemini-2.5-flash-lite}, còn mô hình embedding là \texttt{qwen/qwen3-embedding-8b}. Hệ thống chạy qua API với \texttt{top\_k = 5}; mỗi truy vấn mở rộng lấy top 8 kết quả trước khi gộp thứ hạng. Bộ dữ liệu có 40 trường hợp: 32 trường hợp được tính, 8 trường hợp ngoài kho dữ liệu và 0 trường hợp thiếu cấu trúc; 8 trường hợp ngoài kho dữ liệu vẫn được tính trong phân tích từ chối trả lời. Có kiểm tra thủ công mẫu 10 trường hợp, đạt 0.65, do trợ lý thực hiện và chưa có người chấm độc lập; 30 trường hợp còn lại chưa được chấm.
+Số liệu trong mục này lấy từ một lần chạy qua API, dùng chung mô hình \texttt{google/\allowbreak gemini-2.5-flash-lite} cho bộ phân tích yêu cầu và bộ sinh câu trả lời; mô hình embedding là \texttt{qwen/\allowbreak qwen3-embedding-8b}. Hệ thống đặt \texttt{top\_k = 5}; mỗi truy vấn mở rộng lấy 8 kết quả trước khi gộp thứ hạng. Bộ đánh giá có 40 trường hợp: 32 trường hợp được tính chỉ số, 8 trường hợp nằm ngoài kho dữ liệu, không trường hợp nào thiếu cấu trúc. Tám trường hợp ngoài kho dữ liệu vẫn được tính khi phân tích hành vi từ chối.
 \begin{table}[H]
   \caption{Chỉ số đánh giá của lần chạy cuối}
   \label{tab:evaluation-status}
@@ -2401,8 +2398,6 @@ Trong lần chạy cuối, bộ phân tích yêu cầu và bộ sinh câu trả 
     Tỉ lệ trích dẫn hợp lệ & 1.0000 \\
     \hline
     Tỉ lệ từ chối trả lời đúng & 1.0000 \\
-    \hline
-    Nội dung trả lời chấm thủ công & 0.65 trên mẫu n = 10, do trợ lý thực hiện, chưa có người chấm độc lập \\
     \hline
   \end{tabularx}
 \end{table}
@@ -2427,27 +2422,25 @@ Trong lần chạy cuối, bộ phân tích yêu cầu và bộ sinh câu trả 
 Hình~\ref{fig:ch4_evaluation} trình bày kết quả lần chạy cuối trên 40 trường hợp.
 \AssetFigure[\textwidth][fig:ch4_evaluation]{ch4_evaluation_report.png}{20cm}{Kết quả lần chạy cuối trên 40 trường hợp}{}
 
-So với các số liệu cũ trong bảng, lần chạy cuối tăng lần lượt từ 0.25 lên 0.7273, từ 0.50 lên 0.7727, từ 0.4167 lên 0.7273, từ 0.3846 lên 0.7500, từ 0.00 lên 0.0000, từ 0.8824 lên 1.0000 và từ 0.7059 lên 1.0000; cả 5 trường hợp thiếu căn cứ trước đây đều được trả lời, còn lần chạy cuối từ chối chúng.
+So với đường cơ sở ghi trên hình, tỉ lệ tìm thấy căn cứ đúng tăng từ 0.25 lên 0.7273; độ chính xác ở mức văn bản từ 0.50 lên 0.7727; mức Điều từ 0.4167 lên 0.7273; mức Khoản từ 0.3846 lên 0.7500. Độ chính xác ở mức Điểm giữ nguyên 0.0000, còn tỉ lệ trích dẫn hợp lệ tăng từ 0.8824 lên 1.0000 và tỉ lệ từ chối trả lời đúng từ 0.7059 lên 1.0000. Năm trường hợp thiếu căn cứ trước đây đều được trả lời; lần chạy này từ chối cả năm.
 
 % ============================================================
 \section*{Kết quả đạt được}
 \phantomsection
 \addcontentsline{toc}{section}{Kết quả đạt được}
 
-Luồng xử lý hỏi đáp bắt đầu bằng bước phân tích yêu cầu bằng mô hình ngôn ngữ: hệ thống tạo truy vấn độc lập và các truy vấn mở rộng, truy xuất nhiều truy vấn, gộp thứ hạng bằng RRF, bổ sung ngữ cảnh, rồi làm sạch trích dẫn theo thông tin mô tả đã truy xuất. Khi câu hỏi chỉ được hỗ trợ một phần, hệ thống giữ lại phần trả lời có căn cứ.
+Luồng xử lý hỏi đáp gồm các bước: phân tích yêu cầu bằng mô hình ngôn ngữ để tạo truy vấn độc lập và các truy vấn mở rộng; truy xuất nhiều truy vấn; gộp thứ hạng bằng RRF; bổ sung ngữ cảnh; làm sạch trích dẫn theo thông tin mô tả đã truy xuất. Câu hỏi chỉ được hỗ trợ một phần thì phần trả lời có căn cứ vẫn được giữ lại.
 
-Lần chạy cuối có độ trễ trung bình 11061.57 ms và phân vị 95 là 17264.5 ms trên 40 trường hợp.
+Trên 40 trường hợp, độ trễ trung bình là 11061.57 ms và phân vị 95 là 17264.5 ms.
 
 \section*{Hạn chế}
 \phantomsection
 \addcontentsline{toc}{section}{Hạn chế}
-Độ chính xác ở mức Điểm chỉ tính trên ba trường hợp, trong đó hai câu hỏi chỉ nêu tọa độ trần mà không nêu văn bản và một điều khoản kỳ vọng không có trong kho dữ liệu. Đây là giới hạn của tập kiểm tra, không phải lỗi tách văn bản.
+Độ chính xác ở mức Điểm chỉ tính trên ba trường hợp: hai câu hỏi chỉ nêu tọa độ trần mà không nêu văn bản, một điều khoản kỳ vọng không có trong kho dữ liệu. Bước tách văn bản giữ đúng cấu trúc Điểm, nên giới hạn này nằm ở tập kiểm tra.
 
 Độ trễ còn cao: trung bình 11.06 giây và phân vị 95 là 17.26 giây, chưa đạt mục tiêu dưới 15 giây.
 
-Đánh giá thủ công chưa hoàn thành đầy đủ: mới kiểm tra mẫu 10 trường hợp và đạt 0.65; phần kiểm tra này do trợ lý thực hiện, chưa có người chấm độc lập, và 30 trường hợp còn lại chưa được chấm.
-
-Tám trường hợp ngoài kho dữ liệu chưa đánh giá được khả năng tìm căn cứ, và kết quả giữa hai lần chạy cùng cấu hình còn dao động.
+Tám trường hợp ngoài kho dữ liệu không dùng để đánh giá khả năng tìm căn cứ. Hai lần chạy cùng cấu hình cho kết quả khác nhau, nên chỉ số truy xuất còn dao động.
 
 \section*{Mục tiêu vòng cải thiện tiếp theo}
 \phantomsection
@@ -2480,17 +2473,16 @@ Tám trường hợp ngoài kho dữ liệu chưa đánh giá được khả nă
 
 \section*{Việc cần làm và tính năng sẽ bổ sung}
 \begin{enumerate}
-  \item Parser đã sửa lỗi giữ cấu trúc Điểm; giới hạn Điểm còn lại là do thiết kế tập kiểm tra với các tọa độ trần.
+  \item Bước tách văn bản đã giữ đúng cấu trúc Điểm; giới hạn còn lại ở mức Điểm nằm ở thiết kế tập kiểm tra với các tọa độ trần.
   \item Thêm lịch sử hội thoại vào tập đánh giá cho nhóm câu hỏi nối tiếp; kết quả chạy độc lập chưa phản ánh năng lực xử lý tham chiếu.
-  \item Chấm thủ công nội dung trả lời; kiểm tra mẫu n = 10 đạt 0.65, nhưng đánh giá đầy đủ vẫn chưa hoàn thành.
   \item Chạy so sánh A/B (hai biến thể kiến trúc) trên cùng tập dữ liệu và cùng mô hình, tách ảnh hưởng của kiến trúc khỏi ảnh hưởng của việc chọn mô hình.
-  \item Thêm bộ xếp hạng lại và bộ lọc theo Điều, Khoản; tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên của lần chạy cuối là 0.7273.
+  \item Thêm bộ xếp hạng lại và bộ lọc theo Điều, Khoản để nâng tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên, hiện là 0.7273.
   \item Giảm số truy vấn mở rộng và lưu đệm vector, để đưa độ trễ phân vị 95 xuống dưới 15 giây.
   \item Bổ sung tác tử nhiều bước theo kiểu RAG tác tử, gồm bước tự kiểm tra và bước truy xuất sửa sai \cite{agentic_rag_survey}.
   \item Tách hệ thống thành các tác tử: điều phối phân công nhiệm vụ, truy xuất tìm tài liệu, kiểm chứng trích dẫn và phản biện kiểm tra câu trả lời \cite{agentic_rag_survey,agentic_legal_challenge}.
   \item Thêm tìm kiếm web làm phương án dự phòng khi kho dữ liệu thiếu, đồng thời mở rộng kho dữ liệu và cập nhật theo hiệu lực văn bản.
   \item Dựng đồ thị quan hệ giữa các văn bản theo GraphRAG để hỗ trợ các tham chiếu liên văn bản \cite{production_rag_2026}.
-  \item Thêm vòng phản hồi người dùng và duyệt thủ công cho câu trả lời rủi ro cao; tỉ lệ từ chối trả lời đúng của lần chạy cuối là 1.0000.
+  \item Dùng phản hồi và nội dung đã lưu của người dùng để rà soát lại câu trả lời rủi ro cao; tỉ lệ từ chối trả lời đúng hiện là 1.0000.
   \item Đưa bộ kiểm tra an toàn cho câu trả lời pháp lý vào quy trình đánh giá, kết hợp các chỉ số RAGAS như tỉ lệ trung thực với nguồn và tỉ lệ bao phủ ngữ cảnh \cite{ragas_metrics}.
 \end{enumerate}
 

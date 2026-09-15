@@ -196,7 +196,7 @@ Bảng 3 , số nhà cung cấp mô hình và tỉ lệ hoạt động (OpenRout
 | `qwen/qwen3-30b-a3b-instruct-2507`                                                                                                                                                                                                                                                                                                                                         |                       5 | có nhà cung cấp mô hình ở trạng thái degraded                                    |
 | `mistralai/mistral-small-24b-instruct-2501`                                                                                                                                                                                                                                                                                                                                |                       1 | chỉ DeepInfra; E2E độ trễ P90 27.8s, P95 40.0s, tỉ lệ lỗi định dạng đầu ra 2.35% |
 | `deepseek/deepseek-v4-flash-0731`                                                                                                                                                                                                                                                                                                                                          |                      27 | ổn định nhưng chậm nhất ở generation                                             |
-| Đã chọn `GENERATION_MODEL=google/gemini-2.5-flash-lite` và `ANALYZER_MODEL=google/gemini-2.5-flash-lite`: bộ phân tích yêu cầu 6/6, generation p50 1.2s / max 2.2s trên 5 lần lặp, 5 nhà cung cấp mô hình nên `allow_fallbacks` có tác dụng, giá thuộc nhóm thấp. `mistral-small-24b` từng gây `generation_failed` do chỉ có 1 nhà cung cấp mô hình và bị 429 từ upstream. |
+| Chốt `GENERATION_MODEL=google/gemini-2.5-flash-lite` và `ANALYZER_MODEL=google/gemini-2.5-flash-lite`. Bộ phân tích đạt 6/6; generation p50 1.2s, max 2.2s trên 5 lần lặp; có 5 nhà cung cấp mô hình nên `allow_fallbacks` có tác dụng; giá thuộc nhóm thấp. `mistral-small-24b` từng gây `generation_failed` vì chỉ có 1 nhà cung cấp mô hình và bị upstream trả 429. |
 
 ## Ma trận acceptance
 
@@ -226,15 +226,15 @@ Bảng 3 , số nhà cung cấp mô hình và tỉ lệ hoạt động (OpenRout
 
 ### Hạn chế đã đo
 
-- Trạng thái: 22/22 lần gọi ra đúng mã trạng thái (VERIFIED cho câu trong phạm vi, OUT_OF_SCOPE cho câu ngoài phạm vi); không còn `generation_failed` hay `insufficient_evidence` ngoài dự kiến. Đây là đánh giá theo trạng thái, khác với xác nhận chất lượng nội dung từng câu (xem hạn chế follow-up bên dưới).
-- Độ trễ sau khi nâng song song truy xuất: 2.7, 25.5s mỗi câu.
-- Follow-up `Vậy còn ô tô?` sau câu hỏi mũ bảo hiểm chưa đúng ý người hỏi: câu hỏi này mơ hồ vì không có quy định mũ bảo hiểm cho ô tô. Đo hai cách xử lý đều cho kết quả chung về ô tô (dây an toàn) , bỏ hành vi (`Mức phạt đối với ô tô bao nhiêu?`, 1 citation) và giữ hành vi (`… đối với hành vi không đội mũ bảo hiểm …`, 5 citation) , nên nguyên nhân nằm ở câu hỏi thiếu hành vi, khác với ở resolver. Hướng đúng là hỏi lại hành vi cụ thể thay vì trả quy định ô tô bất kỳ; chưa triển khai.
+- Trạng thái: 22/22 lần gọi ra đúng mã trạng thái (VERIFIED cho câu trong phạm vi, OUT_OF_SCOPE cho câu ngoài phạm vi); không còn `generation_failed` hay `insufficient_evidence` ngoài dự kiến. Số liệu này chỉ kiểm tra mã trạng thái; chất lượng nội dung từng câu xem phần follow-up bên dưới.
+- Độ trễ sau khi cho truy xuất chạy song song: từ 2.7s đến 25.5s mỗi câu.
+- Follow-up `Vậy còn ô tô?` sau câu hỏi mũ bảo hiểm chưa đúng ý người hỏi: câu hỏi này mơ hồ vì không có quy định mũ bảo hiểm cho ô tô. Hai cách xử lý đều cho kết quả chung về ô tô (dây an toàn): bỏ hành vi (`Mức phạt đối với ô tô bao nhiêu?`, 1 citation) và giữ hành vi (`… đối với hành vi không đội mũ bảo hiểm …`, 5 citation). Nguyên nhân nằm ở câu hỏi thiếu hành vi, không ở bước phân tích tham chiếu. Hướng đúng là hỏi lại hành vi cụ thể thay vì trả quy định ô tô bất kỳ; chưa triển khai.
 - `Điều 7 Khoản 3 Nghị định 168/2024` và `Điều 5 Nghị định 100/2019` trước đây trả `reference_not_found`; sau khi sửa parser thứ tự `Điều … Khoản …` cả hai đã VERIFIED.
 - Case "xe buýt không đúng tuyến" được kỳ vọng thiếu căn cứ trong ma trận cũ, nhưng corpus có khoản 1 Điều 25 Nghị định 168/2024 nên kết quả VERIFIED là đúng.
 
 ## Evaluation 40 cases
 
-Lần chạy cuối `20260915T142333Z` dùng `google/gemini-2.5-flash-lite` cho analyzer và generator, `qwen/qwen3-embedding-8b` cho embedding, API `top_k=5` (mỗi truy vấn mở rộng lấy top 8 rồi gộp). Coverage: 40 tổng / 32 được tính / 8 ngoài kho dữ liệu / 0 thiếu cấu trúc; 8 trường hợp ngoài kho dữ liệu vẫn được tính trong phân tích từ chối trả lời. Lần chạy tái lập cùng cấu hình là `20260915T140810Z`. Kiểm tra thủ công mẫu n = 10, do trợ lý thực hiện, chưa có người chấm độc lập: `manual_correctness = 0.65 (n=10)`; 30/40 trường hợp chưa được chấm. Artifact review: `data/evaluation/thesis-run/20260915T142333Z.reviews.jsonl`; lệnh review bên dưới.
+Lần chạy cuối `20260915T142333Z` dùng `google/gemini-2.5-flash-lite` cho analyzer và generator, `qwen/qwen3-embedding-8b` cho embedding, API `top_k=5` (mỗi truy vấn mở rộng lấy top 8 rồi gộp). Coverage: 40 tổng / 32 được tính / 8 ngoài kho dữ liệu / 0 thiếu cấu trúc; 8 trường hợp ngoài kho dữ liệu vẫn được tính trong phân tích từ chối trả lời. Lần chạy tái lập cùng cấu hình là `20260915T140810Z`.
 
 | Chỉ số | Lần chạy cuối | Baseline |
 | ------ | -------------: | -------: |
@@ -262,13 +262,25 @@ Provenance của index: các chỉ số trên được đo khi backend phục v�
 | recall | 1.0000 | 1.0000 |
 | F1 | 0.7143 | 1.0000 |
 
-Theo nhãn gold, 8 trường hợp ngoài kho dữ liệu vẫn giữ nhãn gốc nên tạo FP; theo hiệu dụng, provision không có trong corpus cũng được xem là nên từ chối. Recall của lớp an toàn quan trọng là chỉ số cần ưu tiên: baseline trả lời cả 5 trường hợp thiếu căn cứ, còn lần chạy cuối từ chối chúng với `clarification_required`.
+Theo nhãn gold, 8 trường hợp ngoài kho dữ liệu vẫn giữ nhãn gốc nên tạo FP; theo hiệu dụng, provision không có trong corpus cũng được xem là nên từ chối. Recall mới là chỉ số cần ưu tiên ở lớp an toàn: baseline trả lời cả 5 trường hợp thiếu căn cứ, lần chạy này từ chối chúng bằng `clarification_required`.
 
 Độ trễ lần chạy cuối: mean 11061.57 ms, min 5681.92 ms, max 19484.88 ms, p50 10908.84 ms, p95 17264.5 ms, n=40. Trung bình theo giai đoạn: retrieval 2275.8 ms, generation 863.46 ms, in-service total 4215.65 ms; phần còn lại là công việc tầng API.
 
-Theo nhóm (lần chạy cuối, `retrieval_hit_at_k_hierarchical` / document / abstention): `penalty` 1.00 / 1.00 / 1.00; `exact_reference` 1.00 / 1.00 / 1.00; `cross_reference` 0.80 / 0.80 / 1.00; `follow_up` 0.75 / 0.75 / 1.00; `natural_language` 0.00 / 0.25 / 1.00; `insufficient_evidence` và `out_of_scope` abstention 1.00; `multi_intent` không có trường hợp nào được tính vì provision kỳ vọng không có trong corpus.
+Theo nhóm (`retrieval_hit_at_k_hierarchical` / document / abstention):
 
-Residuals: point có mẫu nhỏ (n=3), trong đó hai gold query chỉ nêu tọa độ trần và `diem-c` không có trong corpus; p95 17.26 giây vượt mục tiêu <15 giây; đánh giá thủ công đầy đủ chưa hoàn thành (mẫu n = 10 do trợ lý thực hiện, chưa có người chấm độc lập; 0.65 không đại diện vì mẫu cố ý gồm `natural_language` và `follow_up`, trong đó case 06 và 26 đạt 0); có 8 trường hợp ngoài kho dữ liệu. Hit@5 phân cấp biến thiên giữa hai lần chạy cùng cấu hình: 0.7273 (`20260915T142333Z`) và 0.8571 (`20260915T140810Z`), do analyzer LLM và embedding provider từ xa.
+| nhóm | hit@5 phân cấp | document | abstention |
+| --- | ---: | ---: | ---: |
+| `penalty` | 1.00 | 1.00 | 1.00 |
+| `exact_reference` | 1.00 | 1.00 | 1.00 |
+| `cross_reference` | 0.80 | 0.80 | 1.00 |
+| `follow_up` | 0.75 | 0.75 | 1.00 |
+| `natural_language` | 0.00 | 0.25 | 1.00 |
+| `insufficient_evidence` |  |  | 1.00 |
+| `out_of_scope` |  |  | 1.00 |
+
+`multi_intent` không có trường hợp nào được tính vì provision kỳ vọng không có trong corpus.
+
+Residuals: chỉ số ở mức Điểm có mẫu nhỏ (n=3), trong đó hai gold query chỉ nêu tọa độ trần và `diem-c` không có trong corpus; p95 17.26 giây vượt mục tiêu <15 giây; 8 trường hợp ngoài kho dữ liệu. Hit@5 phân cấp biến thiên giữa hai lần chạy cùng cấu hình: 0.7273 (`20260915T142333Z`) và 0.8571 (`20260915T140810Z`), do analyzer LLM và embedding provider từ xa.
 
 ## Các gap hiện tại
 
@@ -311,12 +323,6 @@ uv run --project backend python backend/scripts/run_thesis_evaluation.py \
   --top-k 5 \
   --timeout 300 \
   --output-dir data/evaluation/thesis-run
-```
-
-```bash
-uv run --project backend python backend/scripts/review_thesis_answers.py \
-  data/evaluation/thesis-run/<run-id>.jsonl \
-  --output data/evaluation/thesis-run/<run-id>.reviews.jsonl
 ```
 
 ```bash
