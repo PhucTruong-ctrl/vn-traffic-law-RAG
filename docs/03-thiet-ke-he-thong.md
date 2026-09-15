@@ -1,16 +1,17 @@
 # 03. Thiết kế hệ thống
-> **Audit kiến trúc — 14/09/2026**
+
+> **Audit kiến trúc , 14/09/2026**
 >
 > Nguồn quyết định phạm vi: [00-scope-and-decisions.md](00-scope-and-decisions.md)
 > **Trạng thái release:** **RELEASE-READY FOR COVERED CORPUS / MVP RUNTIME**.
 > Trạng thái này áp dụng cho runtime MVP và 34 case có căn cứ; sáu case thiếu
 > corpus được ghi rõ, không tính vào denominator.
 >
-> Tài liệu này tách biệt tuyệt đối kiến trúc mục tiêu với runtime hiện tại. Sơ đồ trong phần TARGET là thiết kế nghiên cứu, không phải danh sách tính năng đã triển khai.
+> Tài liệu này tách biệt tuyệt đối kiến trúc mục tiêu với runtime hiện tại. Sơ đồ trong phần TARGET là thiết kế nghiên cứu, khác với danh sách tính năng đã triển khai.
 
 ## 1. TARGET ARCHITECTURE (thiết kế mục tiêu, chưa coi là runtime)
 
-Mục tiêu là RAG nhận biết cấu trúc và thời gian hiệu lực, chỉ trả claim có căn cứ và citation dựng từ identity ổn định. Các nguyên tắc frozen gồm: corpus 14 PDF allowlist `datafiles.chinhphu.vn`, deduplicate/hash và snapshot bất biến; ingestion manual CLI, fail-closed, không upload/admin/reviewer approval; query không open-web fallback; Qdrant là index dẫn xuất; evidence completeness trước generation; verified-or-abstain; workflow controlled, không autonomous multi-agent. Chi tiết và yêu cầu P0 nằm tại [00-scope-and-decisions.md](00-scope-and-decisions.md) (mục 4–10).
+Mục tiêu là RAG nhận biết cấu trúc và thời gian hiệu lực, chỉ trả claim có căn cứ và citation dựng từ identity ổn định. Các nguyên tắc frozen gồm: corpus 14 PDF allowlist `datafiles.chinhphu.vn`, deduplicate/hash và snapshot bất biến; ingestion manual CLI, fail-closed, không upload/admin/reviewer approval; truy vấn không open-web phương án dự phòng; Qdrant là index dẫn xuất; evidence completeness trước generation; verified-or-từ chối trả lời; workflow controlled, không autonomous multi-agent. Chi tiết và yêu cầu P0 nằm tại [00-scope-and-decisions.md](00-scope-and-decisions.md) (mục 4, 10).
 
 ### 1.1. Ingestion mục tiêu
 
@@ -46,11 +47,11 @@ Question
  → verified answer | bounded repair | abstention
 ```
 
-Original wording remains available during expansion. Every expansion is bounded and records its provenance (`added_by`, `source_id`, `depth`). Missing mandatory evidence, unsupported claims, schema errors, and temporal conflicts have separate repair branches; finite repair exhaustion ends in abstention. The target citation contract is identity-based (`provision_id`/trusted metadata), never free-form identifiers invented by the generator.
+Original wording remains available during expansion. Every expansion is bounded and records its provenance (`added_by`, `source_id`, `depth`). Missing mandatory evidence, unsupported claims, schema errors, and temporal conflicts have separate repair branches; finite repair exhaustion ends in từ chối trả lời. The target citation contract is identity-based (`provision_id`/trusted metadata), never free-form identifiers invented by the bộ sinh câu trả lời.
 
 ### 1.3. Target deployment concept
 
-The research design may include a canonical source of truth, relation storage, parser adapters, queue/object storage, reranking, workflow orchestration, and observability. Those are **target decisions only** unless implementation and deployment evidence proves otherwise. In particular, PostgreSQL legal source-of-truth, Redis/Dramatiq, MinIO, LangGraph, Langfuse, Docling/MinerU, production reranker, and a complete six-layer verifier are not to be presented as active services in this document.
+The research design may include a canonical source of truth, relation storage, parser adapters, queue/object storage, reranking, workflow orchestration, and observability. Those are **target decisions only** unless implementation and deployment evidence proves otherwise. In particular, PostgreSQL legal source-of-truth, Redis/Dramatiq, MinIO, LangGraph, Langfuse, Docling/MinerU, production bộ xếp hạng lại, and a complete six-layer verifier are not to be presented as active services in this document.
 
 ## 2. CURRENT RUNTIME AUDIT (code-backed, not target)
 
@@ -69,24 +70,43 @@ Bearer token / Supabase Auth
  → return session/message IDs and result
 ```
 
-Runtime persistence is user-scoped Supabase REST/Auth; it is not an app-owned PostgreSQL deployment claimed by the target model. Generation is free-form Markdown through the configured OpenRouter-compatible provider (`backend/app/rag/generator.py`), while the API maps a complete result to `VERIFIED` and preserves abstention/status responses. There is no active upload endpoint, reviewer queue, approval UI, background worker, or human approval step.
+Runtime persistence is user-scoped Supabase REST/Auth; it is not an app-owned PostgreSQL deployment claimed by the target model. Generation is free-form Markdown through the configured OpenRouter-compatible nhà cung cấp mô hình (`backend/app/rag/generator.py`), while the API maps a complete result to `VERIFIED` and preserves từ chối trả lời/status responses. There is no active upload endpoint, reviewer queue, approval UI, background worker, or human approval step.
 
 ### 2.2. Retrieval and evidence flow
 
-`backend/app/rag/retrieval.py` uses local or configured remote Qdrant, dense OpenAI-compatible embeddings (including OpenRouter configuration), FastEmbed sparse BM25, hybrid search, exact metadata filtering for explicit references, effective-date filtering, bounded sibling completion, and bounded cross-reference expansion. `backend/app/rag/service.py` runs synchronously in Python:
+`backend/app/rag/retrieval.py` dùng Qdrant hybrid dense+sparse, còn
+`backend/app/rag/service.py` chạy đồng bộ trong Python. Luồng runtime thực là:
 
 ```text
-analyze_question
- → bounded intent / vehicle fan-out
- → Retriever.retrieve
- → RRF-like score merge + diversity cap
- → structural, temporal and content filters
- → assess_evidence
+FastAPI nhận câu hỏi + history
+ → analyze_request
+   (LLM-first, strict JSON: category / intent / vehicle_type /
+    standalone_query + tối đa 3 expanded_queries; fallback tất định)
+ → retrieval top_k=8 cho từng expanded query (Qdrant dense+sparse)
+ → hợp nhất bằng RRF 1/(60+rank)
+ → chọn 12, 25 chunk, tối đa 3 chunk cho mỗi Điều/Khoản
+ → enrichment sibling / chế tài / cross-reference
+   (Retriever.complete_family)
+ → relevance filter, có graceful fallback
  → generate_answer
- → deterministic metadata citation assembly
+ → sanitize_response
+   (parse citation từ answer, đối chiếu metadata đã retrieve; loại citation
+    hoặc claim không khớp, không loại toàn bộ answer)
 ```
 
-`backend/app/rag/evidence.py` supplies deterministic identity/reference/content/intent/score/effective-interval checks. This is not the target workflow: audit found no active LangGraph graph, production reranker, complete six-independent-verifier stack, or failure-aware repair graph. Runtime citation records are assembled in `RAGService._citation` from `chunk_id`, `document_id`, article/clause/point, page and source metadata; this is not evidence that every citation has target `provision_id` and `review_status = ACCEPTED` semantics.
+History chỉ được đưa vào bộ phân tích yêu cầu, không nối vào truy xuất truy vấn. `references.py`
+phân tích chuỗi như `Điều 7 Khoản 3 Nghị định 168/2024` thành một reference;
+enrichment còn dùng `cross_refs.py`. `evidence.py` hiện chỉ còn
+`ABSTENTION_MESSAGE`; `assess_evidence` và `required_intents` đã bị xoá, nên
+runtime không có evidence-completeness gate trước generation. Abstention trước
+generation chỉ xảy ra khi không có tài liệu, explicit-reference mismatch,
+temporal mismatch, ngữ cảnh chỉ railway, out-of-scope hoặc chitchat. Sau
+generation, runtime từ chối trả lời khi bộ sinh câu trả lời trả `CANONICAL_REFUSAL`.
+
+Đây Đây là workflow khác với target: audit không thấy active LangGraph graph,
+production bộ xếp hạng lại, complete six-independent-verifier stack hay failure-aware
+repair graph. `sanitize_response` chỉ loại citation/claim không khớp metadata
+đã tìm kiếm căn cứ, không loại toàn bộ answer.
 
 ### 2.3. Ingestion and data model actually used
 
@@ -113,7 +133,7 @@ The compose file has `frontend`, `backend`, and `qdrant`; Supabase and OpenRoute
 
 Release/evaluation evidence is a **40-case gate across exactly eight categories**.
 The current release report records 34 covered cases, six
-`CORPUS_NOT_COVERED` cases, zero covered-case request errors, citation validity
+`CORPUS_NOT_COVERED` cases, zero covered-case request errors, tỉ lệ trích dẫn hợp lệ
 1.0 and the disclosed automatic metrics. Full human semantic review remains
 N/A; target parser/IR/source-of-truth and publish gates remain outside active
 runtime.
@@ -123,7 +143,7 @@ runtime.
 - Scope, frozen requirements, target/runtime distinction: [docs/00-scope-and-decisions.md](00-scope-and-decisions.md)
 - Runtime entrypoint and readiness: [backend/app/main.py](../backend/app/main.py)
 - Chat/auth/persistence flow: [backend/app/rag/api.py](../backend/app/rag/api.py), [backend/app/auth/](../backend/app/auth/), [backend/app/chats/](../backend/app/chats/)
-- Retrieval and expansion: [backend/app/rag/retrieval.py](../backend/app/rag/retrieval.py), [backend/app/rag/service.py](../backend/app/rag/service.py), [backend/app/rag/evidence.py](../backend/app/rag/evidence.py)
+- Retrieval and expansion: [backend/app/rag/truy xuất.py](../backend/app/rag/truy xuất.py), [backend/app/rag/service.py](../backend/app/rag/service.py), [backend/app/rag/evidence.py](../backend/app/rag/evidence.py)
 - Markdown ingestion: [backend/app/ingestion/markdown.py](../backend/app/ingestion/markdown.py)
 - Corpus manifest: [data/sources/manifest.json](../data/sources/manifest.json)
 - Active ingestion/index scripts: [scripts/ingest.py](../scripts/ingest.py), [scripts/fetch_sources.py](../scripts/fetch_sources.py), [scripts/index.py](../scripts/index.py)

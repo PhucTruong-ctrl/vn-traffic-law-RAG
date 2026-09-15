@@ -38,7 +38,7 @@
 \@writefile{lof}{\contentsline {figure}{\numberline {1.2}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Phạm vi dữ liệu, chức năng và đánh giá của khóa luận}}{4}{figure.caption.10}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {1.6}Phương pháp nghiên cứu}{4}{section.1.6}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {1.6.1}Khảo sát tài liệu kỹ thuật}{4}{subsection.1.6.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {1.6.2}Thiết kế hệ thống}{4}{subsection.1.6.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.6.2}Thiết kế hệ thống}{5}{subsection.1.6.2}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {1.3}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Quy trình nghiên cứu và phát triển hệ thống}}{5}{figure.caption.11}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {1.7}Hướng giải quyết}{5}{section.1.7}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {1.8}Kế hoạch thực hiện}{6}{section.1.8}\protected@file@percent }
@@ -54,9 +54,9 @@
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.2.1}Điều, Khoản và Điểm}{7}{subsection.2.2.1}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {2.2}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Cấu trúc đơn vị pháp lý dùng trong dữ liệu của đề tài}}{8}{figure.caption.16}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.2.2}Thông tin mô tả của một đoạn pháp luật}{8}{subsection.2.2.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2.3}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Cấu trúc một chunk pháp luật và thông tin mô tả đi kèm}}{8}{figure.caption.17}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {2.3}Manifest, Markdown và JSONL}{9}{section.2.3}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2.4}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Luồng tạo dữ liệu: manifest và Markdown đến chunks JSONL}}{9}{figure.caption.18}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2.3}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Cấu trúc một đoạn dữ liệu pháp luật và thông tin mô tả đi kèm}}{8}{figure.caption.17}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2.3}Manifest, Markdown và JSON (định dạng dữ liệu có cấu trúc) theo từng dòng}{9}{section.2.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2.4}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Luồng tạo dữ liệu: danh mục nguồn và Markdown đến chunks JSON (định dạng dữ liệu có cấu trúc) theo từng dòng}}{9}{figure.caption.18}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {2.4}Tra cứu định danh pháp lý chính xác}{9}{section.2.4}\protected@file@percent }
 \citation{qdrant_bm25_docs}
 \@writefile{lof}{\contentsline {figure}{\numberline {2.5}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Tra cứu chính xác theo số hiệu văn bản, Điều, Khoản và Điểm}}{10}{figure.caption.19}\protected@file@percent }
@@ -68,346 +68,368 @@
 \@writefile{lof}{\contentsline {figure}{\numberline {2.7}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Minh họa tìm kiếm ngữ nghĩa bằng vector biểu diễn ngữ nghĩa}}{11}{figure.caption.21}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {2.7}Tìm kiếm kết hợp trong Qdrant}{11}{section.2.7}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {2.8}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Tìm kiếm kết hợp ngữ nghĩa và từ khóa trong Qdrant}}{12}{figure.caption.22}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {2.8}Phân tích câu hỏi bằng quy tắc xác định trước}{12}{section.2.8}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2.9}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Phân tích câu hỏi và tách các yêu cầu pháp lý nhỏ}}{12}{figure.caption.23}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2.8}Phân tích yêu cầu: dùng mô hình ngôn ngữ ở bước đầu với JSON (định dạng dữ liệu có cấu trúc) nghiêm ngặt}{12}{section.2.8}\protected@file@percent }
 \citation{qdrant_hybrid_docs}
-\@writefile{toc}{\contentsline {section}{\numberline {2.9}Reciprocal Rank Fusion}{13}{section.2.9}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2.10}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Minh họa gộp nhiều danh sách kết quả bằng RRF}}{13}{figure.caption.24}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {2.10}Bổ sung đoạn cùng Điều và tham chiếu liên quan}{13}{section.2.10}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2.11}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Bổ sung căn cứ cùng Điều và tham chiếu liên quan}}{14}{figure.caption.25}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {2.11}Kiểm tra căn cứ và cơ chế từ chối trả lời}{14}{section.2.11}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2.12}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Bước kiểm tra căn cứ trước khi sinh câu trả lời}}{14}{figure.caption.26}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2.9}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Phân tích yêu cầu bằng LLM, tạo câu hỏi độc lập đã tách khỏi ngữ cảnh và tối đa ba truy vấn mở rộng}}{13}{figure.caption.23}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2.9}Phương pháp gộp thứ hạng}{13}{section.2.9}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2.10}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Minh họa gộp nhiều danh sách kết quả bằng RRF}}{14}{figure.caption.24}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2.10}Bổ sung đoạn cùng Điều và tham chiếu liên quan}{14}{section.2.10}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2.11}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Bổ sung ngữ cảnh cùng Điều và tham chiếu liên quan}}{14}{figure.caption.25}\protected@file@percent }
 \citation{openrouter_embeddings_docs}
 \citation{openrouter_chat_docs}
+\@writefile{toc}{\contentsline {section}{\numberline {2.11}Phân loại từ chối trả lời và xử lý thiếu căn cứ}{15}{section.2.11}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {2.12}Sinh câu trả lời có căn cứ qua OpenRouter}{15}{section.2.12}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2.13}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Luồng sinh câu trả lời từ các căn cứ đã truy xuất}}{15}{figure.caption.27}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2.12}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Generator trả lời một phần dựa trên ngữ cảnh đã truy xuất và bổ sung}}{16}{figure.caption.26}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {2.13}Kiểm tra kết quả sau khi tạo câu trả lời}{16}{section.2.13}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2.14}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Kiểm tra mối liên hệ giữa câu trả lời, căn cứ và trích dẫn}}{16}{figure.caption.28}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {2.14}Trích dẫn được tạo từ thông tin mô tả}{16}{section.2.14}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2.13}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Làm sạch trích dẫn và khẳng định theo thông tin mô tả, giữ phần trả lời còn căn cứ}}{16}{figure.caption.27}\protected@file@percent }
 \citation{fastapi_docs}
 \citation{python311_docs}
-\@writefile{lof}{\contentsline {figure}{\numberline {2.15}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Tạo và hiển thị trích dẫn từ thông tin mô tả nguồn}}{17}{figure.caption.29}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2.16}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Các nhóm API chính của dịch vụ phía máy chủ FastAPI}}{17}{figure.caption.30}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2.14}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Tạo và hiển thị trích dẫn từ thông tin mô tả nguồn}}{17}{figure.caption.28}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2.15}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Các nhóm API chính của dịch vụ phía máy chủ FastAPI}}{17}{figure.caption.29}\protected@file@percent }
 \citation{fastapi_docs}
-\@writefile{lof}{\contentsline {figure}{\numberline {2.17}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Các nhóm chức năng Python được dùng trong dịch vụ phía máy chủ}}{18}{figure.caption.31}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {2.15}HTTP, REST và dữ liệu JSON}{18}{section.2.15}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2.18}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Vòng đời một yêu cầu HTTP giữa trình duyệt và FastAPI}}{19}{figure.caption.32}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {2.16}ASGI và Uvicorn}{19}{section.2.16}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {2.17}LangChain trong phạm vi dự án}{19}{section.2.17}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2.16}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Các nhóm chức năng Python được dùng trong dịch vụ phía máy chủ}}{18}{figure.caption.30}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2.14}HTTP, REST và dữ liệu JSON}{18}{section.2.14}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2.17}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Vòng đời một yêu cầu HTTP giữa trình duyệt và FastAPI}}{19}{figure.caption.31}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2.15}ASGI và Uvicorn}{19}{section.2.15}\protected@file@percent }
 \citation{qdrant_hybrid_docs}
 \citation{supabase_rls_docs}
-\@writefile{toc}{\contentsline {section}{\numberline {2.18}Qdrant, FastEmbed và chỉ mục tìm kiếm}{20}{section.2.18}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2.19}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Bảo vệ dữ liệu ứng dụng bằng Supabase Auth và RLS}}{20}{figure.caption.33}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2.16}LangChain trong phạm vi dự án}{20}{section.2.16}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2.17}Qdrant, FastEmbed và chỉ mục tìm kiếm}{20}{section.2.17}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2.18}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Bảo vệ dữ liệu ứng dụng bằng Supabase Auth và RLS}}{21}{figure.caption.32}\protected@file@percent }
 \citation{supabase_auth_docs}
 \citation{supabase_rls_docs}
-\@writefile{lof}{\contentsline {figure}{\numberline {2.20}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Khóa chính, khóa ngoại, chỉ mục và ràng buộc trong dữ liệu ứng dụng}}{21}{figure.caption.34}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {2.19}Supabase Auth, JWT và phân quyền}{21}{section.2.19}\protected@file@percent }
 \citation{nextjs_app_router_docs}
-\@writefile{lof}{\contentsline {figure}{\numberline {2.21}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Luồng Supabase Auth, JWT, auth.uid và Row Level Security}}{22}{figure.caption.35}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2.22}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Kiến trúc giao diện Next.js của hệ thống}}{22}{figure.caption.36}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2.19}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Khóa chính, khóa ngoại, chỉ mục và ràng buộc trong dữ liệu ứng dụng}}{22}{figure.caption.33}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2.18}Supabase Auth, JWT và phân quyền}{22}{section.2.18}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2.20}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Luồng Supabase Auth, JWT, auth.uid và Row Level Security}}{22}{figure.caption.34}\protected@file@percent }
 \citation{react_docs}
 \citation{react_state_docs}
+\@writefile{lof}{\contentsline {figure}{\numberline {2.21}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Kiến trúc giao diện Next.js của hệ thống}}{23}{figure.caption.35}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.18.1}React component, props và state}{23}{subsection.2.18.1}\protected@file@percent }
 \citation{typescript_docs}
 \citation{pdfjs_docs}
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.19.1}React component, props và state}{23}{subsection.2.19.1}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2.23}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Component và luồng state của giao diện hỏi đáp}}{23}{figure.caption.37}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.19.2}TypeScript và kiểm tra kiểu tĩnh}{23}{subsection.2.19.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.19.3}PDF.js và React Markdown}{23}{subsection.2.19.3}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2.24}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Luồng mở citation đến nguồn Markdown hoặc PDF viewer}}{24}{figure.caption.38}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {2.20}Kiến trúc Client-Server}{24}{section.2.20}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {2.21}Cơ sở dữ liệu vector}{24}{section.2.21}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2.22}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Component và luồng state của giao diện hỏi đáp}}{24}{figure.caption.36}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.18.2}TypeScript và kiểm tra kiểu tĩnh}{24}{subsection.2.18.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.18.3}PDF.js và React Markdown}{24}{subsection.2.18.3}\protected@file@percent }
 \citation{supabase_auth_docs}
 \citation{supabase_rls_docs}
+\@writefile{lof}{\contentsline {figure}{\numberline {2.23}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Luồng mở trích dẫn đến nguồn Markdown hoặc PDF trình xem}}{25}{figure.caption.37}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2.19}Kiến trúc phía người dùng - máy chủ}{25}{section.2.19}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2.20}Cơ sở dữ liệu vector}{25}{section.2.20}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2.21}Xác thực và phân quyền người dùng}{25}{section.2.21}\protected@file@percent }
 \citation{docker_compose_docs}
-\@writefile{toc}{\contentsline {section}{\numberline {2.22}Xác thực và phân quyền người dùng}{25}{section.2.22}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {2.23}Docker Compose và cấu hình môi trường}{25}{section.2.23}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2.25}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Môi trường phát triển với Docker Compose và các dịch vụ liên quan}}{25}{figure.caption.39}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {2.24}Quản lý thư viện và công cụ chất lượng mã nguồn}{26}{section.2.24}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2.26}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Chuỗi công cụ cài đặt, kiểm tra kiểu, lint và test của dự án}}{26}{figure.caption.40}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {2.25}Tổ chức các lớp dữ liệu}{26}{section.2.25}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2.27}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Kiến trúc dữ liệu: nguồn pháp luật, chỉ mục Qdrant và dữ liệu ứng dụng Supabase}}{27}{figure.caption.41}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {2.26}Kiểm thử phần mềm}{27}{section.2.26}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {2.27}Đánh giá hệ thống RAG}{27}{section.2.27}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.27.1}Retrieval hit tại k}{27}{subsection.2.27.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.27.2}Độ chính xác theo tọa độ pháp lý}{27}{subsection.2.27.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2.22}Docker Compose và cấu hình môi trường}{26}{section.2.22}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2.24}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Môi trường phát triển với Docker Compose và các dịch vụ liên quan}}{26}{figure.caption.38}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2.23}Quản lý thư viện và công cụ chất lượng mã nguồn}{26}{section.2.23}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2.25}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Chuỗi công cụ cài đặt, kiểm tra kiểu, lint và test của dự án}}{27}{figure.caption.39}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2.24}Tổ chức các lớp dữ liệu}{27}{section.2.24}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2.26}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Kiến trúc dữ liệu: nguồn pháp luật, chỉ mục Qdrant và dữ liệu ứng dụng Supabase}}{27}{figure.caption.40}\protected@file@percent }
 \gdef \LT@ii {\LT@entry 
+    {1}{128.30147pt}\LT@entry 
+    {1}{309.99937pt}}
+\gdef \LT@iii {\LT@entry 
+    {1}{128.30147pt}\LT@entry 
+    {1}{309.99937pt}}
+\@writefile{toc}{\contentsline {section}{\numberline {2.25}Kiểm thử phần mềm}{28}{section.2.25}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2.26}Đánh giá hệ thống RAG}{28}{section.2.26}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.26.1}Chọn mô hình}{28}{subsection.2.26.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2.1}{\ignorespaces Đối sánh bộ phân tích yêu cầu qua OpenRouter}}{28}{table.2.1}\protected@file@percent }
+\newlabel{tab:analyzer-benchmark}{{2.1}{28}{Đối sánh bộ phân tích yêu cầu qua OpenRouter}{table.2.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2.2}{\ignorespaces Đối sánh bộ sinh câu trả lời qua OpenRouter}}{28}{table.2.2}\protected@file@percent }
+\newlabel{tab:generator-benchmark}{{2.2}{28}{Đối sánh bộ sinh câu trả lời qua OpenRouter}{table.2.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.26.2}Tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên}{29}{subsection.2.26.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.26.3}Độ chính xác theo tọa độ pháp lý}{29}{subsection.2.26.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.26.4}Độ chính xác khi quyết định từ chối trả lời}{29}{subsection.2.26.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.26.5}Độ trễ}{29}{subsection.2.26.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.26.6}Đánh giá nội dung thủ công}{29}{subsection.2.26.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.26.7}Chọn mô hình}{29}{subsection.2.26.7}\protected@file@percent }
+\gdef \LT@iv {\LT@entry 
+    {1}{99.84871pt}\LT@entry 
+    {1}{127.90147pt}\LT@entry 
+    {1}{105.13918pt}\LT@entry 
+    {1}{116.52054pt}}
+\gdef \LT@v {\LT@entry 
     {1}{94.15825pt}\LT@entry 
     {1}{122.21101pt}\LT@entry 
     {1}{179.11652pt}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.27.3}Độ chính xác khi quyết định từ chối trả lời}{28}{subsection.2.27.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.27.4}Độ trễ}{28}{subsection.2.27.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.27.5}Đánh giá nội dung thủ công}{28}{subsection.2.27.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {2.28}Tổng hợp công nghệ sử dụng}{28}{section.2.28}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {2.1}{\ignorespaces Các công nghệ chính trong hệ thống}}{28}{table.2.1}\protected@file@percent }
-\newlabel{tab:techstack-current}{{2.1}{28}{Các công nghệ chính trong hệ thống}{table.2.1}{}}
-\@writefile{toc}{\contentsline {chapter}{CHƯƠNG III. PHÂN TÍCH VÀ THIẾT KẾ HỆ THỐNG}{30}{chapter*.42}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {3.1}Phân tích yêu cầu}{30}{section.3.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.1.1}Xác định tác nhân}{30}{subsection.3.1.1}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {3.1}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Các tác nhân và hệ thống liên quan}}{30}{table.caption.43}\protected@file@percent }
-\newlabel{tab:actors}{{3.1}{30}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Các tác nhân và hệ thống liên quan}{table.caption.43}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.1.2}Yêu cầu chức năng}{30}{subsection.3.1.2}\protected@file@percent }
-\gdef \LT@iii {\LT@entry 
+\@writefile{lot}{\contentsline {table}{\numberline {2.3}{\ignorespaces Đối sánh chọn mô hình qua OpenRouter}}{30}{table.2.3}\protected@file@percent }
+\newlabel{tab:model-selection}{{2.3}{30}{Đối sánh chọn mô hình qua OpenRouter}{table.2.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {2.27}Tổng hợp công nghệ sử dụng}{30}{section.2.27}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2.4}{\ignorespaces Các công nghệ chính trong hệ thống}}{30}{table.2.4}\protected@file@percent }
+\newlabel{tab:techstack-current}{{2.4}{30}{Các công nghệ chính trong hệ thống}{table.2.4}{}}
+\@writefile{toc}{\contentsline {chapter}{CHƯƠNG III. PHÂN TÍCH VÀ THIẾT KẾ HỆ THỐNG}{32}{chapter*.41}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3.1}Phân tích yêu cầu}{32}{section.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1.1}Xác định tác nhân}{32}{subsection.3.1.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3.1}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Các tác nhân và hệ thống liên quan}}{32}{table.caption.42}\protected@file@percent }
+\newlabel{tab:actors}{{3.1}{32}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Các tác nhân và hệ thống liên quan}{table.caption.42}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1.2}Yêu cầu chức năng}{32}{subsection.3.1.2}\protected@file@percent }
+\gdef \LT@vi {\LT@entry 
     {1}{45.78865pt}\LT@entry 
     {1}{127.90147pt}\LT@entry 
     {1}{236.02203pt}}
-\@writefile{lot}{\contentsline {table}{\numberline {3.2}{\ignorespaces Yêu cầu chức năng của hệ thống}}{31}{table.3.2}\protected@file@percent }
-\newlabel{tab:functional-requirements}{{3.2}{31}{Yêu cầu chức năng của hệ thống}{table.3.2}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.1.3}Yêu cầu phi chức năng}{31}{subsection.3.1.3}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {3.3}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Yêu cầu phi chức năng chính}}{32}{table.caption.44}\protected@file@percent }
-\newlabel{tab:nonfunctional-requirements}{{3.3}{32}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Yêu cầu phi chức năng chính}{table.caption.44}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {3.2}Sơ đồ chức năng và sơ đồ luồng dữ liệu}{32}{section.3.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.2.1}Sơ đồ phân rã chức năng}{32}{subsection.3.2.1}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.1}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ phân rã chức năng của hệ thống}}{32}{figure.caption.45}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.2.2}DFD mức ngữ cảnh}{32}{subsection.3.2.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.2}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ luồng dữ liệu mức ngữ cảnh}}{33}{figure.caption.46}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.2.3}DFD mức 0}{33}{subsection.3.2.3}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.3}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ luồng dữ liệu mức 0}}{33}{figure.caption.47}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {3.3}Sơ đồ Use Case và đặc tả chức năng}{34}{section.3.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.1}Sơ đồ Use Case tổng quát}{34}{subsection.3.3.1}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.4}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ Use Case tổng quát của hệ thống}}{34}{figure.caption.48}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.2}Use Case phân rã nhóm xác thực}{34}{subsection.3.3.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.5}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ Use Case phân rã nhóm xác thực}}{34}{figure.caption.49}\protected@file@percent }
-\gdef \LT@iv {\LT@entry 
-    {1}{94.15825pt}\LT@entry 
-    {1}{292.92755pt}}
-\gdef \LT@v {\LT@entry 
-    {1}{94.15825pt}\LT@entry 
-    {1}{292.92755pt}}
-\@writefile{lot}{\contentsline {table}{\numberline {3.4}{\ignorespaces Bảng đặc tả Use Case Đăng ký tài khoản}}{35}{table.3.4}\protected@file@percent }
-\newlabel{tab:uc-register}{{3.4}{35}{Bảng đặc tả Use Case Đăng ký tài khoản}{table.3.4}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {3.5}{\ignorespaces Bảng đặc tả Use Case Đăng nhập}}{35}{table.3.5}\protected@file@percent }
-\newlabel{tab:uc-login}{{3.5}{35}{Bảng đặc tả Use Case Đăng nhập}{table.3.5}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.3}Use Case phân rã chức năng hỏi đáp pháp luật}{36}{subsection.3.3.3}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.6}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ Use Case phân rã chức năng hỏi đáp pháp luật}}{36}{figure.caption.50}\protected@file@percent }
-\gdef \LT@vi {\LT@entry 
-    {1}{94.15825pt}\LT@entry 
-    {1}{292.92755pt}}
-\@writefile{lot}{\contentsline {table}{\numberline {3.6}{\ignorespaces Bảng đặc tả Use Case Đặt câu hỏi pháp luật}}{37}{table.3.6}\protected@file@percent }
-\newlabel{tab:uc-chat-ask}{{3.6}{37}{Bảng đặc tả Use Case Đặt câu hỏi pháp luật}{table.3.6}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.2}{\ignorespaces Yêu cầu chức năng của hệ thống}}{33}{table.3.2}\protected@file@percent }
+\newlabel{tab:functional-requirements}{{3.2}{33}{Yêu cầu chức năng của hệ thống}{table.3.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1.3}Yêu cầu phi chức năng}{33}{subsection.3.1.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3.3}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Yêu cầu phi chức năng chính}}{34}{table.caption.43}\protected@file@percent }
+\newlabel{tab:nonfunctional-requirements}{{3.3}{34}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Yêu cầu phi chức năng chính}{table.caption.43}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3.2}Sơ đồ chức năng và sơ đồ luồng dữ liệu}{34}{section.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2.1}Sơ đồ phân rã chức năng}{34}{subsection.3.2.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.1}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ phân rã chức năng của hệ thống}}{34}{figure.caption.44}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2.2}DFD mức ngữ cảnh}{35}{subsection.3.2.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.2}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ luồng dữ liệu mức ngữ cảnh}}{35}{figure.caption.45}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2.3}DFD mức 0}{35}{subsection.3.2.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.3}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ luồng dữ liệu mức 0}}{35}{figure.caption.46}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3.3}Sơ đồ ca sử dụng và đặc tả chức năng}{36}{section.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.1}Sơ đồ ca sử dụng tổng quát}{36}{subsection.3.3.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.4}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ ca sử dụng tổng quát của hệ thống}}{36}{figure.caption.47}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.2}ca sử dụng phân rã nhóm xác thực}{36}{subsection.3.3.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.5}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ ca sử dụng phân rã nhóm xác thực}}{36}{figure.caption.48}\protected@file@percent }
 \gdef \LT@vii {\LT@entry 
     {1}{94.15825pt}\LT@entry 
     {1}{292.92755pt}}
 \gdef \LT@viii {\LT@entry 
     {1}{94.15825pt}\LT@entry 
     {1}{292.92755pt}}
-\@writefile{lot}{\contentsline {table}{\numberline {3.7}{\ignorespaces Bảng đặc tả Use Case Xem câu trả lời}}{38}{table.3.7}\protected@file@percent }
-\newlabel{tab:uc-chat-answer}{{3.7}{38}{Bảng đặc tả Use Case Xem câu trả lời}{table.3.7}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {3.8}{\ignorespaces Bảng đặc tả Use Case Xem nguồn trích dẫn}}{38}{table.3.8}\protected@file@percent }
-\newlabel{tab:uc-chat-citation}{{3.8}{38}{Bảng đặc tả Use Case Xem nguồn trích dẫn}{table.3.8}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.4}{\ignorespaces Bảng đặc tả ca sử dụng Đăng ký tài khoản}}{37}{table.3.4}\protected@file@percent }
+\newlabel{tab:uc-register}{{3.4}{37}{Bảng đặc tả ca sử dụng Đăng ký tài khoản}{table.3.4}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.5}{\ignorespaces Bảng đặc tả ca sử dụng Đăng nhập}}{37}{table.3.5}\protected@file@percent }
+\newlabel{tab:uc-login}{{3.5}{37}{Bảng đặc tả ca sử dụng Đăng nhập}{table.3.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.3}ca sử dụng phân rã chức năng hỏi đáp pháp luật}{38}{subsection.3.3.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.6}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ ca sử dụng phân rã chức năng hỏi đáp pháp luật}}{38}{figure.caption.49}\protected@file@percent }
 \gdef \LT@ix {\LT@entry 
     {1}{94.15825pt}\LT@entry 
     {1}{292.92755pt}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.4}Use Case phân rã quản lý hội thoại}{39}{subsection.3.3.4}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.7}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ Use Case phân rã quản lý hội thoại}}{39}{figure.caption.51}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {3.9}{\ignorespaces Bảng đặc tả Use Case Xem lịch sử hội thoại}}{39}{table.3.9}\protected@file@percent }
-\newlabel{tab:uc-conv-list}{{3.9}{39}{Bảng đặc tả Use Case Xem lịch sử hội thoại}{table.3.9}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.6}{\ignorespaces Bảng đặc tả ca sử dụng Đặt câu hỏi pháp luật}}{39}{table.3.6}\protected@file@percent }
+\newlabel{tab:uc-chat-ask}{{3.6}{39}{Bảng đặc tả ca sử dụng Đặt câu hỏi pháp luật}{table.3.6}{}}
 \gdef \LT@x {\LT@entry 
     {1}{94.15825pt}\LT@entry 
     {1}{292.92755pt}}
-\@writefile{lot}{\contentsline {table}{\numberline {3.10}{\ignorespaces Bảng đặc tả Use Case Mở lại phiên hội thoại}}{40}{table.3.10}\protected@file@percent }
-\newlabel{tab:uc-conv-open}{{3.10}{40}{Bảng đặc tả Use Case Mở lại phiên hội thoại}{table.3.10}{}}
 \gdef \LT@xi {\LT@entry 
     {1}{94.15825pt}\LT@entry 
     {1}{292.92755pt}}
-\@writefile{lot}{\contentsline {table}{\numberline {3.11}{\ignorespaces Bảng đặc tả Use Case Xóa phiên hội thoại}}{41}{table.3.11}\protected@file@percent }
-\newlabel{tab:uc-conv-delete}{{3.11}{41}{Bảng đặc tả Use Case Xóa phiên hội thoại}{table.3.11}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.5}Use Case phân rã tra cứu nguồn pháp luật}{41}{subsection.3.3.5}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.8}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ Use Case phân rã tra cứu nguồn pháp luật}}{41}{figure.caption.52}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3.7}{\ignorespaces Bảng đặc tả ca sử dụng Xem câu trả lời}}{40}{table.3.7}\protected@file@percent }
+\newlabel{tab:uc-chat-answer}{{3.7}{40}{Bảng đặc tả ca sử dụng Xem câu trả lời}{table.3.7}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.8}{\ignorespaces Bảng đặc tả ca sử dụng Xem nguồn trích dẫn}}{40}{table.3.8}\protected@file@percent }
+\newlabel{tab:uc-chat-citation}{{3.8}{40}{Bảng đặc tả ca sử dụng Xem nguồn trích dẫn}{table.3.8}{}}
 \gdef \LT@xii {\LT@entry 
     {1}{94.15825pt}\LT@entry 
     {1}{292.92755pt}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.4}ca sử dụng phân rã quản lý hội thoại}{41}{subsection.3.3.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.7}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ ca sử dụng phân rã quản lý hội thoại}}{41}{figure.caption.50}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3.9}{\ignorespaces Bảng đặc tả ca sử dụng Xem lịch sử hội thoại}}{41}{table.3.9}\protected@file@percent }
+\newlabel{tab:uc-conv-list}{{3.9}{41}{Bảng đặc tả ca sử dụng Xem lịch sử hội thoại}{table.3.9}{}}
 \gdef \LT@xiii {\LT@entry 
     {1}{94.15825pt}\LT@entry 
     {1}{292.92755pt}}
-\@writefile{lot}{\contentsline {table}{\numberline {3.12}{\ignorespaces Bảng đặc tả Use Case Xem danh sách văn bản pháp luật}}{42}{table.3.12}\protected@file@percent }
-\newlabel{tab:uc-legal-list}{{3.12}{42}{Bảng đặc tả Use Case Xem danh sách văn bản pháp luật}{table.3.12}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {3.13}{\ignorespaces Bảng đặc tả Use Case Tìm kiếm văn bản pháp luật}}{42}{table.3.13}\protected@file@percent }
-\newlabel{tab:uc-legal-search}{{3.13}{42}{Bảng đặc tả Use Case Tìm kiếm văn bản pháp luật}{table.3.13}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.10}{\ignorespaces Bảng đặc tả ca sử dụng Mở lại phiên hội thoại}}{42}{table.3.10}\protected@file@percent }
+\newlabel{tab:uc-conv-open}{{3.10}{42}{Bảng đặc tả ca sử dụng Mở lại phiên hội thoại}{table.3.10}{}}
 \gdef \LT@xiv {\LT@entry 
     {1}{94.15825pt}\LT@entry 
     {1}{292.92755pt}}
-\@writefile{lot}{\contentsline {table}{\numberline {3.14}{\ignorespaces Bảng đặc tả Use Case Xem nội dung văn bản}}{43}{table.3.14}\protected@file@percent }
-\newlabel{tab:uc-legal-view}{{3.14}{43}{Bảng đặc tả Use Case Xem nội dung văn bản}{table.3.14}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.11}{\ignorespaces Bảng đặc tả ca sử dụng Xóa phiên hội thoại}}{43}{table.3.11}\protected@file@percent }
+\newlabel{tab:uc-conv-delete}{{3.11}{43}{Bảng đặc tả ca sử dụng Xóa phiên hội thoại}{table.3.11}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.5}ca sử dụng phân rã tra cứu nguồn pháp luật}{43}{subsection.3.3.5}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.8}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ ca sử dụng phân rã tra cứu nguồn pháp luật}}{43}{figure.caption.51}\protected@file@percent }
 \gdef \LT@xv {\LT@entry 
     {1}{94.15825pt}\LT@entry 
     {1}{292.92755pt}}
-\@writefile{lot}{\contentsline {table}{\numberline {3.15}{\ignorespaces Bảng đặc tả Use Case Xem bản PDF của văn bản}}{44}{table.3.15}\protected@file@percent }
-\newlabel{tab:uc-legal-pdf}{{3.15}{44}{Bảng đặc tả Use Case Xem bản PDF của văn bản}{table.3.15}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.6}Use Case phân rã phản hồi và nội dung đã lưu}{44}{subsection.3.3.6}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.9}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ Use Case phân rã phản hồi và nội dung đã lưu}}{44}{figure.caption.53}\protected@file@percent }
 \gdef \LT@xvi {\LT@entry 
     {1}{94.15825pt}\LT@entry 
     {1}{292.92755pt}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.12}{\ignorespaces Bảng đặc tả ca sử dụng Xem danh sách văn bản pháp luật}}{44}{table.3.12}\protected@file@percent }
+\newlabel{tab:uc-legal-list}{{3.12}{44}{Bảng đặc tả ca sử dụng Xem danh sách văn bản pháp luật}{table.3.12}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.13}{\ignorespaces Bảng đặc tả ca sử dụng Tìm kiếm văn bản pháp luật}}{44}{table.3.13}\protected@file@percent }
+\newlabel{tab:uc-legal-search}{{3.13}{44}{Bảng đặc tả ca sử dụng Tìm kiếm văn bản pháp luật}{table.3.13}{}}
 \gdef \LT@xvii {\LT@entry 
     {1}{94.15825pt}\LT@entry 
     {1}{292.92755pt}}
-\@writefile{lot}{\contentsline {table}{\numberline {3.16}{\ignorespaces Bảng đặc tả Use Case Đánh giá câu trả lời}}{45}{table.3.16}\protected@file@percent }
-\newlabel{tab:uc-feedback}{{3.16}{45}{Bảng đặc tả Use Case Đánh giá câu trả lời}{table.3.16}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {3.17}{\ignorespaces Bảng đặc tả Use Case Lưu câu trả lời}}{45}{table.3.17}\protected@file@percent }
-\newlabel{tab:uc-save}{{3.17}{45}{Bảng đặc tả Use Case Lưu câu trả lời}{table.3.17}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.14}{\ignorespaces Bảng đặc tả ca sử dụng Xem nội dung văn bản}}{45}{table.3.14}\protected@file@percent }
+\newlabel{tab:uc-legal-view}{{3.14}{45}{Bảng đặc tả ca sử dụng Xem nội dung văn bản}{table.3.14}{}}
 \gdef \LT@xviii {\LT@entry 
     {1}{94.15825pt}\LT@entry 
     {1}{292.92755pt}}
-\@writefile{lot}{\contentsline {table}{\numberline {3.18}{\ignorespaces Bảng đặc tả Use Case Xem nội dung đã lưu}}{46}{table.3.18}\protected@file@percent }
-\newlabel{tab:uc-saved-list}{{3.18}{46}{Bảng đặc tả Use Case Xem nội dung đã lưu}{table.3.18}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.15}{\ignorespaces Bảng đặc tả ca sử dụng Xem bản PDF của văn bản}}{46}{table.3.15}\protected@file@percent }
+\newlabel{tab:uc-legal-pdf}{{3.15}{46}{Bảng đặc tả ca sử dụng Xem bản PDF của văn bản}{table.3.15}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3.6}ca sử dụng phân rã phản hồi và nội dung đã lưu}{46}{subsection.3.3.6}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.9}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ ca sử dụng phân rã phản hồi và nội dung đã lưu}}{46}{figure.caption.52}\protected@file@percent }
 \gdef \LT@xix {\LT@entry 
     {1}{94.15825pt}\LT@entry 
     {1}{292.92755pt}}
-\@writefile{lot}{\contentsline {table}{\numberline {3.19}{\ignorespaces Bảng đặc tả Use Case Bỏ lưu câu trả lời}}{47}{table.3.19}\protected@file@percent }
-\newlabel{tab:uc-unsave}{{3.19}{47}{Bảng đặc tả Use Case Bỏ lưu câu trả lời}{table.3.19}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {3.4}Sơ đồ hoạt động}{47}{section.3.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.4.1}Sơ đồ hoạt động đăng ký và đăng nhập}{47}{subsection.3.4.1}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.10}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ hoạt động đăng ký và đăng nhập}}{48}{figure.caption.54}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.4.2}Sơ đồ hoạt động hỏi đáp pháp luật}{48}{subsection.3.4.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.11}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ hoạt động xử lý câu hỏi pháp luật}}{48}{figure.caption.55}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.4.3}Sơ đồ hoạt động tra cứu nguồn pháp luật}{49}{subsection.3.4.3}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.12}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ hoạt động tra cứu nguồn pháp luật}}{49}{figure.caption.56}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.4.4}Sơ đồ hoạt động quản lý hội thoại}{49}{subsection.3.4.4}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.13}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ hoạt động quản lý hội thoại}}{49}{figure.caption.57}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.4.5}Sơ đồ hoạt động phản hồi và lưu câu trả lời}{50}{subsection.3.4.5}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.14}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ hoạt động phản hồi và lưu câu trả lời}}{50}{figure.caption.58}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {3.5}Sơ đồ tuần tự}{50}{section.3.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.5.1}Sơ đồ tuần tự đăng nhập}{50}{subsection.3.5.1}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.15}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự đăng nhập hệ thống}}{51}{figure.caption.59}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.5.2}Sơ đồ tuần tự xử lý một câu hỏi}{51}{subsection.3.5.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.16}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự xử lý một câu hỏi pháp luật}}{51}{figure.caption.60}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.5.3}Sơ đồ tuần tự tìm kiếm căn cứ}{52}{subsection.3.5.3}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.17}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự tìm kiếm và tổng hợp căn cứ}}{52}{figure.caption.61}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.5.4}Sơ đồ tuần tự tạo và kiểm tra câu trả lời}{52}{subsection.3.5.4}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.18}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự tạo và kiểm tra câu trả lời}}{53}{figure.caption.62}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.5.5}Sơ đồ tuần tự mở nguồn trích dẫn}{53}{subsection.3.5.5}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.19}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự mở nguồn trích dẫn}}{53}{figure.caption.63}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.5.6}Sơ đồ tuần tự phản hồi và lưu câu trả lời}{54}{subsection.3.5.6}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.20}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự phản hồi và lưu câu trả lời}}{54}{figure.caption.64}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {3.6}Phân tích và thiết kế cơ sở dữ liệu}{54}{section.3.6}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.1}Nguyên tắc phân tách dữ liệu}{54}{subsection.3.6.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.2}Mô hình dữ liệu khái niệm MCD}{54}{subsection.3.6.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.21}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Mô hình dữ liệu khái niệm MCD}}{55}{figure.caption.65}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.3}Mô hình dữ liệu logic LDM}{55}{subsection.3.6.3}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.22}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Mô hình dữ liệu logic LDM}}{55}{figure.caption.66}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.4}Mô hình dữ liệu vật lý PDM}{56}{subsection.3.6.4}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.23}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Mô hình dữ liệu vật lý PDM}}{56}{figure.caption.67}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.5}Sơ đồ ERD}{56}{subsection.3.6.5}\protected@file@percent }
 \gdef \LT@xx {\LT@entry 
+    {1}{94.15825pt}\LT@entry 
+    {1}{292.92755pt}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.16}{\ignorespaces Bảng đặc tả ca sử dụng Đánh giá câu trả lời}}{47}{table.3.16}\protected@file@percent }
+\newlabel{tab:uc-feedback}{{3.16}{47}{Bảng đặc tả ca sử dụng Đánh giá câu trả lời}{table.3.16}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.17}{\ignorespaces Bảng đặc tả ca sử dụng Lưu câu trả lời}}{47}{table.3.17}\protected@file@percent }
+\newlabel{tab:uc-save}{{3.17}{47}{Bảng đặc tả ca sử dụng Lưu câu trả lời}{table.3.17}{}}
+\gdef \LT@xxi {\LT@entry 
+    {1}{94.15825pt}\LT@entry 
+    {1}{292.92755pt}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.18}{\ignorespaces Bảng đặc tả ca sử dụng Xem nội dung đã lưu}}{48}{table.3.18}\protected@file@percent }
+\newlabel{tab:uc-saved-list}{{3.18}{48}{Bảng đặc tả ca sử dụng Xem nội dung đã lưu}{table.3.18}{}}
+\gdef \LT@xxii {\LT@entry 
+    {1}{94.15825pt}\LT@entry 
+    {1}{292.92755pt}}
+\@writefile{lot}{\contentsline {table}{\numberline {3.19}{\ignorespaces Bảng đặc tả ca sử dụng Bỏ lưu câu trả lời}}{49}{table.3.19}\protected@file@percent }
+\newlabel{tab:uc-unsave}{{3.19}{49}{Bảng đặc tả ca sử dụng Bỏ lưu câu trả lời}{table.3.19}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3.4}Sơ đồ hoạt động}{49}{section.3.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4.1}Sơ đồ hoạt động đăng ký và đăng nhập}{49}{subsection.3.4.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.10}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ hoạt động đăng ký và đăng nhập}}{50}{figure.caption.53}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4.2}Sơ đồ hoạt động hỏi đáp pháp luật}{50}{subsection.3.4.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.11}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ hoạt động phân tích, truy xuất ngữ cảnh và sinh câu trả lời pháp luật}}{51}{figure.caption.54}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4.3}Sơ đồ hoạt động tra cứu nguồn pháp luật}{51}{subsection.3.4.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.12}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ hoạt động tra cứu nguồn pháp luật}}{52}{figure.caption.55}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4.4}Sơ đồ hoạt động quản lý hội thoại}{52}{subsection.3.4.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.13}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ hoạt động quản lý hội thoại}}{52}{figure.caption.56}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4.5}Sơ đồ hoạt động phản hồi và lưu câu trả lời}{53}{subsection.3.4.5}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.14}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ hoạt động phản hồi và lưu câu trả lời}}{53}{figure.caption.57}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3.5}Sơ đồ tuần tự}{53}{section.3.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.5.1}Sơ đồ tuần tự đăng nhập}{53}{subsection.3.5.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.15}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự đăng nhập hệ thống}}{54}{figure.caption.58}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.5.2}Sơ đồ tuần tự xử lý một câu hỏi}{54}{subsection.3.5.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.16}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự phân tích, truy xuất ngữ cảnh và xử lý câu hỏi pháp luật}}{55}{figure.caption.59}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.5.3}Sơ đồ tuần tự tìm kiếm căn cứ}{55}{subsection.3.5.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.17}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự tìm kiếm và tổng hợp căn cứ}}{55}{figure.caption.60}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.5.4}Sơ đồ tuần tự tạo và kiểm tra câu trả lời}{56}{subsection.3.5.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.18}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự bổ sung ngữ cảnh, sinh câu trả lời và làm sạch trích dẫn}}{56}{figure.caption.61}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.5.5}Sơ đồ tuần tự mở nguồn trích dẫn}{56}{subsection.3.5.5}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.19}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự mở nguồn trích dẫn}}{57}{figure.caption.62}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.5.6}Sơ đồ tuần tự phản hồi và lưu câu trả lời}{57}{subsection.3.5.6}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.20}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ tuần tự phản hồi và lưu câu trả lời}}{57}{figure.caption.63}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3.6}Phân tích và thiết kế cơ sở dữ liệu}{58}{section.3.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.1}Nguyên tắc phân tách dữ liệu}{58}{subsection.3.6.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.2}Mô hình dữ liệu khái niệm MCD}{58}{subsection.3.6.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.21}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Mô hình dữ liệu khái niệm MCD}}{59}{figure.caption.64}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.3}Mô hình dữ liệu logic LDM}{59}{subsection.3.6.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.22}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Mô hình dữ liệu logic LDM}}{60}{figure.caption.65}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.4}Mô hình dữ liệu vật lý PDM}{60}{subsection.3.6.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.23}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Mô hình dữ liệu vật lý PDM}}{60}{figure.caption.66}\protected@file@percent }
+\gdef \LT@xxiii {\LT@entry 
     {1}{34.40729pt}\LT@entry 
     {1}{90.91281pt}\LT@entry 
     {1}{76.68643pt}\LT@entry 
     {1}{93.75826pt}\LT@entry 
     {1}{127.90147pt}}
-\@writefile{lof}{\contentsline {figure}{\numberline {3.24}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ thực thể liên kết ERD của dữ liệu ứng dụng}}{57}{figure.caption.68}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.6}Bảng profiles}{57}{subsection.3.6.6}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {3.20}{\ignorespaces Thiết kế bảng profiles}}{57}{table.3.20}\protected@file@percent }
-\newlabel{tab:db-profiles}{{3.20}{57}{Thiết kế bảng profiles}{table.3.20}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.7}Bảng chat\_sessions}{57}{subsection.3.6.7}\protected@file@percent }
-\gdef \LT@xxi {\LT@entry 
-    {1}{34.40729pt}\LT@entry 
-    {1}{90.91281pt}\LT@entry 
-    {1}{82.37732pt}\LT@entry 
-    {1}{93.75826pt}\LT@entry 
-    {1}{122.21101pt}}
-\gdef \LT@xxii {\LT@entry 
-    {1}{34.40729pt}\LT@entry 
-    {1}{90.91281pt}\LT@entry 
-    {1}{82.37732pt}\LT@entry 
-    {1}{93.75826pt}\LT@entry 
-    {1}{122.21101pt}}
-\@writefile{lot}{\contentsline {table}{\numberline {3.21}{\ignorespaces Thiết kế bảng chat\_sessions}}{58}{table.3.21}\protected@file@percent }
-\newlabel{tab:db-sessions}{{3.21}{58}{Thiết kế bảng chat\_sessions}{table.3.21}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.8}Bảng messages}{58}{subsection.3.6.8}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {3.22}{\ignorespaces Thiết kế bảng messages}}{58}{table.3.22}\protected@file@percent }
-\newlabel{tab:db-messages}{{3.22}{58}{Thiết kế bảng messages}{table.3.22}{}}
-\gdef \LT@xxiii {\LT@entry 
-    {1}{34.40729pt}\LT@entry 
-    {1}{90.91281pt}\LT@entry 
-    {1}{82.37732pt}\LT@entry 
-    {1}{93.75826pt}\LT@entry 
-    {1}{122.21101pt}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.9}Bảng feedback}{59}{subsection.3.6.9}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {3.23}{\ignorespaces Thiết kế bảng feedback}}{59}{table.3.23}\protected@file@percent }
-\newlabel{tab:db-feedback}{{3.23}{59}{Thiết kế bảng feedback}{table.3.23}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.10}Bảng bookmarks}{59}{subsection.3.6.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.5}Sơ đồ ERD}{61}{subsection.3.6.5}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.24}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Sơ đồ thực thể liên kết ERD của dữ liệu ứng dụng}}{61}{figure.caption.67}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.6}Bảng profiles}{61}{subsection.3.6.6}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3.20}{\ignorespaces Thiết kế bảng profiles}}{61}{table.3.20}\protected@file@percent }
+\newlabel{tab:db-profiles}{{3.20}{61}{Thiết kế bảng profiles}{table.3.20}{}}
 \gdef \LT@xxiv {\LT@entry 
+    {1}{34.40729pt}\LT@entry 
+    {1}{90.91281pt}\LT@entry 
+    {1}{82.37732pt}\LT@entry 
+    {1}{93.75826pt}\LT@entry 
+    {1}{122.21101pt}}
+\gdef \LT@xxv {\LT@entry 
+    {1}{34.40729pt}\LT@entry 
+    {1}{90.91281pt}\LT@entry 
+    {1}{82.37732pt}\LT@entry 
+    {1}{93.75826pt}\LT@entry 
+    {1}{122.21101pt}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.7}Bảng chat\_sessions}{62}{subsection.3.6.7}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3.21}{\ignorespaces Thiết kế bảng chat\_sessions}}{62}{table.3.21}\protected@file@percent }
+\newlabel{tab:db-sessions}{{3.21}{62}{Thiết kế bảng chat\_sessions}{table.3.21}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.8}Bảng thông điệp}{62}{subsection.3.6.8}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3.22}{\ignorespaces Thiết kế bảng thông điệp}}{62}{table.3.22}\protected@file@percent }
+\newlabel{tab:db-messages}{{3.22}{62}{Thiết kế bảng thông điệp}{table.3.22}{}}
+\gdef \LT@xxvi {\LT@entry 
+    {1}{34.40729pt}\LT@entry 
+    {1}{90.91281pt}\LT@entry 
+    {1}{82.37732pt}\LT@entry 
+    {1}{93.75826pt}\LT@entry 
+    {1}{122.21101pt}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.9}Bảng feedback}{63}{subsection.3.6.9}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3.23}{\ignorespaces Thiết kế bảng feedback}}{63}{table.3.23}\protected@file@percent }
+\newlabel{tab:db-feedback}{{3.23}{63}{Thiết kế bảng feedback}{table.3.23}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.10}Bảng bookmarks}{63}{subsection.3.6.10}\protected@file@percent }
+\gdef \LT@xxvii {\LT@entry 
     {1}{34.40729pt}\LT@entry 
     {1}{93.75826pt}\LT@entry 
     {1}{82.37732pt}\LT@entry 
     {1}{93.75826pt}\LT@entry 
     {1}{119.36555pt}}
-\@writefile{lot}{\contentsline {table}{\numberline {3.24}{\ignorespaces Thiết kế bảng bookmarks}}{60}{table.3.24}\protected@file@percent }
-\newlabel{tab:db-bookmarks}{{3.24}{60}{Thiết kế bảng bookmarks}{table.3.24}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.11}Chỉ mục, trigger và ràng buộc toàn vẹn}{60}{subsection.3.6.11}\protected@file@percent }
-\gdef \LT@xxv {\LT@entry 
+\@writefile{lot}{\contentsline {table}{\numberline {3.24}{\ignorespaces Thiết kế bảng bookmarks}}{64}{table.3.24}\protected@file@percent }
+\newlabel{tab:db-bookmarks}{{3.24}{64}{Thiết kế bảng bookmarks}{table.3.24}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.11}Chỉ mục, trigger và ràng buộc toàn vẹn}{64}{subsection.3.6.11}\protected@file@percent }
+\gdef \LT@xxviii {\LT@entry 
     {1}{97.0037pt}\LT@entry 
     {1}{93.75826pt}\LT@entry 
     {1}{213.25974pt}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.12}Row Level Security}{61}{subsection.3.6.12}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {3.7}Thiết kế dữ liệu tìm kiếm trong Qdrant}{61}{section.3.7}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {3.25}{\ignorespaces Các trường thông tin mô tả chính trong chunk/Qdrant payload}}{61}{table.3.25}\protected@file@percent }
-\newlabel{tab:qdrant-payload}{{3.25}{61}{Các trường thông tin mô tả chính trong chunk/Qdrant payload}{table.3.25}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {3.8}Thiết kế dữ liệu nguồn và JSONL}{61}{section.3.8}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.8.1}Danh mục văn bản nguồn}{61}{subsection.3.8.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.8.2}Dữ liệu đoạn văn bản dạng JSONL}{61}{subsection.3.8.2}\protected@file@percent }
-\gdef \LT@xxvi {\LT@entry 
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.6.12}Row Level Security}{65}{subsection.3.6.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3.7}Thiết kế dữ liệu tìm kiếm trong Qdrant}{65}{section.3.7}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3.25}{\ignorespaces Các trường thông tin mô tả chính trong đoạn dữ liệu/Qdrant payload}}{65}{table.3.25}\protected@file@percent }
+\newlabel{tab:qdrant-payload}{{3.25}{65}{Các trường thông tin mô tả chính trong đoạn dữ liệu/Qdrant payload}{table.3.25}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3.8}Thiết kế dữ liệu nguồn và JSON (định dạng dữ liệu có cấu trúc) theo từng dòng}{65}{section.3.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.8.1}Danh mục văn bản nguồn}{65}{subsection.3.8.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.8.2}Dữ liệu đoạn văn bản dạng JSON (định dạng dữ liệu có cấu trúc) theo từng dòng}{65}{subsection.3.8.2}\protected@file@percent }
+\gdef \LT@xxix {\LT@entry 
     {1}{71.39595pt}\LT@entry 
     {1}{184.80699pt}\LT@entry 
     {1}{150.66377pt}}
-\@writefile{toc}{\contentsline {section}{\numberline {3.9}Thiết kế API}{62}{section.3.9}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {3.26}{\ignorespaces Các endpoint chính của hệ thống}}{62}{table.3.26}\protected@file@percent }
-\newlabel{tab:api-endpoints}{{3.26}{62}{Các endpoint chính của hệ thống}{table.3.26}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {3.10}Lưu đồ xử lý chính}{63}{section.3.10}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.10.1}Tách Điều, Khoản và Điểm}{63}{subsection.3.10.1}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.25}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Lưu đồ tách và chuẩn hóa dữ liệu pháp luật}}{63}{figure.caption.69}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.10.2}Tìm kiếm căn cứ}{63}{subsection.3.10.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.26}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Lưu đồ tìm kiếm căn cứ pháp luật}}{64}{figure.caption.70}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.10.3}Xử lý câu hỏi và kiểm tra căn cứ}{64}{subsection.3.10.3}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.27}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Lưu đồ xử lý câu hỏi pháp luật}}{64}{figure.caption.71}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.10.4}Gộp thứ hạng bằng RRF}{65}{subsection.3.10.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.10.5}Tạo trích dẫn nguồn}{65}{subsection.3.10.5}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3.28}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Lưu đồ tạo và mở trích dẫn nguồn}}{65}{figure.caption.72}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {3.11}Thiết kế bảo mật}{65}{section.3.11}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {3.12}Thiết kế kiểm thử}{66}{section.3.12}\protected@file@percent }
-\@writefile{toc}{\contentsline {chapter}{CHƯƠNG IV. KẾT QUẢ THỰC HIỆN VÀ GIAO DIỆN}{67}{chapter*.73}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {4.1}Tổng quan kết quả triển khai}{67}{section.4.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {4.2}Giao diện trang đầu}{67}{section.4.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {4.1}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện trang đầu của hệ thống}}{67}{figure.caption.74}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {4.3}Đăng ký và đăng nhập}{67}{section.4.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.3.1}Đăng ký}{67}{subsection.4.3.1}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {4.2}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện đăng ký tài khoản}}{68}{figure.caption.75}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.3.2}Đăng nhập}{68}{subsection.4.3.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {4.3}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện đăng nhập}}{68}{figure.caption.76}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {4.4}Giao diện hỏi đáp pháp luật}{69}{section.4.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.4.1}Trạng thái chưa có câu hỏi}{69}{subsection.4.4.1}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {4.4}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện chat khi bắt đầu phiên}}{69}{figure.caption.77}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.4.2}Câu trả lời có căn cứ}{69}{subsection.4.4.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {4.5}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện câu trả lời pháp luật có trích dẫn}}{69}{figure.caption.78}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.4.3}Trường hợp không đủ căn cứ}{70}{subsection.4.4.3}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {4.6}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện khi hệ thống từ chối trả lời do thiếu căn cứ}}{70}{figure.caption.79}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {4.5}Hiển thị trích dẫn nguồn}{70}{section.4.5}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {4.7}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Citation và thông tin văn bản nguồn}}{70}{figure.caption.80}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {4.6}Trang nguồn pháp luật}{71}{section.4.6}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.6.1}Danh sách văn bản}{71}{subsection.4.6.1}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {4.8}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Danh sách nguồn pháp luật}}{71}{figure.caption.81}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.6.2}Tìm kiếm và lọc}{71}{subsection.4.6.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {4.9}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Tìm kiếm văn bản và điều khoản}}{71}{figure.caption.82}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.6.3}Xem chi tiết luật}{72}{subsection.4.6.3}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {4.10}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Hiển thị nguồn pháp luật dạng Markdown}}{72}{figure.caption.83}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {4.7}Lịch sử hội thoại}{72}{section.4.7}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {4.11}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện quản lý phiên chat}}{72}{figure.caption.84}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {4.8}Phản hồi và đánh dấu câu trả lời}{73}{section.4.8}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {4.12}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện gửi phản hồi cho câu trả lời}}{73}{figure.caption.85}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {4.9}Kết quả kiểm thử}{73}{section.4.9}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {4.13}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Kết quả kiểm thử của hệ thống}}{73}{figure.caption.86}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.9.1}Kiểm tra trạng thái dịch vụ}{74}{subsection.4.9.1}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {4.14}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Kết quả kiểm tra trạng thái dịch vụ}}{74}{figure.caption.87}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.9.2}Tài liệu API}{74}{subsection.4.9.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {4.15}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Tài liệu API tự động của FastAPI}}{74}{figure.caption.88}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {4.10}Đánh giá khả năng tra cứu và trả lời}{75}{section.4.10}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {4.1}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Trạng thái các hạng mục đánh giá của hệ thống}}{75}{table.caption.89}\protected@file@percent }
-\newlabel{tab:evaluation-status}{{4.1}{75}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Trạng thái các hạng mục đánh giá của hệ thống}{table.caption.89}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {4.16}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Kết quả tổng hợp đánh giá hệ thống trên bộ dữ liệu 40 trường hợp}}{75}{figure.caption.90}\protected@file@percent }
-\@writefile{toc}{\contentsline {chapter}{KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN}{76}{section*.91}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{Kết quả đạt được}{76}{section*.92}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{Hạn chế}{76}{section*.93}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{Hướng phát triển}{77}{section*.94}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3.9}Thiết kế API}{66}{section.3.9}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3.26}{\ignorespaces Các điểm cuối dịch vụ chính của hệ thống}}{66}{table.3.26}\protected@file@percent }
+\newlabel{tab:api-endpoints}{{3.26}{66}{Các điểm cuối dịch vụ chính của hệ thống}{table.3.26}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3.10}Lưu đồ xử lý chính}{67}{section.3.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.10.1}Tách Điều, Khoản và Điểm}{67}{subsection.3.10.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.25}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Lưu đồ tách và chuẩn hóa dữ liệu pháp luật}}{67}{figure.caption.68}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.10.2}Tìm kiếm căn cứ}{67}{subsection.3.10.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.26}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Lưu đồ tìm kiếm kết hợp, gộp RRF và bổ sung ngữ cảnh pháp luật}}{68}{figure.caption.69}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.10.3}Xử lý câu hỏi và sinh câu trả lời}{68}{subsection.3.10.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.27}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Lưu đồ phân tích yêu cầu, truy xuất ngữ cảnh và sinh câu trả lời pháp luật}}{69}{figure.caption.70}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.10.4}Gộp thứ hạng bằng RRF}{69}{subsection.3.10.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.10.5}Làm sạch trích dẫn nguồn}{70}{subsection.3.10.5}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.28}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Lưu đồ tạo và mở trích dẫn nguồn}}{70}{figure.caption.71}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3.11}Thiết kế bảo mật}{70}{section.3.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3.12}Thiết kế kiểm thử}{70}{section.3.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {chapter}{CHƯƠNG IV. KẾT QUẢ THỰC HIỆN VÀ GIAO DIỆN}{71}{chapter*.72}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4.1}Tổng quan kết quả triển khai}{71}{section.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4.2}Giao diện trang đầu}{71}{section.4.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4.1}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện trang đầu của hệ thống}}{71}{figure.caption.73}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4.3}Đăng ký và đăng nhập}{71}{section.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3.1}Đăng ký}{71}{subsection.4.3.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4.2}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện đăng ký tài khoản}}{72}{figure.caption.74}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3.2}Đăng nhập}{72}{subsection.4.3.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4.3}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện đăng nhập}}{72}{figure.caption.75}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4.4}Giao diện hỏi đáp pháp luật}{73}{section.4.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4.1}Trạng thái chưa có câu hỏi}{73}{subsection.4.4.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4.4}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện chat khi bắt đầu phiên}}{73}{figure.caption.76}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4.2}Câu trả lời có căn cứ}{73}{subsection.4.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4.3}Trường hợp từ chối trả lời}{73}{subsection.4.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4.5}Hiển thị trích dẫn nguồn}{74}{section.4.5}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4.5}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Citation và thông tin văn bản nguồn}}{74}{figure.caption.77}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4.6}Trang nguồn pháp luật}{74}{section.4.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.6.1}Danh sách văn bản}{74}{subsection.4.6.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4.6}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Danh sách nguồn pháp luật}}{74}{figure.caption.78}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.6.2}Tìm kiếm và lọc}{75}{subsection.4.6.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4.7}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Tìm kiếm văn bản và điều khoản}}{75}{figure.caption.79}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.6.3}Xem chi tiết luật}{75}{subsection.4.6.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4.8}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Hiển thị nguồn pháp luật dạng Markdown}}{75}{figure.caption.80}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4.7}Lịch sử hội thoại}{76}{section.4.7}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4.9}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Giao diện quản lý phiên chat}}{76}{figure.caption.81}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4.8}Phản hồi và đánh dấu câu trả lời}{76}{section.4.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4.9}Kết quả kiểm thử}{76}{section.4.9}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4.10}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Kết quả kiểm thử của hệ thống}}{76}{figure.caption.82}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.9.1}Kiểm tra trạng thái dịch vụ}{77}{subsection.4.9.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4.11}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Kết quả kiểm tra trạng thái dịch vụ}}{77}{figure.caption.83}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.9.2}Tài liệu API}{77}{subsection.4.9.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4.10}Đánh giá khả năng tra cứu và trả lời}{77}{section.4.10}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4.1}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Chỉ số đánh giá của lần chạy 4}}{77}{table.caption.84}\protected@file@percent }
+\newlabel{tab:evaluation-status}{{4.1}{77}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Chỉ số đánh giá của lần chạy 4}{table.caption.84}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4.2}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Độ trễ của lần chạy 4}}{78}{table.caption.85}\protected@file@percent }
+\newlabel{tab:evaluation-latency}{{4.2}{78}{\texorpdfstring {\xpg@aux {\xpg@current@opts }{\languagename }}{}\ignorespaces Độ trễ của lần chạy 4}{table.caption.85}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4.12}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Kết quả lần chạy 4 trên 34 trường hợp được tính}}{78}{figure.caption.86}\protected@file@percent }
+\@writefile{toc}{\contentsline {chapter}{KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN}{79}{section*.87}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{Kết quả đạt được}{79}{section*.88}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{Hạn chế}{79}{section*.89}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{Mục tiêu vòng cải thiện tiếp theo}{79}{section*.90}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4.3}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Mục tiêu định lượng cho vòng cải thiện tiếp theo}}{79}{table.caption.91}\protected@file@percent }
+\citation{agentic_rag_survey}
+\citation{agentic_rag_survey}
+\citation{agentic_legal_challenge}
+\citation{production_rag_2026}
+\citation{ragas_metrics}
+\@writefile{toc}{\contentsline {section}{Việc cần làm và tính năng sẽ bổ sung}{80}{section*.92}\protected@file@percent }
 \bibcite{tdu_laptrinhcanban}{1}
 \bibcite{tdu_pttkhttt}{2}
 \bibcite{tdu_nmcpm}{3}
@@ -428,4 +450,8 @@
 \bibcite{docker_compose_docs}{18}
 \bibcite{openrouter_embeddings_docs}{19}
 \bibcite{openrouter_chat_docs}{20}
-\gdef \@abspage@last{96}
+\bibcite{agentic_rag_survey}{21}
+\bibcite{ragas_metrics}{22}
+\bibcite{agentic_legal_challenge}{23}
+\bibcite{production_rag_2026}{24}
+\gdef \@abspage@last{99}

@@ -1,10 +1,10 @@
-This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.9.14)  14 SEP 2026 17:42
+This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.9.14)  15 SEP 2026 16:43
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
  %&-line parsing enabled.
-**/home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/main
-(/home/haki/orca/workspaces/vn-traffic-law-RAG/verified-traffic-rag-mvp/docs/main.tex
+**/home/haki/orca/vn-traffic-law-RAG/docs/main
+(/home/haki/orca/vn-traffic-law-RAG/docs/main.tex
 LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
 (/usr/share/texmf-dist/tex/latex/base/report.cls
@@ -1000,19 +1000,19 @@ LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
 
 
 ]
-LaTeX Font Info:    Calculating math sizes for size <11> on input line 553.
+LaTeX Font Info:    Calculating math sizes for size <11> on input line 542.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
-(Font)              scaled to size 11.00117pt on input line 553.
+(Font)              scaled to size 11.00117pt on input line 542.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
-(Font)              scaled to size 7.70078pt on input line 553.
+(Font)              scaled to size 7.70078pt on input line 542.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
-(Font)              scaled to size 5.50058pt on input line 553.
+(Font)              scaled to size 5.50058pt on input line 542.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
-(Font)              scaled to size 10.99883pt on input line 553.
+(Font)              scaled to size 10.99883pt on input line 542.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
-(Font)              scaled to size 7.69914pt on input line 553.
+(Font)              scaled to size 7.69914pt on input line 542.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
-(Font)              scaled to size 5.4994pt on input line 553.
+(Font)              scaled to size 5.4994pt on input line 542.
  [13
 
 ] [14
@@ -1027,16 +1027,16 @@ File: diagrams/ch1_problem_context.png Graphic file (type bmp)
  [1
 
 
-] [2]
+] [2] [3]
 File: diagrams/ch1_research_scope.png Graphic file (type bmp)
 <diagrams/ch1_research_scope.png>
- [3]
+ [4]
 File: diagrams/ch1_methodology.png Graphic file (type bmp)
 <diagrams/ch1_methodology.png>
- [4]
+ [5]
 File: diagrams/ch1_schedule.png Graphic file (type bmp)
 <diagrams/ch1_schedule.png>
- [5] [6]
+ [6]
 File: diagrams/ch2_rag_overview.png Graphic file (type bmp)
 <diagrams/ch2_rag_overview.png>
 File: diagrams/ch2_legal_hierarchy.png Graphic file (type bmp)
@@ -1045,10 +1045,6 @@ File: diagrams/ch2_legal_hierarchy.png Graphic file (type bmp)
 
 
 ]
-Package microtype Info: Loading generic protrusion settings for font family
-(microtype)             `lmtt' (encoding: TU).
-(microtype)             For optimal results, create family-specific settings.
-(microtype)             See the microtype manual for details.
 File: diagrams/ch2_chunk_structure.png Graphic file (type bmp)
 <diagrams/ch2_chunk_structure.png>
  [8]
@@ -1057,6 +1053,10 @@ File: diagrams/ch2_ingestion_pipeline.png Graphic file (type bmp)
 File: diagrams/ch2_exact_lookup.png Graphic file (type bmp)
 <diagrams/ch2_exact_lookup.png>
  [9]
+Package microtype Info: Loading generic protrusion settings for font family
+(microtype)             `lmtt' (encoding: TU).
+(microtype)             For optimal results, create family-specific settings.
+(microtype)             See the microtype manual for details.
 File: diagrams/ch2_sparse_bm25.png Graphic file (type bmp)
 <diagrams/ch2_sparse_bm25.png>
  [10]
@@ -1070,202 +1070,219 @@ File: diagrams/ch2_question_analysis.png Graphic file (type bmp)
  [12]
 File: diagrams/ch2_rrf.png Graphic file (type bmp)
 <diagrams/ch2_rrf.png>
+ [13]
 File: diagrams/ch2_cross_reference.png Graphic file (type bmp)
 <diagrams/ch2_cross_reference.png>
- [13]
-File: diagrams/ch2_evidence_gate.png Graphic file (type bmp)
-<diagrams/ch2_evidence_gate.png>
  [14]
 File: diagrams/ch2_generation.png Graphic file (type bmp)
 <diagrams/ch2_generation.png>
  [15]
 File: diagrams/ch2_verification.png Graphic file (type bmp)
 <diagrams/ch2_verification.png>
+ [16]
 File: diagrams/ch2_citation_flow.png Graphic file (type bmp)
 <diagrams/ch2_citation_flow.png>
- [16]
 File: diagrams/ch2_api_architecture.png Graphic file (type bmp)
 <diagrams/ch2_api_architecture.png>
  [17]
 File: diagrams/ch2_python_backend.png Graphic file (type bmp)
 <diagrams/ch2_python_backend.png>
+ [18]
 File: diagrams/ch2_http_rest.png Graphic file (type bmp)
 <diagrams/ch2_http_rest.png>
- [18] [19]
+ [19]
 File: diagrams/ch2_security_rls.png Graphic file (type bmp)
 <diagrams/ch2_security_rls.png>
  [20]
 File: diagrams/ch2_postgresql_relational.png Graphic file (type bmp)
 <diagrams/ch2_postgresql_relational.png>
+ [21]
 File: diagrams/ch2_supabase_auth.png Graphic file (type bmp)
 <diagrams/ch2_supabase_auth.png>
- [21]
+ [22]
 File: diagrams/ch2_frontend_architecture.png Graphic file (type bmp)
 <diagrams/ch2_frontend_architecture.png>
- [22]
 File: diagrams/ch2_react_state.png Graphic file (type bmp)
 <diagrams/ch2_react_state.png>
  [23]
 File: diagrams/ch2_pdfjs_viewer.png Graphic file (type bmp)
 <diagrams/ch2_pdfjs_viewer.png>
- [24]
+ [24] [25]
 File: diagrams/ch2_docker_compose.png Graphic file (type bmp)
 <diagrams/ch2_docker_compose.png>
- [25]
 File: diagrams/ch2_toolchain.png Graphic file (type bmp)
 <diagrams/ch2_toolchain.png>
+ [26]
 File: diagrams/ch2_data_architecture.png Graphic file (type bmp)
 <diagrams/ch2_data_architecture.png>
- [26] [27]
-ignored: Infinite glue shrinkage found in box being split [28] [29] [30
+ [27] [28]
+Overfull \hbox (8.39217pt too wide) in alignment at lines 1085--1090
+ [] [] [] [] 
+ []
 
 
-] [31]
+Overfull \hbox (8.39217pt too wide) in alignment at lines 1090--1094
+ [] [] [] [] 
+ []
+
+
+Overfull \hbox (8.39217pt too wide) in alignment at lines 1094--1105
+ [] [] [] [] 
+ []
+
+[29]
+ignored: Infinite glue shrinkage found in box being split [30] [31] [32
+
+
+] [33]
 File: diagrams/ch3_fdd.png Graphic file (type bmp)
 <diagrams/ch3_fdd.png>
+ [34]
 File: diagrams/ch3_dfd_context.png Graphic file (type bmp)
 <diagrams/ch3_dfd_context.png>
- [32]
 File: diagrams/ch3_dfd_level0.png Graphic file (type bmp)
 <diagrams/ch3_dfd_level0.png>
- [33]
+ [35]
 File: diagrams/ch3_usecase_overall.png Graphic file (type bmp)
 <diagrams/ch3_usecase_overall.png>
 File: diagrams/ch3_usecase_auth.png Graphic file (type bmp)
 <diagrams/ch3_usecase_auth.png>
- [34]
-ignored: Infinite glue shrinkage found in box being split [35]
+ [36]
+ignored: Infinite glue shrinkage found in box being split [37]
 File: diagrams/ch3_usecase_chat.png Graphic file (type bmp)
 <diagrams/ch3_usecase_chat.png>
- [36] [37]
-ignored: Infinite glue shrinkage found in box being split [38]
+ [38] [39]
+ignored: Infinite glue shrinkage found in box being split [40]
 File: diagrams/ch3_usecase_conversation.png Graphic file (type bmp)
 <diagrams/ch3_usecase_conversation.png>
 
-ignored: Infinite glue shrinkage found in box being split [39] [40]
+ignored: Infinite glue shrinkage found in box being split [41] [42]
 File: diagrams/ch3_usecase_legal_sources.png Graphic file (type bmp)
 <diagrams/ch3_usecase_legal_sources.png>
- [41]
-ignored: Infinite glue shrinkage found in box being split [42] [43]
+ [43]
+ignored: Infinite glue shrinkage found in box being split [44] [45]
 File: diagrams/ch3_usecase_feedback.png Graphic file (type bmp)
 <diagrams/ch3_usecase_feedback.png>
- [44]
-ignored: Infinite glue shrinkage found in box being split [45] [46]
+ [46]
+ignored: Infinite glue shrinkage found in box being split [47] [48]
 File: diagrams/ch3_activity_auth.png Graphic file (type bmp)
 <diagrams/ch3_activity_auth.png>
- [47]
+ [49]
 File: diagrams/ch3_activity_chat.png Graphic file (type bmp)
 <diagrams/ch3_activity_chat.png>
- [48]
+ [50]
 File: diagrams/ch3_activity_legal_sources.png Graphic file (type bmp)
 <diagrams/ch3_activity_legal_sources.png>
+ [51]
 File: diagrams/ch3_activity_conversation.png Graphic file (type bmp)
 <diagrams/ch3_activity_conversation.png>
- [49]
+ [52]
 File: diagrams/ch3_activity_feedback.png Graphic file (type bmp)
 <diagrams/ch3_activity_feedback.png>
 File: diagrams/ch3_sequence_auth.png Graphic file (type bmp)
 <diagrams/ch3_sequence_auth.png>
- [50]
+ [53]
 File: diagrams/ch3_sequence_chat.png Graphic file (type bmp)
 <diagrams/ch3_sequence_chat.png>
- [51]
+ [54]
 File: diagrams/ch3_sequence_retrieval.png Graphic file (type bmp)
 <diagrams/ch3_sequence_retrieval.png>
+ [55]
 File: diagrams/ch3_sequence_generation.png Graphic file (type bmp)
 <diagrams/ch3_sequence_generation.png>
- [52]
 File: diagrams/ch3_sequence_citation.png Graphic file (type bmp)
 <diagrams/ch3_sequence_citation.png>
- [53]
+ [56]
 File: diagrams/ch3_sequence_feedback_bookmark.png Graphic file (type bmp)
 <diagrams/ch3_sequence_feedback_bookmark.png>
+ [57]
 File: diagrams/ch3_cdm.png Graphic file (type bmp)
 <diagrams/ch3_cdm.png>
- [54]
+ [58]
 File: diagrams/ch3_ldm.png Graphic file (type bmp)
 <diagrams/ch3_ldm.png>
- [55]
+ [59]
 File: diagrams/ch3_pdm.png Graphic file (type bmp)
 <diagrams/ch3_pdm.png>
+ [60]
 File: diagrams/ch3_erd.png Graphic file (type bmp)
 <diagrams/ch3_erd.png>
- [56] [57]
-ignored: Infinite glue shrinkage found in box being split [58] [59] [60] [61] [62]
+ [61]
+ignored: Infinite glue shrinkage found in box being split [62] [63] [64] [65] [66]
 File: diagrams/ch3_flow_ingestion.png Graphic file (type bmp)
 <diagrams/ch3_flow_ingestion.png>
 File: diagrams/ch3_flow_retrieval.png Graphic file (type bmp)
 <diagrams/ch3_flow_retrieval.png>
- [63]
+ [67]
 File: diagrams/ch3_flow_chat.png Graphic file (type bmp)
 <diagrams/ch3_flow_chat.png>
- [64]
+ [68] [69]
 File: diagrams/ch3_flow_citation.png Graphic file (type bmp)
 <diagrams/ch3_flow_citation.png>
- [65] [66]
+ [70]
 File: diagrams/ch4_home.png Graphic file (type bmp)
 <diagrams/ch4_home.png>
 File: diagrams/ch4_register.png Graphic file (type bmp)
 <diagrams/ch4_register.png>
- [67
+ [71
 
 
 ]
 File: diagrams/ch4_login.png Graphic file (type bmp)
 <diagrams/ch4_login.png>
- [68]
+ [72]
 File: diagrams/ch4_chat_empty.png Graphic file (type bmp)
 <diagrams/ch4_chat_empty.png>
-File: diagrams/ch4_chat_answer.png Graphic file (type bmp)
-<diagrams/ch4_chat_answer.png>
- [69]
-File: diagrams/ch4_chat_abstention.png Graphic file (type bmp)
-<diagrams/ch4_chat_abstention.png>
+ [73]
 File: diagrams/ch4_citation_panel.png Graphic file (type bmp)
 <diagrams/ch4_citation_panel.png>
- [70]
 File: diagrams/ch4_legal_sources.png Graphic file (type bmp)
 <diagrams/ch4_legal_sources.png>
+ [74]
 File: diagrams/ch4_legal_search.png Graphic file (type bmp)
 <diagrams/ch4_legal_search.png>
- [71]
 File: diagrams/ch4_markdown_viewer.png Graphic file (type bmp)
 <diagrams/ch4_markdown_viewer.png>
+ [75]
 File: diagrams/ch4_chat_history.png Graphic file (type bmp)
 <diagrams/ch4_chat_history.png>
- [72]
-File: diagrams/ch4_feedback.png Graphic file (type bmp)
-<diagrams/ch4_feedback.png>
 File: diagrams/ch4_test_report.png Graphic file (type bmp)
 <diagrams/ch4_test_report.png>
- [73]
+ [76]
 File: diagrams/ch4_health_api.png Graphic file (type bmp)
 <diagrams/ch4_health_api.png>
-File: diagrams/ch4_swagger.png Graphic file (type bmp)
-<diagrams/ch4_swagger.png>
- [74]
+ [77]
 File: diagrams/ch4_evaluation_report.png Graphic file (type bmp)
 <diagrams/ch4_evaluation_report.png>
- [75] [76
+ [78] [79
 
-] [77] [78
+] [80] [81
 
 
-] [79] (./main.aux)
+]
+Underfull \hbox (badness 4454) in paragraph at lines 2594--2595
+[]\TU/TimesNewRoman(0)/b/n/13 Anonymous\TU/TimesNewRoman(0)/m/n/13 . \TU/TimesNewRoman(0)/m/it/13 Agentic Retrieval-Augmented Generation: A Survey\TU/TimesNewRoman(0)/m/n/13 . arXiv
+ []
+
+[82] (./main.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
  ***********
+
+
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
+
 Package rerunfilecheck Info: File `main.out' has not changed.
-(rerunfilecheck)             Checksum: 545215FEDA88F66E9FCB4F50110BB779;30694.
+(rerunfilecheck)             Checksum: 4E47DF7DF31D6D0DD27330650896831E;32920.
  ) 
 Here is how much of TeX's memory you used:
- 27650 strings out of 470191
- 531741 string characters out of 5479697
+ 27622 strings out of 470191
+ 530617 string characters out of 5479697
  1146246 words of memory out of 5000000
- 55792 multiletter control sequences out of 15000+600000
- 633492 words of font info for 111 fonts, out of 8000000 for 9000
+ 55767 multiletter control sequences out of 15000+600000
+ 633508 words of font info for 113 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
- 73i,13n,107p,1073b,657s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 73i,13n,107p,1037b,656s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on main.pdf (96 pages).
+Output written on main.pdf (99 pages).

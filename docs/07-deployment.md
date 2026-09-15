@@ -33,8 +33,11 @@ Neither compose file provisions Supabase or OpenRouter. Supabase supplies authen
 
 Run release commands from the repository root. The compose file's build contexts are already written for this location.
 
-1. Prepare a local `.env` from [`.env.example`](../.env.example). Set at least the Supabase URL/keys and `OPENROUTER_API_KEY`; set frontend public Supabase values and `NEXT_PUBLIC_API_URL` for the address that the browser can actually reach. Never commit `.env`.
-2. Build and start the three release services:
+For local development, `dev.sh` uses same-origin browser transport by default: it leaves `NEXT_PUBLIC_API_URL` empty, so the browser requests `/api/v1/*` on the Next.js origin and `frontend/next.config.ts` rewrites those requests to `BACKEND_INTERNAL_URL`. This avoids CORS preflights on the chat path. To use a backend on another origin, set `NEXT_PUBLIC_API_URL` explicitly to the browser-reachable API URL; the backend CORS configuration must then allow the frontend origin.
+
+The backend chat budget is controlled by `CHAT_DEADLINE_SECONDS` (default `75`, seconds; must be greater than `0` and no greater than `300`). It is the server budget for `POST /api/v1/chat` and must remain below the client `NEXT_PUBLIC_CHAT_TIMEOUT_MS` (default `120000` milliseconds).
+
+1. Prepare a local `.env` from [`.env.example`](../.env.example). Set at least the Supabase URL/keys and `OPENROUTER_API_KEY`; set frontend public Supabase values and `NEXT_PUBLIC_API_URL` for the address that the browser can actually reach when using cross-origin transport. Never commit `.env`.
 
 ```bash
 docker compose -f deploy/compose/compose.release.yml up -d --build
@@ -143,12 +146,8 @@ uv run --project backend python backend/scripts/index.py \
 
 The loader currently reads the 17-entry `data/sources/manifest.json` and Markdown files under `data/corpus/mds`; this is runtime evidence, not proof of the frozen 14-PDF release contract. The index script uses `OpenAIEmbeddings` through the configured OpenRouter-compatible endpoint and FastEmbed `Qdrant/bm25`, then checks the collection point count. Provider credentials and the serving Qdrant location must be available to the process running the script. In the release container, Qdrant is reached at `http://qdrant:6333`; host-side ingestion must instead use a reachable Qdrant URL or a deliberately configured local path.
 
-Ingestion is not exposed through FastAPI. There is no upload/reviewer/approval flow in the active runtime. Do not run the host-side local-path indexer against a release deployment unless its Qdrant settings are explicitly pointed at the intended target; otherwise it can create a different local index than the one being served.
-
-## 6. Network and operational risks
-
 - The release backend port uses `${BACKEND_PORT:-8000}:8000` without an explicit host-interface restriction. Treat it as private-network only and enforce host firewall/network policy outside Compose.
-- The root compose binds `127.0.0.1` and is reachable only from the local machine by default. Its default frontend API URL is also `http://127.0.0.1:8000`; that value is wrong for browsers on another machine unless intentionally overridden and rebuilt.
+- The root compose binds `127.0.0.1` and is reachable only from the local machine by default. Local `dev.sh` uses same-origin browser transport by default; set `NEXT_PUBLIC_API_URL` only when intentionally using a backend on another origin, and then configure backend CORS for the frontend origin.
 - In release, the frontend is not published. A browser must be able to reach the URL compiled into `NEXT_PUBLIC_API_URL`, and that URL must route to the published backend. Docker's internal hostname `backend` is not a browser-reachable public URL.
 - Supabase and OpenRouter are outside the Compose health dependency graph. Their credentials, network access, quotas, and outages can make the application unusable while all local containers remain healthy.
 - The named `qdrant_data` volume is the release serving index. Recreating containers without `down -v` preserves it; deleting the volume loses the index unless the corpus can be reindexed.

@@ -1,13 +1,6 @@
 # VN Traffic Law RAG (VNLRAG)
 
-MVP hỏi đáp pháp luật giao thông đường bộ Việt Nam. Hệ thống hiện gồm trình khám phá nguồn luật và chat có trích dẫn:
-
-```text
-Markdown trong manifest -> LangChain Documents -> Qdrant HYBRID cục bộ
-                                                   -> ChatOpenRouter -> citations
-```
-
-Phạm vi serving hiện tại dùng đúng 17 tài liệu trong `data/sources/manifest.json`. Corpus Markdown, chunks và Qdrant là các artifact local, không được commit vào Git.
+MVP hỏi đáp pháp luật giao thông đường bộ Việt Nam. Hệ thống gồm trình khám phá nguồn luật và chat có trích dẫn. Phạm vi serving hiện tại dùng đúng 17 tài liệu trong `data/sources/manifest.json`; corpus Markdown, đoạn dữ liệus và Qdrant là artifact local, không commit vào Git.
 
 ## Chạy nhanh
 
@@ -18,27 +11,29 @@ cp .env.example .env
 ./dev.sh
 ```
 
-Mở `http://127.0.0.1:3000`. Supabase cung cấp đăng ký, đăng nhập, session chat, message, feedback và bookmark. Browser chỉ nhận public Supabase values; backend cần service-role credentials. Không commit `.env` hoặc API key.
-
 Docker Compose là cách triển khai tùy chọn:
 
 ```bash
 docker compose --env-file .env -f deploy/compose/compose.release.yml up --build
 ```
 
-Supabase và OpenRouter vẫn là dependency bên ngoài. Worker, Redis, MinIO và parser service không thuộc runtime MVP hiện tại.
+## Kiến trúc
 
-## Corpus 17 tài liệu
+```mermaid
+flowchart LR
+  A[Chat + history] --> B[Analyzer<br/>strict JSON]
+  B --> C[standalone_query<br/>expanded_queries ≤3]
+  C --> D[Multi-query retrieval<br/>Qdrant dense + sparse<br/>top_k=8/query]
+  D --> E[RRF fuse<br/>1/(60+rank)]
+  E --> F[Enrichment<br/>siblings, sanctions, references]
+  F --> G[Relevance filter<br/>graceful fallback]
+  G --> H[Generator]
+  H --> I[Citation sanitation<br/>metadata matching]
+  I --> J[Answer / status]
+```
 
-`fetch_sources.py` chỉ đọc file được liệt kê trong `data/sources/manifest.json`; script không tự quét toàn bộ `data/corpus/mds/`. Vì vậy số lượng file trong thư mục phải khớp manifest. Nếu đưa thêm file vào corpus mà không kiểm soát nội dung, tài liệu thừa có thể làm nhiễu retrieval, thay đổi kết quả citation và làm các metric evaluation hiện tại giảm.
-
-Snapshot dùng cho ba run mới:
-
-- Manifest SHA256: `ed648933ffa1f26e42cf5e7245bfbfd88a7866640f77d127a97fd0542d36ce90`.
-- `data/processed/chunks.jsonl` SHA256: `6bbd72397afa72b9379caaefebdf4e9a60090a09f47ea450c67d1c3418e78ecc`.
-- Chi tiết SHA256 của manifest và 17 Markdown nằm trong `data/evaluation/corpus-snapshot-20260915.sha256`.
-
-Kiểm tra file local:
+- Analyzer dùng LLM trước với `AnalyzerOutput` strict JSON gồm `category`, `intent`, `vehicle_type`, `standalone_query` và tối đa 3 `expanded_queries`; nếu lỗi hoặc timeout, dùng phương án dự phòng tất định.
+- Mỗi truy vấn mở rộng tìm top 8 bằng truy xuất hybrid Qdrant (dense + sparse). RRF dùng trọng số `1/(60+rank)`, giới hạn candidate theo cấu hình và tối đa 3 đoạn dữ liệu cho mỗi Điều/Khoản.
 
 ```bash
 python - <<'PY'
@@ -58,10 +53,6 @@ print("missing on disk:", sorted(listed - actual))
 assert listed == actual
 PY
 ```
-
-Hai danh sách `missing` phải rỗng.
-
-## Crawl và tạo chunks
 
 Crawl corpus mặc định:
 
@@ -91,9 +82,7 @@ python scripts/clean_traffic_corpus.py \
   --dir data/corpus/mds
 ```
 
-Crawl dừng nếu file bị đánh dấu `MISSING`, `INVALID` hoặc `FAILED`.
-
-Tạo chunks từ đúng manifest:
+Tạo đoạn dữ liệus từ đúng manifest:
 
 ```bash
 cd backend
@@ -104,8 +93,6 @@ uv run python scripts/fetch_sources.py \
 
 cp ../data/processed/markdown-chunks.jsonl ../data/processed/chunks.jsonl
 ```
-
-Kiểm tra chunks:
 
 ```bash
 cd ..
@@ -130,26 +117,6 @@ assert files == ids
 PY
 ```
 
-## Tạo index Qdrant HYBRID
-
-```bash
-cd backend
-uv run python scripts/index.py \
-  --chunks ../data/processed/chunks.jsonl \
-  --force-recreate \
-  --collection traffic_law
-```
-
-Index dùng dense embedding qua OpenRouter và sparse BM25 qua FastEmbed. Qdrant local lưu collection `traffic_law` trong `data/processed/qdrant/`. Không chạy đồng thời hai tiến trình index.
-
-Sau khi đổi manifest, đổi Markdown hoặc đổi parser, phải tạo lại chunks và Qdrant. Không dùng collection cũ để kết luận evaluation cho snapshot mới.
-
-## Khởi động và kiểm tra runtime
-
-```bash
-./dev.sh
-```
-
 Hoặc chỉ chạy backend:
 
 ```bash
@@ -163,21 +130,9 @@ Kiểm tra readiness:
 curl -i http://127.0.0.1:8000/api/v1/health/ready
 ```
 
-Readiness chỉ cho biết Supabase và Qdrant hoạt động. Cần chạy request đã xác thực để kiểm tra status, citation và abstention.
-
-## Legal source explorer
-
-Trang `/legal-sources` liệt kê các văn bản được API cung cấp, hỗ trợ tìm theo nội dung, số hiệu và điều khoản. API:
-
 ```text
 GET /api/v1/legal-search?q=...
 ```
-
-Có thể thêm `document_id`, `article`, `clause`, `point` và `limit`. Explorer chỉ đọc corpus local và không tự tìm luật trên web tại thời điểm query.
-
-## Chat có grounding và citation
-
-Chat lấy chunks pháp luật, kiểm tra evidence rồi mới gửi context được phép cho model. Status công khai gồm:
 
 - `VERIFIED`
 - `GREETING`
@@ -185,12 +140,6 @@ Chat lấy chunks pháp luật, kiểm tra evidence rồi mới gửi context đ
 - `CORPUS_NOT_COVERED`
 - `INSUFFICIENT_EVIDENCE`
 - `WORKFLOW_UNAVAILABLE`
-
-`CORPUS_NOT_COVERED` nghĩa là câu hỏi nằm ngoài corpus đang phục vụ. `INSUFFICIENT_EVIDENCE` nghĩa là hệ thống không đủ căn cứ để trả lời chắc chắn. Citation lấy từ metadata của chunk và mở được passage tương ứng.
-
-Hiện hệ thống chưa xử lý tốt câu hỏi penalty thiếu loại phương tiện. Ví dụ `Mức phạt khi vượt đèn đỏ là bao nhiêu?` vẫn có thể trả `VERIFIED` với citation không phù hợp. Đây là gap an toàn cần giải quyết trước release.
-
-## API chính
 
 - `GET /api/v1/health`, `/api/v1/health/live`, `/api/v1/health/ready`
 - `POST /api/v1/chat`
@@ -208,68 +157,84 @@ Hiện hệ thống chưa xử lý tốt câu hỏi penalty thiếu loại phư�
 - `GET /api/v1/legal-documents/{document_id}/provisions`
 - `GET /api/v1/legal-search`
 
+## Mô hình và cấu hình
+
+```text
+GENERATION_MODEL             model sinh câu trả lời
+ANALYZER_MODEL               model phân tích (rỗng = dùng GENERATION_MODEL)
+ANALYZER_TIMEOUT_SECONDS     ngân sách riêng cho analyzer (mặc định 15s)
+GENERATION_MAX_RETRIES       số lần thử lại generation
+EMBEDDING_MODEL              model embedding
+```
+
+Bảng 1 , bộ phân tích yêu cầu (6 case: 4 legal + 1 follow-up có history + 1 out-of-scope; tiêu chí JSON hợp lệ / category đúng / vehicle đúng / độ trễ):
+
+| model                                       | JSON hợp lệ | category đúng | vehicle đúng | trễ TB |
+| ------------------------------------------- | ----------: | ------------: | -----------: | -----: |
+| `google/gemini-2.5-flash-lite`              |         6/6 |           6/6 |          6/6 |   1.3s |
+| `mistralai/mistral-small-24b-instruct-2501` |         6/6 |           6/6 |          6/6 |   3.6s |
+| `qwen/qwen3-30b-a3b-instruct-2507`          |         6/6 |           6/6 |          6/6 |   4.1s |
+| `openai/gpt-oss-20b`                        |         5/6 |           5/6 |          5/6 |  11.2s |
+
+Bảng 2 , bộ sinh câu trả lời (5 lần lặp, câu lệnh cho mô hình thật với 15 đoạn dữ liệu tìm kiếm căn cứ):
+
+| model                                       | thành công |   p50 |   max | ký tự |
+| ------------------------------------------- | ---------: | ----: | ----: | ----: |
+| `google/gemini-2.5-flash-lite`              |        5/5 |  1.2s |  2.2s |   551 |
+| `mistralai/mistral-small-24b-instruct-2501` |        5/5 |  4.8s | 11.2s |   524 |
+| `openai/gpt-oss-20b`                        |        5/5 |  6.3s |  6.6s |   764 |
+| `deepseek/deepseek-v4-flash-0731`           |        5/5 | 24.3s | 56.6s |   279 |
+
+Bảng 3 , số nhà cung cấp mô hình và tỉ lệ hoạt động (OpenRouter endpoints API):
+
+| model                                                                                                                                                                                                                                                                                                                                                                      | số nhà cung cấp mô hình | ghi chú                                                                          |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------: | -------------------------------------------------------------------------------- |
+| `google/gemini-2.5-flash-lite`                                                                                                                                                                                                                                                                                                                                             |                       5 | Google AI Studio tỉ lệ hoạt động 99.998%, giá $0.05/$0.20 mỗi 1M token           |
+| `openai/gpt-oss-20b`                                                                                                                                                                                                                                                                                                                                                       |                      14 | $0.02/$0.10, nhiều nhà cung cấp mô hình ≥99.9%                                   |
+| `qwen/qwen3-30b-a3b-instruct-2507`                                                                                                                                                                                                                                                                                                                                         |                       5 | có nhà cung cấp mô hình ở trạng thái degraded                                    |
+| `mistralai/mistral-small-24b-instruct-2501`                                                                                                                                                                                                                                                                                                                                |                       1 | chỉ DeepInfra; E2E độ trễ P90 27.8s, P95 40.0s, tỉ lệ lỗi định dạng đầu ra 2.35% |
+| `deepseek/deepseek-v4-flash-0731`                                                                                                                                                                                                                                                                                                                                          |                      27 | ổn định nhưng chậm nhất ở generation                                             |
+| Đã chọn `GENERATION_MODEL=google/gemini-2.5-flash-lite` và `ANALYZER_MODEL=google/gemini-2.5-flash-lite`: bộ phân tích yêu cầu 6/6, generation p50 1.2s / max 2.2s trên 5 lần lặp, 5 nhà cung cấp mô hình nên `allow_fallbacks` có tác dụng, giá thuộc nhóm thấp. `mistral-small-24b` từng gây `generation_failed` do chỉ có 1 nhà cung cấp mô hình và bị 429 từ upstream. |
+
+## Ma trận acceptance
+
+Đo trên backend đang chạy `GENERATION_MODEL=ANALYZER_MODEL=google/gemini-2.5-flash-lite`, gọi `POST /api/v1/chat` qua API thật, cây mã đóng băng (không sửa file trong lúc đo).
+
+| nhóm                                  | câu hỏi                                                              | status       | reason_code  |     citations |                           giây |
+| ------------------------------------- | -------------------------------------------------------------------- | ------------ | ------------ | ------------: | -----------------------------: |
+| A-fresh                               | Đi xe máy không đội mũ bảo hiểm bị phạt thế nào?                     | VERIFIED     | ,            |             6 |                          25.2s |
+| A-fresh                               | Ô tô vượt đèn đỏ bị phạt bao nhiêu?                                  | VERIFIED     | ,            |             4 |                          11.3s |
+| A-fresh                               | Xe máy được chở tối đa bao nhiêu người?                              | VERIFIED     | ,            |             3 |                           9.5s |
+| A-fresh                               | Ban đêm có bắt buộc bật đèn chiếu sáng không?                        | VERIFIED     | ,            |            17 |                          16.7s |
+| A-fresh                               | Bấm còi trong khu dân cư có bị phạt không?                           | VERIFIED     | ,            |            16 |                          23.1s |
+| A-fresh                               | Quay đầu hoặc lùi xe có bị phạt không?                               | VERIFIED     | ,            |             9 |                          22.4s |
+| B-session (6 câu A trong một session) | 6/6 VERIFIED                                                         | VERIFIED     | ,            | 4/4/5/15/14/5 | 12.0/12.1/25.5/14.7/11.2/13.0s |
+| C-multi-intent                        | Xe máy vừa vượt đèn đỏ vừa chở 3 người thì bị phạt sao?              | VERIFIED     | ,            |             1 |                          11.1s |
+| C-multi-intent                        | Vượt đèn đỏ bị phạt bao nhiêu tiền và trừ mấy điểm giấy phép lái xe? | VERIFIED     | ,            |             1 |                          11.5s |
+| C-multi-intent                        | Quy định về mũ bảo hiểm và mức phạt khi không đội là gì?             | VERIFIED     | ,            |            16 |                          17.6s |
+| D-cross-ref                           | Điều 6 Nghị định 168/2024 quy định gì?                               | VERIFIED     | ,            |             4 |                           6.1s |
+| D-cross-ref                           | Điều 7 Khoản 3 Nghị định 168/2024 quy định gì?                       | VERIFIED     | ,            |             1 |                           7.5s |
+| D-cross-ref                           | Điều 5 Nghị định 100/2019 quy định gì?                               | VERIFIED     | ,            |             1 |                           6.1s |
+| E-followup                            | Ô tô vượt đèn đỏ bị phạt bao nhiêu?                                  | VERIFIED     | ,            |             4 |                          11.0s |
+| E-followup                            | … -> Còn xe máy thì sao?                                             | VERIFIED     | ,            |             1 |                          13.9s |
+| E-followup                            | Đi xe máy không đội mũ bảo hiểm bị phạt thế nào?                     | VERIFIED     | ,            |             6 |                          14.2s |
+| E-followup                            | … -> Vậy còn ô tô?                                                   | VERIFIED     | ,            |             6 |                          25.2s |
+| F                                     | Mức phạt khi đi xe buýt không đúng tuyến là bao nhiêu?               | VERIFIED     | ,            |             3 |                           8.7s |
+| F                                     | Thời tiết Hà Nội ngày mai thế nào?                                   | OUT_OF_SCOPE | out_of_scope |             0 |                           2.7s |
+
+### Hạn chế đã đo
+
+- Trạng thái: 22/22 lần gọi ra đúng mã trạng thái (VERIFIED cho câu trong phạm vi, OUT_OF_SCOPE cho câu ngoài phạm vi); không còn `generation_failed` hay `insufficient_evidence` ngoài dự kiến. Đây là đánh giá theo trạng thái, khác với xác nhận chất lượng nội dung từng câu (xem hạn chế follow-up bên dưới).
+- Độ trễ sau khi nâng song song truy xuất: 2.7, 25.5s mỗi câu.
+- Follow-up `Vậy còn ô tô?` sau câu hỏi mũ bảo hiểm chưa đúng ý người hỏi: câu hỏi này mơ hồ vì không có quy định mũ bảo hiểm cho ô tô. Đo hai cách xử lý đều cho kết quả chung về ô tô (dây an toàn) , bỏ hành vi (`Mức phạt đối với ô tô bao nhiêu?`, 1 citation) và giữ hành vi (`… đối với hành vi không đội mũ bảo hiểm …`, 5 citation) , nên nguyên nhân nằm ở câu hỏi thiếu hành vi, khác với ở resolver. Hướng đúng là hỏi lại hành vi cụ thể thay vì trả quy định ô tô bất kỳ; chưa triển khai.
+- `Điều 7 Khoản 3 Nghị định 168/2024` và `Điều 5 Nghị định 100/2019` trước đây trả `reference_not_found`; sau khi sửa parser thứ tự `Điều … Khoản …` cả hai đã VERIFIED.
+- Case "xe buýt không đúng tuyến" được kỳ vọng thiếu căn cứ trong ma trận cũ, nhưng corpus có khoản 1 Điều 25 Nghị định 168/2024 nên kết quả VERIFIED là đúng.
+
 ## Evaluation 40 cases
 
-Bộ test là `data/evaluation/thesis-gold-40.json`, gồm 40 case thuộc 8 nhóm. Có 34 case nằm trong corpus hiện tại và 6 case được đánh dấu `CORPUS_NOT_COVERED`:
+Run4 của pipeline v2 (`GENERATION_MODEL=ANALYZER_MODEL=google/gemini-2.5-flash-lite`, `top_k=5`, run `20260915T075654Z`) có 34/40 case được corpus bao phủ; 6 case bị loại vì corpus chưa bao phủ: `thesis-gold-40-00`, `thesis-gold-40-15`..`thesis-gold-40-19`. `multi_intent` có count 0 vì toàn bộ case thuộc danh sách bị loại. `answer_correctness_manual` chưa chấm.
 
-```text
-00, 15, 16, 17, 18, 19
-```
-
-Evaluator đo retrieval, document/article/clause/point coordinates, citation validity, abstention và latency. `answer_correctness_manual` vẫn cần người đánh giá, không được suy ra từ các metric tự động.
-
-### Ba run sau khi rebuild Qdrant
-
-Cả ba run dùng cùng manifest 17 tài liệu, cùng chunks snapshot, collection Qdrant mới, `top_k=5` và API local đã xác thực.
-
-| Metric | Run 1 | Run 2 | Run 3 |
-|---|---:|---:|---:|
-| Total rows | 40 | 40 | 40 |
-| Covered rows | 34 | 34 | 34 |
-| Request errors | 0 | 0 | 0 |
-| `CORPUS_NOT_COVERED` | 00, 15–19 | 00, 15–19 | 00, 15–19 |
-| Retrieval hit@5 | 0.4167 | 0.4167 | 0.4167 |
-| Citation validity | 0.9412 | 0.8824 | 0.9412 |
-| Abstention accuracy | 0.8529 | 0.7941 | 0.8529 |
-| Document accuracy | 0.5417 | 0.5417 | 0.5417 |
-| Article accuracy | 0.5000 | 0.5000 | 0.5000 |
-| Clause accuracy | 0.3846 | 0.3846 | 0.3846 |
-| Point accuracy | 0.0000 | 0.0000 | 0.0000 |
-| Mean latency | 16.82 s | 17.77 s | 19.75 s |
-| P95 latency | 40.88 s | 42.10 s | 50.17 s |
-
-Artifacts:
-
-```text
-data/evaluation/rebuild-20260915-run1/
-data/evaluation/rebuild-20260915-run2/
-data/evaluation/rebuild-20260915-run3/
-data/evaluation/corpus-snapshot-20260915.sha256
-```
-
-Ba run cho thấy tọa độ structural ổn định, nhưng kết quả generation vẫn dao động. Các metric hiện chưa đạt release gate:
-
-- Retrieval hit@5 cần `>= 0.80`, hiện `0.4167`.
-- Citation validity cần `>= 0.95`, hiện `0.8824–0.9412`.
-- Abstention cần `>= 0.90`, hiện `0.7941–0.8529`.
-- Document/article/clause/point lần lượt cần `>= 0.85/0.85/0.80/0.75`, hiện `0.5417/0.5000/0.3846/0.0000`.
-- P95 latency hiện `40.88–50.17s`.
-- Chưa có manual semantic correctness.
-
-### Sáu câu hỏi smoke đã chạy
-
-Các câu hỏi được gửi qua API local với user đã xác thực, sau khi rebuild Qdrant:
-
-| Câu hỏi | Kết quả observed | Gap |
-|---|---|---|
-| `Xe máy vượt đèn đỏ bị phạt bao nhiêu?` | `VERIFIED`, citation NĐ 100 Điều 17 | Citation không trỏ đúng quy định vượt đèn đỏ |
-| `Ô tô vượt đèn đỏ bị phạt bao nhiêu?` | `VERIFIED`, NĐ 100 Điều 5 Khoản 5 Điểm a | Kết quả phù hợp hơn nhưng cần kiểm tra amount trong answer |
-| `Không đội mũ bảo hiểm khi đi xe máy bị phạt thế nào?` | `VERIFIED`, NĐ 100 Điều 6 Khoản 2 Điểm i | Citation đúng hành vi, cần kiểm tra amount |
-| `Điện thoại khi lái xe máy bị phạt bao nhiêu?` | `VERIFIED`, NĐ 100 Điều 17 | Citation không phù hợp với hành vi dùng điện thoại |
-| `Nồng độ cồn khi lái xe máy bị phạt bao nhiêu?` | `INSUFFICIENT_EVIDENCE`, không citation | Corpus/retrieval chưa trả được căn cứ |
-| `Mức phạt khi vượt đèn đỏ là bao nhiêu?` | `VERIFIED`, NĐ 168 Điều 15 | Thiếu loại xe nhưng vẫn trả lời; citation sai ngữ cảnh |
-
-Smoke suite chưa đạt. Hệ thống cần hỏi lại loại phương tiện hoặc abstain khi câu hỏi penalty không nêu rõ xe máy, ô tô hay nhóm xe khác.
+`follow_up` có `document_accuracy=0.0` vì runner gửi từng câu độc lập, không kèm history. `insufficient_evidence` có `abstention_accuracy=0.0` (5/5 vẫn trả lời). Tài liệu chỉ ghi kết quả của lần chạy mới nhất; artifact: `data/evaluation/rebuild-20260915-run4/20260915T075654Z.aggregate.json`.
 
 ## Các gap hiện tại
 
@@ -279,21 +244,21 @@ Smoke suite chưa đạt. Hệ thống cần hỏi lại loại phương tiện 
 
 Hậu quả đã đo được:
 
-- 8 expected point coordinates bị thiếu trong chunks.
-- Point accuracy bằng `0` ở cả ba run.
+- 8 expected point coordinates bị thiếu trong đoạn dữ liệus.
+- Point độ chính xác bằng `0` ở cả ba run.
 - Case exact reference Điều 11 Khoản 4 và Điều 13 Khoản 2 Điểm b không tìm thấy evidence.
 
 ### 2. Corpus mở rộng làm thay đổi evaluation
 
-Thêm hơn 17 tài liệu vào `data/corpus/mds/` mà không thay đổi thiết kế evaluation sẽ làm tăng candidate documents và có thể làm loãng retrieval. Các văn bản khác phiên bản, văn bản sửa đổi, tài liệu không cùng lĩnh vực hoặc Markdown có cấu trúc khác có thể:
+Thêm hơn 17 tài liệu vào `data/corpus/mds/` mà không thay đổi thiết kế evaluation sẽ làm tăng candidate documents và có thể làm loãng truy xuất. Các văn bản khác phiên bản, văn bản sửa đổi, tài liệu không cùng lĩnh vực hoặc Markdown có cấu trúc khác có thể:
 
 - đẩy provision đúng ra khỏi top-k;
 - tạo citation hợp lệ về mặt format nhưng sai điều khoản;
-- thay đổi abstention behavior;
+- thay đổi từ chối trả lời behavior;
 - làm metric thấp hơn dù code không đổi;
 - khiến run mới không so sánh được với baseline 17 tài liệu.
 
-Vì vậy 17-document snapshot hiện tại là boundary của evaluation này. Không gọi kết quả của corpus mở rộng là kết quả tương đương nếu chưa tạo gold set, manifest, chunk snapshot, Qdrant collection và metric baseline mới.
+Vì vậy 17-document snapshot hiện tại là boundary của evaluation này. Không gọi kết quả của corpus mở rộng là kết quả tương đương nếu chưa tạo gold set, manifest, đoạn dữ liệu snapshot, Qdrant collection và metric baseline mới.
 
 ### 3. Artifact cũ không đủ để reproduce
 
@@ -309,24 +274,7 @@ Qdrant collection identity
 thesis gold-set version
 ```
 
-Không commit credential, raw bearer token, `.env`, hoặc Qdrant binary database.
-
-## Hướng refactor cần có trước khi mở rộng corpus
-
-Không nên thêm document vào manifest trước khi có các seam sau:
-
-1. **Corpus registry và snapshot identity**: manifest phải có version, source hash, effective date và trạng thái văn bản; index phải ghi hash của manifest/chunks/model.
-2. **Parser normalization**: chuẩn hóa marker tách dòng trước khi tạo metadata, giữ lại raw text để audit và phát hiện mất Điều/Khoản/Điểm.
-3. **Structure coverage gate**: từ chối hoặc cảnh báo document nếu tỷ lệ article/clause/point parse được thấp hơn ngưỡng; không silently index tài liệu lỗi cấu trúc.
-4. **Document-level retrieval isolation**: hỗ trợ filter theo document family, vehicle scope, effective date và source status trước khi semantic ranking.
-5. **Gold set theo corpus version**: mỗi corpus snapshot mở rộng phải có expected coordinates và evaluation baseline riêng; không trộn kết quả với baseline 17 tài liệu.
-6. **Clarification gate cho penalty**: query thiếu vehicle scope phải hỏi lại hoặc abstain, không lấy citation gần nghĩa rồi trả `VERIFIED`.
-7. **Raw retrieval metrics**: đo hit@k từ top-k retriever trước generation, tách khỏi citation coordinates của final answer.
-8. **Release smoke matrix**: giữ sáu câu hỏi smoke và thêm case cho từng vehicle class, penalty, temporal validity, missing evidence và citation mismatch.
-
 ## Chạy evaluation
-
-Chạy API local trước, sau đó:
 
 ```bash
 uv run --project backend python backend/scripts/run_thesis_evaluation.py \
@@ -337,15 +285,11 @@ uv run --project backend python backend/scripts/run_thesis_evaluation.py \
   --output-dir data/evaluation/thesis-run
 ```
 
-Review raw JSONL:
-
 ```bash
 uv run --project backend python backend/scripts/review_thesis_answers.py \
   data/evaluation/thesis-run/<run-id>.jsonl \
   --output data/evaluation/thesis-run/<run-id>.reviews.jsonl
 ```
-
-## Kiểm tra
 
 ```bash
 cd backend
@@ -359,10 +303,6 @@ npm run typecheck
 npm run build
 npm run format:check
 ```
-
-## Phạm vi chưa cam kết
-
-MVP hiện không cam kết phủ toàn bộ pháp luật giao thông Việt Nam, không query-time web retrieval, không tự suy luận ngoài evidence và chưa đạt release gate nêu trên. Runtime được hỗ trợ là manifest Markdown 17 tài liệu, LangChain Documents, Qdrant HYBRID cục bộ, ChatOpenRouter, citation metadata và Supabase auth/persistence.
 
 ## License
 

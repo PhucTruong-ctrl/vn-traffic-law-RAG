@@ -32,7 +32,8 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   export "$key=$value"
 done < "$ENV_FILE"
 BACKEND_INTERNAL_URL="${BACKEND_INTERNAL_URL:-http://127.0.0.1:8000}"
-NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://127.0.0.1:8000}"
+NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-}"
+# Empty means same-origin: the browser calls /api/v1/* on the Next origin and frontend/next.config.ts rewrites to BACKEND_INTERNAL_URL, removing CORS preflights from the chat path. Set NEXT_PUBLIC_API_URL only when the API lives on another origin (and then backend CORS must allow the frontend origin).
 export BACKEND_INTERNAL_URL NEXT_PUBLIC_API_URL
 
 
@@ -53,8 +54,8 @@ fi
 
 # Next.js reads frontend/.env.local for direct launches. Keep the generated
 # file restricted and preserve a user-managed nonempty file unless the root
-# .env explicitly supplied the public values. Local dev defaults to the host
-# FastAPI URL; set NEXT_PUBLIC_API_URL to intentionally override it.
+# .env explicitly supplied the public values. Local dev defaults to same-origin;
+# set NEXT_PUBLIC_API_URL to intentionally use another API origin.
 NEXT_PUBLIC_SUPABASE_URL="${NEXT_PUBLIC_SUPABASE_URL:-$SUPABASE_URL}"
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-${SUPABASE_PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-}}}"
 frontend_env="$ROOT/frontend/.env.local"
@@ -108,6 +109,9 @@ trap cleanup INT TERM EXIT
     QDRANT_PATH="$QDRANT_PATH" QDRANT_COLLECTION="${QDRANT_COLLECTION:-traffic_law}" \
     OPENROUTER_API_KEY="$OPENROUTER_API_KEY" OPENROUTER_BASE_URL="${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}" \
     GENERATION_MODEL="${GENERATION_MODEL:-deepseek/deepseek-v4-flash-0731}" \
+    ANALYZER_MODEL="${ANALYZER_MODEL:-}" \
+    ANALYZER_TIMEOUT_SECONDS="${ANALYZER_TIMEOUT_SECONDS:-15}" \
+    GENERATION_MAX_RETRIES="${GENERATION_MAX_RETRIES:-3}" \
     EMBEDDING_MODEL="${EMBEDDING_MODEL:-openai/text-embedding-3-small}" \
     EMBEDDING_DIMENSIONS="${EMBEDDING_DIMENSIONS:-768}" \
     TEST_USER_EMAIL="${TEST_USER_EMAIL:-}" TEST_USER_PASSWORD="${TEST_USER_PASSWORD:-}" \
