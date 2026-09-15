@@ -41,9 +41,6 @@ data/models/
 backend/data/
 
 # Generated source downloads, indexes, and caches
-data/corpus/pdfs/
-data/corpus/mds/*.md
-!data/corpus/mds/README.md
 data/sources/ocr-fallback.json
 data/**/*.index
 data/**/*.idx

@@ -107,7 +107,9 @@ trap cleanup INT TERM EXIT
     HF_HUB_DISABLE_PROGRESS_BARS="$HF_HUB_DISABLE_PROGRESS_BARS" \
     QDRANT_PATH="$QDRANT_PATH" QDRANT_COLLECTION="${QDRANT_COLLECTION:-traffic_law}" \
     OPENROUTER_API_KEY="$OPENROUTER_API_KEY" OPENROUTER_BASE_URL="${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}" \
-    GENERATION_MODEL="${GENERATION_MODEL:-deepseek/deepseek-v4-flash-0731}" EMBEDDING_MODEL="${EMBEDDING_MODEL:-openai/text-embedding-3-small}" \
+    GENERATION_MODEL="${GENERATION_MODEL:-deepseek/deepseek-v4-flash-0731}" \
+    EMBEDDING_MODEL="${EMBEDDING_MODEL:-openai/text-embedding-3-small}" \
+    EMBEDDING_DIMENSIONS="${EMBEDDING_DIMENSIONS:-768}" \
     TEST_USER_EMAIL="${TEST_USER_EMAIL:-}" TEST_USER_PASSWORD="${TEST_USER_PASSWORD:-}" \
     TEST_USER_B_EMAIL="${TEST_USER_B_EMAIL:-}" TEST_USER_B_PASSWORD="${TEST_USER_B_PASSWORD:-}" \
     uv run --env-file /dev/null --directory "$ROOT/backend" python -m uvicorn app.main:app --reload --reload-dir "$ROOT/backend/app" --app-dir "$ROOT/backend" --host 127.0.0.1 --port 8000

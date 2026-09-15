@@ -39,6 +39,75 @@ def _score(document: Any) -> float:
         return float("-inf")
 
 
+_VEHICLE_ALIASES = {
+    "car": {"car", "ô tô", "xe ô tô", "xe hơi"},
+    "motorcycle": {"motorcycle", "xe máy", "xe mô tô", "xe gắn máy", "mô tô", "moped"},
+    "bicycle": {"bicycle", "xe đạp", "xe thô sơ", "đạp điện"},
+    "specialized": {"specialized", "xe chuyên dùng", "máy kéo"},
+}
+
+
+def _canonical_tokens(value: Any) -> set[str]:
+    return {
+        token
+        for token in re.findall(r"[^\W\d_]+", str(value or "").casefold(), flags=re.UNICODE)
+        if len(token) > 1
+    }
+
+
+def _metadata_values(metadata: Mapping[str, Any], *keys: str) -> tuple[str, ...]:
+    values: list[str] = []
+    for key in keys:
+        value = metadata.get(key)
+        if isinstance(value, (list, tuple, set)):
+            values.extend(str(item) for item in value)
+        elif value is not None:
+            values.append(str(value))
+    return tuple(values)
+
+
+def _vehicle_matches(metadata: Mapping[str, Any], required: tuple[str, ...]) -> bool:
+    if not required:
+        return True
+    declared = _metadata_values(
+        metadata, "vehicle_categories", "vehicle", "vehicle_type", "vehicle_category"
+    )
+    if not declared:
+        return False
+    requested_text = " ".join(required).casefold()
+    requested_categories = {
+        category
+        for category, aliases in _VEHICLE_ALIASES.items()
+        if any(alias in requested_text for alias in aliases)
+    }
+    declared_categories = {
+        category
+        for category, aliases in _VEHICLE_ALIASES.items()
+        if any(alias in " ".join(declared).casefold() for alias in aliases)
+    }
+    return bool(requested_categories & declared_categories)
+
+
+def _action_matches(metadata: Mapping[str, Any], required: tuple[str, ...]) -> bool:
+    if not required:
+        return True
+    canonical = metadata.get("normalized_action") or metadata.get("action")
+    if not canonical:
+        return bool(
+            _canonical_tokens(" ".join(required)) & _canonical_tokens(metadata.get("context", ""))
+        )
+    expected = _canonical_tokens(" ".join(required))
+    actual = _canonical_tokens(canonical)
+    ignored = {"mức", "phạt", "tiền", "bao", "nhiêu", "thế", "nào"}
+    expected -= ignored
+    if not expected:
+        return True
+    aliases = {"vượt": {"vượt", "chấp", "hành", "hiệu", "lệnh"}, "đèn": {"đèn", "tín", "hiệu"}}
+    return bool(expected & actual) or any(
+        aliases.get(token, {token}) & actual for token in expected
+    )
+
+
 ABSTENTION_MESSAGE = "Chưa đủ căn cứ trong dữ liệu pháp luật được truy xuất để trả lời chắc chắn."
 
 
@@ -79,7 +148,9 @@ def assess_evidence(
     if effective_date is not None and not valid_docs:
         return EvidenceDecision(False, ABSTENTION_MESSAGE, "no_temporally_valid_evidence")
     valid_docs = [doc for doc in valid_docs if _is_valid_identity(_metadata(doc))]
-    if not valid_docs and any(_metadata(doc).get("document_id") for doc in docs):
+    if not valid_docs and any(
+        _metadata(doc).get("document_id") or _metadata(doc).get("chunk_id") for doc in docs
+    ):
         return EvidenceDecision(False, ABSTENTION_MESSAGE, "insufficient_evidence")
     if required_reference:
         reference = (
@@ -89,6 +160,15 @@ def assess_evidence(
         )
         if not any(_matches_reference(_metadata(doc), reference) for doc in valid_docs):
             return EvidenceDecision(False, ABSTENTION_MESSAGE, "reference_not_found")
+    if (
+        required_action_terms
+        and any(_has_action_identity(doc, required_action_terms) for doc in valid_docs)
+        and not any(
+            _has_action_identity(doc, required_action_terms) and _has_sanction_signal(doc)
+            for doc in valid_docs
+        )
+    ):
+        return EvidenceDecision(False, ABSTENTION_MESSAGE, "missing_sanction_evidence")
     if required_intents:
         expected = {intent for intent in required_intents if intent}
         covered: set[str] = set()
@@ -125,7 +205,46 @@ def _intent_terms(intent: str) -> set[str]:
 def _is_valid_identity(metadata: Mapping[str, Any]) -> bool:
     # Citation construction enforces complete identity; low-level evidence
     # selection accepts document-only records used by temporal tests.
-    return bool(str(metadata.get("document_id") or "").strip())
+    return bool(
+        str(metadata.get("document_id") or "").strip()
+        or str(metadata.get("chunk_id") or "").strip()
+    )
+
+
+def _has_sanction_signal(document: Any) -> bool:
+    """Require an explicit sanction signal for action/penalty evidence."""
+    metadata = _metadata(document)
+    searchable = " ".join(
+        [
+            str(getattr(document, "page_content", "")),
+            *(
+                str(metadata.get(key, ""))
+                for key in ("sanction", "penalty", "fine", "points", "action")
+            ),
+        ]
+    )
+    return bool(
+        re.search(
+            r"(?:phạt\s*(?:tiền)?|mức\s*phạt|tiền\s*phạt|trừ\s*điểm|tước\s+quyền|"
+            r"tịch\s*thu|tạm\s*giữ|\b\d[\d.,]*\s*(?:đ|đồng|vnđ|triệu|nghìn)\b)",
+            searchable,
+            flags=re.IGNORECASE,
+        )
+    )
+
+
+def _has_action_identity(document: Any, required_action_terms: Iterable[str] | None) -> bool:
+    if not required_action_terms:
+        return True
+    metadata = _metadata(document)
+    return bool(
+        str(
+            metadata.get("normalized_action")
+            or metadata.get("action")
+            or metadata.get("violation")
+            or ""
+        ).strip()
+    )
 
 
 def _matches_content(
@@ -136,16 +255,68 @@ def _matches_content(
     excluded_contexts: Iterable[str] | None,
     effective_date: Any | None,
 ) -> bool:
-    text = str(getattr(document, "page_content", "")).casefold()
-    if any(term.casefold() not in text for term in (required_action_terms or ())):
-        return False
-    if required_vehicle_terms and not any(
-        term.casefold() in text for term in required_vehicle_terms
+    searchable = " ".join(
+        [
+            str(getattr(document, "page_content", "")),
+            *(
+                str(_metadata(document).get(key, ""))
+                for key in (
+                    "provision_family",
+                    "context",
+                    "context_scope",
+                    "violation",
+                    "action",
+                    "normalized_action",
+                    "vehicle",
+                    "vehicle_type",
+                    "vehicle_category",
+                    "vehicle_categories",
+                )
+            ),
+        ]
+    )
+    aliases = {
+        "không đội mũ bảo hiểm hoặc không cài quai đúng quy cách": (
+            "không đội",
+            "mũ bảo hiểm",
+            "cài quai",
+        ),
+        "quy định về số người được chở trên xe": (
+            "số người được chở",
+            "chở theo",
+            "người được chở",
+        ),
+        "sử dụng đèn chiếu sáng khi tham gia giao thông": (
+            "đèn chiếu sáng",
+            "sử dụng không đủ đèn",
+        ),
+        "sử dụng còi trong khu đông dân cư": ("bấm còi", "sử dụng còi", "rú ga"),
+        "quay đầu xe": ("quay đầu xe", "quay đầu"),
+        "lùi xe": ("lùi xe",),
+    }
+    action_terms = tuple(
+        str(term).casefold() for term in (required_action_terms or ()) if str(term).strip()
+    )
+    if any(
+        term not in searchable and not any(alias in searchable for alias in aliases.get(term, ()))
+        for term in action_terms
     ):
         return False
-    if any(term.casefold() in text for term in (excluded_contexts or ())):
+    metadata = _metadata(document)
+    if (
+        action_terms
+        and not _action_matches(metadata, action_terms)
+        and (metadata.get("normalized_action") or metadata.get("action"))
+    ):
         return False
-    return effective_date is None or _effective(_metadata(document), effective_date)
+    vehicle_terms = tuple(
+        term.casefold() for term in (required_vehicle_terms or ()) if str(term).strip()
+    )
+    if vehicle_terms and not _vehicle_matches(metadata, vehicle_terms):
+        return False
+    if any(str(term).casefold() in searchable for term in (excluded_contexts or ())):
+        return False
+    return effective_date is None or _effective(metadata, effective_date)
 
 
 def _effective(metadata: Mapping[str, Any], value: Any) -> bool:

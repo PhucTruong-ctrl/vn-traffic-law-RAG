@@ -9,19 +9,54 @@ from threading import Lock
 from typing import Any
 
 from langchain_core.documents import Document
-from pydantic import SecretStr
+from langchain_core.embeddings import Embeddings
+from openai import OpenAI
 from qdrant_client import QdrantClient
 from qdrant_client.models import Condition, FieldCondition, Filter, MatchValue
 
 from app.config import get_embedding_settings, get_qdrant_settings
 
 from .cross_refs import expand_cross_references, expand_sibling_completions
+from .query_rules import load_query_rules, requested_context
 from .references import LegalReference, metadata_matches, parse_reference
 
 _SANCTION_COMPLETION_RE = re.compile(
     r"(?:phạt\s+tiền|trừ\s+điểm|tước\s+quyền|tịch\s+thu|tạm\s+giữ)",
     re.IGNORECASE,
 )
+
+
+class OpenRouterEmbeddings(Embeddings):
+    def __init__(self, *, model: str, dimensions: int, api_key: str, base_url: str) -> None:
+        self.model = model
+        self.dimensions = dimensions
+        self.client = OpenAI(api_key=api_key, base_url=base_url)
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        segments: list[str] = []
+        owners: list[list[int]] = []
+        for text in texts:
+            start = len(segments)
+            segments.extend(text[index : index + 24000] for index in range(0, len(text), 24000))
+            owners.append(list(range(start, len(segments))))
+        response = self.client.embeddings.create(
+            model=self.model,
+            input=segments,
+            dimensions=self.dimensions,
+        )
+        vectors = [item.embedding for item in response.data]
+        return [
+            [
+                sum(vectors[index][dimension] for index in indices) / len(indices)
+                for dimension in range(len(vectors[0]))
+            ]
+            for indices in owners
+        ]
+
+    def embed_query(self, text: str) -> list[float]:
+        return self.embed_documents([text])[0]
+
+
 _FAMILY_CONTEXT_RE = re.compile(
     r"(?:điều|chương|mục|tiêu đề|quy định|áp dụng|đối với)",
     re.IGNORECASE,
@@ -212,33 +247,77 @@ def _normalized_action(value: object) -> str:
 
 def _action_matches(value: object, expected: str, context: str = "") -> bool:
     normalized = _normalized_action(value)
-    if normalized == expected:
+    if normalized == expected or (expected and expected in normalized):
         return True
     markers = _CONTEXT_ACTION_MARKERS.get(context, ())
     return bool(markers and "đèn đỏ" in normalized and any(item in normalized for item in markers))
 
 
+def _document_action_match(document: Document, expected: str, context: str = "") -> bool:
+    metadata = _metadata(document)
+    return any(
+        _action_matches(metadata.get(field, ""), expected, context)
+        for field in ("normalized_action", "action", "violation")
+    )
+
+
+def _context_document_action_match(document: Document, expected: str, context: str) -> bool:
+    normalized = " ".join(
+        _normalized_action(_metadata(document).get(field, ""))
+        for field in ("normalized_action", "action", "violation")
+    )
+    return "đèn đỏ" in normalized and any(
+        marker in normalized for marker in _CONTEXT_ACTION_MARKERS.get(context, ())
+    )
+
+
+def _action_terms(question: str) -> tuple[str, ...]:
+    """Return canonical action terms, longest and deterministic first."""
+    normalized_question = _normalized_action(question)
+    aliases = load_query_rules().get("action_aliases", {})
+    terms = {
+        _normalized_action(str(canonical))
+        for alias, canonical in aliases.items()
+        if _normalized_action(str(alias)) in normalized_question
+    }
+    return tuple(sorted((term for term in terms if term), key=lambda term: (-len(term), term)))
+
+
 def _metadata_text_documents(
-    store: Any, field: str, text: str, limit: int, *, context: str = ""
-) -> list[Document]:
+    store: Any,
+    field: str,
+    text: str,
+    limit: int,
+    *,
+    context: str = "",
+    effective_date: date | None = None,
+    required_vehicle: str = "",
+):
     client = getattr(store, "client", None)
     collection = getattr(store, "collection_name", None)
     normalized_text = _normalized_action(text)
     if client is None or not collection or not normalized_text:
         return []
     try:
-        points, _ = client.scroll(
-            collection_name=collection,
-            limit=64,
-            with_payload=True,
-        )
-        documents = [
-            document
-            for point in points
-            if isinstance((payload := getattr(point, "payload", None)), Mapping)
-            and (document := _payload_document(payload)) is not None
-            and _action_matches(document.metadata.get(field, ""), normalized_text, context)
-        ]
+        documents: list[Document] = []
+        offset = None
+        while True:
+            points, offset = client.scroll(
+                collection_name=collection,
+                limit=256,
+                offset=offset,
+                with_payload=True,
+            )
+            documents.extend(
+                document
+                for point in points
+                if isinstance((payload := getattr(point, "payload", None)), Mapping)
+                and (document := _payload_document(payload)) is not None
+                and _document_action_match(document, normalized_text, context)
+                and _date_eligible(document.metadata, effective_date)
+            )
+            if offset is None or len(documents) >= limit:
+                break
     except Exception:
         return []
     return documents[:limit]
@@ -380,36 +459,30 @@ class Retriever:
         with self._store_lock:
             if self._store is not None:
                 return self._store
-            return self._create_store()
+            self._store = self._create_store()
+            return self._store
 
     def _create_store(self) -> Any:
-        """Create the configured hybrid store exactly once."""
-        try:
-            from langchain_openai import OpenAIEmbeddings
-            from langchain_qdrant import FastEmbedSparse, QdrantVectorStore, RetrievalMode
-        except ImportError as exc:
-            raise RetrievalProviderError(
-                "Retrieval integration is not installed; run `uv sync --project backend`"
-            ) from exc
-
         try:
             qdrant = get_qdrant_settings()
             embedding = get_embedding_settings()
             if not embedding.openrouter_api_key:
                 raise RetrievalProviderError("OPENROUTER_API_KEY is required for retrieval")
-            dense = OpenAIEmbeddings(
+            dense = OpenRouterEmbeddings(
                 model=embedding.model,
                 dimensions=getattr(embedding, "dimensions", 768),
-                api_key=SecretStr(embedding.openrouter_api_key),
+                api_key=embedding.openrouter_api_key,
                 base_url=embedding.openrouter_base_url,
             )
+            from langchain_qdrant import FastEmbedSparse, QdrantVectorStore, RetrievalMode
+
             sparse = FastEmbedSparse("Qdrant/bm25")
             client = (
                 QdrantClient(url=qdrant.url, timeout=qdrant.timeout)
                 if qdrant.url
                 else QdrantClient(path=str(qdrant.path), timeout=qdrant.timeout)
             )
-            self._store = QdrantVectorStore(
+            return QdrantVectorStore(
                 client=client,
                 collection_name=qdrant.collection,
                 embedding=dense,
@@ -418,9 +491,6 @@ class Retriever:
                 vector_name="dense",
                 sparse_vector_name="sparse",
             )
-            if hasattr(self._store, "client"):
-                self._store.client.get_collection(qdrant.collection)
-            return self._store
         except RetrievalProviderError:
             raise
         except Exception as exc:
@@ -504,39 +574,51 @@ class Retriever:
                                 break
                 return exact[:limit]
 
-        query = question
-        if effective_date:
-            query = f"{query} (hiệu lực {effective_date.isoformat()})"
-        try:
-            store = self._store_for_query()
-            documents = store.similarity_search(query, k=max(limit * 3, limit))
-            documents = [
-                document for document in documents if _temporal_match(document, effective_date)
-            ]
-        except RetrievalProviderError:
-            raise
-        except Exception as exc:
-            raise RetrievalProviderError("hybrid retrieval provider is unavailable") from exc
-        if ";" in question:
-            from .query_rules import requested_context
-
-            expanded_terms = [part.strip() for part in question.split(";")[1:] if part.strip()]
-            normalized_action = max(expanded_terms, key=len, default="")
-            action_documents = _metadata_text_documents(
-                store,
-                "normalized_action",
-                normalized_action,
-                max(limit * 2, limit),
-                context=requested_context(question),
-            )
+        store = self._store_for_query()
+        documents = store.similarity_search(question, k=max(limit * 3, limit))
+        action_terms = _action_terms(question)
+        if action_terms:
+            action_documents: list[Document] = []
+            for action_term in action_terms:
+                action_documents.extend(
+                    _metadata_text_documents(
+                        store,
+                        "normalized_action",
+                        action_term,
+                        max(limit * 2, limit),
+                        context=requested_context(question),
+                        effective_date=effective_date,
+                    )
+                )
             existing = {_identity(doc) for doc in action_documents}
             documents = [
                 *action_documents,
                 *[doc for doc in documents if _identity(doc) not in existing],
             ]
+        context = requested_context(question)
+        canonical_actions = tuple(_normalized_action(term) for term in action_terms if term)
         ranked = sorted(
             enumerate(documents),
-            key=lambda item: (-_reference_score(item[1], None), item[0]),
+            key=lambda item: (
+                -(
+                    4
+                    if _CONTEXT_ACTION_MARKERS.get(context)
+                    and any(
+                        _context_document_action_match(item[1], action, context)
+                        for action in canonical_actions
+                    )
+                    else (
+                        3
+                        if any(
+                            _normalized_action(_metadata(item[1]).get("normalized_action", ""))
+                            == action
+                            for action in canonical_actions
+                        )
+                        else 1
+                    )
+                ),
+                item[0],
+            ),
         )
         originals = [doc for _, doc in ranked[:limit]]
         with_siblings = expand_sibling_completions(

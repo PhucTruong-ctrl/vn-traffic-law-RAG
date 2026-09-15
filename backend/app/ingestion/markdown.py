@@ -142,10 +142,38 @@ def _chunks(body: str) -> list[tuple[str, dict[str, Any]]]:
             sections.append((text, metadata))
         buffer = []
 
-    for raw_line in lines:
+    index = 0
+    while index < len(lines):
+        raw_line = lines[index]
         line = raw_line.strip()
         heading = _HEADING.match(line)
         marker = heading.group(2).strip() if heading else line
+
+        # OCR sometimes puts a legal marker's punctuation on the next line.
+        # Consume only an unambiguous marker fragment; all provision text is
+        # still appended from its original source lines below.
+        marker_lines = 1
+        if index + 1 < len(lines):
+            next_line = lines[index + 1].strip()
+            if (
+                re.fullmatch(r"\d+", marker) or re.fullmatch(r"[a-zđ]", marker, re.IGNORECASE)
+            ) and next_line in {".", ")"}:
+                marker = f"{marker}{next_line}"
+                marker_lines = 2
+            elif re.fullmatch(r"(?:Điều|ĐIỀU)", marker) and re.fullmatch(r"\d+[.)]?", next_line):
+                marker = f"{marker} {next_line}"
+                marker_lines = 2
+        if marker_lines == 1 and index + 2 < len(lines):
+            next_line = lines[index + 1].strip()
+            following_line = lines[index + 2].strip()
+            if (
+                (re.fullmatch(r"\d+", marker) or re.fullmatch(r"[a-zđ]", marker, re.IGNORECASE))
+                and next_line in {".", ")"}
+                and following_line
+            ):
+                marker = f"{marker}{next_line} {following_line}"
+                marker_lines = 3
+
         article_match = _ARTICLE.match(marker)
         if article_match:
             flush()
@@ -154,6 +182,7 @@ def _chunks(body: str) -> list[tuple[str, dict[str, Any]]]:
             provision_text = None
             if article_match.group(2):
                 buffer.append(article_match.group(2))
+            index += marker_lines
             continue
         clause_match = _CLAUSE.match(marker)
         if clause_match and article is not None:
@@ -161,6 +190,7 @@ def _chunks(body: str) -> list[tuple[str, dict[str, Any]]]:
             clause, point = clause_match.group(1), None
             provision_text = clause_match.group(2)
             buffer.append(provision_text)
+            index += marker_lines
             continue
         point_match = _POINT.match(marker)
         if point_match and article is not None and clause is not None:
@@ -168,11 +198,14 @@ def _chunks(body: str) -> list[tuple[str, dict[str, Any]]]:
             point = point_match.group(1).lower()
             provision_text = point_match.group(2)
             buffer.append(provision_text)
+            index += marker_lines
             continue
         if heading:
             flush()
+            index += 1
             continue
         buffer.append(raw_line)
+        index += 1
     flush()
     return sections
 

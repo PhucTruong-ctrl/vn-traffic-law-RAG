@@ -40,20 +40,31 @@ def require_chat_contract(
     result: Any,
     label: str,
     *,
-    expected_status: str = "verified",
+    expected_status: str = "VERIFIED",
     require_citations: bool = True,
     required_reference: str | None = None,
+    required_action: str | None = None,
+    expected_reason_code: str | None = None,
 ) -> None:
     """Fail closed on the semantic fields the release flow exposes."""
     if not isinstance(result, dict):
         raise RuntimeError(f"{label}: expected JSON object, got {type(result).__name__}")
-    if result.get("status") != expected_status:
+    actual_status = str(result.get("status") or "").upper()
+    if actual_status != expected_status.upper():
         raise RuntimeError(
             f"{label}: expected status {expected_status!r}, got {result.get('status')!r}"
         )
     answer = result.get("answer")
     if not isinstance(answer, str) or not answer.strip():
         raise RuntimeError(f"{label}: answer must be a non-blank string")
+    if expected_status.upper() != "VERIFIED":
+        reason_code = result.get("reason_code")
+        if not isinstance(reason_code, str) or not reason_code.strip():
+            raise RuntimeError(f"{label}: abstention requires non-blank reason_code")
+        if expected_reason_code and reason_code.casefold() != expected_reason_code.casefold():
+            raise RuntimeError(
+                f"{label}: expected reason_code {expected_reason_code!r}, got {reason_code!r}"
+            )
     citations = result.get("citations")
     if not isinstance(citations, list):
         raise RuntimeError(f"{label}: citations must be a list")
@@ -66,10 +77,20 @@ def require_chat_contract(
         for field in ("source_id", "document_id", "excerpt"):
             if not isinstance(citation.get(field), str) or not citation[field].strip():
                 raise RuntimeError(f"{label}: citation {index} missing non-blank {field}")
+        if not any(
+            isinstance(citation.get(field), str) and citation[field].strip()
+            for field in ("article", "clause", "point", "document_number")
+        ):
+            raise RuntimeError(f"{label}: citation {index} missing coordinates")
         identity = (citation["source_id"], citation["document_id"])
         if identity in seen:
             raise RuntimeError(f"{label}: duplicate citation identity {identity!r}")
         seen.add(identity)
+        if required_action and not any(
+            required_action.casefold() in str(citation.get(field, "")).casefold()
+            for field in ("normalized_action", "action", "violation", "excerpt")
+        ):
+            raise RuntimeError(f"{label}: citation {index} is not action-relevant")
     if required_reference and not any(
         required_reference.casefold()
         in " ".join(
@@ -82,14 +103,31 @@ def require_chat_contract(
         )
 
 
+def _action_aliases() -> dict[str, str]:
+    with (ROOT / "data" / "rag" / "query_rules.json").open(encoding="utf-8") as handle:
+        return {
+            str(alias).casefold(): str(canonical)
+            for alias, canonical in json.load(handle).get("action_aliases", {}).items()
+        }
+
+
+def _expected_action(question: str) -> str | None:
+    lowered = question.casefold()
+    return next(
+        (canonical for alias, canonical in _action_aliases().items() if alias in lowered),
+        None,
+    )
+
+
 def main() -> int:
     base = os.getenv("RELEASE_API_BASE", "http://127.0.0.1:8000/api/v1").rstrip("/")
     questions = [
-        "Đèn tín hiệu giao thông màu đỏ thì người tham gia giao thông phải làm gì theo Điều 6?",
-        "Mức phạt nồng độ cồn đối với người điều khiển ô tô là bao nhiêu?",
-        "Theo Điều 6 Nghị định 168, hành vi vượt đèn đỏ bị phạt thế nào?",
-        "Đèn đỏ và nồng độ cồn: người lái ô tô bị xử lý ra sao?",
-        "Thời tiết ngày mai ở Hà Nội thế nào?",
+        "Đi xe máy không đội mũ bảo hiểm bị phạt thế nào?",
+        "Ô tô vượt đèn đỏ bị phạt bao nhiêu?",
+        "Xe máy được chở tối đa bao nhiêu người?",
+        "Ban đêm có bắt buộc bật đèn chiếu sáng không?",
+        "Bấm còi trong khu dân cư có bị phạt không?",
+        "Quay đầu hoặc lùi xe có bị phạt không?",
     ]
     results: list[dict[str, Any]] = []
     users = configured_test_users()
@@ -127,23 +165,15 @@ def main() -> int:
             {"question": question, "session_id": session_id},
         )
         require(status, 200, f"chat: {question[:30]}")
-        if index == 0:
-            require_chat_contract(result, "exact-reference/traffic-light", required_reference="168")
-        elif index == 1:
-            require_chat_contract(result, "alcohol/penalty")
-        elif index == 2:
-            require_chat_contract(result, "exact-reference/article-6", required_reference="168")
-        elif index == 3:
-            require_chat_contract(result, "multi-intent/traffic-light")
-        else:
-            require_chat_contract(
-                result,
-                "out-of-scope",
-                expected_status="insufficient_evidence",
-                require_citations=False,
-            )
-            if result.get("citations") != []:
-                raise RuntimeError("out-of-scope: citations must be empty")
+        expected_status = "VERIFIED"
+        expected_action = _expected_action(question)
+        require_chat_contract(
+            result,
+            f"happy-case/{index + 1}",
+            expected_status=expected_status,
+            require_citations=True,
+            required_action=expected_action,
+        )
         results.append(
             {
                 "question": question,
@@ -153,8 +183,17 @@ def main() -> int:
         )
     status, loaded = call(base, "GET", f"/chats/{session_id}", token_a)
     require(status, 200, "load session")
-    if len(loaded.get("messages", [])) < len(questions) * 2:
+    messages = loaded.get("messages", [])
+    if not isinstance(messages, list) or len(messages) < len(questions) * 2:
         raise RuntimeError("transcript persistence incomplete")
+    for question in questions:
+        if not any(
+            message.get("role") == "user" and message.get("content") == question
+            for message in messages
+        ):
+            raise RuntimeError("user message persistence incomplete")
+    if sum(message.get("role") == "assistant" for message in messages) < len(questions):
+        raise RuntimeError("assistant message persistence incomplete")
     require(call(base, "GET", "/chats?query=Automated", token_a)[0], 200, "session search")
     require(
         call(base, "PATCH", f"/chats/{session_id}", token_a, {"title": "Renamed verification"})[0],

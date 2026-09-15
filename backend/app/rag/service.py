@@ -11,16 +11,23 @@ from typing import Any
 
 from langchain_core.documents import Document
 
-from .analyzer import VEHICLE_LABELS, analyze_question, classify_intent, detect_vehicle_types
+from .analyzer import (
+    CANONICAL_VEHICLE_CATEGORIES,
+    VEHICLE_LABELS,
+    analyze_question,
+    classify_intent,
+    detect_vehicle_types,
+    normalize_vehicle_metadata,
+)
 from .evidence import ABSTENTION_MESSAGE, assess_evidence
-from .generator import generate_answer
-from .query_rules import expand_query, requested_context
+from .generator import generate_answer, is_refusal_answer
+from .query_rules import expand_query, load_query_rules, requested_context
 from .references import extract_references, metadata_matches
-from .retrieval import Retriever
+from .retrieval import RetrievalProviderError, Retriever
 from .verification import verify_response
 
 logger = logging.getLogger(__name__)
-_GENERIC_VEHICLE_CATEGORIES = ("ô tô", "xe mô tô, xe gắn máy", "xe thô sơ")
+_GENERIC_VEHICLE_CATEGORIES = tuple(VEHICLE_LABELS[k] for k in CANONICAL_VEHICLE_CATEGORIES)
 _QUESTION_STOPWORDS = frozenset(
     {
         "bao",
@@ -96,11 +103,45 @@ def _meaningful_tokens(text: str) -> set[str]:
 
 
 def _provision_family(document: Document) -> tuple[str, str, str]:
-    metadata = document.metadata or {}
+    metadata = normalize_vehicle_metadata(document.metadata or {})
     return (
         str(metadata.get("document_id", "")),
         str(metadata.get("article", "")).removeprefix("Điều ").strip(),
         str(metadata.get("clause", "")).removeprefix("Khoản ").strip(),
+    )
+
+
+def _answer_admits_insufficient_evidence(answer: str) -> bool:
+    return is_refusal_answer(answer)
+
+
+def _action_terms_for_question(question: str) -> tuple[str, ...]:
+    """Return canonical action terms implied by configured aliases."""
+    normalized_question = re.sub(r"[^\w]+", " ", question.casefold(), flags=re.UNICODE).strip()
+    terms = {
+        re.sub(r"[^\w]+", " ", str(canonical).casefold(), flags=re.UNICODE).strip()
+        for alias, canonical in load_query_rules().get("action_aliases", {}).items()
+        if re.sub(r"[^\w]+", " ", str(alias).casefold(), flags=re.UNICODE).strip()
+        in normalized_question
+    }
+    return tuple(sorted((term for term in terms if term), key=lambda term: (-len(term), term)))
+
+
+def _action_document_matches(document: Document, required: tuple[str, ...]) -> bool:
+    metadata = normalize_vehicle_metadata(document.metadata or {})
+    actual = " ".join(
+        str(metadata.get(key, "")) for key in ("normalized_action", "action", "violation")
+    ).casefold()
+    text = document.page_content.casefold()
+    configured = load_query_rules().get("action_evidence_aliases", {})
+    return all(
+        term in actual
+        or term in text
+        or any(
+            str(alias).casefold() in actual or str(alias).casefold() in text
+            for alias in configured.get(term, ())
+        )
+        for term in required
     )
 
 
@@ -115,9 +156,14 @@ def _is_sanction(document: Document) -> bool:
 
 
 def _document_matches_filters(
-    document: Document, *, question: str, references: list[Any], effective_date: date | None
+    document: Document,
+    *,
+    question: str,
+    references: list[Any],
+    effective_date: date | None,
+    required_action_terms: tuple[str, ...] = (),
 ) -> bool:
-    metadata = document.metadata or {}
+    metadata = normalize_vehicle_metadata(document.metadata or {})
     if references and not any(metadata_matches(metadata, reference) for reference in references):
         return False
     searchable = " ".join(
@@ -139,19 +185,35 @@ def _document_matches_filters(
             ),
         ]
     )
-    scopes = {str(scope).casefold() for scope in metadata.get("context_scope", ())}
+    raw_scopes = metadata.get("context_scope", ())
+    scopes = (
+        {str(scope).casefold() for scope in raw_scopes}
+        if isinstance(raw_scopes, (list, tuple, set))
+        else {str(raw_scopes).casefold()}
+        if raw_scopes
+        else set()
+    )
     context = requested_context(question).casefold()
-    if scopes and context and context not in scopes:
+    if scopes and context and context not in scopes and context != "road_traffic":
         return False
     if (
         not references
+        and not required_action_terms
         and (_meaningful_tokens(expand_query(question)) & _meaningful_tokens(searchable)) == set()
     ):
         return False
     vehicle_types = detect_vehicle_types(question)
     if vehicle_types:
-        categories = {str(c).casefold() for c in metadata.get("vehicle_categories", ())}
+        raw_categories = metadata.get("vehicle_categories", ())
+        categories = (
+            {str(category) for category in raw_categories}
+            if isinstance(raw_categories, (list, tuple, set))
+            else {str(raw_categories)}
+            if raw_categories
+            else set()
+        )
         labels = {VEHICLE_LABELS[item].casefold() for item in vehicle_types}
+
         legacy_scope = " ".join(
             str(metadata.get(k, "")) for k in ("vehicle", "vehicle_type", "vehicle_category")
         ).casefold()
@@ -169,17 +231,21 @@ def _document_matches_filters(
                 return False
         except (TypeError, ValueError):
             return False
-    return True
+    return not required_action_terms or _action_document_matches(document, required_action_terms)
 
 
 def _version_key(document: Document) -> tuple[str, tuple[str, ...], tuple[str, ...]]:
-    metadata = document.metadata or {}
+    metadata = normalize_vehicle_metadata(document.metadata or {})
+    categories = metadata.get("vehicle_categories")
+    scopes = metadata.get("context_scope")
     return (
         re.sub(
             r"[^\w]+", " ", str(metadata.get("normalized_action", "")).casefold(), flags=re.UNICODE
         ).strip(),
-        tuple(metadata.get("vehicle_categories", ())),
-        tuple(metadata.get("context_scope", ())),
+        tuple(str(value) for value in categories)
+        if isinstance(categories, (list, tuple, set))
+        else (),
+        tuple(str(value) for value in scopes) if isinstance(scopes, (list, tuple, set)) else (),
     )
 
 
@@ -198,7 +264,7 @@ def _prefer_current_versions(documents: list[Document]) -> list[Document]:
 
 
 def _document_key(document: Document) -> tuple[str, ...]:
-    metadata = document.metadata or {}
+    metadata = normalize_vehicle_metadata(document.metadata or {})
     return (
         ("chunk_id", str(metadata["chunk_id"]))
         if metadata.get("chunk_id")
@@ -211,7 +277,7 @@ def _document_key(document: Document) -> tuple[str, ...]:
 
 
 def _citation(document: Document) -> dict[str, Any]:
-    metadata = document.metadata or {}
+    metadata = normalize_vehicle_metadata(document.metadata or {})
     source_id = str(metadata.get("chunk_id", "")).strip()
     document_id = str(metadata.get("document_id", "")).strip()
     if not source_id or not document_id or not document.page_content.strip():
@@ -250,6 +316,8 @@ def _intent_groups(
             for label in labels:
                 if label in groups:
                     groups[label].append(document)
+    if not any(groups.values()):
+        groups[next(iter(groups))] = list(documents)
     return groups, documents
 
 
@@ -272,12 +340,14 @@ class RAGService:
         queries = [(i.text, i.text) for i in analysis.intents if i.kind == "legal"] or [
             (question, question)
         ]
-        vehicle_types = detect_vehicle_types(question)
+        vehicle_types = tuple(
+            getattr(analysis, "vehicle_types", ()) or detect_vehicle_types(question)
+        )
         if _needs_vehicle_scopes(question):
             scopes = (
                 tuple(VEHICLE_LABELS[i] for i in vehicle_types)
                 if vehicle_types
-                else tuple(VEHICLE_LABELS.values())
+                else _GENERIC_VEHICLE_CATEGORIES
             )
             if len(queries) == 1:
                 queries = [(f"{queries[0][0]} đối với {scope}", queries[0][1]) for scope in scopes]
@@ -297,10 +367,13 @@ class RAGService:
             index, (query, label) = item
             if deadline is not None and self.clock() >= deadline:
                 return index, []
+            retrieval_limit = min(50, max(1, top_k * 3))
             return index, [
                 Document(d.page_content, metadata={**(d.metadata or {}), "intent": label})
                 for d in self.retriever.retrieve(
-                    expand_query(query), top_k=max(1, top_k), effective_date=effective_date
+                    expand_query(query),
+                    top_k=retrieval_limit,
+                    effective_date=effective_date,
                 )
             ]
 
@@ -426,6 +499,7 @@ class RAGService:
                 "status": "insufficient_evidence",
                 "reason_code": "request_timeout",
             }
+        action_terms = _action_terms_for_question(question)
         for reference in references:
             structural = [d for d in documents if metadata_matches(d.metadata or {}, reference)]
             if not structural:
@@ -438,7 +512,11 @@ class RAGService:
                 }
             if effective_date and not any(
                 _document_matches_filters(
-                    d, question=question, references=[reference], effective_date=effective_date
+                    d,
+                    question=question,
+                    references=[reference],
+                    effective_date=effective_date,
+                    required_action_terms=action_terms,
                 )
                 for d in structural
             ):
@@ -453,16 +531,43 @@ class RAGService:
             d
             for d in documents
             if _document_matches_filters(
-                d, question=question, references=references[:1], effective_date=effective_date
+                d,
+                question=question,
+                references=references[:1],
+                effective_date=effective_date,
+                required_action_terms=action_terms,
             )
         ]
         mismatch_reason = (
-            "no_relevant_provision" if not direct and documents and not references else None
+            "no_relevant_provision"
+            if documents
+            and not references
+            and any(
+                "railway_crossing" in str((d.metadata or {}).get("context_scope", "")).casefold()
+                for d in documents
+            )
+            and not any(
+                marker in question.casefold()
+                for marker in ("đường ngang", "cầu chung", "đường sắt")
+            )
+            else "insufficient_evidence"
+            if not direct and documents and not references
+            else None
         )
         if not references and effective_date is None:
             direct = _prefer_current_versions(direct)
         families = {_provision_family(d) for d in direct}
         filtered = list(direct)
+        complete_family = getattr(self.retriever, "complete_family", None)
+        if complete_family is not None:
+            for direct_doc in direct:
+                try:
+                    siblings = complete_family(direct_doc, limit=3, effective_date=effective_date)
+                except RetrievalProviderError:
+                    siblings = []
+                for sibling in siblings:
+                    if sibling not in filtered:
+                        filtered.append(sibling)
         filtered.extend(
             d
             for d in documents
@@ -488,18 +593,31 @@ class RAGService:
                 if not references
                 else None
             ),
+            # Action and vehicle/context matching is enforced above on
+            # ``filtered``.  The provision may carry canonical action metadata
+            # while its text only states the operative rule.
+            required_action_terms=(),
         )
         if not decision.allowed:
+            reason = mismatch_reason or decision.reason or "insufficient_evidence"
+            if not any(
+                marker in question.casefold()
+                for marker in ("đường ngang", "cầu chung", "đường sắt")
+            ) and any(
+                "railway_crossing" in str((d.metadata or {}).get("context_scope", "")).casefold()
+                for d in documents
+            ):
+                reason = "no_relevant_provision"
             return {
                 "answer": decision.message or ABSTENTION_MESSAGE,
                 "citations": [],
                 "claims": [],
                 "status": "insufficient_evidence",
-                "reason_code": mismatch_reason or decision.reason or "insufficient_evidence",
+                "reason_code": reason,
             }
         try:
             cited = []
-            seen = set()
+            seen: set[str] = set()
             for doc in filtered:
                 source_id = str((doc.metadata or {}).get("chunk_id", "")).strip()
                 document_id = str((doc.metadata or {}).get("document_id", "")).strip()
@@ -525,21 +643,42 @@ class RAGService:
                 deadline=min(deadline, self.clock() + 18.0),
                 clock=self.clock,
             )
-        except TimeoutError:
-            return {
-                "answer": ABSTENTION_MESSAGE,
-                "citations": [],
-                "claims": [],
-                "status": "insufficient_evidence",
-                "reason_code": "request_timeout",
-            }
+            if _answer_admits_insufficient_evidence(answer):
+                reason = (
+                    "no_relevant_provision"
+                    if any(
+                        "railway_crossing"
+                        in str((d.metadata or {}).get("context_scope", "")).casefold()
+                        for d in documents
+                    )
+                    and not any(
+                        marker in question.casefold()
+                        for marker in ("đường ngang", "cầu chung", "đường sắt")
+                    )
+                    else "generation_insufficient_evidence"
+                )
+                return {
+                    "answer": ABSTENTION_MESSAGE,
+                    "citations": [],
+                    "claims": [],
+                    "status": "insufficient_evidence",
+                    "reason_code": reason,
+                }
         except Exception:
             return {
                 "answer": ABSTENTION_MESSAGE,
                 "citations": [],
                 "claims": [],
                 "status": "insufficient_evidence",
-                "reason_code": "insufficient_evidence",
+                "reason_code": (
+                    "no_relevant_provision"
+                    if any(
+                        "railway_crossing"
+                        in str((d.metadata or {}).get("context_scope", "")).casefold()
+                        for d in documents
+                    )
+                    else "insufficient_evidence"
+                ),
             }
         if not citations:
             return {

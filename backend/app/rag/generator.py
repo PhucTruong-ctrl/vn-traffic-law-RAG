@@ -27,6 +27,26 @@ _VIETNAMESE_FALLBACK = (
     "Vui lòng xem các nguồn pháp luật được trích dẫn hoặc thử lại câu hỏi."
 )
 
+_INSUFFICIENT_CONTEXT_PHRASES = (
+    "chưa đủ căn cứ",
+    "chưa đủ thông tin",
+    "không đủ căn cứ",
+    "không có đủ căn cứ",
+    "chưa có đủ thông tin",
+    "không đủ bằng chứng",
+    "không tìm thấy căn cứ",
+    "không có căn cứ phù hợp",
+    "không thể xác định",
+    "chưa thể tạo câu trả lời tiếng việt đáng tin cậy",
+)
+
+
+def is_refusal_answer(content: str) -> bool:
+    """Identify provider answers that decline for lack of legal context."""
+    normalized = " ".join(content.casefold().split())
+    return any(phrase in normalized for phrase in _INSUFFICIENT_CONTEXT_PHRASES)
+
+
 _ROMANIAN_WORDS = frozenset(
     [
         "și",
@@ -166,7 +186,6 @@ def generate_answer(
             retry_response = model.chat.completions.create(
                 model=settings.model,
                 messages=openai_messages,  # type: ignore[arg-type]
-                max_tokens=1024,
                 extra_body={"reasoning_effort": "none"},
             )
             retry_content: Any = retry_response.choices[0].message.content
@@ -184,4 +203,4 @@ def generate_answer(
         raise RuntimeError("OpenRouter request failed") from exc
 
 
-__all__ = ["build_prompt", "generate_answer"]
+__all__ = ["build_prompt", "generate_answer", "is_refusal_answer"]

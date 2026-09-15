@@ -10,13 +10,15 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT / "backend"))
 from langchain_core.documents import Document  # noqa: E402
-from langchain_openai import OpenAIEmbeddings  # noqa: E402
 from langchain_qdrant import FastEmbedSparse, QdrantVectorStore, RetrievalMode  # noqa: E402
 
 from app.config import (  # noqa: E402
     get_embedding_settings,
     get_qdrant_settings,
 )
+from app.rag.retrieval import OpenRouterEmbeddings  # noqa: E402
+
+OpenAIEmbeddings = OpenRouterEmbeddings
 
 
 def _setting(settings: object, name: str, default: object) -> object:
@@ -73,7 +75,6 @@ def main(argv: list[str] | None = None) -> int:
     collection = args.collection if args.collection is not None else qdrant.collection
     store = None
     try:
-        qdrant.path.mkdir(parents=True, exist_ok=True)
         dense = OpenAIEmbeddings(**_embedding_kwargs(embedding))
         sparse = FastEmbedSparse("Qdrant/bm25")
         client_options = (

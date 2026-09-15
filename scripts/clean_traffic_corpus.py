@@ -10,15 +10,31 @@ from pathlib import Path
 
 ARTICLE_RE = re.compile(r"^\s*(?:#{1,6}\s*)?Điều\s+\d+[A-Za-z]?\s*[.:]", re.I)
 FRONT_RE = re.compile(r"\A---\s*\n.*?\n---\s*(?:\n|\Z)", re.S)
-# These are page UI/marketing strings, never legal provision text in this corpus.
+# These are page UI/marketing strings and metadata chrome, never legal provision text.
 BOILERPLATE_MARKERS = (
     "Mục lục", "Tổng quan", "VB gốc", "So sánh VB", "VB song ngữ",
     "Tính năng này", "chỉ có tại LuatVietnam.vn", "Xem hướng dẫn chi tiết",
     "Đây là tiện ích dành cho tài khoản", "Vui lòng", "Đăng nhập",
     "Theo dõi VB", "Ghi chú", "Báo lỗi", "Để tải văn bản",
     "Nếu chưa có tài khoản", "Đăng ký", "Đã biết", "Tiêu chuẩn",
+    "Cơ quan ban hành:", "Số công báo:", "Số hiệu:", "Ngày đăng công báo:",
+    "Loại văn bản:", "Người ký:", "Trích yếu:", "Ngày cập nhật:",
+    "Ngày ban hành là ngày", "Ngày hết hiệu lực là ngày",
+    "Ngày áp dụng là ngày", "Tình trạng hiệu lực:",
+)
+METADATA_VALUE_RE = re.compile(
+    r"^(?:Chính phủ|Bộ Giao thông Vận tải|Nghị định|Thông tư|"
+    r"Số công báo là mã số .*quản lý\.|Đang cập nhật|"
+    r"Tiện ích dành cho tài khoản|hoặc|Nâng cao|tài khoản để xem chi tiết\.|"
+    r"\.)\s*$",
+    re.I,
 )
 SUMMARY_RE = re.compile(r"^\s*(?:TÓM TẮT|Tóm tắt|Nội dung đáng chú ý|Một số nội dung đáng chú ý)", re.I)
+UI_EXACT_RE = re.compile(
+    r"^(?:Tiện ích dành cho tài khoản|tài khoản để xem chi tiết\.|"
+    r"hoặc|Nâng cao|\.)\s*$",
+    re.I,
+)
 
 @dataclass(frozen=True)
 class CleanStats:
@@ -28,12 +44,15 @@ class CleanStats:
     articles_after: int
     removed_lines: int
 
-
 def _is_chrome(line: str) -> bool:
     text = line.strip()
     if not text:
         return False
-    return any(marker.casefold() in text.casefold() for marker in BOILERPLATE_MARKERS)
+    return bool(
+        UI_EXACT_RE.match(text)
+        or METADATA_VALUE_RE.match(text)
+        or any(marker.casefold() in text.casefold() for marker in BOILERPLATE_MARKERS)
+    )
 
 
 def clean_markdown(source: str) -> tuple[str, CleanStats]:
@@ -49,7 +68,7 @@ def clean_markdown(source: str) -> tuple[str, CleanStats]:
     first_article = next((i for i, line in enumerate(lines) if ARTICLE_RE.match(line)), None)
     if first_article is None:
         raise ValueError("no legal Điều heading found")
-    kept = lines[:first_article]
+    kept = [line for line in lines[:first_article] if not _is_chrome(line)]
     in_summary = False
     for line in lines[first_article:]:
         if SUMMARY_RE.match(line):

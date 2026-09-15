@@ -3,9 +3,41 @@
     "vượt đèn đỏ": "không chấp hành hiệu lệnh của đèn tín hiệu giao thông",
     "xài điện thoại": "dùng tay cầm và sử dụng điện thoại",
     "dùng điện thoại": "dùng tay cầm và sử dụng điện thoại",
-    "không thắt dây an toàn": "không thắt dây an toàn khi xe chạy",
-    "đi sai làn": "không đúng phần đường hoặc làn đường quy định",
-    "chở tối đa bao nhiêu người": "quy định về số người được chở trên xe"
+    "không đội mũ bảo hiểm": "không đội mũ bảo hiểm hoặc không cài quai đúng quy cách",
+    "không cài quai mũ bảo hiểm": "không đội mũ bảo hiểm hoặc không cài quai đúng quy cách",
+    "chở tối đa bao nhiêu người": "quy định về số người được chở trên xe",
+    "bấm còi trong khu dân cư": "sử dụng còi trong khu đông dân cư",
+    "bật đèn chiếu sáng": "sử dụng đèn chiếu sáng khi tham gia giao thông",
+    "quay đầu": "quay đầu xe",
+    "lùi xe": "lùi xe"
+  },
+  "action_evidence_aliases": {
+    "không đội mũ bảo hiểm hoặc không cài quai đúng quy cách": [
+      "không đội",
+      "mũ bảo hiểm",
+      "cài quai"
+    ],
+    "quy định về số người được chở trên xe": [
+      "số người được chở",
+      "chở theo",
+      "người được chở"
+    ],
+    "sử dụng đèn chiếu sáng khi tham gia giao thông": [
+      "đèn chiếu sáng",
+      "sử dụng không đủ đèn"
+    ],
+    "sử dụng còi trong khu đông dân cư": [
+      "bấm còi",
+      "sử dụng còi",
+      "rú ga"
+    ],
+    "quay đầu xe": [
+      "quay đầu xe",
+      "quay đầu"
+    ],
+    "lùi xe": [
+      "lùi xe"
+    ]
   },
   "context_aliases": {
     "railway_crossing": [

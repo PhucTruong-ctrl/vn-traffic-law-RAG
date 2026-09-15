@@ -17,6 +17,16 @@ class Analysis:
     intents: tuple[Intent, ...]
     vehicle_type: str = "any"
 
+    @property
+    def vehicle_types(self) -> tuple[str, ...]:
+        """Return all explicitly named canonical vehicle categories."""
+        if self.vehicle_type == "any":
+            return ()
+        return (self.vehicle_type,)
+
+
+CANONICAL_VEHICLE_CATEGORIES = ("car", "motorcycle", "bicycle", "specialized")
+
 
 _VEHICLE_PATTERNS: tuple[tuple[str, str], ...] = (
     ("car", r"\b(?:ô\s*tô|ô tô|xe hơi|xe ô tô)\b"),
@@ -34,6 +44,46 @@ VEHICLE_LABELS: dict[str, str] = {
     "bicycle": "xe thô sơ",
     "specialized": "xe chuyên dùng",
 }
+
+_VEHICLE_ALIASES = {
+    "ô tô": "car",
+    "xe ô tô": "car",
+    "xe hơi": "car",
+    "car": "car",
+    "xe mô tô, xe gắn máy": "motorcycle",
+    "xe mô tô": "motorcycle",
+    "xe gắn máy": "motorcycle",
+    "xe máy": "motorcycle",
+    "mô tô": "motorcycle",
+    "moped": "motorcycle",
+    "motorcycle": "motorcycle",
+    "xe thô sơ": "bicycle",
+    "xe đạp": "bicycle",
+    "đạp điện": "bicycle",
+    "bicycle": "bicycle",
+    "xe chuyên dùng": "specialized",
+    "xe máy chuyên dùng": "specialized",
+    "máy kéo": "specialized",
+    "specialized": "specialized",
+}
+
+
+def normalize_vehicle_metadata(metadata: dict[str, object]) -> dict[str, object]:
+    """Normalize Vietnamese and canonical vehicle labels to stable category keys."""
+    result = dict(metadata)
+    raw = result.get("vehicle_categories", ())
+    values = list(raw if isinstance(raw, (list, tuple, set)) else (raw,) if raw else ())
+    values.extend(
+        result[key] for key in ("vehicle", "vehicle_type", "vehicle_category") if result.get(key)
+    )
+    categories = []
+    for value in values:
+        category = _VEHICLE_ALIASES.get(" ".join(str(value).casefold().split()).strip())
+        if category and category not in categories:
+            categories.append(category)
+    if categories:
+        result["vehicle_categories"] = categories
+    return result
 
 
 def detect_vehicle_types(text: str) -> tuple[str, ...]:
@@ -104,10 +154,9 @@ def analyze_question(question: str, model: object | None = None) -> Analysis:
             value = model.invoke(question)
             parsed = _from_model(value)
             if parsed:
-                return Analysis(tuple(parsed[:4]))
+                return Analysis(tuple(parsed[:4]), detect_vehicle_type(question))
         except Exception:
             pass
-
     normalized = " ".join(question.split()).strip(" .?!")
     if not normalized:
         return Analysis(())
@@ -123,8 +172,9 @@ def analyze_question(question: str, model: object | None = None) -> Analysis:
         for match in re.finditer(pattern, normalized, flags=re.I)
     ]
     if len(clauses) <= 1 and not dimensions:
-        return Analysis((Intent(normalized, classify_intent(normalized)),))
-
+        return Analysis(
+            (Intent(normalized, classify_intent(normalized)),), detect_vehicle_type(normalized)
+        )
     context = _violation_context(normalized, dimensions)
     intents: list[Intent] = []
     for clause in clauses:
@@ -144,7 +194,10 @@ def analyze_question(question: str, model: object | None = None) -> Analysis:
         if key not in seen:
             seen.add(key)
             stable.append(intent)
-    return Analysis(tuple(stable[:4]) or (Intent(normalized, classify_intent(normalized)),))
+    return Analysis(
+        tuple(stable[:4]) or (Intent(normalized, classify_intent(normalized)),),
+        detect_vehicle_type(normalized),
+    )
 
 
 def _is_dimension(text: str) -> bool:
@@ -241,11 +294,13 @@ def _from_model(value: object) -> list[Intent]:
 
 __all__ = [
     "Analysis",
+    "CANONICAL_VEHICLE_CATEGORIES",
     "Intent",
     "VEHICLE_LABELS",
     "analyze_question",
     "classify_intent",
     "detect_vehicle_type",
     "detect_vehicle_types",
+    "normalize_vehicle_metadata",
     "resolve_vehicle_followup",
 ]
