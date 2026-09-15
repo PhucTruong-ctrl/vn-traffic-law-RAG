@@ -6,13 +6,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; }
-    html, body { width: 1000px; height: 620px; margin: 0; overflow: hidden; }
-    body { background: #f5f5f5; color: #2d3142; font-family: 'Be Vietnam Pro', sans-serif; }
-    svg { display: block; width: 1000px; height: 620px; }
-    .label { fill: #2d3142; font-size: 12px; font-weight: 500; }
-    .value { fill: #2d3142; font-size: 12px; font-weight: 600; }
-    .note { fill: #4f5d75; font-size: 10px; font-weight: 400; }
-    .grid { stroke: rgba(45,49,66,.14); stroke-width: 1; }
+    html, body { width: 1000px; margin: 0; background: #f5f5f5; color: #2d3142; font-family: 'Be Vietnam Pro', sans-serif; }
+    .label { fill: #2d3142; font-family: 'Be Vietnam Pro', sans-serif; font-size: 14px; }
+    .value { fill: #2d3142; font-family: 'Be Vietnam Pro', sans-serif; font-size: 14px; font-weight: 600; }
+    .note { fill: #4f5d75; font-family: 'Be Vietnam Pro', sans-serif; font-size: 12px; }
+    .grid { stroke: rgba(45,49,66,0.12); stroke-width: 1; }
     .bar { fill: #2e5aa8; }
     .zero { fill: #eb6c36; }
   </style>
@@ -20,7 +18,7 @@
 <body>
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 620" role="img" aria-labelledby="diagram-title diagram-desc">
     <title id="diagram-title">Các chỉ số đánh giá</title>
-    <desc id="diagram-desc">Biểu đồ cột ngang gồm bảy chỉ số đánh giá và ba ghi chú về tập dữ liệu, độ trễ và việc chấm điểm.</desc>
+    <desc id="diagram-desc">Biểu đồ cột ngang gồm bảy chỉ số đánh giá của lần chạy cuối và ba ghi chú về tập dữ liệu, độ trễ và việc chấm điểm.</desc>
     <g aria-hidden="true">
       <line class="grid" x1="392" y1="32" x2="392" y2="432"/>
       <line class="grid" x1="512" y1="32" x2="512" y2="432"/>
@@ -31,37 +29,37 @@
     </g>
     <g>
       <text class="label" x="24" y="59">Tìm thấy căn cứ đúng trong top k</text>
-      <rect class="bar" x="392" y="42" width="150" height="28" rx="6"/>
-      <text class="value" x="550" y="61">0,25</text>
+      <rect class="bar" x="392" y="42" width="436" height="28" rx="6"/>
+      <text class="value" x="836" y="61">0,7273</text>
 
       <text class="label" x="24" y="115">Độ chính xác ở mức văn bản</text>
-      <rect class="bar" x="392" y="98" width="300" height="28" rx="6"/>
-      <text class="value" x="700" y="117">0,50</text>
+      <rect class="bar" x="392" y="98" width="464" height="28" rx="6"/>
+      <text class="value" x="864" y="117">0,7727</text>
 
       <text class="label" x="24" y="171">Độ chính xác ở mức Điều</text>
-      <rect class="bar" x="392" y="154" width="250" height="28" rx="6"/>
-      <text class="value" x="650" y="173">0,4167</text>
+      <rect class="bar" x="392" y="154" width="436" height="28" rx="6"/>
+      <text class="value" x="836" y="173">0,7273</text>
 
       <text class="label" x="24" y="227">Độ chính xác ở mức Khoản</text>
-      <rect class="bar" x="392" y="210" width="231" height="28" rx="6"/>
-      <text class="value" x="631" y="229">0,3846</text>
+      <rect class="bar" x="392" y="210" width="450" height="28" rx="6"/>
+      <text class="value" x="850" y="229">0,7500</text>
 
       <text class="label" x="24" y="283">Độ chính xác ở mức Điểm</text>
       <rect class="zero" x="392" y="266" width="6" height="28" rx="3"/>
-      <text class="value" x="408" y="285">0,0</text>
+      <text class="value" x="408" y="285">0,0000</text>
 
       <text class="label" x="24" y="339">Tỉ lệ trích dẫn hợp lệ</text>
-      <rect class="bar" x="392" y="322" width="529" height="28" rx="6"/>
-      <text class="value" x="929" y="341">0,8824</text>
+      <rect class="bar" x="392" y="322" width="600" height="28" rx="6"/>
+      <text class="value" x="1000" y="341" text-anchor="end">1,0000</text>
 
       <text class="label" x="24" y="395">Tỉ lệ từ chối trả lời đúng</text>
-      <rect class="bar" x="392" y="378" width="424" height="28" rx="6"/>
-      <text class="value" x="824" y="397">0,7059</text>
+      <rect class="bar" x="392" y="378" width="600" height="28" rx="6"/>
+      <text class="value" x="1000" y="397" text-anchor="end">1,0000</text>
     </g>
     <g>
-      <text class="note" x="24" y="480">40 trường hợp; 34 trường hợp được tính; 6 trường hợp loại vì dữ liệu chưa bao phủ.</text>
-      <text class="note" x="24" y="508">Độ trễ trung bình 8304,6 ms; trung vị 8359,09 ms; phân vị 95 là 11577,15 ms.</text>
-      <text class="note" x="24" y="536">Nội dung trả lời chưa chấm thủ công.</text>
+      <text class="note" x="24" y="480">40 trường hợp; 32 trường hợp được tính; 8 trường hợp ngoài kho dữ liệu vẫn được tính khi đánh giá từ chối trả lời.</text>
+      <text class="note" x="24" y="508">Độ trễ trung bình 11061,57 ms; trung vị 10908,84 ms; phân vị 95 là 17264,5 ms.</text>
+      <text class="note" x="24" y="536">Đánh giá thủ công mới ở mức mẫu 10 trường hợp: 0,65, do trợ lý thực hiện, chưa có người chấm độc lập.</text>
     </g>
   </svg>
 </body>

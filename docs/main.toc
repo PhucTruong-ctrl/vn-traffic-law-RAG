@@ -139,8 +139,6 @@
 \contentsline {subsection}{\numberline {4.10.1}Kiểm tra trạng thái dịch vụ}{78}{subsection.4.10.1}%
 \contentsline {subsection}{\numberline {4.10.2}Tài liệu API}{79}{subsection.4.10.2}%
 \contentsline {section}{\numberline {4.11}Đánh giá khả năng tra cứu và trả lời}{79}{section.4.11}%
-\contentsline {chapter}{KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN}{82}{section*.92}%
-\contentsline {section}{Kết quả đạt được}{82}{section*.93}%
-\contentsline {section}{Hạn chế}{82}{section*.94}%
-\contentsline {section}{Mục tiêu vòng cải thiện tiếp theo}{82}{section*.95}%
-\contentsline {section}{Việc cần làm và tính năng sẽ bổ sung}{83}{section*.97}%
+\contentsline {section}{Kết quả đạt được}{81}{section*.92}%
+\contentsline {section}{Hạn chế}{81}{section*.93}%
+\contentsline {section}{Mục tiêu vòng cải thiện tiếp theo}{81}{section*.94}%

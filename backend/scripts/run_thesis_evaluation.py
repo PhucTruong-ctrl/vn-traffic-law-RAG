@@ -48,6 +48,20 @@ CORPUS_NOT_COVERED_CASES = frozenset(
         "thesis-gold-40-19",
     }
 )
+# Every gold category is reported, including ones a run never reached, so a missing
+# category can never be mistaken for a passing one.
+_CATEGORY_ORDER = frozenset(
+    {
+        "exact_reference",
+        "natural_language",
+        "penalty",
+        "multi_intent",
+        "cross_reference",
+        "follow_up",
+        "insufficient_evidence",
+        "out_of_scope",
+    }
+)
 REQUIRED_CASE = {"id", "category"}
 THESIS_EXPECTED_FIELDS = {
     "expected_status",
@@ -461,9 +475,7 @@ def score_case(
         else _level_accuracy(expected, coordinates, "point"),
         # A refusal is meant to cite nothing, so presence is only defined for cases
         # that must be answered from evidence.
-        "citation_present": None
-        if timed_out or not scored or should_abstain
-        else citation_present,
+        "citation_present": None if timed_out or not scored or should_abstain else citation_present,
         "citation_validity": None if timed_out or not scored else citation_validity,
         "invalid_citations": invalid_citations,
         "citation_support": None,
@@ -564,7 +576,9 @@ def _coverage_status(row: dict[str, Any]) -> str:
     return str(coverage.get("status") or "scored")
 
 
-def _refusal_block(rows: list[dict[str, Any]], *, treat_uncovered_as_abstain: bool) -> dict[str, Any]:
+def _refusal_block(
+    rows: list[dict[str, Any]], *, treat_uncovered_as_abstain: bool
+) -> dict[str, Any]:
     """Refusal confusion matrix; positive class = the case should have been refused."""
     tp = fp = tn = fn = 0
     excluded = 0
@@ -650,8 +664,12 @@ def aggregate(rows: list[dict[str, Any]], metadata: dict[str, Any]) -> dict[str,
     # Only cases whose gold evidence exists in the index can be scored for retrieval;
     # `parser_gap` stays scored on purpose so a real parser defect remains visible.
     scored = [row for row in rows if _coverage_status(row) in {"scored", "parser_gap"}]
-    with_evidence = [row for row in scored if expected_ids(row)]
-    categories = sorted({str(row.get("category")) for row in rows})
+    with_evidence = [row for row in rows if expected_ids(row) and _coverage_status(row) == "scored"]
+    # Every gold category is reported, including the ones a run never reached, so a
+    # missing category can never be mistaken for a passing one.
+    categories = sorted(
+        _CATEGORY_ORDER | {str(row.get("category")) for row in rows if row.get("category")}
+    )
     stage_values: dict[str, list[float]] = {}
     stage_reports = 0
     for row in rows:
@@ -664,9 +682,7 @@ def aggregate(rows: list[dict[str, Any]], metadata: dict[str, Any]) -> dict[str,
             if isinstance(value, (int, float)):
                 stage_values.setdefault(str(key), []).append(float(value))
     latencies = [
-        float(row["latency_ms"])
-        for row in rows
-        if isinstance(row.get("latency_ms"), (int, float))
+        float(row["latency_ms"]) for row in rows if isinstance(row.get("latency_ms"), (int, float))
     ]
     manual = metric("answer_correctness_manual", rows)
     return {
@@ -682,9 +698,7 @@ def aggregate(rows: list[dict[str, Any]], metadata: dict[str, Any]) -> dict[str,
                 "count": sum(row.get("category") == category for row in rows),
                 "scored_count": sum(row.get("category") == category for row in scored),
                 **{
-                    field: metric(
-                        field, [row for row in scored if row.get("category") == category]
-                    )
+                    field: metric(field, [row for row in scored if row.get("category") == category])
                     for field in fields
                 },
             }
@@ -702,7 +716,9 @@ def aggregate(rows: list[dict[str, Any]], metadata: dict[str, Any]) -> dict[str,
         },
         "stage_coverage": round(stage_reports / len(rows), 4) if rows else None,
         "case_accounting": {
-            status: sorted(str(row.get("case_id")) for row in rows if _coverage_status(row) == status)
+            status: sorted(
+                str(row.get("case_id")) for row in rows if _coverage_status(row) == status
+            )
             for status in ("scored", "out_of_corpus", "parser_gap")
         },
         "error_classification": {

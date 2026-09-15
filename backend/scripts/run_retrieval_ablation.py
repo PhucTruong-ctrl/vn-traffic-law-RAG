@@ -11,9 +11,10 @@ import statistics
 import subprocess
 import sys
 import time
+from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend"))
@@ -64,7 +65,7 @@ def expand_configs(configs: Iterable[str], **sweeps: Iterable[Any]) -> list[dict
     for config in configs:
         for values in itertools.product(*(dimensions[name] for name in names)):
             row = {"config": config}
-            row.update(dict(zip(names, values)))
+            row.update(dict(zip(names, values, strict=True)))
             rows.append(row)
     return rows
 
@@ -94,9 +95,7 @@ def coordinate_matches(candidate: str, expected: str) -> bool:
 
 def hit_predicate(retrieved: Iterable[str], expected: Iterable[str]) -> bool:
     return any(
-        coordinate_matches(candidate, wanted)
-        for candidate in retrieved
-        for wanted in expected
+        coordinate_matches(candidate, wanted) for candidate in retrieved for wanted in expected
     )
 
 
@@ -111,10 +110,17 @@ def _level_accuracy(retrieved: list[str], expected: list[str], level: int) -> fl
     }
     return len(matched) / len(expected_prefixes)
 
+
 def _expected_ids(case: Mapping[str, Any]) -> list[str]:
     expected = case.get("expected", {})
     values = expected.get("provision_ids", case.get("expected_provision_ids", []))
-    return sorted({str(item).strip() for item in (values if isinstance(values, list) else [values]) if str(item).strip()})
+    return sorted(
+        {
+            str(item).strip()
+            for item in (values if isinstance(values, list) else [values])
+            if str(item).strip()
+        }
+    )
 
 
 def load_cases(path: Path) -> list[dict[str, Any]]:
@@ -128,7 +134,9 @@ def load_cases(path: Path) -> list[dict[str, Any]]:
             raise ValueError("each case must be an object")
         normalized = dict(case)
         normalized["question"] = str(case.get("question") or case.get("query") or "")
-        normalized["expected"] = dict(case.get("expected") or {"provision_ids": case.get("expected_provision_ids", [])})
+        normalized["expected"] = dict(
+            case.get("expected") or {"provision_ids": case.get("expected_provision_ids", [])}
+        )
         result.append(normalized)
     return result
 
@@ -153,12 +161,14 @@ def covered(case: Mapping[str, Any], available: set[str]) -> bool:
 
 
 def _retrieve(retriever: Any, query: str, config: Mapping[str, Any], top_k: int) -> list[Any]:
-    method = getattr(retriever, "retrieve")
+    method = retriever.retrieve
     kwargs: dict[str, Any] = {"top_k": int(config.get("per_query_top_k") or top_k)}
     try:
         return list(method(query, **kwargs))
     except TypeError:
         return list(method(query))
+
+
 def retrieve_case(
     retriever: Any,
     case: Mapping[str, Any],
@@ -207,11 +217,7 @@ def _score(
     top_k: int,
 ) -> dict[str, Any]:
     retrieved = sorted(
-        {
-            value
-            for doc in docs
-            if (value := canonical_id(getattr(doc, "metadata", {}) or {}))
-        }
+        {value for doc in docs if (value := canonical_id(getattr(doc, "metadata", {}) or {}))}
     )
     expected = _expected_ids(case)
     return {
@@ -231,18 +237,37 @@ def _score(
 
 
 def _summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    fields = ("hit_at_k", "document_accuracy", "article_accuracy", "clause_accuracy", "point_accuracy")
+    fields = (
+        "hit_at_k",
+        "document_accuracy",
+        "article_accuracy",
+        "clause_accuracy",
+        "point_accuracy",
+    )
     metrics: dict[str, Any] = {}
     for field in fields:
         values = [float(row[field]) for row in rows if row[field] is not None]
-        metrics[field] = {"value": statistics.fmean(values) if values else None, "case_count": len(values)}
+        metrics[field] = {
+            "value": statistics.fmean(values) if values else None,
+            "case_count": len(values),
+        }
     latencies = [float(row["retrieval_ms"]) for row in rows]
-    metrics["mean_candidates"] = {"value": statistics.fmean([row["candidate_count"] for row in rows]) if rows else None, "case_count": len(rows)}
-    metrics["retrieval_ms"] = {"p50": statistics.median(latencies) if latencies else None, "p95": (sorted(latencies)[max(0, int(len(latencies) * .95) - 1)] if latencies else None), "mean": statistics.fmean(latencies) if latencies else None, "case_count": len(latencies)}
+    metrics["mean_candidates"] = {
+        "value": statistics.fmean([row["candidate_count"] for row in rows]) if rows else None,
+        "case_count": len(rows),
+    }
+    metrics["retrieval_ms"] = {
+        "p50": statistics.median(latencies) if latencies else None,
+        "p95": (sorted(latencies)[max(0, int(len(latencies) * 0.95) - 1)] if latencies else None),
+        "mean": statistics.fmean(latencies) if latencies else None,
+        "case_count": len(latencies),
+    }
     return metrics
 
 
-def run_ablation(cases: list[dict[str, Any]], configs: list[dict[str, Any]], retriever: Any, available: set[str]) -> dict[str, Any]:
+def run_ablation(
+    cases: list[dict[str, Any]], configs: list[dict[str, Any]], retriever: Any, available: set[str]
+) -> dict[str, Any]:
     excluded = sorted(case["id"] for case in cases if not covered(case, available))
     included = [case for case in cases if case["id"] not in excluded]
     analyzer_cache: dict[str, Any] = {}
@@ -252,17 +277,36 @@ def run_ablation(cases: list[dict[str, Any]], configs: list[dict[str, Any]], ret
         key = config_label(config)
         rows: list[dict[str, Any]] = []
         for case in included:
-            docs, latency = retrieve_case(retriever, case, config, int(config.get("top_k", 5)), analyzer_cache)
+            docs, latency = retrieve_case(
+                retriever, case, config, int(config.get("top_k", 5)), analyzer_cache
+            )
             row = _score(case, docs, latency, int(config.get("top_k", 5)))
             row["config"] = key
             rows.append(row)
-        results[key] = {"config": config, "metrics": _summary(rows), "by_category": {category: _summary([row for row in rows if row["category"] == category]) for category in sorted({row["category"] for row in rows})}, "rows": rows}
+        results[key] = {
+            "config": config,
+            "metrics": _summary(rows),
+            "by_category": {
+                category: _summary([row for row in rows if row["category"] == category])
+                for category in sorted({row["category"] for row in rows})
+            },
+            "rows": rows,
+        }
         all_rows.extend(rows)
-    return {"excluded_case_ids": excluded, "included_case_count": len(included), "configs": results, "rows": all_rows}
+    return {
+        "excluded_case_ids": excluded,
+        "included_case_count": len(included),
+        "configs": results,
+        "rows": all_rows,
+    }
 
 
 def config_label(config: Mapping[str, Any]) -> str:
-    extras = [f"{key}={config[key]}" for key in sorted(config) if key != "config" and config[key] is not None]
+    extras = [
+        f"{key}={config[key]}"
+        for key in sorted(config)
+        if key != "config" and config[key] is not None
+    ]
     return str(config["config"]) + ("[" + ",".join(extras) + "]" if extras else "")
 
 
@@ -273,23 +317,65 @@ def _sha256(path: Path) -> str | None:
 
 
 def write_json(path: Path, payload: Mapping[str, Any]) -> None:
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
 
 
 def write_csv(path: Path, rows: Iterable[Mapping[str, Any]]) -> None:
     rows = list(rows)
-    fields = ("config", "case_id", "category", "query", "expected_provision_ids", "retrieved_coordinates", "hit_at_k", "document_accuracy", "article_accuracy", "clause_accuracy", "point_accuracy", "candidate_count", "retrieval_ms")
+    fields = (
+        "config",
+        "case_id",
+        "category",
+        "query",
+        "expected_provision_ids",
+        "retrieved_coordinates",
+        "hit_at_k",
+        "document_accuracy",
+        "article_accuracy",
+        "clause_accuracy",
+        "point_accuracy",
+        "candidate_count",
+        "retrieval_ms",
+    )
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields)
         writer.writeheader()
         for row in rows:
-            writer.writerow({field: json.dumps(row[field], ensure_ascii=False) if isinstance(row.get(field), list) else row.get(field) for field in fields})
+            writer.writerow(
+                {
+                    field: json.dumps(row[field], ensure_ascii=False)
+                    if isinstance(row.get(field), list)
+                    else row.get(field)
+                    for field in fields
+                }
+            )
 
 
 def write_markdown(path: Path, payload: Mapping[str, Any]) -> None:
-    fields = ("hit_at_k", "document_accuracy", "article_accuracy", "clause_accuracy", "point_accuracy", "mean_candidates")
-    lines = ["# Retrieval ablation", "", "| Config | " + " | ".join(fields) + " |", "|---|" + "---|" * len(fields)]
-    values = {field: [float(item["metrics"][field]["value"]) for item in payload["configs"].values() if item["metrics"][field].get("value") is not None] for field in fields}
+    fields = (
+        "hit_at_k",
+        "document_accuracy",
+        "article_accuracy",
+        "clause_accuracy",
+        "point_accuracy",
+        "mean_candidates",
+    )
+    lines = [
+        "# Retrieval ablation",
+        "",
+        "| Config | " + " | ".join(fields) + " |",
+        "|---|" + "---|" * len(fields),
+    ]
+    values = {
+        field: [
+            float(item["metrics"][field]["value"])
+            for item in payload["configs"].values()
+            if item["metrics"][field].get("value") is not None
+        ]
+        for field in fields
+    }
     winners = {field: max(items) if items else None for field, items in values.items()}
     for name, item in payload["configs"].items():
         rendered = []
@@ -300,7 +386,9 @@ def write_markdown(path: Path, payload: Mapping[str, Any]) -> None:
                 text = f"**{text}**"
             rendered.append(text)
         lines.append("| " + name + " | " + " | ".join(rendered) + " |")
-    lines.extend(["", f"Excluded cases: {', '.join(payload.get('excluded_case_ids', [])) or 'none'}"])
+    lines.extend(
+        ["", f"Excluded cases: {', '.join(payload.get('excluded_case_ids', [])) or 'none'}"]
+    )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -310,12 +398,20 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--configs", type=parse_configs, default=CONFIGS)
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--output-dir", type=Path, default=Path("data/evaluation/ablation"))
-    parser.add_argument("--per-query-top-k", type=lambda value: _csv_values(value, int), default=None)
-    parser.add_argument("--expand-queries", type=lambda value: _csv_values(value, int), default=None)
+    parser.add_argument(
+        "--per-query-top-k", type=lambda value: _csv_values(value, int), default=None
+    )
+    parser.add_argument(
+        "--expand-queries", type=lambda value: _csv_values(value, int), default=None
+    )
     parser.add_argument("--rrf-k", type=lambda value: _csv_values(value, int), default=None)
-    parser.add_argument("--per-provision-cap", type=lambda value: _csv_values(value, int), default=None)
+    parser.add_argument(
+        "--per-provision-cap", type=lambda value: _csv_values(value, int), default=None
+    )
     parser.add_argument("--enrich", type=lambda value: _csv_values(value, parse_bool), default=None)
-    parser.add_argument("--analyzers", type=lambda value: _csv_values(value, parse_bool), default=None)
+    parser.add_argument(
+        "--analyzers", type=lambda value: _csv_values(value, parse_bool), default=None
+    )
     parser.add_argument("--chunks", type=Path, default=ROOT / "data/processed/chunks.jsonl")
     return parser
 
@@ -331,15 +427,38 @@ def main(argv: list[str] | None = None) -> int:
     cases = load_cases(args.dataset)
     from app.rag.retrieval import Retriever
 
-    result = run_ablation(cases, configs, Retriever(top_k=args.top_k), available_coordinates(args.chunks))
-    embedding = __import__("app.config", fromlist=["get_embedding_settings"]).get_embedding_settings()
-    result["metadata"] = {"timestamp": datetime.now(UTC).isoformat(), "git_commit": subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=False).stdout.strip() or None, "dataset": str(args.dataset), "chunks_sha256": _sha256(args.chunks), "embedding_model": getattr(embedding, "model", None), "configs": configs}
+    result = run_ablation(
+        cases, configs, Retriever(top_k=args.top_k), available_coordinates(args.chunks)
+    )
+    embedding = __import__(
+        "app.config", fromlist=["get_embedding_settings"]
+    ).get_embedding_settings()
+    result["metadata"] = {
+        "timestamp": datetime.now(UTC).isoformat(),
+        "git_commit": subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=False
+        ).stdout.strip()
+        or None,
+        "dataset": str(args.dataset),
+        "chunks_sha256": _sha256(args.chunks),
+        "embedding_model": getattr(embedding, "model", None),
+        "configs": configs,
+    }
     args.output_dir.mkdir(parents=True, exist_ok=True)
     run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     write_json(args.output_dir / f"{run_id}.json", result)
     write_csv(args.output_dir / f"{run_id}.csv", result["rows"])
     write_markdown(args.output_dir / f"{run_id}.md", result)
-    print(json.dumps({"run_id": run_id, "output_dir": str(args.output_dir), "excluded_case_ids": result["excluded_case_ids"]}, ensure_ascii=False))
+    print(
+        json.dumps(
+            {
+                "run_id": run_id,
+                "output_dir": str(args.output_dir),
+                "excluded_case_ids": result["excluded_case_ids"],
+            },
+            ensure_ascii=False,
+        )
+    )
     return 0
 
 

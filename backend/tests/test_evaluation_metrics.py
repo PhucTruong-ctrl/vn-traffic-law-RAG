@@ -319,7 +319,15 @@ def test_runner_aggregate_isolates_categories_and_preserves_nulls() -> None:
     assert aggregate["by_category"]["penalty"]["retrieval_hit_at_k"]["value"] == 0.0
     assert aggregate["by_category"]["natural_language"]["count"] == 0
     assert aggregate["by_category"]["natural_language"]["retrieval_hit_at_k"]["value"] is None
-    assert aggregate["latency_ms"] == {"mean": 10.0, "p50": 10.0, "p95": 10.0}
+    # Latency now reports min/max/count as well, per the CODE-44 requirement.
+    assert aggregate["latency_ms"] == {
+        "mean": 10.0,
+        "min": 10.0,
+        "max": 10.0,
+        "p50": 10.0,
+        "p95": 10.0,
+        "count": 1,
+    }
 
 
 def test_runner_timeout_row_keeps_nullable_metrics() -> None:

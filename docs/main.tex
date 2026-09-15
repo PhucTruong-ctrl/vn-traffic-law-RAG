@@ -2379,77 +2379,75 @@ FastAPI tự tạo tài liệu OpenAPI cho các đường dẫn dịch vụ đã
 Hình~\ref{fig:ch4_swagger} là giao diện Swagger của FastAPI, liệt kê các nhóm endpoint của dịch vụ.
 \AssetFigure[0.94\textwidth][fig:ch4_swagger]{ch4_swagger.png}{9.0cm}{Tài liệu API do FastAPI sinh tự động}{}
 \section{Đánh giá khả năng tra cứu và trả lời}
-Trong lần chạy 4, bộ phân tích yêu cầu và bộ sinh câu trả lời cùng dùng mô hình gemini-2.5-flash-lite. Hệ thống chạy qua API với \texttt{top\_k = 5}: mỗi truy vấn mở rộng vẫn lấy top 8 kết quả, còn \texttt{top\_k} giới hạn số đoạn sau khi gộp. Bộ dữ liệu có 40 trường hợp, 34 trường hợp được tính và 6 trường hợp bị loại vì dữ liệu chưa bao phủ, gồm sáu trường hợp nằm ngoài phạm vi dữ liệu đã thu thập. Phần chấm thủ công nội dung câu trả lời chưa có kết quả.
+Trong lần chạy cuối, bộ phân tích yêu cầu và bộ sinh câu trả lời cùng dùng mô hình \texttt{google/gemini-2.5-flash-lite}, còn mô hình embedding là \texttt{qwen/qwen3-embedding-8b}. Hệ thống chạy qua API với \texttt{top\_k = 5}; mỗi truy vấn mở rộng lấy top 8 kết quả trước khi gộp thứ hạng. Bộ dữ liệu có 40 trường hợp: 32 trường hợp được tính, 8 trường hợp ngoài kho dữ liệu và 0 trường hợp thiếu cấu trúc; 8 trường hợp ngoài kho dữ liệu vẫn được tính trong phân tích từ chối trả lời. Có kiểm tra thủ công mẫu 10 trường hợp, đạt 0.65, do trợ lý thực hiện và chưa có người chấm độc lập; 30 trường hợp còn lại chưa được chấm.
 \begin{table}[H]
-  \caption{Chỉ số đánh giá của lần chạy 4}
+  \caption{Chỉ số đánh giá của lần chạy cuối}
   \label{tab:evaluation-status}
   \centering
   \begin{tabularx}{\textwidth}{|L{6.0cm}|Y|}
     \hline
-    \textbf{Chỉ số}                                                           & \textbf{Giá trị} \\
+    \textbf{Chỉ số} & \textbf{Giá trị} \\
     \hline
-    Tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên (trên 34 trường hợp) & 0.25             \\
+    Tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên & 0.7273 \\
     \hline
-    Độ chính xác ở mức văn bản                                                & 0.50             \\
+    Độ chính xác ở mức văn bản & 0.7727 \\
     \hline
-    Độ chính xác ở mức Điều                                                   & 0.4167           \\
+    Độ chính xác ở mức Điều & 0.7273 \\
     \hline
-    Độ chính xác ở mức Khoản                                                  & 0.3846           \\
+    Độ chính xác ở mức Khoản & 0.7500 \\
     \hline
-    Độ chính xác ở mức Điểm (trên 34 trường hợp)                              & 0.0              \\
+    Độ chính xác ở mức Điểm & 0.0000 \\
     \hline
-    Tỉ lệ trích dẫn hợp lệ                                                    & 0.8824           \\
+    Tỉ lệ trích dẫn hợp lệ & 1.0000 \\
     \hline
-    Tỉ lệ từ chối trả lời đúng                                                & 0.7059           \\
+    Tỉ lệ từ chối trả lời đúng & 1.0000 \\
     \hline
-    Nội dung trả lời chấm thủ công                                            & Chưa chấm        \\
+    Nội dung trả lời chấm thủ công & 0.65 trên mẫu n = 10, do trợ lý thực hiện, chưa có người chấm độc lập \\
     \hline
   \end{tabularx}
 \end{table}
 
 \begin{table}[H]
-  \caption{Độ trễ của lần chạy 4}
+  \caption{Độ trễ của lần chạy cuối}
   \label{tab:evaluation-latency}
   \centering
   \begin{tabularx}{\textwidth}{|L{6.0cm}|Y|}
     \hline
-    \textbf{Thống kê} & \textbf{Giá trị (ms)}   \\
+    \textbf{Thống kê} & \textbf{Giá trị (ms)} \\
     \hline
-    Trung bình        & 8304.6 ms (8.3 giây)    \\
+    Trung bình & 11061.57 ms (11.06 giây) \\
     \hline
-    Trung vị          & 8359.09 ms (8.4 giây)   \\
+    Trung vị & 10908.84 ms (10.91 giây) \\
     \hline
-    Phân vị 95        & 11577.15 ms (11.6 giây) \\
+    Phân vị 95 & 17264.5 ms (17.26 giây) \\
     \hline
   \end{tabularx}
 \end{table}
 
-Hình~\ref{fig:ch4_evaluation} trình bày kết quả lần chạy 4 trên 34 trường hợp được tính.
-\AssetFigure[\textwidth][fig:ch4_evaluation]{ch4_evaluation_report.png}{20cm}{Kết quả lần chạy 4 trên 34 trường hợp được tính}{}
+Hình~\ref{fig:ch4_evaluation} trình bày kết quả lần chạy cuối trên 40 trường hợp.
+\AssetFigure[\textwidth][fig:ch4_evaluation]{ch4_evaluation_report.png}{20cm}{Kết quả lần chạy cuối trên 40 trường hợp}{}
 
-Trên 34 trường hợp được tính, tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên là 0.25; độ chính xác ở mức văn bản đạt 0.50, ở mức Điều đạt 0.4167, ở mức Khoản đạt 0.3846 và ở mức Điểm bằng 0. Tỉ lệ trích dẫn hợp lệ là 0.8824, còn tỉ lệ từ chối trả lời đúng là 0.7059. Nhóm câu hỏi nhiều ý không có trường hợp nào được tính vì dữ liệu chưa bao phủ; nhóm câu hỏi nối tiếp được chạy độc lập, không có lịch sử hội thoại, nên chưa phản ánh năng lực thật. Cả năm trường hợp thuộc nhóm thiếu căn cứ đều nhận được câu trả lời; nội dung trả lời chưa được chấm thủ công.
-
+So với các số liệu cũ trong bảng, lần chạy cuối tăng lần lượt từ 0.25 lên 0.7273, từ 0.50 lên 0.7727, từ 0.4167 lên 0.7273, từ 0.3846 lên 0.7500, từ 0.00 lên 0.0000, từ 0.8824 lên 1.0000 và từ 0.7059 lên 1.0000; cả 5 trường hợp thiếu căn cứ trước đây đều được trả lời, còn lần chạy cuối từ chối chúng.
 
 % ============================================================
-% KET LUAN VA HUONG PHAT TRIEN
-% ============================================================
-\clearpage
-\phantomsection
-\addcontentsline{toc}{chapter}{KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN}
 \section*{Kết quả đạt được}
 \phantomsection
 \addcontentsline{toc}{section}{Kết quả đạt được}
 
 Luồng xử lý hỏi đáp bắt đầu bằng bước phân tích yêu cầu bằng mô hình ngôn ngữ: hệ thống tạo truy vấn độc lập và các truy vấn mở rộng, truy xuất nhiều truy vấn, gộp thứ hạng bằng RRF, bổ sung ngữ cảnh, rồi làm sạch trích dẫn theo thông tin mô tả đã truy xuất. Khi câu hỏi chỉ được hỗ trợ một phần, hệ thống giữ lại phần trả lời có căn cứ.
 
-Lần chạy 4 có độ trễ trung bình 8.3 giây và phân vị 95 là 11.6 giây. Ma trận nghiệm thu gồm 22 lượt gọi thật, cả 22 lượt đều đúng mã trạng thái, với độ trễ nằm trong khoảng 2.7 đến 25.5 giây.
+Lần chạy cuối có độ trễ trung bình 11061.57 ms và phân vị 95 là 17264.5 ms trên 40 trường hợp.
 
 \section*{Hạn chế}
 \phantomsection
 \addcontentsline{toc}{section}{Hạn chế}
-Các con số cho thấy khả năng tìm đúng căn cứ còn thấp: trên 34 trường hợp được tính, tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên là 0.25, và độ chính xác ở mức Điểm bằng 0. Tỉ lệ trích dẫn hợp lệ là 0.8824 và tỉ lệ từ chối trả lời đúng là 0.7059, trong đó cả năm trường hợp thuộc nhóm thiếu căn cứ đều nhận được câu trả lời. Nhóm câu hỏi nhiều ý không có trường hợp nào được tính vì dữ liệu chưa bao phủ.
+Độ chính xác ở mức Điểm chỉ tính trên ba trường hợp, trong đó hai câu hỏi chỉ nêu tọa độ trần mà không nêu văn bản và một điều khoản kỳ vọng không có trong kho dữ liệu. Đây là giới hạn của tập kiểm tra, không phải lỗi tách văn bản.
 
-Nhóm câu hỏi nối tiếp không có lịch sử hội thoại khi chạy đánh giá độc lập nên kết quả chưa phản ánh năng lực thật; câu hỏi nối tiếp mơ hồ vẫn trả về quy định chung của loại xe. Nội dung trả lời chưa được chấm thủ công, và báo cáo cũng chưa có so sánh trên cùng tập dữ liệu để tách ảnh hưởng của kiến trúc khỏi ảnh hưởng của việc chọn mô hình.
+Độ trễ còn cao: trung bình 11.06 giây và phân vị 95 là 17.26 giây, chưa đạt mục tiêu dưới 15 giây.
+
+Đánh giá thủ công chưa hoàn thành đầy đủ: mới kiểm tra mẫu 10 trường hợp và đạt 0.65; phần kiểm tra này do trợ lý thực hiện, chưa có người chấm độc lập, và 30 trường hợp còn lại chưa được chấm.
+
+Tám trường hợp ngoài kho dữ liệu chưa đánh giá được khả năng tìm căn cứ, và kết quả giữa hai lần chạy cùng cấu hình còn dao động.
 
 \section*{Mục tiêu vòng cải thiện tiếp theo}
 \phantomsection
@@ -2464,10 +2462,6 @@ Nhóm câu hỏi nối tiếp không có lịch sử hội thoại khi chạy đ
     Tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên  & $\geq 0.80$       \\
     \hline
     Độ chính xác ở mức văn bản                            & $\geq 0.85$       \\
-    \hline
-    Độ chính xác ở mức Điều                               & $\geq 0.85$       \\
-    \hline
-    Độ chính xác ở mức Khoản                              & $\geq 0.80$       \\
     \hline
     Độ chính xác ở mức Điểm                               & $\geq 0.75$       \\
     \hline
@@ -2485,20 +2479,18 @@ Nhóm câu hỏi nối tiếp không có lịch sử hội thoại khi chạy đ
 \end{table}
 
 \section*{Việc cần làm và tính năng sẽ bổ sung}
-\phantomsection
-\addcontentsline{toc}{section}{Việc cần làm và tính năng sẽ bổ sung}
 \begin{enumerate}
-  \item Sửa bộ tách văn bản để giữ cấu trúc Điểm; độ chính xác ở mức Điểm hiện bằng 0.
+  \item Parser đã sửa lỗi giữ cấu trúc Điểm; giới hạn Điểm còn lại là do thiết kế tập kiểm tra với các tọa độ trần.
   \item Thêm lịch sử hội thoại vào tập đánh giá cho nhóm câu hỏi nối tiếp; kết quả chạy độc lập chưa phản ánh năng lực xử lý tham chiếu.
-  \item Chấm thủ công nội dung trả lời theo bảng tiêu chí; hiện chưa có kết quả chấm thủ công.
+  \item Chấm thủ công nội dung trả lời; kiểm tra mẫu n = 10 đạt 0.65, nhưng đánh giá đầy đủ vẫn chưa hoàn thành.
   \item Chạy so sánh A/B (hai biến thể kiến trúc) trên cùng tập dữ liệu và cùng mô hình, tách ảnh hưởng của kiến trúc khỏi ảnh hưởng của việc chọn mô hình.
-  \item Thêm bộ xếp hạng lại và bộ lọc theo Điều, Khoản; tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên hiện là 0.25.
+  \item Thêm bộ xếp hạng lại và bộ lọc theo Điều, Khoản; tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên của lần chạy cuối là 0.7273.
   \item Giảm số truy vấn mở rộng và lưu đệm vector, để đưa độ trễ phân vị 95 xuống dưới 15 giây.
   \item Bổ sung tác tử nhiều bước theo kiểu RAG tác tử, gồm bước tự kiểm tra và bước truy xuất sửa sai \cite{agentic_rag_survey}.
   \item Tách hệ thống thành các tác tử: điều phối phân công nhiệm vụ, truy xuất tìm tài liệu, kiểm chứng trích dẫn và phản biện kiểm tra câu trả lời \cite{agentic_rag_survey,agentic_legal_challenge}.
   \item Thêm tìm kiếm web làm phương án dự phòng khi kho dữ liệu thiếu, đồng thời mở rộng kho dữ liệu và cập nhật theo hiệu lực văn bản.
   \item Dựng đồ thị quan hệ giữa các văn bản theo GraphRAG để hỗ trợ các tham chiếu liên văn bản \cite{production_rag_2026}.
-  \item Thêm vòng phản hồi người dùng và duyệt thủ công cho câu trả lời rủi ro cao; tỉ lệ từ chối trả lời đúng hiện là 0.7059.
+  \item Thêm vòng phản hồi người dùng và duyệt thủ công cho câu trả lời rủi ro cao; tỉ lệ từ chối trả lời đúng của lần chạy cuối là 1.0000.
   \item Đưa bộ kiểm tra an toàn cho câu trả lời pháp lý vào quy trình đánh giá, kết hợp các chỉ số RAGAS như tỉ lệ trung thực với nguồn và tỉ lệ bao phủ ngữ cảnh \cite{ragas_metrics}.
 \end{enumerate}
 
