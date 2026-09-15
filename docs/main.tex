@@ -466,7 +466,7 @@ Các nội dung tham khảo từ công trình, tài liệu kỹ thuật và ngu�
 \end{flushright}
 \chapter*{TÓM TẮT}
 \addcontentsline{toc}{chapter}{TÓM TẮT}
-Khóa luận xây dựng hệ thống hỗ trợ tra cứu pháp luật giao thông Việt Nam bằng phương pháp RAG (Retrieval-Augmented Generation, kết hợp tìm kiếm tài liệu với tạo câu trả lời). Bộ phân tích dùng LLM (Large Language Model, mô hình ngôn ngữ lớn) để tạo một câu hỏi độc lập đã tách khỏi ngữ cảnh, cùng tối đa ba truy vấn mở rộng. Với từng truy vấn, bộ truy xuất thực hiện tìm kiếm kết hợp rồi gộp thứ hạng bằng RRF. Hệ thống trả lời từng phần khi chỉ một phần câu hỏi có căn cứ. Sau khi sinh, bước làm sạch trích dẫn loại các trích dẫn hoặc khẳng định không khớp với thông tin mô tả đã truy xuất, và chỉ từ chối toàn bộ khi không có tài liệu liên quan hoặc bộ sinh câu trả lời trả về câu từ chối chuẩn. Mỗi câu trả lời kèm thông tin văn bản, Điều, Khoản, Điểm và đường dẫn mở nguồn để người dùng kiểm tra lại nội dung.
+Khóa luận xây dựng hệ thống hỗ trợ tra cứu pháp luật giao thông Việt Nam bằng phương pháp RAG (Retrieval-Augmented Generation, kết hợp tìm kiếm tài liệu với tạo câu trả lời). Bộ phân tích dùng LLM (Large Language Model, mô hình ngôn ngữ lớn) để tạo một câu hỏi độc lập đã tách khỏi ngữ cảnh, cùng tối đa ba truy vấn mở rộng. Với từng truy vấn, bộ truy xuất thực hiện tìm kiếm kết hợp rồi gộp thứ hạng bằng RRF. Hệ thống trả lời từng phần khi chỉ một phần câu hỏi có căn cứ. Trước bước sinh, hệ thống từ chối hoặc yêu cầu làm rõ với câu hỏi ngoài phạm vi, câu hỏi hỏi mức xử phạt nhưng chưa nêu hành vi, và trường hợp không có căn cứ phù hợp. Sau khi sinh, bước hậu kiểm đối chiếu định danh nguồn, đoạn trích, hiệu lực theo thời điểm và mức tiền với các đoạn đã truy xuất; trích dẫn hoặc thông tin claim có cấu trúc không khớp bị loại. Bước này không thay thế việc đánh giá ngữ nghĩa toàn bộ nội dung câu trả lời. Mỗi câu trả lời kèm thông tin văn bản, Điều, Khoản, Điểm và đường dẫn mở nguồn để người dùng kiểm tra lại nội dung.
 
 Dữ liệu pháp luật được chuẩn hóa theo cấu trúc Điều, Khoản và Điểm trước khi lập chỉ mục. Với mỗi truy vấn mở rộng, hệ thống kết hợp tìm kiếm theo từ khóa với tìm kiếm ngữ nghĩa rồi hợp nhất kết quả bằng RRF. Tìm kiếm từ khóa bắt đúng số hiệu văn bản và các cụm từ pháp lý; tìm kiếm ngữ nghĩa xử lý câu hỏi diễn đạt bằng ngôn ngữ đời thường.
 
@@ -480,9 +480,9 @@ Bộ đánh giá gồm 40 trường hợp, chia đều cho tám nhóm câu hỏi
 \begin{sloppypar}
   This thesis develops a RAG-based system for Vietnamese traffic-law lookup. The system receives Vietnamese questions, retrieves the relevant legal passages, and produces an answer with citations the user can verify. A language model first analyses each request and returns a standalone question together with up to three expanded queries. Legal documents are normalized by Article, Clause, and Point before indexing, and the index holds both a semantic representation and a keyword representation.
 
-  Each expanded query is searched by keywords and by meaning, then the ranked results are merged by reciprocal rank fusion. The best passages are kept and the context is extended with related provisions and cross-references. The language model then answers from that context alone. A missing part of a question does not remove the parts that are supported; the whole request is refused only when the retrieved sources hold no relevant information.
+  Each expanded query is searched by keywords and by meaning, then the ranked results are merged by reciprocal rank fusion. The best passages are kept and the context is extended with related provisions and cross-references. The language model then answers from that context alone. A missing part of a question does not remove the parts that are supported. Before generation, the system refuses or asks for clarification when a question is out of scope, asks about a penalty without naming the conduct, or has no matching evidence; after generation it also refuses when the generator reports insufficient evidence or the post-check fails.
 
-  Citations are built from the stored description of each passage and matched against the retrieved sources, so unsupported citations and claims are dropped without discarding the answer. The application uses FastAPI for the server, Qdrant for search, Supabase for authentication and application data, and Next.js with React and TypeScript for the web interface; OpenRouter provides access to the language models. The system also supports chat history, feedback, bookmarks, and source lookup.
+  Citations are built from the stored description of each passage and checked against the retrieved sources: citations whose identity, excerpt, effective date or figures do not match are dropped without discarding the answer. The check is not a sentence-by-sentence semantic entailment test. The application uses FastAPI for the server, Qdrant for search, Supabase for authentication and application data, and Next.js with React and TypeScript for the web interface; OpenRouter provides access to the language models. The system also supports chat history, feedback, bookmarks, and source lookup.
 
   The evaluation set contains 40 cases in eight groups. Automated scoring covers supporting-passage retrieval, legal-location accuracy, citation validity, refusal behaviour when evidence is insufficient, and response time.
 \end{sloppypar}
@@ -657,9 +657,9 @@ Mô hình ngôn ngữ tạo câu trả lời từ câu hỏi viết bằng ngôn
 
 Trong pháp luật giao thông, cùng một câu hỏi về mức phạt có thể cho kết quả khác nhau theo loại phương tiện và quy định áp dụng. Ví dụ, câu hỏi ``vượt đèn đỏ bị phạt bao nhiêu'' cần xác định đúng văn bản, Điều, Khoản, Điểm và các biện pháp đi kèm. Một con số đứng riêng không cho người dùng biết căn cứ nào đã được dùng, nên hệ thống trả kèm thông tin nguồn để người dùng mở lại văn bản gốc.
 
-Retrieval-Augmented Generation (RAG) ở đây kết hợp tìm kiếm tài liệu với sinh câu trả lời. Bộ phân tích yêu cầu dùng mô hình ngôn ngữ để tạo câu hỏi độc lập đã tách khỏi ngữ cảnh và tối đa ba truy vấn mở rộng; hệ thống tìm kiếm kết hợp cho từng truy vấn rồi gộp thứ hạng bằng RRF. Bộ sinh câu trả lời được phép trả lời một phần khi chỉ một phần câu hỏi có căn cứ, còn bước làm sạch trích dẫn loại phần trích dẫn hoặc khẳng định không khớp với thông tin mô tả đã truy xuất. Trích dẫn lấy từ thông tin mô tả của dữ liệu nguồn, không do mô hình sinh ra.
+Retrieval-Augmented Generation (RAG) ở đây kết hợp tìm kiếm tài liệu với sinh câu trả lời. Bộ phân tích yêu cầu dùng mô hình ngôn ngữ để tạo câu hỏi độc lập đã tách khỏi ngữ cảnh và tối đa ba truy vấn mở rộng; hệ thống tìm kiếm kết hợp cho từng truy vấn rồi gộp thứ hạng bằng RRF. Bộ sinh câu trả lời được phép trả lời một phần khi chỉ một phần câu hỏi có căn cứ, còn bước hậu kiểm đối chiếu định danh nguồn, đoạn trích, hiệu lực theo thời điểm và mức tiền với các đoạn đã truy xuất rồi loại phần không khớp. Trích dẫn lấy từ thông tin mô tả của dữ liệu nguồn, không do mô hình sinh ra.
 
-Văn bản pháp luật Việt Nam tổ chức theo Điều, Khoản và Điểm, còn số hiệu như ``168/2024/NĐ-CP'' phải giữ nguyên khi tra cứu. Hệ thống kết hợp tìm kiếm vector, BM25 và thông tin mô tả pháp lý để đối chiếu số hiệu văn bản cùng vị trí Điều, Khoản và Điểm; chỉ từ chối toàn bộ khi không có tài liệu liên quan hoặc bộ sinh câu trả lời trả câu từ chối chuẩn.
+Văn bản pháp luật Việt Nam tổ chức theo Điều, Khoản và Điểm, còn số hiệu như ``168/2024/NĐ-CP'' phải giữ nguyên khi tra cứu. Hệ thống kết hợp tìm kiếm vector, BM25 và thông tin mô tả pháp lý để đối chiếu số hiệu văn bản cùng vị trí Điều, Khoản và Điểm; từ chối hoặc yêu cầu làm rõ trước khi sinh với câu hỏi ngoài phạm vi, câu hỏi chưa nêu đủ hành vi và trường hợp không có căn cứ, và từ chối sau khi sinh khi bộ sinh báo thiếu căn cứ hoặc hậu kiểm không đạt.
 Hình~\ref{fig:ch1_problem} tóm tắt bối cảnh bài toán: câu hỏi của người dùng, căn cứ được truy xuất và câu trả lời kèm nguồn để kiểm chứng.
 \AssetFigure[0.88\textwidth][fig:ch1_problem]{ch1_problem_context.png}{7.0cm}{Bối cảnh của bài toán hỏi đáp pháp luật giao thông có kiểm chứng}{}
 
@@ -680,7 +680,7 @@ Xây dựng một hệ thống RAG hỗ trợ tra cứu pháp luật giao thông
   \item Tạo chỉ mục Qdrant kết hợp vector biểu diễn ngữ nghĩa và BM25 theo từ khóa để phục vụ tìm kiếm theo ý nghĩa và từ khóa.
   \item Nhận diện tham chiếu pháp lý xuất hiện trực tiếp trong câu hỏi, ví dụ số hiệu văn bản, Điều, Khoản và Điểm.
   \item Phân tích một số dạng câu hỏi nhiều ý thành các yêu cầu nhỏ, thực hiện tìm kiếm riêng và gộp kết quả bằng RRF.
-  \item Bộ sinh câu trả lời trả lời một phần khi chỉ một phần câu hỏi có căn cứ; bước làm sạch trích dẫn loại trích dẫn hoặc khẳng định không khớp, và hệ thống chỉ từ chối toàn bộ khi không có tài liệu liên quan hoặc bộ sinh câu trả lời trả câu từ chối chuẩn.
+  \item Bộ sinh câu trả lời trả lời một phần khi chỉ một phần câu hỏi có căn cứ; bước hậu kiểm loại trích dẫn hoặc thông tin claim không khớp; hệ thống từ chối hoặc yêu cầu làm rõ trước khi sinh với câu hỏi ngoài phạm vi, câu hỏi chưa nêu đủ hành vi và trường hợp không có căn cứ, và từ chối sau khi sinh khi bộ sinh báo thiếu căn cứ hoặc hậu kiểm không đạt.
   \item Tạo trích dẫn từ thông tin mô tả, hỗ trợ mở nguồn Markdown tương ứng.
   \item Xây dựng giao diện web gồm hỏi đáp, nguồn pháp luật, lịch sử hội thoại, phản hồi và đánh dấu câu trả lời.
   \item Xây dựng cơ sở dữ liệu ứng dụng trên Supabase cho hồ sơ, phiên hội thoại, tin nhắn, phản hồi và nội dung đã lưu, kết hợp chính sách RLS (Row Level Security, bảo mật theo từng dòng dữ liệu) để giới hạn dữ liệu theo người dùng.
@@ -694,7 +694,7 @@ Tập dữ liệu hiện tại gồm 17 văn bản khai báo trong danh mục ng
 Khóa luận tập trung vào các câu hỏi sau:
 \begin{enumerate}
   \item Làm thế nào để kết hợp tìm kiếm theo từ khóa, theo ý nghĩa và theo định danh pháp lý trong cùng một hệ thống RAG?
-  \item Khi căn cứ không đầy đủ, việc giữ lại phần câu trả lời có căn cứ và chỉ loại phần trích dẫn hoặc khẳng định không khớp có giúp giữ được phần đúng không? Đánh đổi giữa khả năng giữ phần đúng và nguy cơ còn sót nội dung thiếu căn cứ được đo ở Chương IV.
+  \item Khi căn cứ không đầy đủ, việc giữ lại phần câu trả lời có căn cứ và chỉ loại phần trích dẫn hoặc thông tin claim không khớp có giúp giữ được phần đúng không? Đánh đổi giữa khả năng giữ phần đúng và nguy cơ còn sót nội dung thiếu căn cứ được đo ở Chương IV.
   \item Cần tổ chức thông tin mô tả thế nào để mở lại đúng văn bản, Điều, Khoản hoặc Điểm từ một trích dẫn?
   \item Các chỉ số nào phù hợp để đánh giá một hệ thống tra cứu pháp luật ngoài việc đánh giá văn phong của câu trả lời?
 \end{enumerate}
@@ -725,7 +725,7 @@ Hình~\ref{fig:ch1_methodology} tóm tắt quy trình nghiên cứu và phát tr
 \section{Hướng giải quyết}
 Giải pháp dùng hai nhóm dữ liệu. Dữ liệu pháp luật được chuẩn hóa từ văn bản nguồn thành các đoạn JSONL có thông tin Điều, Khoản, Điểm rồi lập chỉ mục trong Qdrant; dữ liệu ứng dụng gồm người dùng, phiên hội thoại, tin nhắn, phản hồi và nội dung đã đánh dấu nằm trong Supabase. Hai nhóm tách riêng để dữ liệu người dùng không lẫn với dữ liệu phục vụ tìm kiếm pháp luật.
 
-Khi người dùng gửi câu hỏi, bộ phân tích dùng mô hình ngôn ngữ để tạo một câu hỏi độc lập đã tách khỏi ngữ cảnh, cùng tối đa ba truy vấn mở rộng. Lịch sử hội thoại chỉ được dùng để giải nghĩa các từ thay thế; nghĩa của chúng được đưa vào câu hỏi độc lập. Hệ thống tìm kiếm kết hợp cho các truy vấn, gộp thứ hạng bằng RRF rồi bổ sung ngữ cảnh cùng Điều/Khoản và tham chiếu liên quan. Bộ sinh câu trả lời được phép trả lời một phần khi chỉ một phần câu hỏi có căn cứ. Sau khi sinh, bước làm sạch trích dẫn đối chiếu trích dẫn với thông tin mô tả đã truy xuất và loại phần không khớp, còn toàn bộ yêu cầu chỉ bị từ chối khi không có tài liệu liên quan hoặc bộ sinh câu trả lời trả câu từ chối chuẩn.
+Khi người dùng gửi câu hỏi, bộ phân tích dùng mô hình ngôn ngữ để tạo một câu hỏi độc lập đã tách khỏi ngữ cảnh, cùng tối đa ba truy vấn mở rộng. Lịch sử hội thoại chỉ được dùng để giải nghĩa các từ thay thế; nghĩa của chúng được đưa vào câu hỏi độc lập. Hệ thống tìm kiếm kết hợp cho các truy vấn, gộp thứ hạng bằng RRF rồi bổ sung ngữ cảnh cùng Điều/Khoản và tham chiếu liên quan. Bộ sinh câu trả lời được phép trả lời một phần khi chỉ một phần câu hỏi có căn cứ. Sau khi sinh, bước hậu kiểm đối chiếu trích dẫn và thông tin claim với các đoạn đã truy xuất và loại phần không khớp. từ chối hoặc yêu cầu làm rõ trước khi sinh với câu hỏi ngoài phạm vi, câu hỏi chưa nêu đủ hành vi và trường hợp không có căn cứ, và từ chối sau khi sinh khi bộ sinh báo thiếu căn cứ hoặc hậu kiểm không đạt.
 
 \section{Kế hoạch thực hiện}
 \begin{table}[H]
@@ -773,7 +773,7 @@ Khóa luận gồm bốn chương: Chương 1 trình bày tổng quan đề tài
 \addcontentsline{toc}{chapter}{CHƯƠNG II. CƠ SỞ LÝ THUYẾT VÀ CÔNG NGHỆ}
 
 \section{Tổng quan về Retrieval-Augmented Generation}
-Retrieval-Augmented Generation (RAG) trong đề tài gồm hai bước chính: hệ thống tìm các đoạn dữ liệu liên quan rồi gửi câu hỏi cùng các đoạn đó cho mô hình ngôn ngữ. Dữ liệu pháp luật nằm ngoài mô hình nên có thể mở lại và kiểm tra. Phần cài đặt đi từ dữ liệu nguồn, tạo đoạn dữ liệu và lập chỉ mục Qdrant đến truy xuất, kiểm tra căn cứ và sinh câu trả lời.
+Retrieval-Augmented Generation (RAG) trong đề tài gồm hai bước chính: hệ thống tìm các đoạn dữ liệu liên quan rồi gửi câu hỏi cùng các đoạn đó cho mô hình ngôn ngữ. Phương pháp này được giới thiệu cho các bài toán cần tri thức ngoài mô hình \cite{rag_lewis_2020}. Dữ liệu pháp luật nằm ngoài mô hình nên có thể mở lại và kiểm tra. Phần cài đặt đi từ dữ liệu nguồn, tạo đoạn dữ liệu và lập chỉ mục Qdrant đến truy xuất, kiểm tra căn cứ và sinh câu trả lời.
 
 Hệ thống cập nhật tập văn bản và xây lại chỉ mục mà không cần huấn luyện lại mô hình ngôn ngữ; mỗi câu trả lời vẫn gắn được với đoạn nguồn đã tìm ra. Chất lượng câu trả lời phụ thuộc vào chất lượng tìm kiếm và phần diễn giải của mô hình, nên đề tài kiểm tra căn cứ trước khi tạo câu trả lời và trả trạng thái từ chối khi dữ liệu chưa đủ.
 
@@ -809,7 +809,7 @@ Bộ xử lý tham chiếu gộp chuỗi ``Điều 7 Khoản 3 Nghị định 16
 \AssetFigure[0.88\textwidth]{ch2_exact_lookup.png}{6.8cm}{Tra cứu chính xác theo số hiệu văn bản, Điều, Khoản và Điểm}{}
 
 \section{Tìm kiếm từ khóa bằng BM25}
-BM25 là phương pháp xếp hạng văn bản dựa trên mức độ xuất hiện của từ trong tài liệu, độ hiếm của từ trong toàn bộ tập dữ liệu và độ dài của tài liệu. Tài liệu chính thức của Qdrant mô tả BM25 là một cơ chế xếp hạng dùng vector từ khóa, trong đó trọng số từ khóa chịu ảnh hưởng của tần suất từ và IDF \cite{qdrant_bm25_docs}. Một dạng công thức thường dùng có thể trình bày như sau:
+BM25 là phương pháp xếp hạng văn bản dựa trên mức độ xuất hiện của từ trong tài liệu, độ hiếm của từ trong toàn bộ tập dữ liệu và độ dài của tài liệu. Tài liệu chính thức của Qdrant mô tả BM25 là một cơ chế xếp hạng dùng vector từ khóa, trong đó trọng số từ khóa chịu ảnh hưởng của tần suất từ và IDF \cite{qdrant_bm25_docs}; công thức được trình bày đầy đủ trong Robertson và Zaragoza \cite{bm25_robertson_2009}. Một dạng công thức thường dùng có thể trình bày như sau:
 \begin{equation}
   \operatorname{BM25}(q,d)=\sum_{t\in q}\operatorname{IDF}(t)\cdot
   \frac{f(t,d)(k_1+1)}{f(t,d)+k_1\left(1-b+b\frac{|d|}{\mathrm{avgdl}}\right)}.
@@ -849,7 +849,7 @@ Lịch sử hội thoại chỉ được đưa vào bộ phân tích để giả
 \AssetFigure[\textwidth]{ch2_question_analysis.png}{20cm}{Phân tích yêu cầu bằng LLM, tạo câu hỏi độc lập đã tách khỏi ngữ cảnh và tối đa ba truy vấn mở rộng}{}
 
 \section{Phương pháp gộp thứ hạng}
-Khi một câu hỏi được tách thành nhiều truy vấn, mỗi truy vấn trả về một danh sách đoạn dữ liệu đã xếp hạng. RRF kết hợp các danh sách theo thứ hạng của từng kết quả: $R$ là tập các danh sách kết quả, $\operatorname{rank}_r(d)$ là vị trí của đoạn $d$ trong danh sách $r$, còn $k$ làm mềm ảnh hưởng của thứ hạng. Qdrant cũng hỗ trợ RRF trong truy vấn kết hợp và mô tả cơ chế này là cộng điểm theo vị trí của một kết quả trong các danh sách khác nhau \cite{qdrant_hybrid_docs}. Công thức tổng quát:
+Khi một câu hỏi được tách thành nhiều truy vấn, mỗi truy vấn trả về một danh sách đoạn dữ liệu đã xếp hạng. RRF kết hợp các danh sách theo thứ hạng của từng kết quả: $R$ là tập các danh sách kết quả, $\operatorname{rank}_r(d)$ là vị trí của đoạn $d$ trong danh sách $r$, còn $k$ làm mềm ảnh hưởng của thứ hạng. Qdrant cũng hỗ trợ RRF trong truy vấn kết hợp và mô tả cơ chế này là cộng điểm theo vị trí của một kết quả trong các danh sách khác nhau \cite{qdrant_hybrid_docs}. Cách gộp này được đề xuất trong Cormack và cộng sự \cite{rrf_cormack_2009}. Công thức tổng quát:
 \begin{equation}
   \operatorname{RRF}(d)=\sum_{r\in R}\frac{1}{k+\operatorname{rank}_r(d)}.
 \end{equation}
@@ -866,9 +866,9 @@ Ngoài các đoạn cùng nhóm quy định, hệ thống tìm thêm một số 
 \AssetFigure[0.90\textwidth]{ch2_cross_reference.png}{6.8cm}{Bổ sung ngữ cảnh cùng Điều và tham chiếu liên quan}{}
 
 \section{Phân loại từ chối trả lời và xử lý thiếu căn cứ}
-Trước bước sinh câu trả lời, hệ thống từ chối trong các trường hợp không có tài liệu liên quan, tham chiếu rõ ràng không khớp, sai hiệu lực theo thời điểm, chỉ có ngữ cảnh đường sắt, câu hỏi ngoài phạm vi hoặc chào hỏi. Các trường hợp này được nhận diện trước khi gọi bộ sinh câu trả lời để tránh dùng nguồn không phù hợp.
+Trước bước sinh câu trả lời, hệ thống từ chối trong các trường hợp không có tài liệu liên quan, tham chiếu rõ ràng không khớp, sai hiệu lực theo thời điểm, chỉ có ngữ cảnh đường sắt, câu hỏi ngoài phạm vi hoặc chào hỏi; câu hỏi hỏi mức xử phạt nhưng chưa nêu hành vi và chưa nêu tham chiếu thì hệ thống trả trạng thái yêu cầu làm rõ thay vì đoán. Các trường hợp này được nhận diện trước khi gọi bộ sinh câu trả lời để tránh dùng nguồn không phù hợp.
 
-Sau bước sinh, câu trả lời chỉ bị coi là từ chối toàn bộ khi bộ sinh trả về câu từ chối chuẩn. Nếu còn phần câu hỏi được tài liệu hỗ trợ, hệ thống vẫn trả lời phần đó.
+Sau bước sinh, câu trả lời bị coi là từ chối khi bộ sinh trả về trạng thái thiếu căn cứ hoặc khi bước hậu kiểm không đạt điều kiện an toàn. Nếu còn phần câu hỏi được tài liệu hỗ trợ, hệ thống vẫn trả lời phần đó.
 Hình~\ref{fig:ch2_evidence_gate} trình bày bước kiểm tra bằng chứng trước khi gọi mô hình: đạt thì sinh câu trả lời, không đạt thì từ chối mà không gọi mô hình.
 \AssetFigure[0.92\textwidth][fig:ch2_evidence_gate]{ch2_evidence_gate.png}{9.0cm}{Kiểm tra bằng chứng trước khi sinh câu trả lời}{}
 
@@ -885,7 +885,7 @@ Bộ truy xuất tìm dữ liệu, bộ sinh diễn đạt câu trả lời và 
 \AssetFigure[\textwidth]{ch2_generation.png}{20cm}{Bộ sinh câu trả lời trả lời một phần dựa trên ngữ cảnh đã truy xuất và bổ sung}{}
 
 \section{Kiểm tra kết quả sau khi tạo câu trả lời}
-Sau khi mô hình ngôn ngữ tạo nội dung, bước làm sạch trích dẫn đọc các trích dẫn từ chính câu trả lời rồi đối chiếu với thông tin mô tả của những đoạn đã truy xuất. Trích dẫn hoặc khẳng định không khớp bị loại, phần trả lời còn căn cứ được giữ lại.
+Sau khi mô hình ngôn ngữ tạo nội dung, bước làm sạch trích dẫn đọc các trích dẫn từ chính câu trả lời rồi đối chiếu với thông tin mô tả của những đoạn đã truy xuất. Bước hậu kiểm đối chiếu định danh nguồn, đoạn trích, hiệu lực theo thời điểm và mức tiền với các đoạn đã truy xuất; trích dẫn hoặc thông tin claim có cấu trúc không khớp bị loại, phần trả lời còn căn cứ được giữ lại. Bước này kiểm tra dữ liệu gắn với câu trả lời, không thay thế việc đánh giá ngữ nghĩa từng câu.
 
 \AssetFigure[0.88\textwidth]{ch2_verification.png}{6.8cm}{Làm sạch trích dẫn và khẳng định theo thông tin mô tả, giữ phần trả lời còn căn cứ}{}
 Dịch vụ phía máy chủ dựng trích dẫn trực tiếp từ thông tin mô tả của từng đoạn pháp luật: tên hoặc số hiệu văn bản, Điều, Khoản, Điểm, trang nguồn nếu có và một đoạn trích ngắn. Mô hình ngôn ngữ chỉ viết phần diễn giải, còn thông tin nguồn lấy từ dữ liệu đã lưu.
@@ -967,6 +967,7 @@ Service-role key có quyền cao và có thể bỏ qua RLS, vì vậy tài li�
 Hình~\ref{fig:ch2_supabase_auth} trình bày luồng xác thực: Supabase Auth cấp JWT, còn policy RLS đối chiếu \texttt{auth.uid()} khi truy cập dữ liệu.
 \AssetFigure[0.90\textwidth][fig:ch2_supabase_auth]{ch2_supabase_auth.png}{7.0cm}{Luồng Supabase Auth, JWT, auth.uid và Row Level Security}{}
 
+\section{Công nghệ giao diện web}
 Giao diện web của dự án dùng Next.js 16, React 19 và TypeScript 5. Next.js cung cấp App Router dựa trên cấu trúc thư mục và hỗ trợ thành phần phía máy chủ/phía người dùng \cite{nextjs_app_router_docs}; React tổ chức giao diện thành các component; TypeScript kiểm tra kiểu tĩnh cho dữ liệu trao đổi giữa component và API. Các đường dẫn dịch vụ chính hiện có gồm trang chat và trang nguồn pháp luật.
 
 React Markdown trình bày câu trả lời, còn Supabase phía người dùng/SSR giữ phiên đăng nhập theo môi trường máy chủ hoặc browser.
@@ -1076,7 +1077,7 @@ Việc chọn mô hình được đo trực tiếp qua OpenRouter trên sáu ca 
 
 Chọn gemini-2.5-flash-lite cho cả bộ phân tích yêu cầu và bộ sinh câu trả lời vì đạt JSON 6/6, loại yêu cầu 6/6 và loại phương tiện 6/6 ở bộ phân tích, cùng 5/5 ở bộ sinh, có độ trễ thấp trong các lựa chọn đã đo, cùng nhiều nhà cung cấp và thời gian hoạt động Google AI Studio 99.998\%.
 \subsection{Tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên}
-Tỉ lệ này cho biết trong $k$ kết quả đầu tiên có ít nhất một vị trí pháp lý đúng hay không. Tỷ lệ bằng số trường hợp đạt chia cho số trường hợp có dữ liệu phù hợp; mỗi trường hợp được ghi nhận đạt hoặc không đạt.
+Tỉ lệ này cho biết trong $k$ kết quả đầu tiên có ít nhất một vị trí pháp lý đúng hay không. Tỷ lệ bằng số trường hợp đạt chia cho số trường hợp có dữ liệu phù hợp; mỗi trường hợp được ghi nhận đạt hoặc không đạt. Khóa luận dùng hai cách đối sánh trên cùng một lần chạy: đối sánh khớp chính xác yêu cầu tọa độ pháp lý trả về trùng đầy đủ với tọa độ kỳ vọng, còn đối sánh phân cấp chấp nhận một quy định con thuộc đúng Điều kỳ vọng, ví dụ một Khoản của Điều đó, là tìm thấy căn cứ. Hai cách cho hai giá trị khác nhau nên khi so sánh giữa các lần chạy phải dùng cùng một cách.
 
 \subsection{Độ chính xác theo tọa độ pháp lý}
 Mô-đun đánh giá so sánh lần lượt văn bản, Điều, Khoản và Điểm của mỗi kết quả với vị trí đúng; tỷ lệ ở mỗi cấp được tính trên tổng số trường hợp được đánh giá. Cách tách theo cấp phát hiện được trường hợp hệ thống tìm đúng văn bản nhưng sai Khoản, hoặc đúng Điều nhưng sai Điểm. Cách đánh giá này phù hợp với dữ liệu pháp luật vì vị trí trong cấu trúc văn bản quyết định căn cứ được sử dụng.
@@ -1206,7 +1207,7 @@ Các yêu cầu chức năng được đánh mã để tiện đối chiếu v�
   \hline
   FR04        & Nhận câu trả lời có trích dẫn          & Hiển thị câu trả lời, trạng thái xử lý và danh sách nguồn liên quan                                                                                            \\
   \hline
-  FR05        & Xử lý kết quả thiếu hoặc không phù hợp & Chỉ loại phần trích dẫn không khớp, trả lời phần có căn cứ; chỉ từ chối toàn bộ khi không có tài liệu liên quan hoặc bộ sinh câu trả lời trả câu từ chối chuẩn \\
+  FR05        & Xử lý kết quả thiếu hoặc không phù hợp & Loại trích dẫn không khớp, giữ phần trả lời có căn cứ; từ chối hoặc yêu cầu làm rõ khi ngoài phạm vi, thiếu hành vi hoặc không có căn cứ; từ chối khi bộ sinh báo thiếu căn cứ hoặc hậu kiểm không đạt \\
   \hline
   FR06        & Quản lý phiên hội thoại                & Tạo, xem, đổi tên và xóa mềm phiên hội thoại                                                                                                                   \\
   \hline
@@ -1233,7 +1234,7 @@ Các yêu cầu chức năng được đánh mã để tiện đối chiếu v�
 \end{longtable}
 
 \subsection{Yêu cầu phi chức năng}
-Yêu cầu phi chức năng tập trung vào độ tin cậy, bảo mật, khả năng truy vết và khả năng bảo trì. Hệ thống phải giữ đủ thông tin nguồn để người dùng mở lại văn bản được trích dẫn, và dữ liệu cá nhân phải được giới hạn theo tài khoản đã xác thực. Khóa có quyền quản trị chỉ dùng ở phía máy chủ. Sau khi sinh, hệ thống chỉ loại phần trích dẫn hoặc khẳng định không khớp với thông tin mô tả đã truy xuất, còn câu trả lời vẫn giữ phần có căn cứ; toàn bộ câu trả lời chỉ bị từ chối khi không có tài liệu liên quan hoặc bộ sinh câu trả lời trả câu từ chối chuẩn. Các chức năng xử lý dữ liệu, xây chỉ mục và đánh giá cần tách khỏi luồng hỏi đáp để dễ kiểm tra và chạy lại khi dữ liệu thay đổi.
+Yêu cầu phi chức năng tập trung vào độ tin cậy, bảo mật, khả năng truy vết và khả năng bảo trì. Hệ thống phải giữ đủ thông tin nguồn để người dùng mở lại văn bản được trích dẫn, và dữ liệu cá nhân phải được giới hạn theo tài khoản đã xác thực. Khóa có quyền quản trị chỉ dùng ở phía máy chủ. Sau khi sinh, bước hậu kiểm chỉ loại phần trích dẫn hoặc thông tin claim không khớp với thông tin mô tả đã truy xuất, còn câu trả lời vẫn giữ phần có căn cứ; hệ thống từ chối hoặc yêu cầu làm rõ trước khi sinh với câu hỏi ngoài phạm vi, câu hỏi chưa nêu đủ hành vi và trường hợp không có căn cứ, và từ chối sau khi sinh khi bộ sinh báo thiếu căn cứ hoặc hậu kiểm không đạt. Các chức năng xử lý dữ liệu, xây chỉ mục và đánh giá cần tách khỏi luồng hỏi đáp để dễ kiểm tra và chạy lại khi dữ liệu thay đổi.
 
 \begin{table}[H]
   \caption{Yêu cầu phi chức năng chính}
@@ -1247,7 +1248,7 @@ Yêu cầu phi chức năng tập trung vào độ tin cậy, bảo mật, khả
     \hline
     Khả năng truy vết     & Câu trả lời cần có nguồn để người dùng kiểm tra lại văn bản và vị trí pháp lý                                                                                                     \\
     \hline
-    Độ tin cậy            & Chỉ loại phần trích dẫn hoặc khẳng định không khớp; trả lời phần có căn cứ, và chỉ từ chối toàn bộ khi không có tài liệu liên quan hoặc bộ sinh câu trả lời trả câu từ chối chuẩn \\
+    Độ tin cậy            & Loại trích dẫn hoặc thông tin claim không khớp, giữ phần trả lời có căn cứ; từ chối hoặc yêu cầu làm rõ khi ngoài phạm vi, thiếu hành vi hoặc không có căn cứ; từ chối khi bộ sinh báo thiếu căn cứ hoặc hậu kiểm không đạt \\
     \hline
     Khả năng bảo trì      & Các bước chuẩn bị dữ liệu, tìm kiếm, tạo câu trả lời và đánh giá được tách thành các thành phần có trách nhiệm rõ ràng                                                            \\
     \hline
@@ -1405,21 +1406,21 @@ Người dùng gửi câu hỏi, nhận câu trả lời đầy đủ hoặc m�
                             \item Các kết quả được gộp thứ hạng bằng RRF, rồi hệ thống chọn 12-25 đoạn dữ liệu, tối đa 3 đoạn dữ liệu cho mỗi Điều/Khoản.
                             \item Hệ thống bổ sung ngữ cảnh cùng Điều/Khoản và các tham chiếu, sau đó lọc theo ngữ cảnh với phương án dự phòng.
                             \item Bộ sinh câu trả lời tạo câu trả lời từ ngữ cảnh đã chọn.
-                            \item Hệ thống làm sạch các trích dẫn và khẳng định không khớp với thông tin mô tả đã truy xuất.
+                            \item Hệ thống loại các trích dẫn và thông tin claim có cấu trúc không khớp với thông tin mô tả đã truy xuất.
                             \item Kết quả được trả về giao diện và lưu vào phiên hội thoại.
                           \end{enumerate}                                                                            \\
     \hline
     Ngoại lệ            & \begin{enumerate}[leftmargin=*,nosep]
                             \item Câu hỏi rỗng hoặc không hợp lệ thì hệ thống từ chối xử lý.
-                            \item Không có tài liệu liên quan, tham chiếu rõ ràng không khớp, sai hiệu lực theo thời điểm, ngoài phạm vi hoặc bộ sinh câu trả lời trả câu từ chối chuẩn thì hệ thống trả trạng thái từ chối trả lời.
-                            \item Nếu chỉ một phần yêu cầu có căn cứ, hệ thống trả câu trả lời một phần và loại trích dẫn/khẳng định không khớp.
+                            \item Không có tài liệu liên quan, tham chiếu rõ ràng không khớp, sai hiệu lực theo thời điểm, ngoài phạm vi, bộ sinh câu trả lời trả câu từ chối chuẩn hoặc hậu kiểm không đạt thì hệ thống trả trạng thái từ chối trả lời.
+                            \item Nếu chỉ một phần yêu cầu có căn cứ, hệ thống trả câu trả lời một phần và loại trích dẫn hoặc thông tin claim không khớp.
                             \item Lỗi 429 hoặc 5xx từ dịch vụ mô hình được thử lại có giới hạn; khi vẫn lỗi, hệ thống thông báo lỗi.
                           \end{enumerate} \\
     \hline
     Quy tắc kiểm tra    & \begin{enumerate}[leftmargin=*,nosep]
                             \item Bộ phân tích yêu cầu phải trả JSON đúng schema và không tạo quá 3 truy vấn mở rộng.
                             \item Câu trả lời phải dựa trên ngữ cảnh đã truy xuất.
-                            \item Trích dẫn và khẳng định không khớp với thông tin mô tả đã truy xuất phải bị loại trước khi trả kết quả.
+                            \item Trích dẫn và thông tin claim không khớp với thông tin mô tả đã truy xuất phải bị loại trước khi trả kết quả.
                           \end{enumerate}                                                                                            \\
     \hline
     Hậu điều kiện       & Câu hỏi và kết quả xử lý được lưu trong phiên hội thoại khi quá trình hoàn tất.                                                                                                                         \\
@@ -1973,7 +1974,7 @@ Luồng xác thực bắt đầu từ thao tác nhập thông tin trên giao di�
 \AssetFigure[0.94\textwidth]{ch3_activity_auth.png}{8.2cm}{Sơ đồ hoạt động đăng ký và đăng nhập}{}
 
 \subsection{Sơ đồ hoạt động hỏi đáp pháp luật}
-Luồng hỏi đáp bắt đầu khi người dùng gửi câu hỏi. Bộ phân tích yêu cầu dùng LLM để tạo JSON nghiêm ngặt và tối đa 3 truy vấn mở rộng. Mỗi truy vấn được tìm kiếm kết hợp; kết quả được gộp bằng RRF, chọn 12-25 đoạn dữ liệu với tối đa 3 đoạn dữ liệu mỗi Điều/Khoản, rồi bổ sung ngữ cảnh cùng Điều/Khoản và tham chiếu. Bộ lọc ngữ cảnh có phương án dự phòng trước khi bộ sinh câu trả lời sinh câu trả lời. Sau đó hệ thống làm sạch trích dẫn và khẳng định không khớp; kết quả có thể là câu trả lời đầy đủ, câu trả lời một phần hoặc từ chối trả lời theo trường hợp xử lý.
+Luồng hỏi đáp bắt đầu khi người dùng gửi câu hỏi. Bộ phân tích yêu cầu dùng LLM để tạo JSON nghiêm ngặt và tối đa 3 truy vấn mở rộng. Mỗi truy vấn được tìm kiếm kết hợp; kết quả được gộp bằng RRF, chọn 12-25 đoạn dữ liệu với tối đa 3 đoạn dữ liệu mỗi Điều/Khoản, rồi bổ sung ngữ cảnh cùng Điều/Khoản và tham chiếu. Bộ lọc ngữ cảnh có phương án dự phòng trước khi bộ sinh câu trả lời sinh câu trả lời. Sau đó hệ thống loại trích dẫn và thông tin claim không khớp theo thông tin mô tả đã truy xuất; kết quả có thể là câu trả lời đầy đủ, câu trả lời một phần hoặc từ chối trả lời theo trường hợp xử lý.
 \AssetFigure[\textwidth]{ch3_activity_chat.png}{20cm}{Sơ đồ hoạt động phân tích, truy xuất ngữ cảnh và sinh câu trả lời pháp luật}{}
 
 \subsection{Sơ đồ hoạt động tra cứu nguồn pháp luật}
@@ -2004,7 +2005,7 @@ Sơ đồ này đi sâu vào phần tìm kiếm: dịch vụ RAG tạo tối đa
 \AssetFigure[0.98\textwidth]{ch3_sequence_retrieval.png}{9.0cm}{Sơ đồ tuần tự tìm kiếm và tổng hợp căn cứ}{}
 
 \subsection{Sơ đồ tuần tự tạo và kiểm tra câu trả lời}
-Sau khi có ngữ cảnh, dịch vụ phía máy chủ tạo nội dung yêu cầu cho bộ sinh câu trả lời và gửi đến dịch vụ mô hình. Khi nhận kết quả, dịch vụ phía máy chủ loại trích dẫn hoặc khẳng định không khớp với thông tin mô tả đã truy xuất, rồi trả phần còn căn cứ. Các lỗi 429/5xx được thử lại có giới hạn; kết quả từ chối trả lời toàn bộ chỉ xuất hiện khi không có căn cứ.
+Sau khi có ngữ cảnh, dịch vụ phía máy chủ tạo nội dung yêu cầu cho bộ sinh câu trả lời và gửi đến dịch vụ mô hình. Khi nhận kết quả, dịch vụ phía máy chủ loại trích dẫn hoặc thông tin claim không khớp với thông tin mô tả đã truy xuất, rồi trả phần còn căn cứ. Các lỗi 429/5xx được thử lại có giới hạn; câu trả lời bị từ chối khi bộ sinh báo thiếu căn cứ hoặc hậu kiểm không đạt.
 \AssetFigure[\textwidth]{ch3_sequence_generation.png}{20cm}{Sơ đồ tuần tự bổ sung ngữ cảnh, sinh câu trả lời và làm sạch trích dẫn}{}
 
 \subsection{Sơ đồ tuần tự mở nguồn trích dẫn}
@@ -2332,7 +2333,7 @@ Hình~\ref{fig:ch4_answer} trình bày một câu trả lời có căn cứ cho 
 Sau khi xử lý, giao diện hiển thị nội dung trả lời cùng các trích dẫn, và người dùng chọn một trích dẫn để mở văn bản cùng vị trí pháp lý tương ứng.
 \AssetFigure[0.94\textwidth][fig:ch4_answer]{ch4_chat_answer.png}{9.5cm}{Câu trả lời có căn cứ và danh sách trích dẫn}{}
 \subsection{Trường hợp từ chối trả lời}
-Giao diện hiển thị trạng thái từ chối trả lời khi không có tài liệu liên quan, tham chiếu rõ ràng không khớp, sai hiệu lực theo thời điểm, chỉ tìm thấy ngữ cảnh đường sắt, câu hỏi ngoài phạm vi hoặc chỉ là lời chào hỏi, và cả khi bộ sinh câu trả lời trả về câu từ chối chuẩn. Với câu hỏi có phần căn cứ và phần chưa được hỗ trợ, giao diện giữ lại phần trả lời có căn cứ cùng các trích dẫn hợp lệ.
+Giao diện hiển thị trạng thái từ chối trả lời khi không có tài liệu liên quan, tham chiếu rõ ràng không khớp, sai hiệu lực theo thời điểm, chỉ tìm thấy ngữ cảnh đường sắt, câu hỏi ngoài phạm vi hoặc chỉ là lời chào hỏi, cả khi bộ sinh câu trả lời trả về câu từ chối chuẩn, và khi hệ thống yêu cầu làm rõ với câu hỏi chưa nêu đủ hành vi. Với câu hỏi có phần căn cứ và phần chưa được hỗ trợ, giao diện giữ lại phần trả lời có căn cứ cùng các trích dẫn hợp lệ.
 Hình~\ref{fig:ch4_abstention} trình bày trường hợp câu hỏi nằm ngoài phạm vi dữ liệu: hệ thống thông báo chưa đủ căn cứ và nêu các văn bản đang có.
 \AssetFigure[0.94\textwidth][fig:ch4_abstention]{ch4_chat_abstention.png}{9.0cm}{Trạng thái từ chối trả lời khi thiếu căn cứ}{}
 
@@ -2376,7 +2377,7 @@ FastAPI tự tạo tài liệu OpenAPI cho các đường dẫn dịch vụ đã
 Hình~\ref{fig:ch4_swagger} là giao diện Swagger của FastAPI, liệt kê các nhóm endpoint của dịch vụ.
 \AssetFigure[0.94\textwidth][fig:ch4_swagger]{ch4_swagger.png}{9.0cm}{Tài liệu API do FastAPI sinh tự động}{}
 \section{Đánh giá khả năng tra cứu và trả lời}
-Số liệu trong mục này lấy từ một lần chạy qua API, dùng chung mô hình \texttt{google/\allowbreak gemini-2.5-flash-lite} cho bộ phân tích yêu cầu và bộ sinh câu trả lời; mô hình embedding là \texttt{qwen/\allowbreak qwen3-embedding-8b}. Hệ thống đặt \texttt{top\_k = 5}; mỗi truy vấn mở rộng lấy 8 kết quả trước khi gộp thứ hạng. Bộ đánh giá có 40 trường hợp: 32 trường hợp được tính chỉ số, 8 trường hợp nằm ngoài kho dữ liệu, không trường hợp nào thiếu cấu trúc. Tám trường hợp ngoài kho dữ liệu vẫn được tính khi phân tích hành vi từ chối.
+Số liệu trong mục này lấy từ lần chạy mã 20260915T155418Z qua API, trên mã nguồn b561e8f và chỉ mục dựng từ 10.529 đoạn dữ liệu; lần chạy dùng chung mô hình \texttt{google/\allowbreak gemini-2.5-flash-lite} cho bộ phân tích yêu cầu và bộ sinh câu trả lời; mô hình embedding là \texttt{qwen/\allowbreak qwen3-embedding-8b}. Hệ thống đặt \texttt{top\_k = 5}; mỗi truy vấn mở rộng lấy 8 kết quả trước khi gộp thứ hạng. Bộ đánh giá có 40 trường hợp: 32 trường hợp được tính chỉ số, 8 trường hợp nằm ngoài kho dữ liệu, không trường hợp nào thiếu cấu trúc. Tám trường hợp ngoài kho dữ liệu vẫn được tính khi phân tích hành vi từ chối.
 \begin{table}[H]
   \caption{Chỉ số đánh giá của lần chạy cuối}
   \label{tab:evaluation-status}
@@ -2385,20 +2386,28 @@ Số liệu trong mục này lấy từ một lần chạy qua API, dùng chung 
     \hline
     \textbf{Chỉ số} & \textbf{Giá trị} \\
     \hline
-    Tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên & 0.7273 \\
+    Tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên, đối sánh phân cấp & 0.8182 (n = 22) \\
     \hline
-    Độ chính xác ở mức văn bản & 0.7727 \\
+    Tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên, khớp chính xác & 0.4091 (n = 22) \\
     \hline
-    Độ chính xác ở mức Điều & 0.7273 \\
+    Độ chính xác ở mức văn bản & 0.9091 (n = 22) \\
     \hline
-    Độ chính xác ở mức Khoản & 0.7500 \\
+    Độ chính xác ở mức Điều & 0.8182 (n = 22) \\
     \hline
-    Độ chính xác ở mức Điểm & 0.0000 \\
+    Độ chính xác ở mức Khoản & 0.7500 (n = 12) \\
     \hline
-    Tỉ lệ trích dẫn hợp lệ & 1.0000 \\
+    Độ chính xác ở mức Điểm & 0.0000 (n = 3) \\
     \hline
-    Tỉ lệ từ chối trả lời đúng & 1.0000 \\
+    Tỉ lệ trích dẫn hợp lệ & 1.0000 (n = 32) \\
     \hline
+    Quyết định từ chối trả lời, recall theo nhãn vàng & 1.0000 (n = 32) \\
+    \hline
+    Quyết định từ chối trả lời, F1 theo nhãn vàng & 0.7692 (n = 32) \\
+    \hline
+    Quyết định từ chối trả lời, F1 theo nhãn hiệu dụng & 0.9412 (n = 32) \\
+    \hline
+Trong tám trường hợp nằm ngoài kho dữ liệu, nhãn vàng vẫn yêu cầu câu trả lời nên sáu trường hợp hệ thống từ chối bị tính là dương tính giả: precision 0.6250, recall 1.0000 và F1 0.7692. Xét theo nhãn hiệu dụng, điều khoản kỳ vọng không có trong kho dữ liệu thì từ chối là đúng, nên precision bằng 1.0000, recall 0.8889 và F1 0.9412; hai trường hợp bị bỏ sót là câu hỏi nằm ngoài kho dữ liệu nhưng hệ thống vẫn trả lời từ các quy định liên quan. Trên năm câu hỏi thiếu căn cứ, baseline trả lời cả năm câu, còn bản hiện tại từ chối đủ cả năm.
+
   \end{tabularx}
 \end{table}
 
@@ -2410,11 +2419,11 @@ Số liệu trong mục này lấy từ một lần chạy qua API, dùng chung 
     \hline
     \textbf{Thống kê} & \textbf{Giá trị (ms)} \\
     \hline
-    Trung bình & 11061.57 ms (11.06 giây) \\
+    Trung bình & 8698.61 ms (8.70 giây) \\
     \hline
-    Trung vị & 10908.84 ms (10.91 giây) \\
+    Trung vị & 8289.94 ms (8.29 giây) \\
     \hline
-    Phân vị 95 & 17264.5 ms (17.26 giây) \\
+    Phân vị 95 & 13613.86 ms (13.61 giây) \\
     \hline
   \end{tabularx}
 \end{table}
@@ -2422,23 +2431,26 @@ Số liệu trong mục này lấy từ một lần chạy qua API, dùng chung 
 Hình~\ref{fig:ch4_evaluation} trình bày kết quả lần chạy cuối trên 40 trường hợp.
 \AssetFigure[\textwidth][fig:ch4_evaluation]{ch4_evaluation_report.png}{20cm}{Kết quả lần chạy cuối trên 40 trường hợp}{}
 
-So với đường cơ sở ghi trên hình, tỉ lệ tìm thấy căn cứ đúng tăng từ 0.25 lên 0.7273; độ chính xác ở mức văn bản từ 0.50 lên 0.7727; mức Điều từ 0.4167 lên 0.7273; mức Khoản từ 0.3846 lên 0.7500. Độ chính xác ở mức Điểm giữ nguyên 0.0000, còn tỉ lệ trích dẫn hợp lệ tăng từ 0.8824 lên 1.0000 và tỉ lệ từ chối trả lời đúng từ 0.7059 lên 1.0000. Năm trường hợp thiếu căn cứ trước đây đều được trả lời; lần chạy này từ chối cả năm.
+Lần chạy này đạt tỉ lệ tìm thấy căn cứ đúng 0.8182 theo đối sánh phân cấp và 0.4091 theo khớp chính xác, trên 22 trường hợp có căn cứ kỳ vọng. Các số liệu baseline cũ được giữ để tham chiếu quá trình phát triển, nhưng không được xem là phép so sánh hoàn toàn tương đương vì evaluator và cách xác định mẫu tính đã thay đổi trong quá trình hoàn thiện hệ thống.
 
 % ============================================================
+\chapter*{KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN}
+\addcontentsline{toc}{chapter}{KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN}
+
 \section*{Kết quả đạt được}
 \phantomsection
 \addcontentsline{toc}{section}{Kết quả đạt được}
 
 Luồng xử lý hỏi đáp gồm các bước: phân tích yêu cầu bằng mô hình ngôn ngữ để tạo truy vấn độc lập và các truy vấn mở rộng; truy xuất nhiều truy vấn; gộp thứ hạng bằng RRF; bổ sung ngữ cảnh; làm sạch trích dẫn theo thông tin mô tả đã truy xuất. Câu hỏi chỉ được hỗ trợ một phần thì phần trả lời có căn cứ vẫn được giữ lại.
 
-Trên 40 trường hợp, độ trễ trung bình là 11061.57 ms và phân vị 95 là 17264.5 ms.
+Trên 40 trường hợp, độ trễ trung bình là 8698.61 ms và phân vị 95 là 13613.86 ms.
 
 \section*{Hạn chế}
 \phantomsection
 \addcontentsline{toc}{section}{Hạn chế}
 Độ chính xác ở mức Điểm chỉ tính trên ba trường hợp: hai câu hỏi chỉ nêu tọa độ trần mà không nêu văn bản, một điều khoản kỳ vọng không có trong kho dữ liệu. Bước tách văn bản giữ đúng cấu trúc Điểm, nên giới hạn này nằm ở tập kiểm tra.
 
-Độ trễ còn cao: trung bình 11.06 giây và phân vị 95 là 17.26 giây, chưa đạt mục tiêu dưới 15 giây.
+Độ trễ trung bình 8.70 giây vẫn ở mức cao so với một hệ tìm kiếm thông thường; phân vị 95 là 13.61 giây, đã nằm dưới mục tiêu 15 giây đặt ra.
 
 Tám trường hợp ngoài kho dữ liệu không dùng để đánh giá khả năng tìm căn cứ. Hai lần chạy cùng cấu hình cho kết quả khác nhau, nên chỉ số truy xuất còn dao động.
 
@@ -2471,18 +2483,20 @@ Tám trường hợp ngoài kho dữ liệu không dùng để đánh giá khả
   \end{tabularx}
 \end{table}
 
+Ở lần chạy này, các mức mục tiêu về tỉ lệ tìm thấy căn cứ, độ chính xác ở mức văn bản, tỉ lệ trích dẫn hợp lệ, tỉ lệ từ chối trả lời đúng và độ trễ phân vị 95 đã đạt; mức Điểm và hai chỉ số theo RAGAS chưa đo được trong phạm vi khóa luận.
+
 \section*{Việc cần làm và tính năng sẽ bổ sung}
 \begin{enumerate}
   \item Bước tách văn bản đã giữ đúng cấu trúc Điểm; giới hạn còn lại ở mức Điểm nằm ở thiết kế tập kiểm tra với các tọa độ trần.
-  \item Thêm lịch sử hội thoại vào tập đánh giá cho nhóm câu hỏi nối tiếp; kết quả chạy độc lập chưa phản ánh năng lực xử lý tham chiếu.
+  \item Mở rộng tập đánh giá câu hỏi nối tiếp và tăng số hội thoại nhiều lượt để đánh giá ổn định hơn khả năng giải nghĩa tham chiếu theo lịch sử.
   \item Chạy so sánh A/B (hai biến thể kiến trúc) trên cùng tập dữ liệu và cùng mô hình, tách ảnh hưởng của kiến trúc khỏi ảnh hưởng của việc chọn mô hình.
-  \item Thêm bộ xếp hạng lại và bộ lọc theo Điều, Khoản để nâng tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên, hiện là 0.7273.
-  \item Giảm số truy vấn mở rộng và lưu đệm vector, để đưa độ trễ phân vị 95 xuống dưới 15 giây.
+  \item Thêm bộ xếp hạng lại và bộ lọc theo Điều, Khoản để nâng tỉ lệ tìm thấy căn cứ đúng trong số kết quả đầu tiên, hiện là 0.8182 theo đối sánh phân cấp và 0.4091 theo khớp chính xác.
+  \item Giữ độ trễ phân vị 95 dưới 15 giây khi mở rộng kho dữ liệu bằng cách lưu đệm vector và giảm số truy vấn mở rộng.
   \item Bổ sung tác tử nhiều bước theo kiểu RAG tác tử, gồm bước tự kiểm tra và bước truy xuất sửa sai \cite{agentic_rag_survey}.
   \item Tách hệ thống thành các tác tử: điều phối phân công nhiệm vụ, truy xuất tìm tài liệu, kiểm chứng trích dẫn và phản biện kiểm tra câu trả lời \cite{agentic_rag_survey,agentic_legal_challenge}.
   \item Thêm tìm kiếm web làm phương án dự phòng khi kho dữ liệu thiếu, đồng thời mở rộng kho dữ liệu và cập nhật theo hiệu lực văn bản.
-  \item Dựng đồ thị quan hệ giữa các văn bản theo GraphRAG để hỗ trợ các tham chiếu liên văn bản \cite{production_rag_2026}.
-  \item Dùng phản hồi và nội dung đã lưu của người dùng để rà soát lại câu trả lời rủi ro cao; tỉ lệ từ chối trả lời đúng hiện là 1.0000.
+  \item Dựng đồ thị quan hệ giữa các văn bản theo GraphRAG để hỗ trợ các tham chiếu liên văn bản \cite{graphrag_edge_2024}.
+  \item Khai thác dữ liệu phản hồi và nội dung đã lưu của người dùng để phát hiện câu trả lời rủi ro và ưu tiên rà soát.
   \item Đưa bộ kiểm tra an toàn cho câu trả lời pháp lý vào quy trình đánh giá, kết hợp các chỉ số RAGAS như tỉ lệ trung thực với nguồn và tỉ lệ bao phủ ngữ cảnh \cite{ragas_metrics}.
 \end{enumerate}
 
@@ -2547,8 +2561,17 @@ Tám trường hợp ngoài kho dữ liệu không dùng để đánh giá khả
   \bibitem{openrouter_chat_docs}
   \textbf{OpenRouter}. \textit{Chat Completions API Documentation}. Tài liệu chính thức. \url{https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request}.
 
+  \bibitem{rag_lewis_2020}
+  \textbf{P. Lewis, E. Perez, A. Piktus và cộng sự}. \textit{Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks}. Advances in Neural Information Processing Systems 33 (NeurIPS), 2020. \url{https://papers.nips.cc/paper/2020/hash/6b493230205f780e1bc26945df7481e5-Abstract.html}.
+
+  \bibitem{bm25_robertson_2009}
+  \textbf{S. Robertson, H. Zaragoza}. \textit{The Probabilistic Relevance Framework: BM25 and Beyond}. Foundations and Trends in Information Retrieval, 3(4), tr. 333-389, 2009. \url{https://doi.org/10.1561/1500000019}.
+
+  \bibitem{rrf_cormack_2009}
+  \textbf{G. V. Cormack, C. L. A. Clarke, S. Büttcher}. \textit{Reciprocal Rank Fusion outperforms Condorcet and individual Rank Learning Methods}. SIGIR 2009, tr. 758-759. \url{https://doi.org/10.1145/1571941.1572114}.
+
   \bibitem{agentic_rag_survey}
-  \textbf{Anonymous}. \textit{Agentic Retrieval-Augmented Generation: A Survey}. 2025. \url{https://arxiv.org/abs/2501.09136}.
+  \textbf{Aditi Singh, Abul Ehtesham, Saket Kumar, Tala Talaei Khoei, Athanasios V. Vasilakos}. \textit{Agentic Retrieval-Augmented Generation: A Survey on Agentic RAG}. arXiv:2501.09136, 2025. \url{https://arxiv.org/abs/2501.09136}.
 
   \bibitem{ragas_metrics}
   \textbf{Ragas}. \textit{Ragas Metrics Documentation}. Tài liệu chính thức, 2024. \url{https://docs.ragas.io/en/latest/concepts/metrics/available_metrics/}.
@@ -2556,8 +2579,8 @@ Tám trường hợp ngoài kho dữ liệu không dùng để đánh giá khả
   \bibitem{agentic_legal_challenge}
   \textbf{Agentic Legal RAG Challenge}. \textit{Agentic Legal RAG Challenge 2026}. 2026. \url{https://agentic-challenge.ai/}.
 
-  \bibitem{production_rag_2026}
-  \textbf{1337Skills}. \textit{Production RAG with Reranking and GraphRAG}. 2026. \url{https://1337skills.com/llm-rag/}.
+  \bibitem{graphrag_edge_2024}
+  \textbf{Darren Edge, Ha Trinh, Newman Cheng, Joshua Bradley, Alex Chao, Apurva Mody, Steven Truitt và cộng sự}. \textit{From Local to Global: A Graph RAG Approach to Query-Focused Summarization}. arXiv:2404.16130, 2024. \url{https://arxiv.org/abs/2404.16130}.
 
 \end{thebibliography}
 

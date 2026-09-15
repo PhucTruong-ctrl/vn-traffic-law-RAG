@@ -234,37 +234,37 @@ Bảng 3 , số nhà cung cấp mô hình và tỉ lệ hoạt động (OpenRout
 
 ## Evaluation 40 cases
 
-Lần chạy cuối `20260915T142333Z` dùng `google/gemini-2.5-flash-lite` cho analyzer và generator, `qwen/qwen3-embedding-8b` cho embedding, API `top_k=5` (mỗi truy vấn mở rộng lấy top 8 rồi gộp). Coverage: 40 tổng / 32 được tính / 8 ngoài kho dữ liệu / 0 thiếu cấu trúc; 8 trường hợp ngoài kho dữ liệu vẫn được tính trong phân tích từ chối trả lời. Lần chạy tái lập cùng cấu hình là `20260915T140810Z`.
+Lần chạy cuối `20260915T155418Z` (mã nguồn `b561e8f`, chỉ mục dựng từ 10.529 đoạn) dùng `google/gemini-2.5-flash-lite` cho analyzer và generator, `qwen/qwen3-embedding-8b` cho embedding, API `top_k=5` (mỗi truy vấn mở rộng lấy top 8 rồi gộp). Coverage: 40 tổng / 32 được tính / 8 ngoài kho dữ liệu / 0 thiếu cấu trúc; 8 trường hợp ngoài kho dữ liệu vẫn được tính trong phân tích từ chối trả lời. File `<run-id>.aggregate.json` ghi lại git commit, SHA-256 của gold set và của `chunks.jsonl`, cùng model đã dùng.
 
 | Chỉ số | Lần chạy cuối | Baseline |
 | ------ | -------------: | -------: |
-| Hit@5 phân cấp | 0.7273 (n=22) | 0.25 |
-| Hit@5 khớp chuỗi chính xác | 0.5000 (n=22) | -- |
-| document | 0.7727 (n=22) | 0.50 |
-| Điều | 0.7273 (n=22) | 0.4167 |
+| Hit@5 phân cấp | 0.8182 (n=22) | 0.25 |
+| Hit@5 khớp chuỗi chính xác | 0.4091 (n=22) | -- |
+| document | 0.9091 (n=22) | 0.50 |
+| Điều | 0.8182 (n=22) | 0.4167 |
 | Khoản | 0.7500 (n=12) | 0.3846 |
 | Điểm | 0.0000 (n=3) | 0.00 |
-| citation_present | 0.9545 (n=22) | -- |
+| citation_present | 1.0000 (n=22) | -- |
 | citation_validity | 1.0000 (n=32) | 0.8824 |
 | abstention_accuracy | 1.0000 (n=32) | 0.7059 |
 
 Quy tắc phân cấp tính cả provision con được trích dẫn (ví dụ `Điều 14 Khoản 1` cho gold `Điều 14`), còn quy tắc khớp chính xác thì không. Các metric truy xuất dùng n = 22.
 
-Provenance của index: các chỉ số trên được đo khi backend phục vụ collection `traffic_law` dựng từ snapshot 10.311 chunk. Sau khi sửa parser, repo đã rebuild lại chính collection đó thành 10.529 chunk (`backend/scripts/index.py --chunks data/processed/chunks.jsonl --collection traffic_law --force-recreate`, batch hoá bằng `INDEX_BATCH_SIZE`). Coverage gold không đổi giữa hai snapshot: `parser_gaps = 0` và mọi toạ độ gold đều có trong cả hai. Muốn số liệu khớp đúng snapshot mới thì phải chạy lại evaluation trên index đã rebuild.
+Provenance của index: các chỉ số trên được đo trên collection `traffic_law` dựng từ `data/processed/chunks.jsonl` hiện tại (10.529 đoạn). Baseline giữ nguyên snapshot 10.311 chunk cũ và khác định nghĩa mẫu tính, nên chỉ dùng để tham chiếu, không phải phép A/B tương đương. `parser_gaps = 0` và mọi toạ độ gold đều có trong chỉ mục.
 
 | Từ chối trả lời | Theo nhãn gold | Theo hiệu dụng |
 | --------------- | --------------: | -------------: |
-| TP | 10 | 18 |
-| FP | 8 | 0 |
-| TN | 22 | 22 |
-| FN | 0 | 0 |
-| precision | 0.5556 | 1.0000 |
-| recall | 1.0000 | 1.0000 |
-| F1 | 0.7143 | 1.0000 |
+| TP | 10 | 16 |
+| FP | 6 | 0 |
+| TN | 24 | 22 |
+| FN | 0 | 2 |
+| precision | 0.6250 | 1.0000 |
+| recall | 1.0000 | 0.8889 |
+| F1 | 0.7692 | 0.9412 |
 
-Theo nhãn gold, 8 trường hợp ngoài kho dữ liệu vẫn giữ nhãn gốc nên tạo FP; theo hiệu dụng, provision không có trong corpus cũng được xem là nên từ chối. Recall mới là chỉ số cần ưu tiên ở lớp an toàn: baseline trả lời cả 5 trường hợp thiếu căn cứ, lần chạy này từ chối chúng bằng `clarification_required`.
+Theo nhãn gold, 8 trường hợp ngoài kho dữ liệu vẫn giữ nhãn gốc nên 6 lần hệ thống từ chối bị tính là FP; theo hiệu dụng, provision không có trong corpus cũng được xem là nên từ chối, và 2 trường hợp bị bỏ sót (`thesis-gold-40-07`, `thesis-gold-40-25`) là các câu ngoài kho dữ liệu vẫn được trả lời từ quy định liên quan. Baseline trả lời cả 5 trường hợp thiếu căn cứ, lần chạy này từ chối đủ cả 5 bằng `clarification_required`.
 
-Độ trễ lần chạy cuối: mean 11061.57 ms, min 5681.92 ms, max 19484.88 ms, p50 10908.84 ms, p95 17264.5 ms, n=40. Trung bình theo giai đoạn: retrieval 2275.8 ms, generation 863.46 ms, in-service total 4215.65 ms; phần còn lại là công việc tầng API.
+Độ trễ lần chạy cuối: mean 8698.61 ms, min 3760.68 ms, max 16159.42 ms, p50 8289.94 ms, p95 13613.86 ms, n=40. Trung bình theo giai đoạn: retrieval 2358.75 ms, generation 882.29 ms, in-service total 4385.15 ms; phần còn lại là công việc tầng API.
 
 Theo nhóm (`retrieval_hit_at_k_hierarchical` / document / abstention):
 
@@ -272,21 +272,21 @@ Theo nhóm (`retrieval_hit_at_k_hierarchical` / document / abstention):
 | --- | ---: | ---: | ---: |
 | `penalty` | 1.00 | 1.00 | 1.00 |
 | `exact_reference` | 1.00 | 1.00 | 1.00 |
-| `cross_reference` | 0.80 | 0.80 | 1.00 |
-| `follow_up` | 0.75 | 0.75 | 1.00 |
-| `natural_language` | 0.00 | 0.25 | 1.00 |
+| `cross_reference` | 1.00 | 1.00 | 1.00 |
+| `follow_up` | 1.00 | 1.00 | 1.00 |
+| `natural_language` | 0.00 | 0.50 | 1.00 |
 | `insufficient_evidence` |  |  | 1.00 |
 | `out_of_scope` |  |  | 1.00 |
 
 `multi_intent` không có trường hợp nào được tính vì provision kỳ vọng không có trong corpus.
 
-Residuals: chỉ số ở mức Điểm có mẫu nhỏ (n=3), trong đó hai gold query chỉ nêu tọa độ trần và `diem-c` không có trong corpus; p95 17.26 giây vượt mục tiêu <15 giây; 8 trường hợp ngoài kho dữ liệu. Hit@5 phân cấp biến thiên giữa hai lần chạy cùng cấu hình: 0.7273 (`20260915T142333Z`) và 0.8571 (`20260915T140810Z`), do analyzer LLM và embedding provider từ xa.
+Residuals: chỉ số ở mức Điểm có mẫu nhỏ (n=3), trong đó hai gold query chỉ nêu tọa độ trần và `diem-c` không có trong corpus; p95 13.61 giây đã dưới mục tiêu 15 giây; 8 trường hợp ngoài kho dữ liệu; 2 trường hợp ngoài kho dữ liệu vẫn được trả lời (`thesis-gold-40-07`, `thesis-gold-40-25`). Hit@5 phân cấp biến thiên giữa các lần chạy cùng cấu hình: 0.8182 (`20260915T155418Z`) so với 0.7273 và 0.8571 ở hai lần chạy trước, do analyzer LLM và embedding provider từ xa; hit khớp chính xác của lần này là 0.4091 trên cùng 22 trường hợp.
 
 ## Các gap hiện tại
 
 ### 1. Parser và tập kiểm tra Điểm
 
-Parser đã sửa lỗi giữ cấu trúc Điểm; parser gap bằng 0 và Markdown/index thống nhất đến mức Điều/Khoản/Điểm. Điểm 0.0000 (n=3) còn hạn chế do thiết kế tập kiểm tra: hai gold query chỉ nêu tọa độ trần và `diem-c` không tồn tại trong corpus.
+Bước tách văn bản đã giữ đúng cấu trúc Điểm; parser gap bằng 0 và Markdown/index thống nhất đến mức Điều/Khoản/Điểm. Điểm 0.0000 (n=3) còn hạn chế do thiết kế tập kiểm tra: hai gold query chỉ nêu tọa độ trần và `diem-c` không tồn tại trong corpus.
 
 ### 2. Corpus mở rộng làm thay đổi evaluation
 
