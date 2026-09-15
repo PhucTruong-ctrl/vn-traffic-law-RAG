@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.9.14)  15 SEP 2026 19:37
+This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.9.14)  15 SEP 2026 20:06
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1075,21 +1075,7 @@ LaTeX Font Info:    Overwriting symbol font `largesymbols' in version `bold'
 t line 39.
 Package hyperref Info: Option `colorlinks' set `false' on input line 40.
 
-(./main.aux
-Invalid UTF-8 byte or sequence at line 351 replaced by U+FFFD.
-)
-Runaway argument?
-{\contentsline {subsection}{\numberline {3.6.9}B� 
-! File ended while scanning use of \@writefile.
-<inserted text> 
-                \par 
-l.182 \begin{document}
-                      
-I suspect you have forgotten a `}', causing me
-to read past where you wanted me to stop.
-I'll try to recover; but if the error is serious,
-you'd better type `E' or `X' now and fix your file.
-
+(/tmp/tb/main.aux)
 \openout1 = `main.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 182.
@@ -1112,6 +1098,7 @@ LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 182.
 LaTeX Font Info:    ... okay on input line 182.
 LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 182.
 LaTeX Font Info:    ... okay on input line 182.
+
 *geometry* driver: auto-detecting
 *geometry* detected driver: xetex
 *geometry* verbose mode - [ preamble ] result:
@@ -1151,32 +1138,7 @@ Package caption Info: float package is loaded.
 Package caption Info: hyperref package is loaded.
 Package caption Info: End \AtBeginDocument code.
 Package hyperref Info: Link coloring OFF on input line 182.
-(./main.out)
-Runaway argument?
-{\376\377\000D\000a\000n\000h\000\040\000m\036\345\000c\000\040\000v\0\ETC.
-! File ended while scanning use of \@@BOOKMARK.
-<inserted text> 
-                \par 
-l.182 \begin{document}
-                      
-I suspect you have forgotten a `}', causing me
-to read past where you wanted me to stop.
-I'll try to recover; but if the error is serious,
-you'd better type `E' or `X' now and fix your file.
-
-(./main.out)
-Runaway argument?
-{\376\377\000D\000a\000n\000h\000\040\000m\036\345\000c\000\040\000v\0\ETC.
-! File ended while scanning use of \@@BOOKMARK.
-<inserted text> 
-                \par 
-l.182 \begin{document}
-                      
-I suspect you have forgotten a `}', causing me
-to read past where you wanted me to stop.
-I'll try to recover; but if the error is serious,
-you'd better type `E' or `X' now and fix your file.
-
+(/tmp/tb/main.out) (/tmp/tb/main.out)
 \@outlinefile=\write3
 \openout3 = `main.out'.
 
@@ -1247,7 +1209,7 @@ LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `bold'
 
 File: diagrams/tdu_logo.png Graphic file (type bmp)
 <diagrams/tdu_logo.png>
-[1
+ [1
 
 
 ]
@@ -1262,42 +1224,50 @@ File: diagrams/tdu_logo.png Graphic file (type bmp)
 
 ] [3
 
-]
-Underfull \hbox (badness 1052) in paragraph at lines 483--484
-[]\TU/TimesNewRoman(0)/m/n/13 For every expanded query, the system searches by 
-both keywords and
- []
-
-[4
+] [4
 
 
-] (./main.toc)
-\tf@toc=\write4
-\openout4 = `main.toc'.
-
- [5
-
-] (./main.lot)
-\tf@lot=\write5
-\openout5 = `main.lot'.
-
- [6
-
-] (./main.lof)
-\tf@lof=\write6
-\openout6 = `main.lof'.
-
- [7
-
-] [8
-
-
-]
-LaTeX Font Info:    Calculating math sizes for size <11> on input line 546.
+] (/tmp/tb/main.toc
+LaTeX Font Info:    Calculating math sizes for size <13> on input line 2.
 Package microtype Info: Loading generic protrusion settings for font family
 (microtype)             `latinmodern-math.otf' (encoding: TU).
 (microtype)             For optimal results, create family-specific settings.
 (microtype)             See the microtype manual for details.
+LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
+(Font)              scaled to size 13.00139pt on input line 2.
+LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
+(Font)              scaled to size 9.10092pt on input line 2.
+LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
+(Font)              scaled to size 6.50069pt on input line 2.
+LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
+(Font)              scaled to size 12.99861pt on input line 2.
+LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
+(Font)              scaled to size 9.09898pt on input line 2.
+LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
+(Font)              scaled to size 6.4993pt on input line 2.
+[5
+
+] [6] [7])
+\tf@toc=\write4
+\openout4 = `main.toc'.
+
+ [8] (/tmp/tb/main.lot)
+\tf@lot=\write5
+\openout5 = `main.lot'.
+
+ [9
+
+] (/tmp/tb/main.lof [10
+
+])
+\tf@lof=\write6
+\openout6 = `main.lof'.
+
+ [11] [12
+
+
+]
+LaTeX Font Info:    Calculating math sizes for size <11> on input line 546.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
 (Font)              scaled to size 11.00117pt on input line 546.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
@@ -1310,47 +1280,25 @@ LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
 (Font)              scaled to size 7.69914pt on input line 546.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
 (Font)              scaled to size 5.4994pt on input line 546.
- [9
 
-] [10
+[13
+
+] [14
 
 
-] [11
+] [15
 
 
 ]
 File: diagrams/ch1_problem_context.png Graphic file (type bmp)
 <diagrams/ch1_problem_context.png>
+ [1
 
-[1
 
-
-]
-
-LaTeX Warning: Citation `qdrant_hybrid_docs' on page 2 undefined on input line 
-669.
-
-[2] [3]
+] [2] [3]
 File: diagrams/ch1_research_scope.png Graphic file (type bmp)
 <diagrams/ch1_research_scope.png>
-
-
-LaTeX Warning: Citation `tdu_laptrinhcanban' on page 4 undefined on input line 
-714.
-
-
-LaTeX Warning: Citation `tdu_pttkhttt' on page 4 undefined on input line 714.
-
-
-LaTeX Warning: Citation `tdu_nmcpm' on page 4 undefined on input line 714.
-
-
-LaTeX Warning: Citation `tdu_web' on page 4 undefined on input line 714.
-
-
-LaTeX Warning: Citation `tdu_cdnnlt' on page 4 undefined on input line 714.
-
-[4]
+ [4]
 File: diagrams/ch1_methodology.png Graphic file (type bmp)
 <diagrams/ch1_methodology.png>
  [5]
@@ -1373,158 +1321,64 @@ File: diagrams/ch2_ingestion_pipeline.png Graphic file (type bmp)
  [9]
 File: diagrams/ch2_exact_lookup.png Graphic file (type bmp)
 <diagrams/ch2_exact_lookup.png>
-
-
-LaTeX Warning: Citation `qdrant_bm25_docs' on page 10 undefined on input line 8
-16.
-
-LaTeX Font Info:    Calculating math sizes for size <13> on input line 817.
-LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
-(Font)              scaled to size 13.00139pt on input line 817.
-LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
-(Font)              scaled to size 9.10092pt on input line 817.
-LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
-(Font)              scaled to size 6.50069pt on input line 817.
-LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
-(Font)              scaled to size 12.99861pt on input line 817.
-LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
-(Font)              scaled to size 9.09898pt on input line 817.
-LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
-(Font)              scaled to size 6.4993pt on input line 817.
 Package microtype Info: Loading generic protrusion settings for font family
 (microtype)             `lmtt' (encoding: TU).
 (microtype)             For optimal results, create family-specific settings.
 (microtype)             See the microtype manual for details.
 File: diagrams/ch2_sparse_bm25.png Graphic file (type bmp)
 <diagrams/ch2_sparse_bm25.png>
-[10]
-
-LaTeX Warning: Citation `qdrant_vectors_docs' on page 11 undefined on input lin
-e 828.
-
+ [10]
 File: diagrams/ch2_dense_embedding.png Graphic file (type bmp)
 <diagrams/ch2_dense_embedding.png>
-[11]
-
-LaTeX Warning: Citation `qdrant_hybrid_docs' on page 12 undefined on input line
- 842.
-
+ [11]
 File: diagrams/ch2_hybrid_retrieval.png Graphic file (type bmp)
 <diagrams/ch2_hybrid_retrieval.png>
-[12]
+ [12]
 File: diagrams/ch2_question_analysis.png Graphic file (type bmp)
 <diagrams/ch2_question_analysis.png>
  [13]
-
-LaTeX Warning: Citation `qdrant_hybrid_docs' on page 14 undefined on input line
- 856.
-
 File: diagrams/ch2_rrf.png Graphic file (type bmp)
 <diagrams/ch2_rrf.png>
 File: diagrams/ch2_cross_reference.png Graphic file (type bmp)
 <diagrams/ch2_cross_reference.png>
-[14]
+ [14]
 File: diagrams/ch2_evidence_gate.png Graphic file (type bmp)
 <diagrams/ch2_evidence_gate.png>
- [15]
 
-LaTeX Warning: Citation `openrouter_embeddings_docs' on page 16 undefined on in
-put line 882.
-
-
-LaTeX Warning: Citation `openrouter_chat_docs' on page 16 undefined on input li
-ne 882.
-
+[15]
 File: diagrams/ch2_generation.png Graphic file (type bmp)
 <diagrams/ch2_generation.png>
-[16]
+ [16]
 File: diagrams/ch2_verification.png Graphic file (type bmp)
 <diagrams/ch2_verification.png>
 File: diagrams/ch2_citation_flow.png Graphic file (type bmp)
 <diagrams/ch2_citation_flow.png>
-
-
-LaTeX Warning: Citation `fastapi_docs' on page 17 undefined on input line 901.
-
-[17]
+ [17]
 File: diagrams/ch2_api_architecture.png Graphic file (type bmp)
 <diagrams/ch2_api_architecture.png>
-
-
-LaTeX Warning: Citation `python311_docs' on page 18 undefined on input line 905
-.
-
 File: diagrams/ch2_python_backend.png Graphic file (type bmp)
 <diagrams/ch2_python_backend.png>
-[18]
-
-LaTeX Warning: Citation `fastapi_docs' on page 19 undefined on input line 926.
-
+ [18]
 File: diagrams/ch2_http_rest.png Graphic file (type bmp)
 <diagrams/ch2_http_rest.png>
-[19]
-
-LaTeX Warning: Citation `qdrant_hybrid_docs' on page 20 undefined on input line
- 940.
-
-
-LaTeX Warning: Citation `supabase_rls_docs' on page 20 undefined on input line 
-948.
-
-[20]
+ [19] [20]
 File: diagrams/ch2_security_rls.png Graphic file (type bmp)
 <diagrams/ch2_security_rls.png>
 File: diagrams/ch2_postgresql_relational.png Graphic file (type bmp)
 <diagrams/ch2_postgresql_relational.png>
  [21]
-
-LaTeX Warning: Citation `supabase_auth_docs' on page 22 undefined on input line
- 965.
-
-
-LaTeX Warning: Citation `supabase_rls_docs' on page 22 undefined on input line 
-969.
-
 File: diagrams/ch2_supabase_auth.png Graphic file (type bmp)
 <diagrams/ch2_supabase_auth.png>
-[22]
-
-LaTeX Warning: Citation `nextjs_app_router_docs' on page 23 undefined on input 
-line 974.
-
+ [22]
 File: diagrams/ch2_frontend_architecture.png Graphic file (type bmp)
 <diagrams/ch2_frontend_architecture.png>
-
-LaTeX Warning: Citation `react_docs' on page 23 undefined on input line 981.
-
-
-LaTeX Warning: Citation `react_state_docs' on page 23 undefined on input line 9
-83.
-
-[23]
+ [23]
 File: diagrams/ch2_react_state.png Graphic file (type bmp)
 <diagrams/ch2_react_state.png>
-
-
-LaTeX Warning: Citation `typescript_docs' on page 24 undefined on input line 98
-9.
-
-[24]
-
-LaTeX Warning: Citation `supabase_auth_docs' on page 25 undefined on input line
- 1005.
-
-
-LaTeX Warning: Citation `supabase_rls_docs' on page 25 undefined on input line 
-1005.
-
-
-LaTeX Warning: Citation `docker_compose_docs' on page 25 undefined on input lin
-e 1008.
-
+ [24]
 File: diagrams/ch2_docker_compose.png Graphic file (type bmp)
 <diagrams/ch2_docker_compose.png>
-[25]
+ [25]
 File: diagrams/ch2_toolchain.png Graphic file (type bmp)
 <diagrams/ch2_toolchain.png>
  [26]
@@ -1534,20 +1388,6 @@ File: diagrams/ch2_data_architecture.png Graphic file (type bmp)
 File: diagrams/ch2_evaluation.png Graphic file (type bmp)
 <diagrams/ch2_evaluation.png>
  [28] [29]
-Overfull \hbox (8.39217pt too wide) in alignment at lines 1101--1106
- [] [] [] [] 
- []
-
-
-Overfull \hbox (8.39217pt too wide) in alignment at lines 1106--1110
- [] [] [] [] 
- []
-
-
-Overfull \hbox (8.39217pt too wide) in alignment at lines 1110--1121
- [] [] [] [] 
- []
-
 [30] [31] [32
 
 
@@ -1626,17 +1466,7 @@ File: diagrams/ch3_erd.png Graphic file (type bmp)
 <diagrams/ch3_erd.png>
 
 [60]
-Overfull \hbox (6.17892pt too wide) in paragraph at lines 2103--2103
-\TU/TimesNewRoman(0)/m/n/12 chat_sessions(id, 
- []
-
-
-ignored: Infinite glue shrinkage found in box being split [61] [62] [63] [64]
-
-LaTeX Warning: Reference `tab:api-endpoints' on page 65 undefined on input line
- 2233.
-
-[65]
+ignored: Infinite glue shrinkage found in box being split [61] [62] [63] [64] [65]
 File: diagrams/ch3_flow_ingestion.png Graphic file (type bmp)
 <diagrams/ch3_flow_ingestion.png>
 File: diagrams/ch3_flow_retrieval.png Graphic file (type bmp)
@@ -1661,21 +1491,12 @@ File: diagrams/ch4_login.png Graphic file (type bmp)
  [71]
 File: diagrams/ch4_chat_empty.png Graphic file (type bmp)
 <diagrams/ch4_chat_empty.png>
-
-
-LaTeX Warning: Reference `fig:ch4_answer' on page 72 undefined on input line 23
-38.
-
 File: diagrams/ch4_chat_answer.png Graphic file (type bmp)
 <diagrams/ch4_chat_answer.png>
-[72]
-
-LaTeX Warning: Reference `fig:ch4_abstention' on page 73 undefined on input lin
-e 2343.
-
+ [72]
 File: diagrams/ch4_chat_abstention.png Graphic file (type bmp)
 <diagrams/ch4_chat_abstention.png>
-[73]
+ [73]
 File: diagrams/ch4_citation_panel.png Graphic file (type bmp)
 <diagrams/ch4_citation_panel.png>
  [74]
@@ -1683,690 +1504,46 @@ File: diagrams/ch4_legal_sources.png Graphic file (type bmp)
 <diagrams/ch4_legal_sources.png>
 File: diagrams/ch4_legal_search.png Graphic file (type bmp)
 <diagrams/ch4_legal_search.png>
- [75]
+
+[75]
 File: diagrams/ch4_markdown_viewer.png Graphic file (type bmp)
 <diagrams/ch4_markdown_viewer.png>
-
-
-LaTeX Warning: Reference `fig:ch4_saved' on page 76 undefined on input line 236
-5.
-
 File: diagrams/ch4_chat_history.png Graphic file (type bmp)
 <diagrams/ch4_chat_history.png>
-[76]
-
-LaTeX Warning: Reference `fig:ch4_feedback' on page 77 undefined on input line 
-2370.
-
+ [76]
 File: diagrams/ch4_feedback.png Graphic file (type bmp)
 <diagrams/ch4_feedback.png>
-[77]
+ [77]
 File: diagrams/ch4_test_report.png Graphic file (type bmp)
 <diagrams/ch4_test_report.png>
 File: diagrams/ch4_health_api.png Graphic file (type bmp)
 <diagrams/ch4_health_api.png>
  [78]
-
-LaTeX Warning: Reference `fig:ch4_swagger' on page 79 undefined on input line 2
-383.
-
 File: diagrams/ch4_swagger.png Graphic file (type bmp)
 <diagrams/ch4_swagger.png>
-[79]
-
-LaTeX Warning: Reference `fig:ch4_evaluation' on page 80 undefined on input lin
-e 2431.
-
+ [79]
 File: diagrams/ch4_evaluation_report.png Graphic file (type bmp)
 <diagrams/ch4_evaluation_report.png>
-[80] [81] [82
+ [80] [81] [82
 
-]
-
-LaTeX Warning: Citation `agentic_rag_survey' on page 83 undefined on input line
- 2501.
+] [83] [84
 
 
-LaTeX Warning: Citation `agentic_rag_survey' on page 83 undefined on input line
- 2502.
-
-
-LaTeX Warning: Citation `agentic_legal_challenge' on page 83 undefined on input
- line 2502.
-
-
-LaTeX Warning: Citation `production_rag_2026' on page 83 undefined on input lin
-e 2504.
-
-
-LaTeX Warning: Citation `ragas_metrics' on page 83 undefined on input line 2506
-.
-
-[83] [84
-
-
-] [85] (./main.aux)
+] [85] (/tmp/tb/main.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
  ***********
-
-
-LaTeX Warning: There were undefined references.
-
-
-LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
-
-
-Package rerunfilecheck Warning: File `main.out' has changed.
-(rerunfilecheck)                Rerun to get outlines right
-(rerunfilecheck)                or use package `bookmark'.
-
-Package rerunfilecheck Info: Checksums for `main.out':
-(rerunfilecheck)             Before: D9CCF44205F3B48765D2A1C170D991DF;24576
-(rerunfilecheck)             After:  9AE94C696CA07B6FF0063241A328B695;31695.
+Package rerunfilecheck Info: File `main.out' has not changed.
+(rerunfilecheck)             Checksum: 9AE94C696CA07B6FF0063241A328B695;31695.
  ) 
 Here is how much of TeX's memory you used:
- 27676 strings out of 470191
- 532202 string characters out of 5479697
+ 27685 strings out of 470191
+ 532430 string characters out of 5479697
  1146246 words of memory out of 5000000
- 55817 multiletter control sequences out of 15000+600000
+ 55825 multiletter control sequences out of 15000+600000
  633508 words of font info for 113 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
- 73i,13n,107p,1001b,657s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 73i,13n,107p,1001b,656s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on main.pdf (98 pages).
-   ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ... trả lời còn căn cứ}}{17}{figu^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...ả lời còn căn cứ}}{17}{figu^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...ời còn căn cứ}}{17}{figu^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...còn căn cứ}}{17}{figu^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ... căn cứ}}{17}{figu^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...n cứ}}{17}{figu^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...ứ}}{17}{figu^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...{17}{figu^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...}{figu^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...igu^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-A funny symbol that I can't read has just been input.
-Continue, and I'll forget that it ever happened.
-
-./main.aux:94: Text line contains an invalid character.
-l.94 ...^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@^^@
-                                                  ^^@^^@^^@^^@^^@^^@^^@^^@^^...
-(That makes 100 errors; please try again.) 
-Here is how much of TeX's memory you used:
- 27594 strings out of 470191
- 530977 string characters out of 5479697
- 1146246 words of memory out of 5000000
- 55746 multiletter control sequences out of 15000+600000
- 633508 words of font info for 113 fonts, out of 8000000 for 9000
- 14 hyphenation exceptions out of 8191
- 73i,13n,107p,28998b,657s stack positions out of 10000i,1000n,20000p,200000b,200000s
-
-Output written on main.pdf (98 pages).
+Output written on /tmp/tb/main.pdf (102 pages).

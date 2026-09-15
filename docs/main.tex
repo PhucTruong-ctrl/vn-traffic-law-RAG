@@ -480,7 +480,7 @@ Bộ đánh giá gồm 40 trường hợp, chia đều cho tám nhóm câu hỏi
 \begin{sloppypar}
   This thesis develops a RAG-based system for Vietnamese traffic-law lookup. The system receives Vietnamese questions, retrieves the relevant legal passages, and produces an answer with citations the user can verify. A language model first analyses each request and returns a standalone question together with up to three expanded queries. Legal documents are normalized by Article, Clause, and Point before indexing, and the index holds both a semantic representation and a keyword representation.
 
-  For every expanded query, the system searches by both keywords and meaning, merges the ranked results by reciprocal rank fusion, keeps the best passages, and adds related provisions and cross-references to the context. The language model then answers from that context alone. A missing part of a question does not remove the parts that are supported; the whole request is refused only when the retrieved sources hold no relevant information.
+  Each expanded query is searched by keywords and by meaning, then the ranked results are merged by reciprocal rank fusion. The best passages are kept and the context is extended with related provisions and cross-references. The language model then answers from that context alone. A missing part of a question does not remove the parts that are supported; the whole request is refused only when the retrieved sources hold no relevant information.
 
   Citations are built from the stored description of each passage and matched against the retrieved sources, so unsupported citations and claims are dropped without discarding the answer. The application uses FastAPI for the server, Qdrant for search, Supabase for authentication and application data, and Next.js with React and TypeScript for the web interface; OpenRouter provides access to the language models. The system also supports chat history, feedback, bookmarks, and source lookup.
 
@@ -1098,7 +1098,7 @@ Nội dung câu trả lời được chấm thủ công bằng cách đối chi�
 
 \subsection{Tổng hợp và quyết định chọn mô hình}
 Dựa trên hai bảng đối sánh ở trên, phần này tổng hợp lựa chọn mô hình theo cùng thiết kế đo: trên sáu ca bộ phân tích yêu cầu và năm lần lặp bộ sinh câu trả lời, dùng cùng câu lệnh cho mô hình và 15 đoạn dữ liệu truy xuất. Bảng \ref{tab:model-selection} ghi độ ổn định đầu ra, độ trễ và độ dài đầu ra của các lựa chọn đã đo.
-\begin{longtable}{|L{3.2cm}|L{4.2cm}|L{3.4cm}|L{3.8cm}|}
+\begin{longtable}{|L{3.2cm}|L{3.9cm}|L{3.4cm}|L{3.6cm}|}
   \caption{Đối sánh chọn mô hình qua OpenRouter}\label{tab:model-selection}                                                                                                  \\
   \hline
   \textbf{Mô hình}       & \textbf{Bộ phân tích (6 ca)}                            & \textbf{Bộ sinh (5 lần)}     & \textbf{Nhà cung cấp và ghi chú}                         \\
@@ -2068,7 +2068,7 @@ Sơ đồ tập trung vào năm bảng dữ liệu ứng dụng và các quan h�
 Mỗi bản ghi là một phiên hội thoại, gắn với người dùng sở hữu qua \texttt{user\_id}.
 {\fontsize{11pt}{12pt}\selectfont
 \Needspace{10\baselineskip}
-\begin{longtable}{|L{0.9cm}|L{2.9cm}|L{2.6cm}|L{3.0cm}|L{4.0cm}|}
+\begin{longtable}{|L{0.9cm}|L{2.8cm}|L{2.9cm}|L{3.0cm}|L{3.8cm}|}
   \caption{Thiết kế bảng chat\_sessions}\label{tab:db-sessions}                                          \\
   \hline
   STT & Thuộc tính  & Khóa/ràng buộc                              & Kiểu dữ liệu & Diễn giải             \\
@@ -2093,14 +2093,14 @@ Bảng có ràng buộc unique theo cặp \texttt{(id,user\_id)} để tin nhắ
 Mỗi bản ghi là một tin nhắn, gồm nội dung trao đổi giữa người dùng và trợ lý, trạng thái xử lý, kết quả trả về và trích dẫn.
 {\fontsize{11pt}{12pt}\selectfont
 \Needspace{10\baselineskip}
-\begin{longtable}{|L{0.9cm}|L{2.9cm}|L{2.6cm}|L{3.0cm}|L{4.0cm}|}
+\begin{longtable}{|L{0.9cm}|L{2.8cm}|L{2.9cm}|L{3.0cm}|L{3.8cm}|}
 \caption{Thiết kế bảng messages}\label{tab:db-messages}                                                         \\
   \hline
   STT & Thuộc tính      & Khóa/ràng buộc                          & Kiểu dữ liệu & Diễn giải                        \\
   \hline
   1   & id              & PK, DEFAULT                             & UUID         & Mã tin nhắn                      \\
   \hline
-  2   & session\_id     & FK ghép tới chat\_sessions(id, user\_id), NOT NULL          & UUID         & Phiên chat chứa tin nhắn         \\
+  2   & session\_id     & FK chat\_sessions(id, user\_id), NOT NULL          & UUID         & Phiên chat chứa tin nhắn         \\
   \hline
   3   & user\_id        & FK auth.users, NOT NULL                 & UUID         & Chủ sở hữu dữ liệu               \\
   \hline
@@ -2125,7 +2125,7 @@ Mỗi bản ghi là một tin nhắn, gồm nội dung trao đổi giữa ngư�
 Mỗi bản ghi là một đánh giá cho một tin nhắn. Trường \texttt{rating} dùng số nguyên, trong đó 1 biểu thị đánh giá tích cực và 0 biểu thị đánh giá không tích cực. Người dùng có thể gửi thêm nội dung nhận xét ở trường \texttt{comment}.
 {\fontsize{11pt}{12pt}\selectfont
 \Needspace{10\baselineskip}
-\begin{longtable}{|L{0.9cm}|L{2.9cm}|L{2.6cm}|L{3.0cm}|L{4.0cm}|}
+\begin{longtable}{|L{0.9cm}|L{2.8cm}|L{2.9cm}|L{3.0cm}|L{3.8cm}|}
   \caption{Thiết kế bảng feedback}\label{tab:db-feedback}                              \\
   \hline
   STT & Thuộc tính & Khóa/ràng buộc & Kiểu dữ liệu & Diễn giải \\
