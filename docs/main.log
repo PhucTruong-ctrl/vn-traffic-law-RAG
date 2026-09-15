@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.9.14)  15 SEP 2026 16:45
+This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.9.14)  15 SEP 2026 16:48
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1532,14 +1532,7 @@ File: diagrams/ch4_evaluation_report.png Graphic file (type bmp)
 ] [80] [81
 
 
-]
-Underfull \hbox (badness 4454) in paragraph at lines 2594--2595
-[]\TU/TimesNewRoman(0)/b/n/13 Anonymous\TU/TimesNewRoman(0)/m/n/13 . \TU/TimesN
-ewRoman(0)/m/it/13 Agentic Retrieval-Augmented Generation: A Survey\TU/TimesNew
-Roman(0)/m/n/13 . arXiv
- []
-
-[82] (./main.aux)
+] [82] (./main.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
