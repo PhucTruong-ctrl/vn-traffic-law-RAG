@@ -1,34 +1,34 @@
 \contentsline {table}{\numberline {1.1}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Kế hoạch thực hiện đề tài}}{6}{table.caption.12}%
-\contentsline {table}{\numberline {2.1}{\ignorespaces Đối sánh bộ phân tích yêu cầu qua OpenRouter}}{28}{table.2.1}%
+\contentsline {table}{\numberline {2.1}{\ignorespaces Đối sánh bộ phân tích yêu cầu qua OpenRouter}}{27}{table.2.1}%
 \contentsline {table}{\numberline {2.2}{\ignorespaces Đối sánh bộ sinh câu trả lời qua OpenRouter}}{28}{table.2.2}%
-\contentsline {table}{\numberline {2.3}{\ignorespaces Đối sánh chọn mô hình qua OpenRouter}}{30}{table.2.3}%
+\contentsline {table}{\numberline {2.3}{\ignorespaces Đối sánh chọn mô hình qua OpenRouter}}{29}{table.2.3}%
 \contentsline {table}{\numberline {2.4}{\ignorespaces Các công nghệ chính trong hệ thống}}{30}{table.2.4}%
-\contentsline {table}{\numberline {3.1}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Các tác nhân và hệ thống liên quan}}{32}{table.caption.42}%
-\contentsline {table}{\numberline {3.2}{\ignorespaces Yêu cầu chức năng của hệ thống}}{33}{table.3.2}%
-\contentsline {table}{\numberline {3.3}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Yêu cầu phi chức năng chính}}{34}{table.caption.43}%
-\contentsline {table}{\numberline {3.4}{\ignorespaces Bảng đặc tả ca sử dụng Đăng ký tài khoản}}{37}{table.3.4}%
-\contentsline {table}{\numberline {3.5}{\ignorespaces Bảng đặc tả ca sử dụng Đăng nhập}}{37}{table.3.5}%
-\contentsline {table}{\numberline {3.6}{\ignorespaces Bảng đặc tả ca sử dụng Đặt câu hỏi pháp luật}}{39}{table.3.6}%
-\contentsline {table}{\numberline {3.7}{\ignorespaces Bảng đặc tả ca sử dụng Xem câu trả lời}}{40}{table.3.7}%
-\contentsline {table}{\numberline {3.8}{\ignorespaces Bảng đặc tả ca sử dụng Xem nguồn trích dẫn}}{40}{table.3.8}%
-\contentsline {table}{\numberline {3.9}{\ignorespaces Bảng đặc tả ca sử dụng Xem lịch sử hội thoại}}{41}{table.3.9}%
-\contentsline {table}{\numberline {3.10}{\ignorespaces Bảng đặc tả ca sử dụng Mở lại phiên hội thoại}}{42}{table.3.10}%
-\contentsline {table}{\numberline {3.11}{\ignorespaces Bảng đặc tả ca sử dụng Xóa phiên hội thoại}}{43}{table.3.11}%
-\contentsline {table}{\numberline {3.12}{\ignorespaces Bảng đặc tả ca sử dụng Xem danh sách văn bản pháp luật}}{44}{table.3.12}%
-\contentsline {table}{\numberline {3.13}{\ignorespaces Bảng đặc tả ca sử dụng Tìm kiếm văn bản pháp luật}}{44}{table.3.13}%
-\contentsline {table}{\numberline {3.14}{\ignorespaces Bảng đặc tả ca sử dụng Xem nội dung văn bản}}{45}{table.3.14}%
-\contentsline {table}{\numberline {3.15}{\ignorespaces Bảng đặc tả ca sử dụng Xem bản PDF của văn bản}}{46}{table.3.15}%
-\contentsline {table}{\numberline {3.16}{\ignorespaces Bảng đặc tả ca sử dụng Đánh giá câu trả lời}}{47}{table.3.16}%
-\contentsline {table}{\numberline {3.17}{\ignorespaces Bảng đặc tả ca sử dụng Lưu câu trả lời}}{47}{table.3.17}%
-\contentsline {table}{\numberline {3.18}{\ignorespaces Bảng đặc tả ca sử dụng Xem nội dung đã lưu}}{48}{table.3.18}%
-\contentsline {table}{\numberline {3.19}{\ignorespaces Bảng đặc tả ca sử dụng Bỏ lưu câu trả lời}}{49}{table.3.19}%
-\contentsline {table}{\numberline {3.20}{\ignorespaces Thiết kế bảng profiles}}{61}{table.3.20}%
-\contentsline {table}{\numberline {3.21}{\ignorespaces Thiết kế bảng chat\_sessions}}{62}{table.3.21}%
-\contentsline {table}{\numberline {3.22}{\ignorespaces Thiết kế bảng thông điệp}}{62}{table.3.22}%
-\contentsline {table}{\numberline {3.23}{\ignorespaces Thiết kế bảng feedback}}{63}{table.3.23}%
-\contentsline {table}{\numberline {3.24}{\ignorespaces Thiết kế bảng bookmarks}}{64}{table.3.24}%
-\contentsline {table}{\numberline {3.25}{\ignorespaces Các trường thông tin mô tả chính trong đoạn dữ liệu/Qdrant payload}}{65}{table.3.25}%
-\contentsline {table}{\numberline {3.26}{\ignorespaces Các điểm cuối dịch vụ chính của hệ thống}}{66}{table.3.26}%
+\contentsline {table}{\numberline {3.1}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Các tác nhân và hệ thống liên quan}}{31}{table.caption.42}%
+\contentsline {table}{\numberline {3.2}{\ignorespaces Yêu cầu chức năng của hệ thống}}{32}{table.3.2}%
+\contentsline {table}{\numberline {3.3}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Yêu cầu phi chức năng chính}}{33}{table.caption.43}%
+\contentsline {table}{\numberline {3.4}{\ignorespaces Bảng đặc tả ca sử dụng Đăng ký tài khoản}}{36}{table.3.4}%
+\contentsline {table}{\numberline {3.5}{\ignorespaces Bảng đặc tả ca sử dụng Đăng nhập}}{36}{table.3.5}%
+\contentsline {table}{\numberline {3.6}{\ignorespaces Bảng đặc tả ca sử dụng Đặt câu hỏi pháp luật}}{38}{table.3.6}%
+\contentsline {table}{\numberline {3.7}{\ignorespaces Bảng đặc tả ca sử dụng Xem câu trả lời}}{39}{table.3.7}%
+\contentsline {table}{\numberline {3.8}{\ignorespaces Bảng đặc tả ca sử dụng Xem nguồn trích dẫn}}{39}{table.3.8}%
+\contentsline {table}{\numberline {3.9}{\ignorespaces Bảng đặc tả ca sử dụng Xem lịch sử hội thoại}}{40}{table.3.9}%
+\contentsline {table}{\numberline {3.10}{\ignorespaces Bảng đặc tả ca sử dụng Mở lại phiên hội thoại}}{41}{table.3.10}%
+\contentsline {table}{\numberline {3.11}{\ignorespaces Bảng đặc tả ca sử dụng Xóa phiên hội thoại}}{42}{table.3.11}%
+\contentsline {table}{\numberline {3.12}{\ignorespaces Bảng đặc tả ca sử dụng Xem danh sách văn bản pháp luật}}{43}{table.3.12}%
+\contentsline {table}{\numberline {3.13}{\ignorespaces Bảng đặc tả ca sử dụng Tìm kiếm văn bản pháp luật}}{43}{table.3.13}%
+\contentsline {table}{\numberline {3.14}{\ignorespaces Bảng đặc tả ca sử dụng Xem nội dung văn bản}}{44}{table.3.14}%
+\contentsline {table}{\numberline {3.15}{\ignorespaces Bảng đặc tả ca sử dụng Xem bản PDF của văn bản}}{45}{table.3.15}%
+\contentsline {table}{\numberline {3.16}{\ignorespaces Bảng đặc tả ca sử dụng Đánh giá câu trả lời}}{46}{table.3.16}%
+\contentsline {table}{\numberline {3.17}{\ignorespaces Bảng đặc tả ca sử dụng Lưu câu trả lời}}{46}{table.3.17}%
+\contentsline {table}{\numberline {3.18}{\ignorespaces Bảng đặc tả ca sử dụng Xem nội dung đã lưu}}{47}{table.3.18}%
+\contentsline {table}{\numberline {3.19}{\ignorespaces Bảng đặc tả ca sử dụng Bỏ lưu câu trả lời}}{48}{table.3.19}%
+\contentsline {table}{\numberline {3.20}{\ignorespaces Thiết kế bảng profiles}}{60}{table.3.20}%
+\contentsline {table}{\numberline {3.21}{\ignorespaces Thiết kế bảng chat\_sessions}}{61}{table.3.21}%
+\contentsline {table}{\numberline {3.22}{\ignorespaces Thiết kế bảng messages}}{61}{table.3.22}%
+\contentsline {table}{\numberline {3.23}{\ignorespaces Thiết kế bảng feedback}}{62}{table.3.23}%
+\contentsline {table}{\numberline {3.24}{\ignorespaces Thiết kế bảng bookmarks}}{63}{table.3.24}%
+\contentsline {table}{\numberline {3.25}{\ignorespaces Các trường thông tin mô tả chính trong đoạn dữ liệu/Qdrant payload}}{64}{table.3.25}%
+\contentsline {table}{\numberline {3.26}{\ignorespaces Các điểm cuối dịch vụ chính của hệ thống}}{65}{table.3.26}%
 \contentsline {table}{\numberline {4.1}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Chỉ số đánh giá của lần chạy 4}}{77}{table.caption.84}%
-\contentsline {table}{\numberline {4.2}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Độ trễ của lần chạy 4}}{78}{table.caption.85}%
-\contentsline {table}{\numberline {4.3}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Mục tiêu định lượng cho vòng cải thiện tiếp theo}}{79}{table.caption.91}%
+\contentsline {table}{\numberline {4.2}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Độ trễ của lần chạy 4}}{77}{table.caption.85}%
+\contentsline {table}{\numberline {4.3}{\ignorespaces \xpg@aux {}{vietnamese}\ignorespaces Mục tiêu định lượng cho vòng cải thiện tiếp theo}}{78}{table.caption.91}%

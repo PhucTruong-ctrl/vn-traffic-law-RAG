@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.9.14)  15 SEP 2026 16:50
+This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Arch Linux) (preloaded format=xelatex 2026.9.14)  15 SEP 2026 18:33
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1356,189 +1356,187 @@ File: diagrams/ch2_api_architecture.png Graphic file (type bmp)
  [17]
 File: diagrams/ch2_python_backend.png Graphic file (type bmp)
 <diagrams/ch2_python_backend.png>
- [18]
 File: diagrams/ch2_http_rest.png Graphic file (type bmp)
 <diagrams/ch2_http_rest.png>
-
+ [18]
 [19]
 File: diagrams/ch2_security_rls.png Graphic file (type bmp)
 <diagrams/ch2_security_rls.png>
  [20]
 File: diagrams/ch2_postgresql_relational.png Graphic file (type bmp)
 <diagrams/ch2_postgresql_relational.png>
- [21]
 File: diagrams/ch2_supabase_auth.png Graphic file (type bmp)
 <diagrams/ch2_supabase_auth.png>
- [22]
+ [21]
 File: diagrams/ch2_frontend_architecture.png Graphic file (type bmp)
 <diagrams/ch2_frontend_architecture.png>
+ [22]
 File: diagrams/ch2_react_state.png Graphic file (type bmp)
 <diagrams/ch2_react_state.png>
  [23]
 File: diagrams/ch2_pdfjs_viewer.png Graphic file (type bmp)
 <diagrams/ch2_pdfjs_viewer.png>
- [24] [25]
+ [24]
 File: diagrams/ch2_docker_compose.png Graphic file (type bmp)
 <diagrams/ch2_docker_compose.png>
+ [25]
 File: diagrams/ch2_toolchain.png Graphic file (type bmp)
 <diagrams/ch2_toolchain.png>
- [26]
 File: diagrams/ch2_data_architecture.png Graphic file (type bmp)
 <diagrams/ch2_data_architecture.png>
- [27] [28]
-Overfull \hbox (8.39217pt too wide) in alignment at lines 1085--1090
+ [26] [27] [28]
+Overfull \hbox (8.39217pt too wide) in alignment at lines 1083--1088
  [] [] [] [] 
  []
 
 
-Overfull \hbox (8.39217pt too wide) in alignment at lines 1090--1094
+Overfull \hbox (8.39217pt too wide) in alignment at lines 1088--1092
  [] [] [] [] 
  []
 
 
-Overfull \hbox (8.39217pt too wide) in alignment at lines 1094--1105
+Overfull \hbox (8.39217pt too wide) in alignment at lines 1092--1103
  [] [] [] [] 
  []
 
-[29]
-ignored: Infinite glue shrinkage found in box being split [30] [31] [32
+[29] [30] [31
 
 
-] [33]
+] [32]
 File: diagrams/ch3_fdd.png Graphic file (type bmp)
 <diagrams/ch3_fdd.png>
- [34]
 File: diagrams/ch3_dfd_context.png Graphic file (type bmp)
 <diagrams/ch3_dfd_context.png>
+ [33]
 File: diagrams/ch3_dfd_level0.png Graphic file (type bmp)
 <diagrams/ch3_dfd_level0.png>
- [35]
+ [34]
 File: diagrams/ch3_usecase_overall.png Graphic file (type bmp)
 <diagrams/ch3_usecase_overall.png>
 File: diagrams/ch3_usecase_auth.png Graphic file (type bmp)
 <diagrams/ch3_usecase_auth.png>
- [36]
-ignored: Infinite glue shrinkage found in box being split [37]
+ [35]
+ignored: Infinite glue shrinkage found in box being split [36]
 File: diagrams/ch3_usecase_chat.png Graphic file (type bmp)
 <diagrams/ch3_usecase_chat.png>
- [38] [39]
-ignored: Infinite glue shrinkage found in box being split [40]
+ [37] [38]
+ignored: Infinite glue shrinkage found in box being split [39]
 File: diagrams/ch3_usecase_conversation.png Graphic file (type bmp)
 <diagrams/ch3_usecase_conversation.png>
 
-ignored: Infinite glue shrinkage found in box being split [41] [42]
+ignored: Infinite glue shrinkage found in box being split [40] [41]
 File: diagrams/ch3_usecase_legal_sources.png Graphic file (type bmp)
 <diagrams/ch3_usecase_legal_sources.png>
- [43]
-ignored: Infinite glue shrinkage found in box being split
-[44] [45]
+ [42]
+ignored: Infinite glue shrinkage found in box being split [43]
+[44]
 File: diagrams/ch3_usecase_feedback.png Graphic file (type bmp)
 <diagrams/ch3_usecase_feedback.png>
- [46]
-ignored: Infinite glue shrinkage found in box being split [47] [48]
+ [45]
+ignored: Infinite glue shrinkage found in box being split [46] [47]
 File: diagrams/ch3_activity_auth.png Graphic file (type bmp)
 <diagrams/ch3_activity_auth.png>
- [49]
+ [48]
 File: diagrams/ch3_activity_chat.png Graphic file (type bmp)
 <diagrams/ch3_activity_chat.png>
- [50]
+ [49]
 File: diagrams/ch3_activity_legal_sources.png Graphic file (type bmp)
 <diagrams/ch3_activity_legal_sources.png>
- [51]
+ [50]
 File: diagrams/ch3_activity_conversation.png Graphic file (type bmp)
 <diagrams/ch3_activity_conversation.png>
- [52]
+ [51]
 File: diagrams/ch3_activity_feedback.png Graphic file (type bmp)
 <diagrams/ch3_activity_feedback.png>
 File: diagrams/ch3_sequence_auth.png Graphic file (type bmp)
 <diagrams/ch3_sequence_auth.png>
- [53]
+ [52]
 File: diagrams/ch3_sequence_chat.png Graphic file (type bmp)
 <diagrams/ch3_sequence_chat.png>
- [54]
+ [53]
 File: diagrams/ch3_sequence_retrieval.png Graphic file (type bmp)
 <diagrams/ch3_sequence_retrieval.png>
- [55]
+ [54]
 File: diagrams/ch3_sequence_generation.png Graphic file (type bmp)
 <diagrams/ch3_sequence_generation.png>
 File: diagrams/ch3_sequence_citation.png Graphic file (type bmp)
 <diagrams/ch3_sequence_citation.png>
- [56]
+ [55]
 File: diagrams/ch3_sequence_feedback_bookmark.png Graphic file (type bmp)
 <diagrams/ch3_sequence_feedback_bookmark.png>
- [57]
+ [56]
 File: diagrams/ch3_cdm.png Graphic file (type bmp)
 <diagrams/ch3_cdm.png>
- [58]
+ [57]
 File: diagrams/ch3_ldm.png Graphic file (type bmp)
 <diagrams/ch3_ldm.png>
-
-[59]
+ [58]
 File: diagrams/ch3_pdm.png Graphic file (type bmp)
 <diagrams/ch3_pdm.png>
- [60]
+
+[59]
 File: diagrams/ch3_erd.png Graphic file (type bmp)
 <diagrams/ch3_erd.png>
- [61]
-ignored: Infinite glue shrinkage found in box being split [62] [63] [64] [65] [66]
+ [60]
+ignored: Infinite glue shrinkage found in box being split [61] [62] [63] [64] [65]
 File: diagrams/ch3_flow_ingestion.png Graphic file (type bmp)
 <diagrams/ch3_flow_ingestion.png>
 File: diagrams/ch3_flow_retrieval.png Graphic file (type bmp)
 <diagrams/ch3_flow_retrieval.png>
- [67]
+ [66]
 File: diagrams/ch3_flow_chat.png Graphic file (type bmp)
 <diagrams/ch3_flow_chat.png>
- [68] [69]
+ [67] [68]
 File: diagrams/ch3_flow_citation.png Graphic file (type bmp)
 <diagrams/ch3_flow_citation.png>
- [70]
+ [69]
 File: diagrams/ch4_home.png Graphic file (type bmp)
 <diagrams/ch4_home.png>
 File: diagrams/ch4_register.png Graphic file (type bmp)
 <diagrams/ch4_register.png>
- [71
+ [70
 
 
 ]
 File: diagrams/ch4_login.png Graphic file (type bmp)
 <diagrams/ch4_login.png>
- [72]
+ [71]
 File: diagrams/ch4_chat_empty.png Graphic file (type bmp)
 <diagrams/ch4_chat_empty.png>
- [73]
+ [72]
 File: diagrams/ch4_citation_panel.png Graphic file (type bmp)
 <diagrams/ch4_citation_panel.png>
 File: diagrams/ch4_legal_sources.png Graphic file (type bmp)
 <diagrams/ch4_legal_sources.png>
-
-[74]
+ [73]
 File: diagrams/ch4_legal_search.png Graphic file (type bmp)
 <diagrams/ch4_legal_search.png>
 File: diagrams/ch4_markdown_viewer.png Graphic file (type bmp)
 <diagrams/ch4_markdown_viewer.png>
- [75]
+
+[74]
 File: diagrams/ch4_chat_history.png Graphic file (type bmp)
 <diagrams/ch4_chat_history.png>
 File: diagrams/ch4_test_report.png Graphic file (type bmp)
 <diagrams/ch4_test_report.png>
- [76]
+ [75]
 File: diagrams/ch4_health_api.png Graphic file (type bmp)
 <diagrams/ch4_health_api.png>
- [77]
+ [76]
 File: diagrams/ch4_evaluation_report.png Graphic file (type bmp)
 <diagrams/ch4_evaluation_report.png>
- [78] [79
+ [77] [78
 
-] [80] [81
+] [79] [80
 
 
-] [82] (./main.aux)
+] [81] (./main.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
  ***********
 Package rerunfilecheck Info: File `main.out' has not changed.
-(rerunfilecheck)             Checksum: 4E47DF7DF31D6D0DD27330650896831E;32920.
+(rerunfilecheck)             Checksum: A422BF7038203C47A9830E7018037A43;31675.
  ) 
 Here is how much of TeX's memory you used:
  27621 strings out of 470191
@@ -1549,4 +1547,4 @@ Here is how much of TeX's memory you used:
  14 hyphenation exceptions out of 8191
  73i,13n,107p,1001b,656s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on main.pdf (99 pages).
+Output written on main.pdf (98 pages).
