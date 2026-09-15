@@ -5,22 +5,22 @@
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
         <mxCell id="a_user" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" value="Người dùng" vertex="1">
-          <mxGeometry height="60" width="30" x="50" y="210" as="geometry" />
+          <mxGeometry height="60" width="30" x="50" y="250" as="geometry" />
         </mxCell>
         <mxCell id="uc_feedback" parent="1" style="ellipse;whiteSpace=wrap;html=1;shapeInside=1;" value="Đánh giá câu trả lời" vertex="1">
-          <mxGeometry height="60" width="190" x="320" y="80" as="geometry" />
+          <mxGeometry height="60" width="190" x="300" y="80" as="geometry" />
         </mxCell>
         <mxCell id="uc_save" parent="1" style="ellipse;whiteSpace=wrap;html=1;shapeInside=1;" value="Lưu câu trả lời" vertex="1">
-          <mxGeometry height="60" width="190" x="320" y="210" as="geometry" />
+          <mxGeometry height="60" width="190" x="300" y="250" as="geometry" />
         </mxCell>
         <mxCell id="uc_saved_list" parent="1" style="ellipse;whiteSpace=wrap;html=1;shapeInside=1;" value="Xem danh sách đã lưu" vertex="1">
-          <mxGeometry height="60" width="200" x="320" y="360" as="geometry" />
+          <mxGeometry height="60" width="200" x="300" y="420" as="geometry" />
         </mxCell>
         <mxCell id="uc_saved_view" parent="1" style="ellipse;whiteSpace=wrap;html=1;shapeInside=1;" value="Xem nội dung đã lưu" vertex="1">
-          <mxGeometry height="60" width="190" x="590" y="300" as="geometry" />
+          <mxGeometry height="60" width="190" x="600" y="320" as="geometry" />
         </mxCell>
         <mxCell id="uc_unsave" parent="1" style="ellipse;whiteSpace=wrap;html=1;shapeInside=1;" value="Bỏ lưu câu trả lời" vertex="1">
-          <mxGeometry height="60" width="190" x="590" y="440" as="geometry" />
+          <mxGeometry height="60" width="190" x="600" y="500" as="geometry" />
         </mxCell>
         <mxCell id="e1" edge="1" parent="1" source="a_user" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;endFill=0;" target="uc_feedback" value="">
           <mxGeometry relative="1" as="geometry">
@@ -53,10 +53,10 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="V8wu6ADruV5ikE2GfyqG-2" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="extend" vertex="1">
-          <mxGeometry height="30" width="60" x="450" y="440" as="geometry" />
+          <mxGeometry height="30" width="60" x="500" y="470" as="geometry" />
         </mxCell>
         <mxCell id="V8wu6ADruV5ikE2GfyqG-3" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="extend" vertex="1">
-          <mxGeometry height="30" width="60" x="550" y="350" as="geometry" />
+          <mxGeometry height="30" width="60" x="500" y="370" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>

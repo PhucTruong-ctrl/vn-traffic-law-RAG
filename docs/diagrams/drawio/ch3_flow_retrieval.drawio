@@ -20,22 +20,22 @@
           <mxGeometry height="90" width="180" x="465" y="440" as="geometry" />
         </mxCell>
         <mxCell id="exact" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="Exact lookup" vertex="1">
-          <mxGeometry height="55" width="160" x="300" y="580" as="geometry" />
+          <mxGeometry height="55" width="160" x="280" y="580" as="geometry" />
         </mxCell>
         <mxCell id="queries" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="Tạo truy vấn tìm kiếm" vertex="1">
-          <mxGeometry height="55" width="190" x="600" y="580" as="geometry" />
+          <mxGeometry height="55" width="190" x="640" y="580" as="geometry" />
         </mxCell>
         <mxCell id="dense" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="Dense search" vertex="1">
-          <mxGeometry height="55" width="160" x="300" y="690" as="geometry" />
+          <mxGeometry height="55" width="160" x="280" y="690" as="geometry" />
         </mxCell>
         <mxCell id="sparse" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="Sparse BM25" vertex="1">
-          <mxGeometry height="55" width="160" x="600" y="690" as="geometry" />
+          <mxGeometry height="55" width="160" x="640" y="690" as="geometry" />
         </mxCell>
         <mxCell id="rrf" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="Gộp kết quả bằng RRF" vertex="1">
-          <mxGeometry height="55" width="200" x="455" y="810" as="geometry" />
+          <mxGeometry height="55" width="200" x="460" y="810" as="geometry" />
         </mxCell>
         <mxCell id="dedup" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="Giới hạn kết quả trùng theo văn bản và Điều" vertex="1">
-          <mxGeometry height="55" width="310" x="400" y="910" as="geometry" />
+          <mxGeometry height="55" width="310" x="405" y="910" as="geometry" />
         </mxCell>
         <mxCell id="date" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="Kiểm tra ngày hiệu lực" vertex="1">
           <mxGeometry height="55" width="210" x="450" y="1010" as="geometry" />

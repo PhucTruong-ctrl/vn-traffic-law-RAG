@@ -8,9 +8,9 @@
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; background: #f5f5f5; color: #2d3142; font-family: 'Be Vietnam Pro', sans-serif; }
-    .page { width: min(960px, 100%); margin: auto; padding: 32px 40px 24px; }
-    .eyebrow { margin: 0 0 8px; color: #4f5d75; font: 500 8px 'Be Vietnam Pro', sans-serif; letter-spacing: .16em; }
-    h1 { margin: 0 0 24px; font: 400 28px/1.15 'Be Vietnam Pro', sans-serif; }
+    .page { width: min(1000px, 100%); margin: auto; padding: 16px 0; }
+    .eyebrow { display:none; }
+    h1 { display:none; }
     svg { display: block; width: 100%; height: auto; }
     .name { fill: #2d3142; font: 600 16px 'Be Vietnam Pro', sans-serif; }
     .sub { fill: #4f5d75; font: 400 12px 'Be Vietnam Pro', sans-serif; }
@@ -24,7 +24,7 @@
 <main class="page">
   <p class="eyebrow">CHƯƠNG 2 · 2.3 MANIFEST, MARKDOWN VÀ JSONL</p>
   <h1>Luồng tạo dữ liệu: manifest và Markdown đến chunks JSONL</h1>
-  <svg viewBox="0 0 960 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="ch2-ingestion-pipeline-title ch2-ingestion-pipeline-desc">
+  <svg viewBox="0 0 1000 480" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="ch2-ingestion-pipeline-title ch2-ingestion-pipeline-desc">
     <title id="ch2-ingestion-pipeline-title">Luồng tạo dữ liệu pháp luật</title>
     <desc id="ch2-ingestion-pipeline-desc">Hệ thống đọc manifest và các tệp Markdown, kiểm tra đường dẫn, tính SHA-256, tạo chunk rồi ghi từng chunk vào một dòng của chunks.jsonl.</desc>
     <defs>
@@ -33,7 +33,7 @@
       <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
     </defs>
 
-    <rect width="960" height="600" fill="#f5f5f5"/>
+    <rect width="1000" height="480" fill="#f5f5f5"/>
 
     <!-- Connectors: orthogonal, drawn before nodes. -->
     <path d="M240 136 H272 Q280 136 280 144 V216 Q280 224 288 224 H336" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
@@ -108,14 +108,6 @@
     <text x="352" y="428" class="sub">Quy trình không phải nạp toàn bộ file.</text>
     <text x="352" y="452" class="sub">SHA-256 phát hiện thay đổi nhưng không thay thế chữ ký số.</text>
 
-    <line x1="40" y1="504" x2="920" y2="504" stroke="rgba(45,49,66,.10)" stroke-width="0.8"/>
-    <text x="40" y="536" class="legend">CHÚ GIẢ</text>
-    <rect x="132" y="520" width="20" height="16" rx="4" fill="#fff" stroke="#2d3142"/>
-    <text x="164" y="532" class="legend">ĐẦU VÀO / XỬ LÝ</text>
-    <rect x="336" y="520" width="20" height="16" rx="4" fill="rgba(235,108,54,.08)" stroke="#eb6c36"/>
-    <text x="368" y="532" class="legend">TẠO CHUNK + HASH</text>
-    <rect x="544" y="520" width="20" height="16" rx="4" fill="rgba(45,49,66,.03)" stroke="#2e5aa8"/>
-    <text x="576" y="532" class="legend">DỮ LIỆU JSONL</text>
   </svg>
 </main>
 </body>

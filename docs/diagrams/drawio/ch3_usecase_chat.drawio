@@ -5,19 +5,19 @@
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
         <mxCell id="a_user" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" value="Người dùng" vertex="1">
-          <mxGeometry height="60" width="30" x="80" y="340" as="geometry" />
+          <mxGeometry height="60" width="30" x="70" y="320" as="geometry" />
         </mxCell>
         <mxCell id="uc_ask" parent="1" style="ellipse;whiteSpace=wrap;html=1;shapeInside=1;" value="Đặt câu hỏi pháp luật" vertex="1">
-          <mxGeometry height="60" width="190" x="300" y="100" as="geometry" />
+          <mxGeometry height="60" width="190" x="300" y="80" as="geometry" />
         </mxCell>
         <mxCell id="uc_result" parent="1" style="ellipse;whiteSpace=wrap;html=1;shapeInside=1;" value="Nhận kết quả trả lời" vertex="1">
-          <mxGeometry height="60" width="190" x="570" y="100" as="geometry" />
+          <mxGeometry height="60" width="190" x="590" y="80" as="geometry" />
         </mxCell>
         <mxCell id="uc_view_citation" parent="1" style="ellipse;whiteSpace=wrap;html=1;shapeInside=1;" value="Xem nguồn trích dẫn" vertex="1">
-          <mxGeometry height="60" width="190" x="300" y="260" as="geometry" />
+          <mxGeometry height="60" width="190" x="300" y="250" as="geometry" />
         </mxCell>
         <mxCell id="uc_open_source" parent="1" style="ellipse;whiteSpace=wrap;html=1;shapeInside=1;" value="Mở văn bản nguồn" vertex="1">
-          <mxGeometry height="60" width="190" x="570" y="350" as="geometry" />
+          <mxGeometry height="60" width="190" x="590" y="400" as="geometry" />
         </mxCell>
         <mxCell id="uc_view_answer" parent="1" style="ellipse;whiteSpace=wrap;html=1;shapeInside=1;" value="Xem câu trả lời" vertex="1">
           <mxGeometry height="60" width="190" x="300" y="420" as="geometry" />
@@ -25,23 +25,23 @@
         <mxCell id="e1" edge="1" parent="1" source="a_user" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;endFill=0;" target="uc_ask" value="">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="160.03" y="370.03" />
-              <mxPoint x="160.03" y="130.03" />
+              <mxPoint x="150" y="350" />
+              <mxPoint x="150" y="110" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="e2" edge="1" parent="1" source="a_user" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;endFill=0;" target="uc_view_answer" value="">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="250.03" y="370.03" />
-              <mxPoint x="250.03" y="450.03" />
+              <mxPoint x="260" y="350" />
+              <mxPoint x="260" y="450" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="e3" edge="1" parent="1" source="a_user" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;endFill=0;" target="uc_view_citation" value="">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="250.03" y="370.03" />
+              <mxPoint x="260" y="350" />
               <mxPoint x="250.03" y="290.03" />
             </Array>
           </mxGeometry>
@@ -56,13 +56,13 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="LM5foXpuaU5uPOfVlXin-1" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="include" vertex="1">
-          <mxGeometry height="30" width="60" x="500" y="100" as="geometry" />
+          <mxGeometry height="30" width="60" x="505" y="55" as="geometry" />
         </mxCell>
         <mxCell id="LM5foXpuaU5uPOfVlXin-2" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="include" vertex="1">
-          <mxGeometry height="30" width="60" x="610" y="260" as="geometry" />
+          <mxGeometry height="30" width="60" x="525" y="225" as="geometry" />
         </mxCell>
         <mxCell id="LM5foXpuaU5uPOfVlXin-3" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="extend" vertex="1">
-          <mxGeometry height="30" width="60" x="425" y="355" as="geometry" />
+          <mxGeometry height="30" width="60" x="480" y="335" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
