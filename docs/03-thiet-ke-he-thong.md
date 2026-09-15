@@ -17,17 +17,17 @@ Mục tiêu là RAG nhận biết cấu trúc và thời gian hiệu lực, ch�
 
 ```mermaid
 flowchart TB
-  A[Allowlist: datafiles.chinhphu.vn] --> B[14 PDF: deduplicate + immutable snapshot]
+  A["Allowlist: datafiles.chinhphu.vn"] --> B["14 PDF: deduplicate + immutable snapshot"]
   B --> C[Manual CLI]
-  C --> D[Parser Router: Docling | MinerU]
+  C --> D["Parser Router: Docling | MinerU"]
   D --> E[Canonical Document IR]
   E --> F[Legal Structure Extractor]
-  F --> G[Context / reference / temporal enrichment]
-  G --> H[Quality + provenance + temporal gates]
-  H -->|ACCEPTED| I[Authoritative corpus source of truth]
-  H -->|REJECTED| J[Rejected audit record; do not index]
+  F --> G["Context / reference / temporal enrichment"]
+  G --> H["Quality + provenance + temporal gates"]
+  H -->|ACCEPTED| I["Authoritative corpus source of truth"]
+  H -->|REJECTED| J["Rejected audit record; do not index"]
   I --> K[Dense + sparse indexing]
-  K --> L[Qdrant derived index]
+  K --> L["Qdrant derived index"]
 ```
 
 Pipeline target: snapshot → parse → parser-neutral IR → Chương/Mục/Điều/Khoản/Điểm extraction (including Vietnamese `đ)`) → parent context and legal relations → amendment/effective-date resolution → automatic gates → accepted corpus → dense/sparse index. Publish a new index only after every gate passes; otherwise retain the serving index. The target relation model includes provision/document relations such as `PARENT_OF`, `REFERS_TO`, `SIBLING_OF`, `PENALTY_COMPANION`, `AMENDS`, `REPEALS`, and `SUPERSEDES`.
