@@ -6,7 +6,9 @@ export type AbstentionReasonCode =
   | "reference_not_found"
   | "temporal_mismatch"
   | "no_relevant_provision"
-  | "insufficient_evidence";
+  | "insufficient_evidence"
+  | "request_timeout"
+  | "generation_failed";
 
 export type AbstentionResultProps = {
   status?:
@@ -63,6 +65,14 @@ const REASON_COPY: Record<string, ReasonCopy> = {
   insufficient_evidence: {
     reason: "Nguồn tìm được chưa đủ để đưa ra kết luận chắc chắn.",
     action: "Bổ sung tình tiết, loại phương tiện, thời điểm hoặc điều khoản cần tra cứu.",
+  },
+  request_timeout: {
+    reason: "Máy chủ đã vượt quá thời gian xử lý cho phép.",
+    action: "Hãy thử lại sau vài giây hoặc thu hẹp câu hỏi để tra cứu nhanh hơn.",
+  },
+  generation_failed: {
+    reason: "Máy chủ không thể tạo câu trả lời từ các nguồn đã đối chiếu.",
+    action: "Hãy thử lại sau vài giây hoặc diễn đạt câu hỏi cụ thể hơn.",
   },
 };
 

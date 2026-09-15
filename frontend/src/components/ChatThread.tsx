@@ -9,6 +9,36 @@ import FeedbackWidget, { BookmarkToggle } from "./FeedbackWidget";
 import PrintAnswerDocument from "./PrintAnswerDocument";
 import type { ChatResponse, ConversationTurn, ProgressEvent } from "./chat-types";
 
+function formatCitationMarkers(markdown: string): string {
+  const citationPattern =
+    /\[doc-\d+(?::\s*document\s*=\s*([^;\]]+?)\s*(?:;\s*article\s*=\s*([^;\]]+?))?\s*(?:;\s*clause\s*=\s*([^;\]]+?))?\s*(?:;\s*point\s*=\s*([^\]]+?))?\s*)?\]/gi;
+  let inFence = false;
+  return markdown
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => {
+      if (/^\s*```/.test(line)) {
+        inFence = !inFence;
+        return line;
+      }
+      if (inFence) return line;
+      const formatted = line.replace(
+        citationPattern,
+        (_marker, document, article, clause, point) => {
+          if (!document) return "";
+          return `[${document.trim()}${article ? `, Điều ${article.trim()}` : ""}${clause ? `, Khoản ${clause.trim()}` : ""}${point ? `, Điểm ${point.trim()}` : ""}]`;
+        },
+      );
+      const normalized = formatted.replace(/[ \t]{2,}/g, " ").replace(/ ([,.:])/g, "$1");
+      const trimmed = normalized.trim();
+      if (trimmed.length < 120 && /^(Vi phạm|Mức phạt|Căn cứ|Kết luận)\s*:/i.test(trimmed)) {
+        return normalized.replace(/^(\s*)(.*)$/, "$1**$2**");
+      }
+      return normalized;
+    })
+    .join("\n");
+}
+
 function protectLegalParentheticals(markdown: string): string {
   return markdown.replace(
     /(?<!\\)\((?=[^()\n]*(?:khoản|điểm|điều|nghị định|thông tư)[^()\n]*\d)[^()\n]*\)/gi,
@@ -76,7 +106,9 @@ export function MarkdownAnswer({ answer }: { answer: string }) {
     <div className="markdown-answer">
       {splitAnswerTables(answer).map((part, index) =>
         part.kind === "markdown" ? (
-          <ReactMarkdown key={index}>{protectLegalParentheticals(part.text)}</ReactMarkdown>
+          <ReactMarkdown key={index}>
+            {protectLegalParentheticals(formatCitationMarkers(part.text))}
+          </ReactMarkdown>
         ) : (
           <table key={index}>
             <thead>
@@ -278,6 +310,14 @@ export default function ChatThread({
                 onOpenSource={onOpenSource}
                 sessionId={sessionId}
               />
+            )}
+            {!turn.response && turn.status === "pending" && (
+              <div className="assistant-message loading-state" role="status" aria-live="polite">
+                <div className="loading-content">
+                  <span className="streaming-badge">Đang xử lý</span>
+                  <p>Đang xử lý câu hỏi này…</p>
+                </div>
+              </div>
             )}
             {!turn.response && turn.status === "failed" && (
               <p className="turn-status turn-status--failed" role="status">

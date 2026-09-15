@@ -19,7 +19,9 @@ export type AbstentionReasonCode =
   | "reference_not_found"
   | "temporal_mismatch"
   | "no_relevant_provision"
-  | "insufficient_evidence";
+  | "insufficient_evidence"
+  | "request_timeout"
+  | "generation_failed";
 export type ChatResponse = {
   status?: ChatStatus;
   answer?: string | null;

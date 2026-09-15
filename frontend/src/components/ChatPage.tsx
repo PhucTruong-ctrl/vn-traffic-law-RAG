@@ -181,7 +181,7 @@ function turnsFromConversation(value: unknown): ConversationTurn[] {
       }
       turns.push({
         question: message.content,
-        status: "failed",
+        status: "pending",
       });
     }
   }
@@ -222,6 +222,8 @@ export default function ChatPage({
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [authError, setAuthError] = useState("");
   const abortControllerRef = useRef<AbortController | null>(null);
+  const pollControllerRef = useRef<AbortController | null>(null);
+  const pollTimerRef = useRef<number | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const activeIdRef = useRef(activeId);
   const latestSubmissionRef = useRef(0);
@@ -236,6 +238,59 @@ export default function ChatPage({
       ? { Authorization: `Bearer ${data.session.access_token}` }
       : {};
   }, [supabase]);
+  const stopReconciliation = useCallback(() => {
+    pollControllerRef.current?.abort();
+    pollControllerRef.current = null;
+    if (pollTimerRef.current !== null) {
+      window.clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }, []);
+  const reconcilePending = useCallback(
+    (sessionId: string, submitted: string, submissionId: number) => {
+      stopReconciliation();
+      const controller = new AbortController();
+      pollControllerRef.current = controller;
+      const deadline = Date.now() + 90_000;
+      const poll = async () => {
+        if (controller.signal.aborted || latestSubmissionRef.current !== submissionId) return;
+        try {
+          const result = await fetch(apiUrl(`chats/${encodeURIComponent(sessionId)}`), {
+            headers: await authHeaders(),
+            signal: controller.signal,
+          });
+          if (result.status === 401) {
+            await supabase.auth.signOut();
+            throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+          }
+          if (!result.ok) throw new Error("Không thể tải cuộc trò chuyện.");
+          const hydrated = turnsFromConversation(await result.json());
+          const match = hydrated.find((turn) => turn.question === submitted && turn.response);
+          if (match?.response) {
+            setTurns((previous) => [...previous.slice(0, -1), match]);
+            stopReconciliation();
+            setLoading(false);
+            return;
+          }
+          if (Date.now() >= deadline) {
+            setTurns((previous) => [
+              ...previous.slice(0, -1),
+              { question: submitted, status: "failed" },
+            ]);
+            setError("Không nhận được câu trả lời sau thời gian chờ. Hãy thử lại sau vài giây.");
+            setLoading(false);
+            stopReconciliation();
+            return;
+          }
+        } catch (pollError) {
+          if (pollError instanceof DOMException && pollError.name === "AbortError") return;
+        }
+        pollTimerRef.current = window.setTimeout(() => void poll(), 3_000);
+      };
+      void poll();
+    },
+    [authHeaders, stopReconciliation, supabase],
+  );
   useEffect(() => {
     let mounted = true;
     void supabase.auth.getSession().then(({ data }) => {
@@ -285,10 +340,18 @@ export default function ChatPage({
       })
       .then((payload) => {
         const hydratedTurns = turnsFromConversation(payload);
-        const interruptedTurn = hydratedTurns.at(-1);
         setActiveId(conversationId);
         setTurns(hydratedTurns);
-        setQuestion(interruptedTurn?.status === "failed" ? interruptedTurn.question : "");
+        const lastTurn = hydratedTurns.at(-1);
+        if (
+          !abortControllerRef.current &&
+          lastTurn &&
+          !lastTurn.response &&
+          lastTurn.status === "pending"
+        ) {
+          reconcilePending(conversationId, lastTurn.question, latestSubmissionRef.current);
+        }
+        setQuestion("");
         setSubmittedQuestion("");
         setError("");
         setHistoryLoading(false);
@@ -362,9 +425,10 @@ export default function ChatPage({
     setQuestion("");
     setTurns((previous) => [...previous, { question: submitted, status: "pending" }]);
     setLoading(true);
+    let sessionId: string | undefined;
     try {
       const headers = { "Content-Type": "application/json", ...(await authHeaders()) };
-      let sessionId = activeIdRef.current ?? conversationId;
+      sessionId = activeIdRef.current ?? conversationId;
       if (!sessionId) {
         const sessionResult = await fetch(SESSIONS_PATH, {
           method: "POST",
@@ -413,23 +477,32 @@ export default function ChatPage({
       setConversationActivity({ id: sessionId, nonce: Date.now() });
     } catch (submissionError) {
       if (latestSubmissionRef.current === submissionId) {
-        setTurns((previous) => [
-          ...previous.slice(0, -1),
-          { question: submitted, status: "failed" },
-        ]);
-        setQuestion(submitted);
-        if (submissionError instanceof DOMException && submissionError.name === "AbortError") {
-          setError(
-            timedOut ? "Tra cứu quá thời gian chờ. Hãy thử lại sau vài giây." : "Đã dừng tra cứu.",
-          );
-        } else if (submissionError instanceof TypeError) {
-          setError("Không thể kết nối dịch vụ tra cứu. Kiểm tra mạng rồi thử lại sau vài giây.");
+        const isAbort =
+          submissionError instanceof DOMException && submissionError.name === "AbortError";
+        const timeoutSeconds = Math.round(
+          (Number(process.env.NEXT_PUBLIC_CHAT_TIMEOUT_MS) || CHAT_TIMEOUT_MS) / 1000,
+        );
+        if (submissionError instanceof TypeError) {
+          if (sessionId) reconcilePending(sessionId, submitted, submissionId);
         } else {
-          setError(
-            submissionError instanceof Error
-              ? submissionError.message
-              : "Không thể xử lý câu hỏi. Hãy thử lại sau vài giây.",
-          );
+          setTurns((previous) => [
+            ...previous.slice(0, -1),
+            { question: submitted, status: "failed" },
+          ]);
+          setQuestion(submitted);
+          if (isAbort) {
+            setError(
+              timedOut
+                ? `Tra cứu quá thời gian chờ (${timeoutSeconds} giây). Hãy thử lại sau vài giây.`
+                : "Đã dừng tra cứu.",
+            );
+          } else {
+            setError(
+              submissionError instanceof Error
+                ? submissionError.message
+                : "Không thể xử lý câu hỏi. Hãy thử lại sau vài giây.",
+            );
+          }
         }
       }
     } finally {
@@ -441,7 +514,7 @@ export default function ChatPage({
         abortControllerRef.current === abortController
       ) {
         abortControllerRef.current = null;
-        setLoading(false);
+        if (!pollControllerRef.current) setLoading(false);
       }
     }
   }
@@ -455,8 +528,8 @@ export default function ChatPage({
     latestSubmissionRef.current += 1;
     eventSourceRef.current?.close();
     eventSourceRef.current = null;
+    stopReconciliation();
     abortControllerRef.current?.abort();
-    abortControllerRef.current = null;
     progressTimersRef.current.forEach(window.clearTimeout);
     progressTimersRef.current = [];
     setTurns((previous) => {
@@ -472,10 +545,11 @@ export default function ChatPage({
   useEffect(
     () => () => {
       eventSourceRef.current?.close();
-      abortControllerRef.current?.abort();
+      stopReconciliation();
+      // Keep the server request alive on unmount so its persisted answer can be reconciled.
       progressTimersRef.current.forEach(window.clearTimeout);
     },
-    [],
+    [stopReconciliation],
   );
   const resetConversation = () => {
     latestSubmissionRef.current += 1;
