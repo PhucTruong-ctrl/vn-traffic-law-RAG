@@ -86,3 +86,45 @@ def test_unsupported_claim_is_dropped_supported_claim_survives() -> None:
     decision = _verify(claims=claims)
     assert decision.allowed
     assert decision.claims == (claims[0],)
+
+
+def test_answer_figures_must_appear_in_the_evidence() -> None:
+    from langchain_core.documents import Document
+
+    from app.rag.verification import sanitize_response
+
+    documents = [
+        Document(
+            "Phạt tiền từ 3.000.000 đồng đến 5.000.000 đồng đối với hành vi dừng xe "
+            "trên đường cao tốc.",
+            metadata={
+                "chunk_id": "nd-100-2019:0299",
+                "document_id": "nd-100-2019",
+                "article": "7",
+                "clause": "6",
+            },
+        )
+    ]
+    common = dict(
+        question="Mức phạt là bao nhiêu?",
+        route="legal",
+        analysis=None,
+        references=[],
+        effective_date=None,
+        filtered_documents=documents,
+        citations=[],
+        claims=[],
+    )
+
+    rejected = sanitize_response(
+        answer="Phạt tiền từ 4.000.000 đồng đến 5.000.000 đồng.",
+        **common,
+    )
+    assert rejected.allowed is False
+    assert rejected.reason == "unsupported_figures"
+
+    accepted = sanitize_response(
+        answer="Phạt tiền từ 3.000.000 đồng đến 5.000.000 đồng (Nghị định 100/2019/NĐ-CP).",
+        **common,
+    )
+    assert accepted.allowed is True

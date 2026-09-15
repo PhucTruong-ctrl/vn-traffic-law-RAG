@@ -102,3 +102,69 @@ def test_fusion_reports_provider_failure_instead_of_empty_evidence() -> None:
         service._search_and_fuse(
             [("a", "a"), ("b", "b")], top_k=3, effective_date=None, deadline=None
         )
+
+
+def test_clause_header_outranks_other_siblings() -> None:
+    """The fine amount lives in the clause header, so completion must return it first."""
+    from app.rag.retrieval import _sibling_completion_documents
+
+    class _ScrollClient:
+        def __init__(self) -> None:
+            self.collection_name = "traffic_law"
+
+        def scroll(self, **kwargs: Any) -> tuple[list[Any], None]:
+            payloads = [
+                _point(
+                    "nd-168-2024:0146", "Điều khiển xe trên đường mà trong máu có nồng độ cồn.", "a"
+                ),
+                _point(
+                    "nd-168-2024:0148",
+                    "Không chấp hành hiệu lệnh, hướng dẫn của người điều khiển.",
+                    "c",
+                ),
+                _point("nd-168-2024:0149", "Đi ngược chiều của đường một chiều.", "d"),
+                _point(
+                    "nd-168-2024:0145",
+                    "Phạt tiền từ 18.000.000 đồng đến 20.000.000 đồng đối với người điều khiển xe.",
+                    None,
+                ),
+            ]
+            return payloads, None
+
+    from langchain_core.documents import Document
+
+    class _Store:
+        client = _ScrollClient()
+        collection_name = "traffic_law"
+
+    original = Document(
+        "Không chấp hành hiệu lệnh của đèn tín hiệu giao thông;",
+        metadata={
+            "chunk_id": "nd-168-2024:0147",
+            "document_id": "nd-168-2024",
+            "article": "6",
+            "clause": "9",
+            "point": "b",
+        },
+    )
+    siblings = _sibling_completion_documents(_Store(), original, 2)
+    assert [s.metadata["chunk_id"] for s in siblings] == ["nd-168-2024:0145", "nd-168-2024:0146"]
+
+
+def _point(chunk_id: str, text: str, point: str | None) -> Any:
+    from qdrant_client.models import PointStruct
+
+    metadata = {
+        "chunk_id": chunk_id,
+        "document_id": "nd-168-2024",
+        "document_number": "168/2024/NĐ-CP",
+        "article": "6",
+        "clause": "9",
+    }
+    if point:
+        metadata["point"] = point
+    return PointStruct(
+        id=abs(hash(chunk_id)) % (10**12),
+        vector={"dense": [0.0] * 3},
+        payload={"metadata": metadata, "page_content": text},
+    )

@@ -24,7 +24,8 @@ class EmbeddingSettings(_Env):
     model: str = Field(default="text-embedding-3-small", validation_alias="EMBEDDING_MODEL")
     dimensions: int = Field(default=768, validation_alias="EMBEDDING_DIMENSIONS")
     timeout_seconds: float = Field(default=8.0, validation_alias="EMBEDDING_TIMEOUT_SECONDS", gt=0)
-    max_retries: int = Field(default=1, validation_alias="EMBEDDING_MAX_RETRIES", ge=0, le=5)
+    # A retry against a throttled provider only burns the retrieval budget.
+    max_retries: int = Field(default=0, validation_alias="EMBEDDING_MAX_RETRIES", ge=0, le=5)
 
 
 class GenerationSettings(_Env):

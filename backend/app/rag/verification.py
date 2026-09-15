@@ -139,6 +139,38 @@ def _identity_complete(citation: dict[str, Any]) -> bool:
     )
 
 
+_MONEY_RE = re.compile(
+    r"(?P<amount>\d{1,3}(?:[.,]\d{3})+|\d+)\s*(?P<unit>triệu|nghìn|nghin|đồng|dong|vnd|đ)?",
+    re.IGNORECASE | re.UNICODE,
+)
+
+
+def _money_values(text: str) -> set[int]:
+    """Return every dong amount written in the text, in đồng."""
+    values: set[int] = set()
+    for match in _MONEY_RE.finditer(text):
+        raw, unit = match.group("amount"), (match.group("unit") or "").casefold()
+        separated = "." in raw or "," in raw
+        if not unit and not separated:
+            # A bare number is an article, a decree year, or a clause index.
+            continue
+        digits = int(raw.replace(".", "").replace(",", ""))
+        if unit == "triệu":
+            digits *= 1_000_000
+        elif unit in {"nghìn", "nghin"}:
+            digits *= 1_000
+        if digits >= 1000:
+            values.add(digits)
+    return values
+
+
+def unsupported_amounts(answer: str, documents: Iterable[Any]) -> set[int]:
+    """Money amounts stated in the answer that no cited provision states."""
+    sources = " ".join(str(getattr(doc, "page_content", "")) for doc in documents)
+    supported = _money_values(sources)
+    return {value for value in _money_values(answer) if value not in supported}
+
+
 def _eligible(doc: Any, effective_date: date | None) -> bool:
     if effective_date is None:
         return True
@@ -183,6 +215,8 @@ def sanitize_response(
     docs = list(filtered_documents)
     if not docs:
         return SanitizedResponse(answer, (), (), False, "insufficient_evidence")
+    if unsupported_amounts(answer, docs):
+        return SanitizedResponse(answer, (), (), False, "unsupported_figures")
     raw_citations = [dict(citation) for citation in citations]
     by_source = {_norm((getattr(doc, "metadata", {}) or {}).get("chunk_id")): doc for doc in docs}
     valid: list[dict[str, Any]] = []

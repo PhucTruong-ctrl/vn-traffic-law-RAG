@@ -585,15 +585,29 @@ class RAGService:
         families = {_provision_family(d) for d in documents}
         complete_family = getattr(self.retriever, "complete_family", None)
         if complete_family:
-            for document in direct:
+            # The fine amount lives in the clause header, which carries no action
+            # wording and is therefore absent from the action-filtered `direct`
+            # set. Complete families over everything that is cited, not `direct`.
+            completed: set[tuple[str, str, str]] = set()
+            added = 0
+            for document in filtered[:6]:
+                family = _provision_family(document)
+                if not family or family in completed:
+                    continue
+                completed.add(family)
                 try:
-                    for sibling in complete_family(
-                        document, limit=3, effective_date=effective_date
-                    ):
-                        if sibling not in filtered:
-                            filtered.append(sibling)
+                    siblings = complete_family(document, limit=3, effective_date=effective_date)
                 except Exception:
-                    pass
+                    continue
+                for sibling in siblings:
+                    if sibling in filtered:
+                        continue
+                    filtered.append(sibling)
+                    added += 1
+                    if added >= 6:
+                        break
+                if added >= 6:
+                    break
         filtered.extend(
             d
             for d in documents

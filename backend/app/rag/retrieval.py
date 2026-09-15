@@ -54,7 +54,7 @@ class OpenRouterEmbeddings(Embeddings):
             api_key=api_key,
             base_url=base_url,
             timeout=timeout if timeout is not None else _EMBEDDING_TIMEOUT_SECONDS,
-            max_retries=1 if max_retries is None else max_retries,
+            max_retries=0 if max_retries is None else max_retries,
         )
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
@@ -444,9 +444,11 @@ def _sibling_completion_documents(
             continue
         seen.add(identity)
         result.append(document)
-        if len(result) >= limit:
-            break
-    return result
+
+    # The clause header carries the fine amount ("Phạt tiền từ ... đồng"), so it
+    # must survive the limit even when other siblings match the context wording.
+    result.sort(key=lambda doc: (bool(_metadata(doc).get("point")), _identity(doc)[0]))
+    return result[:limit]
 
 
 _sibling_completion_documents_impl = _sibling_completion_documents
@@ -528,6 +530,12 @@ class Retriever:
             self._client = client
             self._sparse_embeddings = sparse
             self._collection_name = qdrant.collection
+            try:
+                # Load the local BM25 model now so the fallback stays inside the
+                # request deadline instead of paying the cold start there.
+                sparse.embed_query("khởi động")
+            except Exception:
+                logger.warning("sparse warm-up failed", exc_info=True)
             return store
         except RetrievalProviderError:
             raise

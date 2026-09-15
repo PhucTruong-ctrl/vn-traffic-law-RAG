@@ -480,7 +480,9 @@ def build_analyzer_prompt(question: str, history: object = ()) -> str:
         "category chỉ legal_rag/chitchat/out_of_scope; intent chỉ "
         "penalty/rule/procedure/definition/list/mixed; vehicle_type chỉ "
         "car/motorcycle/bicycle/specialized/any. "
-        "expanded_queries tối đa 3 câu, mỗi câu ngắn gọn và độc lập. "
+        "expanded_queries tối đa 3 câu, mỗi câu ngắn gọn và độc lập và PHẢI giữ nguyên "
+        "phạm vi câu hỏi: không được thêm tình tiết như địa điểm, loại đường, thời gian "
+        "hay tình huống mà câu hỏi không nêu. "
     )
     for message in list(history)[-6:] if isinstance(history, (list, tuple)) else []:
         if not isinstance(message, dict):

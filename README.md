@@ -166,7 +166,7 @@ ANALYZER_TIMEOUT_SECONDS     ngân sách riêng cho analyzer (mặc định 15s)
 GENERATION_MAX_RETRIES       số lần thử lại generation
 EMBEDDING_MODEL              model embedding
 EMBEDDING_TIMEOUT_SECONDS    ngân sách gọi embedding; quá hạn thì dùng chỉ mục sparse nội bộ (mặc định 8s)
-EMBEDDING_MAX_RETRIES        số lần thử lại embedding (mặc định 1)
+EMBEDDING_MAX_RETRIES        số lần thử lại embedding (mặc định 0)
 ```
 
 Bảng 1 , bộ phân tích yêu cầu (6 case: 4 legal + 1 follow-up có history + 1 out-of-scope; tiêu chí JSON hợp lệ / category đúng / vehicle đúng / độ trễ):
