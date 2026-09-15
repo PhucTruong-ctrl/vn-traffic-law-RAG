@@ -590,6 +590,33 @@ class Retriever:
             document for document in documents if metadata_matches(document.metadata, reference)
         ]
 
+    def fetch_provisions(
+        self,
+        reference: LegalReference,
+        *,
+        question: str = "",
+        limit: int = 12,
+        effective_date: date | None = None,
+    ) -> list[Document]:
+        """Fetch provisions by exact payload coordinates, ranking bare references."""
+        if limit < 1 or not (reference.article or reference.clause or reference.point):
+            return []
+        store = self._store_for_query()
+        if reference.document_id:
+            documents = _exact_qdrant_documents(store, reference, limit)
+            documents = [doc for doc in documents if metadata_matches(doc.metadata, reference)]
+        else:
+            if not question:
+                return []
+            documents = _exact_qdrant_documents(store, reference, max(limit * 8, limit))
+            documents = [doc for doc in documents if metadata_matches(doc.metadata, reference)]
+            ranked = self._similarity_search(question, max(limit * 3, limit))
+            rank = {_identity(doc): index for index, doc in enumerate(ranked)}
+            documents.sort(key=lambda doc: (rank.get(_identity(doc), len(rank)), _identity(doc)))
+        if effective_date:
+            documents = [doc for doc in documents if _temporal_match(doc, effective_date)]
+        return documents[:limit]
+
     def complete_family(
         self,
         document: Document,

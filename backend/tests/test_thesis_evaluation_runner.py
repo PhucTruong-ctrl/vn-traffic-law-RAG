@@ -138,9 +138,13 @@ def test_aggregate_category_metrics_use_only_category_rows() -> None:
 
     result = runner.aggregate(rows, {"run_id": "aggregate-proof"})
 
-    assert result["metrics"]["retrieval_hit_at_k"] == 0.5
-    assert result["by_category"]["natural_language"]["retrieval_hit_at_k"] == 1.0
-    assert result["by_category"]["insufficient_evidence"]["retrieval_hit_at_k"] == 0.0
+    # Each metric carries its own denominator so a rate can never be read bare.
+    assert result["metrics"]["retrieval_hit_at_k"] == {"value": 0.5, "n": 2}
+    assert result["by_category"]["natural_language"]["retrieval_hit_at_k"] == {"value": 1.0, "n": 1}
+    assert result["by_category"]["insufficient_evidence"]["retrieval_hit_at_k"] == {
+        "value": 0.0,
+        "n": 1,
+    }
 
 
 def test_aggregate_category_metrics_keep_nullable_values_nullable() -> None:
@@ -164,8 +168,8 @@ def test_aggregate_category_metrics_keep_nullable_values_nullable() -> None:
 
     category = result["by_category"]["natural_language"]
     assert category["count"] == 1
-    assert category["retrieval_hit_at_k"] is None
-    assert category["answer_correctness_manual"] is None
+    assert category["retrieval_hit_at_k"] == {"value": None, "n": 0}
+    assert category["answer_correctness_manual"] == {"value": None, "n": 0}
 
 
 def test_load_predictions_unwraps_one_saved_scored_row_and_preserves_metadata(

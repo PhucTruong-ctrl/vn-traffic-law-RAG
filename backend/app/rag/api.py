@@ -87,7 +87,11 @@ def chat(
             else create_session(client, user_id, request.title or request.question[:80], token)
         )
         session_id = str(session["id"])
-        history = recent_messages(client, user_id, session_id, token) if request.session_id else []
+        history = (
+            recent_messages(client, user_id, session_id, token)
+            if request.session_id
+            else (request.history or [])
+        )
         stages["route_analyze_ms"] = round((perf_counter() - stage_started) * 1000, 2)
         outcomes["route_analyze"] = "ok"
 

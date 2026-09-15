@@ -17,8 +17,8 @@ _FRONT_MATTER = re.compile(r"\A---\s*\n(.*?)(?:\n---\s*\n|\Z)", re.DOTALL)
 _KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*$")
 _HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 _ARTICLE = re.compile(r"^(?:Điều|ĐIỀU)\s+(\d+)(?:\.\s*(.*))?$")
-_CLAUSE = re.compile(r"^(\d+)[.)]\s+(.+)$")
-_POINT = re.compile(r"^([a-zđ])[.)]\s+(.+)$", re.IGNORECASE)
+_CLAUSE = re.compile(r"^(\d+)[.)](?:[ \t\u00a0]+(.+))?$")
+_POINT = re.compile(r"^([a-zđ])[.)](?:[ \t\u00a0]+(.+))?$", re.IGNORECASE)
 _HEADING_METADATA: tuple[tuple[str, tuple[str, ...], tuple[str, ...]], ...] = (
     ("ô tô", ("car",), ("road",)),
     ("xe ô tô", ("car",), ("road",)),
@@ -188,16 +188,18 @@ def _chunks(body: str) -> list[tuple[str, dict[str, Any]]]:
         if clause_match and article is not None:
             flush()
             clause, point = clause_match.group(1), None
-            provision_text = clause_match.group(2)
-            buffer.append(provision_text)
+            provision_text = clause_match.group(2) or ""
+            if provision_text:
+                buffer.append(provision_text)
             index += marker_lines
             continue
         point_match = _POINT.match(marker)
         if point_match and article is not None and clause is not None:
             flush()
             point = point_match.group(1).lower()
-            provision_text = point_match.group(2)
-            buffer.append(provision_text)
+            provision_text = point_match.group(2) or ""
+            if provision_text:
+                buffer.append(provision_text)
             index += marker_lines
             continue
         if heading:
