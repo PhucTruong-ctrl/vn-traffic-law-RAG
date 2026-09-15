@@ -539,6 +539,7 @@ class Retriever:
                 max_retries=getattr(embedding, "max_retries", None),
             )
             from langchain_qdrant import FastEmbedSparse, QdrantVectorStore, RetrievalMode
+            from langchain_qdrant.qdrant import QdrantVectorStoreError
 
             sparse = FastEmbedSparse("Qdrant/bm25")
             client = (
@@ -546,15 +547,33 @@ class Retriever:
                 if qdrant.url
                 else QdrantClient(path=str(qdrant.path), timeout=qdrant.timeout)
             )
-            store = QdrantVectorStore(
-                client=client,
-                collection_name=qdrant.collection,
-                embedding=dense,
-                sparse_embedding=sparse,
-                retrieval_mode=RetrievalMode.HYBRID if mode is None else mode,
-                vector_name="dense",
-                sparse_vector_name="sparse",
-            )
+
+            def build_store(*, validate_collection: bool) -> Any:
+                return QdrantVectorStore(
+                    client=client,
+                    collection_name=qdrant.collection,
+                    embedding=dense,
+                    sparse_embedding=sparse,
+                    retrieval_mode=RetrievalMode.HYBRID if mode is None else mode,
+                    vector_name="dense",
+                    sparse_vector_name="sparse",
+                    validate_collection_config=validate_collection,
+                )
+
+            try:
+                store = build_store(validate_collection=True)
+            except (QdrantVectorStoreError, TypeError, ValueError):
+                raise
+            except Exception as exc:
+                # The collection check embeds a probe string, so a throttled provider
+                # would otherwise stop the store from being built at all and the local
+                # sparse index could never answer.
+                logger.warning(
+                    "collection config validation skipped (%s: %s)",
+                    type(exc).__name__,
+                    exc,
+                )
+                store = build_store(validate_collection=False)
             self._client = client
             self._sparse_embeddings = sparse
             self._collection_name = qdrant.collection
@@ -595,8 +614,14 @@ class Retriever:
         store = self._store_for_query()
         try:
             return list(store.similarity_search(question, k=max(limit * 3, limit)))
-        except Exception:
-            logger.warning("dense retrieval failed, using the local sparse index", exc_info=True)
+        except Exception as exc:
+            # Expected degradation: a throttled provider times out, the sparse index answers.
+            # One line, no traceback — the full stack here only makes the log look broken.
+            logger.warning(
+                "dense retrieval failed (%s: %s), using the local sparse index",
+                type(exc).__name__,
+                exc,
+            )
         try:
             return self._sparse_search(question, limit)
         except Exception:

@@ -256,3 +256,82 @@ def _point(
         vector={"dense": [0.0] * 3},
         payload={"metadata": metadata, "page_content": text},
     )
+
+
+class _StubEmbeddingSettings:
+    openrouter_api_key = "test-key"
+    openrouter_base_url = "https://example.invalid"
+    model = "test-embedding"
+    dimensions = 3
+    timeout_seconds = 1.0
+    max_retries = 0
+
+
+class _StubSparse:
+    def __init__(self, *args: Any, **kwargs: Any) -> None: ...
+
+    def embed_query(self, text: str) -> list[float]:
+        return []
+
+
+def _patch_store_dependencies(monkeypatch: Any) -> None:
+    import langchain_qdrant
+
+    from app.config import QdrantSettings
+    from app.rag import retrieval as retrieval_module
+
+    monkeypatch.setattr(
+        retrieval_module, "get_embedding_settings", lambda: _StubEmbeddingSettings()
+    )
+    monkeypatch.setattr(retrieval_module, "get_qdrant_settings", lambda: QdrantSettings())
+    monkeypatch.setattr(retrieval_module, "QdrantClient", lambda **kwargs: object())
+    monkeypatch.setattr(langchain_qdrant, "FastEmbedSparse", _StubSparse)
+
+
+def test_store_creation_survives_throttled_provider(monkeypatch) -> None:
+    """Collection validation embeds a probe string.
+
+    A throttled provider must therefore not disable sparse search.
+    """
+    import langchain_qdrant
+
+    from app.rag.retrieval import Retriever
+
+    validations: list[bool] = []
+
+    class _VectorStore:
+        def __init__(self, **kwargs: Any) -> None:
+            validate = bool(kwargs.get("validate_collection_config", True))
+            validations.append(validate)
+            if validate:
+                raise RuntimeError("embedding provider timed out")
+
+    _patch_store_dependencies(monkeypatch)
+    monkeypatch.setattr(langchain_qdrant, "QdrantVectorStore", _VectorStore)
+
+    store = Retriever()._create_store()
+
+    assert isinstance(store, _VectorStore)
+    assert validations == [True, False], "validation must be retried without the probe embedding"
+
+
+def test_store_creation_still_reports_collection_mismatch(monkeypatch) -> None:
+    import langchain_qdrant
+    from langchain_qdrant.qdrant import QdrantVectorStoreError
+
+    from app.rag.retrieval import RetrievalProviderError, Retriever
+
+    validations: list[bool] = []
+
+    class _VectorStore:
+        def __init__(self, **kwargs: Any) -> None:
+            validations.append(bool(kwargs.get("validate_collection_config", True)))
+            raise QdrantVectorStoreError("Existing collection lacks dense vector")
+
+    _patch_store_dependencies(monkeypatch)
+    monkeypatch.setattr(langchain_qdrant, "QdrantVectorStore", _VectorStore)
+
+    with pytest.raises(RetrievalProviderError):
+        Retriever()._create_store()
+
+    assert validations == [True], "a real collection mismatch must not be retried silently"
