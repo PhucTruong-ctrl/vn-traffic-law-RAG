@@ -234,9 +234,30 @@ Bảng 3 , số nhà cung cấp mô hình và tỉ lệ hoạt động (OpenRout
 
 ## Evaluation 40 cases
 
-Run4 của pipeline v2 (`GENERATION_MODEL=ANALYZER_MODEL=google/gemini-2.5-flash-lite`, `top_k=5`, run `20260915T075654Z`) có 34/40 case được corpus bao phủ; 6 case bị loại vì corpus chưa bao phủ: `thesis-gold-40-00`, `thesis-gold-40-15`..`thesis-gold-40-19`. `multi_intent` có count 0 vì toàn bộ case thuộc danh sách bị loại. `answer_correctness_manual` chưa chấm.
+Run mới nhất `20260915T122334Z` (`top_k=5`, endpoint `http://127.0.0.1:8000/api/v1/chat`) có 34/40 case được corpus bao phủ; 6 case bị runner loại qua danh sách `CORPUS_NOT_COVERED_CASES`: `thesis-gold-40-00`, `thesis-gold-40-15`..`thesis-gold-40-19` (khoản/điểm kỳ vọng của nhóm `multi_intent` không có trong corpus). `answer_correctness_manual` luôn `null`: runner không tự suy diễn đúng/sai ngữ nghĩa, nên `null` không phải là đạt hay không đạt.
 
-`follow_up` có `document_accuracy=0.0` vì runner gửi từng câu độc lập, không kèm history. `insufficient_evidence` có `abstention_accuracy=0.0` (5/5 vẫn trả lời). Tài liệu chỉ ghi kết quả của lần chạy mới nhất; artifact: `data/evaluation/rebuild-20260915-run4/20260915T075654Z.aggregate.json`.
+| Chỉ số | Run4 `20260915T075654Z` | Run `20260915T122334Z` |
+| ------ | ----------------------: | ---------------------: |
+| `retrieval_hit_at_k` | 0.2500 | 0.2917 |
+| `document_accuracy` | 0.5000 | 0.7083 |
+| `article_accuracy` | 0.4167 | 0.5000 |
+| `clause_accuracy` | 0.3846 | 0.5385 |
+| `point_accuracy` | 0.0000 | 0.0000 |
+| `citation_validity` | 0.8824 | 0.9118 |
+| `abstention_accuracy` | 0.7059 | 0.7353 |
+| độ trễ trung bình | 8.3s | 12.2s (p50 11.9s, p95 19.7s) |
+
+Theo nhóm ở run mới: `penalty` document 1.00 / citation 1.00 / abstention 1.00; `cross_reference` hit 0.20, document 0.80, abstention 1.00; `exact_reference` hit 0.75; `follow_up` document 0.40; `natural_language` document 0.60; `out_of_scope` abstention 0.60; `insufficient_evidence` abstention 0.00.
+
+Ba hạn chế đã đo được, không phải suy đoán:
+
+- `follow_up` hit 0.00 vì runner gửi từng câu độc lập (`{question, top_k, effective_date}`), trong khi dataset có `conversation_history` và `ChatRequest` không có trường history. Đây là giới hạn của phép đo, không kết luận được về chất lượng app.
+- `insufficient_evidence` 5/5 vẫn trả lời: cả 5 case là cùng câu `Tôi bị phạt hôm qua, phải làm gì và mức phạt chính xác bao nhiêu?` (không nêu hành vi vi phạm) nhưng trả `VERIFIED` kèm citation không liên quan.
+- `out_of_scope` 3/5 từ chối đúng; hai case bị trả lời là `Tính thuế thu nhập cá nhân cho người lái xe` và `Xin phân tích luật hình sự ngoài các văn bản giao thông trong corpus`.
+
+`citation_validity` 0.9118 không phải citation sai: cả 3 case tính là fail đều do **thiếu** citation khi gold có kỳ vọng (`thesis-gold-40-01` `INSUFFICIENT_EVIDENCE`, `thesis-gold-40-08` `OUT_OF_SCOPE`, `thesis-gold-40-24` `VERIFIED` không citation), không có citation trỏ sai được trả ra.
+
+Tài liệu chỉ ghi kết quả của lần chạy mới nhất; artifact: `data/evaluation/thesis-run/20260915T122334Z.jsonl` và `.aggregate.json` (thư mục `data/evaluation/` được gitignore).
 
 ## Các gap hiện tại
 
