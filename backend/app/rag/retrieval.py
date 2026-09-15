@@ -17,7 +17,9 @@ from qdrant_client.models import (
     Condition,
     FieldCondition,
     Filter,
+    IsEmptyCondition,
     MatchValue,
+    PayloadField,
     SparseVector,
 )
 
@@ -402,24 +404,41 @@ def _sibling_completion_documents(
     collection = getattr(store, "collection_name", None)
     if client is None or not collection:
         return []
-    must: list[Condition] = [
+
+    base_must: list[Condition] = [
         FieldCondition(key=f"metadata.{document_key}", match=MatchValue(value=document_id)),
         FieldCondition(key="metadata.article", match=MatchValue(value=article)),
     ]
+    clause_must = [*base_must]
     if clause:
-        must.append(FieldCondition(key="metadata.clause", match=MatchValue(value=clause)))
-    try:
+        clause_must.append(FieldCondition(key="metadata.clause", match=MatchValue(value=clause)))
+
+    def scroll(must: list[Condition]) -> list[Any]:
         points, _ = client.scroll(
             collection_name=collection,
             scroll_filter=Filter(must=must),
             limit=min(max(limit * 8, 32), 128),
             with_payload=True,
         )
+        return points
+
+    try:
+        points = scroll(clause_must)
     except Exception:
-        return []
-    result: list[Document] = []
+        points = []
+    if clause:
+        try:
+            article_points = scroll(
+                [*base_must, IsEmptyCondition(is_empty=PayloadField(key="metadata.clause"))]
+            )
+        except Exception:
+            article_points = []
+    else:
+        article_points = []
+
     seen = {_identity(original)}
-    for point in points:
+    candidates: list[tuple[Document, bool]] = []
+    for point in [*article_points, *points]:
         payload = getattr(point, "payload", None)
         if not isinstance(payload, Mapping):
             continue
@@ -427,14 +446,19 @@ def _sibling_completion_documents(
         if document is None:
             continue
         candidate_metadata = _metadata(document)
+        is_article_header = not str(candidate_metadata.get("clause") or "").strip()
         if (
             str(candidate_metadata.get(document_key, "")).strip() != document_id
             or str(candidate_metadata.get("article", "")).strip() != article
-            or (clause and str(candidate_metadata.get("clause", "")).strip() != clause)
+            or (
+                clause
+                and not is_article_header
+                and str(candidate_metadata.get("clause", "")).strip() != clause
+            )
             or not _temporal_match(document, effective_date)
         ):
             continue
-        if not (
+        if not is_article_header and not (
             _SANCTION_COMPLETION_RE.search(document.page_content)
             or _FAMILY_CONTEXT_RE.search(document.page_content)
         ):
@@ -443,12 +467,16 @@ def _sibling_completion_documents(
         if identity in seen:
             continue
         seen.add(identity)
-        result.append(document)
+        candidates.append((document, is_article_header))
 
-    # The clause header carries the fine amount ("Phạt tiền từ ... đồng"), so it
-    # must survive the limit even when other siblings match the context wording.
-    result.sort(key=lambda doc: (bool(_metadata(doc).get("point")), _identity(doc)[0]))
-    return result[:limit]
+    candidates.sort(
+        key=lambda item: (
+            not item[1],
+            bool(_metadata(item[0]).get("point")),
+            _identity(item[0])[0],
+        )
+    )
+    return [document for document, _ in candidates[:limit]]
 
 
 _sibling_completion_documents_impl = _sibling_completion_documents

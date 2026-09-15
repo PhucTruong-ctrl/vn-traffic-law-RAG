@@ -105,33 +105,37 @@ def test_fusion_reports_provider_failure_instead_of_empty_evidence() -> None:
 
 
 def test_clause_header_outranks_other_siblings() -> None:
-    """The fine amount lives in the clause header, so completion must return it first."""
+    """Article context comes first, then the fine-bearing clause header."""
     from app.rag.retrieval import _sibling_completion_documents
 
     class _ScrollClient:
-        def __init__(self) -> None:
-            self.collection_name = "traffic_law"
+        collection_name = "traffic_law"
 
         def scroll(self, **kwargs: Any) -> tuple[list[Any], None]:
-            payloads = [
-                _point(
-                    "nd-168-2024:0146", "Điều khiển xe trên đường mà trong máu có nồng độ cồn.", "a"
-                ),
-                _point(
-                    "nd-168-2024:0148",
-                    "Không chấp hành hiệu lệnh, hướng dẫn của người điều khiển.",
-                    "c",
-                ),
-                _point("nd-168-2024:0149", "Đi ngược chiều của đường một chiều.", "d"),
-                _point(
-                    "nd-168-2024:0145",
-                    "Phạt tiền từ 18.000.000 đồng đến 20.000.000 đồng đối với người điều khiển xe.",
-                    None,
-                ),
-            ]
+            scroll_filter = kwargs["scroll_filter"]
+            is_article = any(type(c).__name__ == "IsEmptyCondition" for c in scroll_filter.must)
+            payloads = (
+                [
+                    _point(
+                        "nd-168-2024:article:6", "Xử phạt người điều khiển ô tô.", None, clause=None
+                    )
+                ]
+                if is_article
+                else [
+                    _point(
+                        "nd-168-2024:0146",
+                        "Điều khiển xe trên đường mà trong máu có nồng độ cồn.",
+                        "a",
+                    ),
+                    _point(
+                        "nd-168-2024:0145",
+                        "Phạt tiền từ 18.000.000 đồng đến 20.000.000 đồng "
+                        "đối với người điều khiển xe.",
+                        None,
+                    ),
+                ]
+            )
             return payloads, None
-
-    from langchain_core.documents import Document
 
     class _Store:
         client = _ScrollClient()
@@ -148,18 +152,102 @@ def test_clause_header_outranks_other_siblings() -> None:
         },
     )
     siblings = _sibling_completion_documents(_Store(), original, 2)
-    assert [s.metadata["chunk_id"] for s in siblings] == ["nd-168-2024:0145", "nd-168-2024:0146"]
+    assert [s.metadata["chunk_id"] for s in siblings] == [
+        "nd-168-2024:article:6",
+        "nd-168-2024:0145",
+    ]
 
 
-def _point(chunk_id: str, text: str, point: str | None) -> Any:
+def test_completion_scroll_failures_are_isolated() -> None:
+    from app.rag.retrieval import _sibling_completion_documents
+
+    class _ScrollClient:
+        collection_name = "traffic_law"
+
+        def __init__(self, fail_article: bool = False, fail_clause: bool = False) -> None:
+            self.fail_article = fail_article
+            self.fail_clause = fail_clause
+
+        def scroll(self, **kwargs: Any) -> tuple[list[Any], None]:
+            is_article = any(
+                condition.__class__.__name__ == "IsEmptyCondition"
+                for condition in kwargs["scroll_filter"].must
+            )
+            if (is_article and self.fail_article) or (not is_article and self.fail_clause):
+                raise RuntimeError("scroll failure")
+            return [
+                _point(
+                    "article" if is_article else "clause",
+                    "Xử phạt người điều khiển ô tô." if is_article else "Phạt tiền từ 1 đồng.",
+                    None,
+                    clause=None if is_article else "9",
+                )
+            ], None
+
+    class _Store:
+        def __init__(self, client: _ScrollClient) -> None:
+            self.client = client
+            self.collection_name = "traffic_law"
+
+    original = Document(
+        "violation",
+        metadata={"chunk_id": "orig", "document_id": "nd-168-2024", "article": "6", "clause": "9"},
+    )
+    assert [
+        d.metadata["chunk_id"]
+        for d in _sibling_completion_documents(
+            _Store(_ScrollClient(fail_article=True)), original, 2
+        )
+    ] == ["clause"]
+    assert [
+        d.metadata["chunk_id"]
+        for d in _sibling_completion_documents(_Store(_ScrollClient(fail_clause=True)), original, 2)
+    ] == ["article"]
+
+
+def test_clauseless_original_keeps_single_scroll_behavior() -> None:
+    from app.rag.retrieval import _sibling_completion_documents
+
+    class _ScrollClient:
+        collection_name = "traffic_law"
+
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def scroll(self, **kwargs: Any) -> tuple[list[Any], None]:
+            self.calls += 1
+            return [
+                _point("sibling", "Phạt tiền từ 1 đồng.", None, document_id="d", article="1")
+            ], None
+
+    class _Store:
+        client = _ScrollClient()
+        collection_name = "traffic_law"
+
+    original = Document("header", metadata={"chunk_id": "orig", "document_id": "d", "article": "1"})
+    assert [
+        doc.metadata["chunk_id"] for doc in _sibling_completion_documents(_Store(), original, 2)
+    ] == ["sibling"]
+    assert _Store.client.calls == 1
+
+
+def _point(
+    chunk_id: str,
+    text: str,
+    point: str | None,
+    *,
+    clause: str | None = "9",
+    document_id: str = "nd-168-2024",
+    article: str = "6",
+) -> Any:
     from qdrant_client.models import PointStruct
 
     metadata = {
         "chunk_id": chunk_id,
-        "document_id": "nd-168-2024",
+        "document_id": document_id,
         "document_number": "168/2024/NĐ-CP",
-        "article": "6",
-        "clause": "9",
+        "article": article,
+        "clause": clause,
     }
     if point:
         metadata["point"] = point

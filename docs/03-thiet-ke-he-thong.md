@@ -85,8 +85,13 @@ FastAPI nhận câu hỏi + history
  → retrieval top_k=8 cho từng expanded query (Qdrant dense+sparse)
  → hợp nhất bằng RRF 1/(60+rank)
  → chọn 12, 25 chunk, tối đa 3 chunk cho mỗi Điều/Khoản
+ → ưu tiên bản hiện hành trên toàn bộ tài liệu truy xuất
+   (loại chunk PARTIALLY_EFFECTIVE khi đã có bản EFFECTIVE cùng hành vi /
+    loại xe / phạm vi, bỏ qua số tiền trong câu header; tránh trộn mức
+    phạt hết hiệu lực vào ngữ cảnh)
  → enrichment sibling / chế tài / cross-reference
-   (Retriever.complete_family)
+   (Retriever.complete_family; kèm chunk cấp Điều để ngữ cảnh giữ được
+    phạm vi loại xe của từng Điều)
  → relevance filter, có graceful fallback
  → generate_answer
  → sanitize_response

@@ -327,14 +327,25 @@ def _document_matches_filters(
     return not required_action_terms or _action_document_matches(document, required_action_terms)
 
 
+_AMOUNT_TEXT_RE = re.compile(
+    r"\d{1,3}(?:[.,]\d{3})+\s*(?:đồng|triệu|nghìn|nghin|vnd)?"
+    r"|\d+\s*(?:triệu|nghìn|nghin|đồng)",
+    re.IGNORECASE | re.UNICODE,
+)
+
+
+def _version_action(metadata: dict[str, Any]) -> str:
+    # Mask monetary amounts so obsolete/current penalty headers share a version key.
+    action = _AMOUNT_TEXT_RE.sub("#", str(metadata.get("normalized_action", "")).casefold())
+    return re.sub(r"[^\w]+", " ", action, flags=re.UNICODE).strip()
+
+
 def _version_key(document: Document) -> tuple[str, tuple[str, ...], tuple[str, ...]]:
     metadata = normalize_vehicle_metadata(document.metadata or {})
     categories = metadata.get("vehicle_categories")
     scopes = metadata.get("context_scope")
     return (
-        re.sub(
-            r"[^\w]+", " ", str(metadata.get("normalized_action", "")).casefold(), flags=re.UNICODE
-        ).strip(),
+        _version_action(metadata),
         tuple(str(value) for value in categories)
         if isinstance(categories, (list, tuple, set))
         else (),
@@ -668,6 +679,8 @@ class RAGService:
         except TimeoutError:
             logger.warning("retrieval timed out for question=%r", standalone)
             return abstain("retrieval_timeout")
+        if not references and effective_date is None:
+            documents = _prefer_current_versions(documents)
         if not documents:
             if (
                 _is_penalty_or_permission_question(standalone)
@@ -730,8 +743,6 @@ class RAGService:
         )
         if railway_only and not any(marker in standalone.casefold() for marker in railway_markers):
             return abstain("no_relevant_provision")
-        if not references and effective_date is None:
-            direct = _prefer_current_versions(direct)
         filtered = list(direct or documents)
         families = {_provision_family(d) for d in documents}
         complete_family = getattr(self.retriever, "complete_family", None)
